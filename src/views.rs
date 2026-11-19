@@ -105,12 +105,16 @@ impl LensApp {
         egui::Frame::NONE.inner_margin(Margin { left: 12, right: 12, top: 8, bottom: 6 }).show(ui, |ui| {
             ui.horizontal(|ui| {
                 for (v, label, tip) in [
+                    (View::Overview, "Overview", "What Lens detected about this program"),
                     (View::Text, "Code", "Disassembly listing"),
                     (View::Graph, "Graph", "Flow graph of the current function (Space)"),
+                    (View::Pseudo, "Pseudocode", "C-like version of the current function (F5)"),
+                    (View::Calls, "Call graph", "Who calls this function and what it calls"),
+                    (View::Map, "Map", "Every function as a treemap"),
                     (View::Hex, "Hex", "Raw bytes (H)"),
                 ] {
                     let on = self.nav.view == v;
-                    let enabled = v != View::Graph || has_func;
+                    let enabled = !matches!(v, View::Graph | View::Pseudo | View::Calls) || has_func;
                     if ui.add_enabled(enabled, egui::Button::selectable(on, label)).on_hover_text(tip).clicked() {
                         self.actions.push(Action::SetView(v));
                     }
@@ -127,6 +131,10 @@ impl LensApp {
         });
         ui.add(egui::Separator::default().spacing(0.0));
         match self.nav.view {
+            View::Overview => self.overview(ui),
+            View::Pseudo => self.pseudo_view(ui),
+            View::Calls => self.calls_view(ui),
+            View::Map => self.map_view(ui),
             View::Text => self.listing(ui),
             View::Graph => self.graph_view(ui),
             View::Hex => self.hex_view(ui),

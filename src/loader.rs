@@ -62,6 +62,8 @@ pub struct Binary {
     pub libraries: Vec<String>,
     pub file_size: u64,
     pub notes: Vec<String>,
+    /// CPU parts found in a universal (fat) Mach-O, e.g. ["x86_64", "arm64"].
+    pub slices: Vec<String>,
 }
 
 impl Binary {
@@ -218,6 +220,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         libraries: vec![],
         file_size: bytes.len() as u64,
         notes: resolved_note.into_iter().collect(),
+        slices: vec![],
     };
     match Object::parse(&bytes) {
         Ok(Object::Elf(elf)) => load_elf(&mut bin, &elf, &bytes),
@@ -435,7 +438,12 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
             let mut pick = None;
             for (i, a) in arches.iter().enumerate() {
                 let n = goblin::mach::constants::cputype::get_arch_name_from_types(a.cputype, a.cpusubtype)
-                    .unwrap_or("unknown");
+                    .unwrap_or(match a.cputype {
+                        goblin::mach::constants::cputype::CPU_TYPE_ARM64 => "arm64",
+                        goblin::mach::constants::cputype::CPU_TYPE_X86_64 => "x86_64",
+                        goblin::mach::constants::cputype::CPU_TYPE_X86 => "i386",
+                        _ => "unknown",
+                    });
                 names.push(n.to_string());
                 if a.cputype == goblin::mach::constants::cputype::CPU_TYPE_X86_64 && pick.is_none() {
                     pick = Some(i);
@@ -447,6 +455,7 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
                 }
             }
             let idx = pick.unwrap_or(0);
+            bin.slices = names.clone();
             bin.notes.push(format!(
                 "Universal program with {} parts ({}); showing the {} part.",
                 names.len(),

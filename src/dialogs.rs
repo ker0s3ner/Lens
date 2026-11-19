@@ -194,7 +194,7 @@ impl LensApp {
                     }
                 }
                 Modal::Find { text, focus } => {
-                    title(ui, "Find text", "Searches the code listing from the cursor down. Ctrl+T or F3 finds the next one.");
+                    title(ui, "Find text", "Searches the listing from the cursor down. Type bytes like 48 8B ?? 05 to search the raw bytes instead. F3 finds the next one.");
                     let r = ui.add(TextEdit::singleline(text).desired_width(f32::INFINITY));
                     if *focus {
                         r.request_focus();
@@ -217,6 +217,19 @@ impl LensApp {
                         ("Open a program", "Cmd+O", Action::OpenDialog),
                         ("Go to address or name", "G", Action::Jump),
                         ("Switch graph / code view", "Space", Action::SetView(if view == View::Graph { View::Text } else { View::Graph })),
+                        ("Show overview (what was detected)", "", Action::SetView(View::Overview)),
+                        ("Show pseudocode (decompile)", "F5", Action::SetView(View::Pseudo)),
+                        ("Show call graph", "", Action::SetView(View::Calls)),
+                        ("Show function map", "", Action::SetView(View::Map)),
+                        ("Export pseudocode of every function…", "", Action::ExportC),
+                        ("Show pseudocode as Python", "", Action::SetLang(crate::lang::Lang::Python)),
+                        ("Show pseudocode as Rust", "", Action::SetLang(crate::lang::Lang::Rust)),
+                        ("Show pseudocode as Go", "", Action::SetLang(crate::lang::Lang::Go)),
+                        ("Show pseudocode as JavaScript", "", Action::SetLang(crate::lang::Lang::JavaScript)),
+                        ("Show pseudocode as C", "", Action::SetLang(crate::lang::Lang::C)),
+                        ("Bookmark this spot", "M", Action::Mark(cur)),
+                        ("Show names", "", Action::SetSide(Side::Names)),
+                        ("Show bookmarks", "", Action::SetSide(Side::Marks)),
                         ("Show hex view", "H", Action::SetView(View::Hex)),
                         ("Rename at cursor", "N", Action::Rename(cur)),
                         ("Add a note at cursor", ";", Action::Comment(cur)),

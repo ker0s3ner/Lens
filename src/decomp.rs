@@ -1,0 +1,1709 @@
+//! Pseudo-C decompiler for x86 / x64 functions.
+//!
+//! Steps: (1) per basic block, run the instructions symbolically so registers become
+//! expressions; (2) work out which registers are still needed by later blocks (liveness);
+//! (3) turn the jumps into `if` / `else` / `while` / `do … while` where the layout allows and
+//! `goto` where it doesn't. The calling convention comes from `detect.rs`.
+//!
+//! It is a lifter, not a type recoverer: comparisons are printed without signedness and every
+//! value is an integer. It is meant to be read next to the listing.
+
+use crate::analysis::{decode_at, display_symbol, is_noreturn_name, Analysis, Flow, Function, NameKind};
+use crate::detect::CallConv;
+use crate::loader::Binary;
+use iced_x86::{ConditionCode, Instruction, Mnemonic, OpKind, Register};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+// ------------------------------------------------------------------ expressions
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum Ex {
+    Num(i64),
+    Var(String),
+    Bin(&'static str, Box<Ex>, Box<Ex>),
+    Un(&'static str, Box<Ex>),
+    Deref(Box<Ex>, u8),
+    Cast(&'static str, Box<Ex>),
+    Call(Box<Ex>, Vec<Ex>),
+    Tern(Box<Ex>, Box<Ex>, Box<Ex>),
+    Raw(String),
+}
+
+fn var(s: &str) -> Ex {
+    Ex::Var(s.to_string())
+}
+
+fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
+    use Ex::*;
+    match (op, &a, &b) {
+        ("+", Num(x), Num(y)) => Num(x.wrapping_add(*y)),
+        ("-", Num(x), Num(y)) => Num(x.wrapping_sub(*y)),
+        ("*", Num(x), Num(y)) => Num(x.wrapping_mul(*y)),
+        ("&", Num(x), Num(y)) => Num(x & y),
+        ("|", Num(x), Num(y)) => Num(x | y),
+        ("^", Num(x), Num(y)) => Num(x ^ y),
+        ("<<", Num(x), Num(y)) if *y < 64 => Num(x.wrapping_shl(*y as u32)),
+        (">>", Num(x), Num(y)) if *y < 64 => Num(((*x as u64) >> *y) as i64),
+        ("+", _, Num(0)) | ("-", _, Num(0)) | ("|", _, Num(0)) | ("^", _, Num(0)) | ("<<", _, Num(0)) | (">>", _, Num(0)) => a,
+        ("+", Num(0), _) | ("|", Num(0), _) | ("^", Num(0), _) => b,
+        ("*", _, Num(1)) | ("/", _, Num(1)) => a,
+        ("*", Num(1), _) => b,
+        ("*", _, Num(0)) | ("*", Num(0), _) | ("&", _, Num(0)) | ("&", Num(0), _) => Num(0),
+        ("^", x, y) if x == y => Num(0),
+        ("-", x, y) if x == y => Num(0),
+        ("&", x, y) | ("|", x, y) if x == y => a.clone(),
+        ("-", _, Num(c)) => bin("+", a, Num(c.wrapping_neg())),
+        ("+", Bin("+", x, y), Num(c)) if matches!(**y, Num(_)) => {
+            if let Num(d) = **y {
+                bin("+", (**x).clone(), Num(d.wrapping_add(*c)))
+            } else {
+                unreachable!()
+            }
+        }
+        ("+", Num(_), _) if !matches!(b, Num(_)) => bin("+", b, a),
+        ("*", Num(_), _) if !matches!(b, Num(_)) => bin("*", b, a),
+        _ => Bin(op, Box::new(a), Box::new(b)),
+    }
+}
+
+fn prec(e: &Ex) -> u8 {
+    match e {
+        Ex::Bin(op, _, _) => match *op {
+            "*" | "/" | "%" => 5,
+            "+" | "-" => 6,
+            "<<" | ">>" => 7,
+            "<" | "<=" | ">" | ">=" => 8,
+            "==" | "!=" => 9,
+            "&" => 10,
+            "^" => 11,
+            "|" => 12,
+            "&&" => 13,
+            "||" => 14,
+            _ => 15,
+        },
+        Ex::Tern(..) => 16,
+        Ex::Un(..) | Ex::Cast(..) => 3,
+        Ex::Deref(..) => 3,
+        Ex::Num(n) if *n < 0 => 3,
+        _ => 0,
+    }
+}
+
+fn int_type(size: u8) -> &'static str {
+    match size {
+        1 => "uint8_t",
+        2 => "uint16_t",
+        4 => "uint32_t",
+        8 => "uint64_t",
+        16 => "__m128",
+        _ => "uint8_t",
+    }
+}
+
+struct Fmt<'a> {
+    rename: &'a HashMap<String, String>,
+}
+
+impl Fmt<'_> {
+    fn num(n: i64) -> String {
+        if (-9..=9).contains(&n) {
+            n.to_string()
+        } else if n < 0 && n > -0x10000 {
+            format!("-0x{:X}", -n)
+        } else {
+            format!("0x{:X}", n as u64)
+        }
+    }
+
+    fn show(&self, e: &Ex) -> String {
+        self.at(e, 99)
+    }
+
+    fn at(&self, e: &Ex, ctx: u8) -> String {
+        let s = match e {
+            Ex::Num(n) => Self::num(*n),
+            Ex::Var(v) => self.rename.get(v).cloned().unwrap_or_else(|| v.clone()),
+            Ex::Raw(s) => s.clone(),
+            Ex::Un(op, a) => format!("{op}{}", self.at(a, 3)),
+            Ex::Cast(t, a) => format!("({t}){}", self.at(a, 3)),
+            Ex::Deref(a, sz) => format!("*({}*){}", int_type(*sz), self.at(a, 3)),
+            Ex::Call(f, args) => {
+                let callee = match &**f {
+                    Ex::Var(_) => self.at(f, 0),
+                    other => format!("(*{})", self.at(other, 3)),
+                };
+                let a: Vec<String> = args.iter().map(|x| self.at(x, 99)).collect();
+                format!("{callee}({})", a.join(", "))
+            }
+            Ex::Tern(c, a, b) => format!("{} ? {} : {}", self.at(c, 15), self.at(a, 15), self.at(b, 15)),
+            Ex::Bin(op, a, b) => {
+                // x + -4  →  x - 4
+                if *op == "+" {
+                    if let Ex::Num(n) = **b {
+                        if n < 0 && n > i64::MIN {
+                            let p = prec(e);
+                            let s = format!("{} - {}", self.at(a, p), Self::num(-n));
+                            return if p >= ctx { format!("({s})") } else { s };
+                        }
+                    }
+                }
+                let p = prec(e);
+                let s = format!("{} {op} {}", self.at(a, p), self.at(b, p - 1));
+                if p >= ctx {
+                    return format!("({s})");
+                }
+                s
+            }
+        };
+        if prec(e) >= ctx && prec(e) != 0 && !matches!(e, Ex::Bin(..)) {
+            format!("({s})")
+        } else {
+            s
+        }
+    }
+}
+
+fn is_narrow(e: &Ex) -> bool {
+    match e {
+        Ex::Bin("==" | "!=" | "<" | ">=" | ">" | "<=", ..) => true,
+        Ex::Cast("uint8_t" | "uint16_t", _) => true,
+        Ex::Num(n) => (0..256).contains(n),
+        Ex::Bin("&" | "|" | "^", a, b) => is_narrow(a) && is_narrow(b),
+        Ex::Bin("&", a, b) => is_narrow(a) || is_narrow(b),
+        Ex::Tern(_, a, b) => is_narrow(a) && is_narrow(b),
+        Ex::Un("!", _) => true,
+        _ => false,
+    }
+}
+
+fn negate(e: Ex) -> Ex {
+    match e {
+        Ex::Bin("==", a, b) => Ex::Bin("!=", a, b),
+        Ex::Bin("!=", a, b) => Ex::Bin("==", a, b),
+        Ex::Bin("<", a, b) => Ex::Bin(">=", a, b),
+        Ex::Bin(">=", a, b) => Ex::Bin("<", a, b),
+        Ex::Bin(">", a, b) => Ex::Bin("<=", a, b),
+        Ex::Bin("<=", a, b) => Ex::Bin(">", a, b),
+        Ex::Un("!", a) => *a,
+        other => Ex::Un("!", Box::new(other)),
+    }
+}
+
+fn mentions(e: &Ex, target: &Ex) -> bool {
+    if e == target {
+        return true;
+    }
+    match e {
+        Ex::Bin(_, a, b) => mentions(a, target) || mentions(b, target),
+        Ex::Un(_, a) | Ex::Cast(_, a) => mentions(a, target),
+        Ex::Deref(a, _) => matches!(target, Ex::Deref(..)) || mentions(a, target),
+        Ex::Call(f, args) => mentions(f, target) || args.iter().any(|a| mentions(a, target)),
+        Ex::Tern(a, b, c) => mentions(a, target) || mentions(b, target) || mentions(c, target),
+        _ => false,
+    }
+}
+
+fn ex_size(e: &Ex) -> usize {
+    match e {
+        Ex::Bin(_, a, b) => 1 + ex_size(a) + ex_size(b),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::Deref(a, _) => 1 + ex_size(a),
+        Ex::Call(f, args) => 1 + ex_size(f) + args.iter().map(ex_size).sum::<usize>(),
+        Ex::Tern(a, b, c) => 1 + ex_size(a) + ex_size(b) + ex_size(c),
+        _ => 1,
+    }
+}
+
+fn has_deref(e: &Ex) -> bool {
+    match e {
+        Ex::Deref(..) => true,
+        Ex::Bin(_, a, b) => has_deref(a) || has_deref(b),
+        Ex::Un(_, a) | Ex::Cast(_, a) => has_deref(a),
+        Ex::Call(f, args) => has_deref(f) || args.iter().any(has_deref),
+        Ex::Tern(a, b, c) => has_deref(a) || has_deref(b) || has_deref(c),
+        _ => false,
+    }
+}
+
+fn subst(e: &Ex, from: &Ex, to: &Ex) -> Ex {
+    if e == from {
+        return to.clone();
+    }
+    match e {
+        Ex::Bin(o, a, b) => Ex::Bin(o, Box::new(subst(a, from, to)), Box::new(subst(b, from, to))),
+        Ex::Un(o, a) => Ex::Un(o, Box::new(subst(a, from, to))),
+        Ex::Cast(t, a) => Ex::Cast(t, Box::new(subst(a, from, to))),
+        Ex::Deref(a, s) => Ex::Deref(Box::new(subst(a, from, to)), *s),
+        Ex::Call(f, args) => Ex::Call(Box::new(subst(f, from, to)), args.iter().map(|a| subst(a, from, to)).collect()),
+        Ex::Tern(a, b, c) => Ex::Tern(Box::new(subst(a, from, to)), Box::new(subst(b, from, to)), Box::new(subst(c, from, to))),
+        other => other.clone(),
+    }
+}
+
+fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
+    match e {
+        Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
+        Ex::Bin(_, a, b) => {
+            count_vars(a, m);
+            count_vars(b, m)
+        }
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::Deref(a, _) => count_vars(a, m),
+        Ex::Call(f, args) => {
+            count_vars(f, m);
+            args.iter().for_each(|a| count_vars(a, m))
+        }
+        Ex::Tern(a, b, c) => {
+            count_vars(a, m);
+            count_vars(b, m);
+            count_vars(c, m)
+        }
+        _ => {}
+    }
+}
+
+// ------------------------------------------------------------------ registers
+
+const GPR: [&str; 16] =
+    ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"];
+const RAX: u8 = 0;
+const RDX: u8 = 2;
+const RSP: u8 = 4;
+const RBP: u8 = 5;
+
+fn reg_index(r: Register) -> Option<u8> {
+    if r == Register::None {
+        return None;
+    }
+    if r.is_gpr() {
+        return Some(r.full_register().number() as u8);
+    }
+    if r.is_xmm() || r.is_ymm() || r.is_zmm() {
+        return Some(16 + (r.number() as u8 % 16));
+    }
+    None
+}
+
+fn reg_name(i: u8) -> String {
+    if i < 16 {
+        GPR[i as usize].to_string()
+    } else {
+        format!("xmm{}", i - 16)
+    }
+}
+
+fn is_callee_saved(i: u8, conv: CallConv) -> bool {
+    match conv {
+        CallConv::Win64 => matches!(i, 3 | 5 | 6 | 7 | 12 | 13 | 14 | 15),
+        _ => matches!(i, 3 | 5 | 12 | 13 | 14 | 15) || (matches!(conv, CallConv::Cdecl32 | CallConv::Fastcall32 | CallConv::Delphi32) && matches!(i, 6 | 7)),
+    }
+}
+
+// ------------------------------------------------------------------ statements
+
+#[derive(Clone, Debug)]
+enum Stmt {
+    Assign(Ex, Ex),
+    Expr(Ex),
+    Comment(String),
+}
+
+#[derive(Clone, Debug)]
+enum Flags {
+    None,
+    Cmp(Ex, Ex),
+    /// Result of an operation: zero / sign tests apply to it.
+    Op(Ex),
+}
+
+#[derive(Clone, Debug)]
+enum Term {
+    Ret(Option<Ex>),
+    Jmp(u64),
+    Cond { cond: Ex, taken: u64, fall: u64 },
+    Indirect(Ex),
+    Fall(u64),
+    Stop,
+}
+
+struct BlockOut {
+    stmts: Vec<(u64, Stmt)>,
+    defs: BTreeMap<u8, Ex>,
+    uses: BTreeSet<u8>,
+    term: Term,
+    term_addr: u64,
+}
+
+#[derive(Clone)]
+pub struct DLine {
+    pub text: String,
+    pub addr: u64,
+    pub indent: usize,
+}
+
+pub struct Decompiled {
+    pub lines: Vec<DLine>,
+}
+
+fn cc_expr(cc: ConditionCode, fl: &Flags) -> Ex {
+    use ConditionCode as C;
+    let (a, b): (Ex, Ex) = match fl {
+        Flags::Cmp(x, y) => (x.clone(), y.clone()),
+        Flags::Op(r) => (r.clone(), Ex::Num(0)),
+        Flags::None => return Ex::Raw(format!("/* flags {:?} */ cond", cc)),
+    };
+    let is_cmp = matches!(fl, Flags::Cmp(..));
+    let op = |o: &'static str| Ex::Bin(o, Box::new(a.clone()), Box::new(b.clone()));
+    match cc {
+        C::e => op("=="),
+        C::ne => op("!="),
+        C::l => op("<"),
+        C::ge => op(">="),
+        C::le => op("<="),
+        C::g => op(">"),
+        C::b => if is_cmp { op("<") } else { Ex::Raw("CF".into()) },
+        C::ae => if is_cmp { op(">=") } else { Ex::Un("!", Box::new(Ex::Raw("CF".into()))) },
+        C::be => if is_cmp { op("<=") } else { Ex::Raw("CF || ZF".into()) },
+        C::a => if is_cmp { op(">") } else { op("!=") },
+        C::s => Ex::Bin("<", Box::new(bin("-", a.clone(), b.clone())), Box::new(Ex::Num(0))),
+        C::ns => Ex::Bin(">=", Box::new(bin("-", a.clone(), b.clone())), Box::new(Ex::Num(0))),
+        C::o => Ex::Raw("OF".into()),
+        C::no => Ex::Raw("!OF".into()),
+        C::p => Ex::Raw("PF".into()),
+        C::np => Ex::Raw("!PF".into()),
+        _ => Ex::Raw("cond".into()),
+    }
+}
+
+// ------------------------------------------------------------------ the decompiler
+
+struct Dc<'a> {
+    bin: &'a Binary,
+    an: &'a Analysis,
+    names: &'a HashMap<u64, (String, NameKind)>,
+    conv: CallConv,
+    word: i64,
+    fp: bool,
+    locals: BTreeMap<String, u8>,
+    stack_args: BTreeSet<usize>,
+    tmp: usize,
+    dem: std::cell::RefCell<HashMap<u64, String>>,
+}
+
+#[derive(Clone)]
+struct St {
+    env: HashMap<u8, Ex>,
+    flags: Flags,
+    sp: i64,
+    bp: Option<i64>,
+    pending: Vec<Ex>,
+    dirty: BTreeSet<u8>,
+    uses: BTreeSet<u8>,
+    modified: BTreeSet<u8>,
+    stmts: Vec<(u64, Stmt)>,
+    out_args_used: bool,
+}
+
+impl<'a> Dc<'a> {
+    fn disp(&self, a: u64, raw: &str) -> String {
+        if let Some(s) = self.dem.borrow().get(&a) {
+            return s.clone();
+        }
+        let s = display_symbol(raw);
+        self.dem.borrow_mut().insert(a, s.clone());
+        s
+    }
+
+    fn callee_name(&self, a: u64) -> String {
+        match self.names.get(&a) {
+            Some((n, _)) => self.disp(a, n).trim_start_matches("__imp_").trim_start_matches('_').to_string(),
+            None => format!("sub_{a:X}"),
+        }
+        .pipe_nonempty(a)
+    }
+
+    fn global(&self, a: u64) -> Ex {
+        if let Some(i) = self.an.string_at.get(&a) {
+            return Ex::Raw(format!("\"{}\"", crate::code::escape_str(&self.an.strings[*i].text, 60)));
+        }
+        match self.names.get(&a) {
+            Some((n, _)) => Ex::Var(self.disp(a, n)),
+            None => Ex::Num(a as i64),
+        }
+    }
+
+    fn rd_reg(&self, st: &mut St, r: Register) -> Ex {
+        let Some(i) = reg_index(r) else { return Ex::Raw(format!("{r:?}").to_lowercase()) };
+        if i == RSP && !(r.size() < 4) {
+            return Ex::Raw("sp".into());
+        }
+        if i == RBP && self.fp && !st.env.contains_key(&RBP) {
+            return Ex::Raw("fp".into());
+        }
+        let base = match st.env.get(&i) {
+            Some(e) => e.clone(),
+            None => {
+                st.uses.insert(i);
+                Ex::Var(reg_name(i))
+            }
+        };
+        let sz = r.size();
+        if r.is_gpr() && sz < 4 {
+            if r == Register::AH || r == Register::BH || r == Register::CH || r == Register::DH {
+                return Ex::Cast("uint8_t", Box::new(bin(">>", base, Ex::Num(8))));
+            }
+            let t = if sz == 1 { "uint8_t" } else { "uint16_t" };
+            if is_narrow(&base) {
+                return base;
+            }
+            return Ex::Cast(t, Box::new(base));
+        }
+        base
+    }
+
+    fn wr_reg(&mut self, st: &mut St, r: Register, v: Ex, addr: u64) {
+        let Some(i) = reg_index(r) else { return };
+        if i == RSP {
+            return;
+        }
+        if i == RBP && self.fp {
+            return;
+        }
+        // writing al / ax keeps the rest of the register
+        let v = if r.is_gpr() && r.size() < 4 && !is_narrow(&v) {
+            let old = self.rd_reg(st, r.full_register());
+            let mask: i64 = if r.size() == 1 { 0xFF } else { 0xFFFF };
+            if matches!(old, Ex::Num(0)) {
+                bin("&", v, Ex::Num(mask))
+            } else {
+                bin("|", bin("&", old, Ex::Num(!mask)), bin("&", v, Ex::Num(mask)))
+            }
+        } else {
+            v
+        };
+        // keep expressions small: long chains become a named temporary
+        let v = if ex_size(&v) > 16 {
+            self.tmp += 1;
+            let t = format!("t{}", self.tmp);
+            st.stmts.push((addr, Stmt::Assign(var(&t), v)));
+            var(&t)
+        } else {
+            v
+        };
+        st.env.insert(i, v);
+        st.modified.insert(i);
+        st.dirty.insert(i);
+    }
+
+    fn frame_slot(&mut self, off: i64, size: u8, bp: Option<i64>) -> Ex {
+        let w = self.word;
+        if off >= w {
+            // arguments
+            match self.conv {
+                CallConv::Win64 if off < 8 + 32 => {
+                    let idx = ((off - 8) / 8) as usize;
+                    return Ex::Var(GPR[[1usize, 2, 8, 9][idx.min(3)]].to_string());
+                }
+                CallConv::Win64 => {
+                    let k = ((off - 40) / 8) as usize + 5;
+                    self.stack_args.insert(k);
+                    return Ex::Var(format!("a{k}"));
+                }
+                CallConv::SysV64 | CallConv::GoAbi => {
+                    let k = ((off - 8) / 8) as usize + self.conv.arg_regs().len() + 1;
+                    self.stack_args.insert(k);
+                    return Ex::Var(format!("a{k}"));
+                }
+                _ => {
+                    let k = ((off - 4) / 4) as usize + 1 + self.conv.arg_regs().len();
+                    self.stack_args.insert(k);
+                    return Ex::Var(format!("a{k}"));
+                }
+            }
+        }
+        if off >= 0 {
+            return Ex::Var("retaddr".into());
+        }
+        let name = match (self.fp, bp) {
+            (true, Some(b)) => format!("var_{:X}", (b - off).max(0)),
+            _ => format!("var_{:X}", -off),
+        };
+        let e = self.locals.entry(name.clone()).or_insert(size.max(1));
+        if size > *e {
+            *e = size;
+        }
+        Ex::Var(name)
+    }
+
+    /// Value of a memory operand's address, and the lvalue it names.
+    fn mem_operand(&mut self, st: &mut St, ins: &Instruction, size: u8) -> (Ex, Ex) {
+        if ins.is_ip_rel_memory_operand() {
+            let a = ins.ip_rel_memory_address();
+            let lv = match self.names.get(&a) {
+                Some(_) => self.global(a),
+                None => Ex::Deref(Box::new(Ex::Num(a as i64)), size),
+            };
+            return (self.global_addr(a), lv);
+        }
+        let seg = ins.memory_segment();
+        let base = ins.memory_base();
+        let index = ins.memory_index();
+        let disp = ins.memory_displacement64() as i64;
+        let disp = if self.word == 4 { disp as i32 as i64 } else { disp };
+        if matches!(seg, Register::FS | Register::GS) {
+            let s = if seg == Register::FS { "fs" } else { "gs" };
+            let lv = Ex::Raw(format!("__{s}[{}]", Fmt::num(disp)));
+            return (Ex::Raw(format!("&__{s}[{}]", Fmt::num(disp))), lv);
+        }
+        // stack-frame slots
+        if index == Register::None {
+            let bi = reg_index(base);
+            if bi == Some(RSP) {
+                let off = st.sp + disp;
+                let slot = self.frame_slot(off, size, st.bp);
+                return (Ex::Un("&", Box::new(slot.clone())), slot);
+            }
+            if bi == Some(RBP) && self.fp {
+                if let Some(b) = st.bp {
+                    let off = b + disp;
+                    let slot = self.frame_slot(off, size, st.bp);
+                    return (Ex::Un("&", Box::new(slot.clone())), slot);
+                }
+            }
+        }
+        let mut addr = if base != Register::None { self.rd_reg(st, base) } else { Ex::Num(0) };
+        if index != Register::None {
+            let ix = self.rd_reg(st, index);
+            let sc = ins.memory_index_scale() as i64;
+            addr = bin("+", addr, if sc == 1 { ix } else { bin("*", ix, Ex::Num(sc)) });
+        }
+        addr = bin("+", addr, Ex::Num(disp));
+        if let Ex::Num(a) = addr {
+            let a = a as u64;
+            if self.names.contains_key(&a) {
+                return (self.global_addr(a), self.global(a));
+            }
+        }
+        (addr.clone(), Ex::Deref(Box::new(addr), size))
+    }
+
+    fn global_addr(&self, a: u64) -> Ex {
+        if let Some(i) = self.an.string_at.get(&a) {
+            return Ex::Raw(format!("\"{}\"", crate::code::escape_str(&self.an.strings[*i].text, 60)));
+        }
+        match self.names.get(&a) {
+            Some((n, k)) => {
+                let d = Ex::Var(self.disp(a, n));
+                if *k == NameKind::Function || *k == NameKind::Import {
+                    d
+                } else {
+                    Ex::Un("&", Box::new(d))
+                }
+            }
+            None => Ex::Num(a as i64),
+        }
+    }
+
+    fn read_op(&mut self, st: &mut St, ins: &Instruction, i: u32) -> Ex {
+        match ins.op_kind(i) {
+            OpKind::Register => self.rd_reg(st, ins.op_register(i)),
+            OpKind::Immediate8 | OpKind::Immediate16 | OpKind::Immediate32 | OpKind::Immediate64 | OpKind::Immediate8to16
+            | OpKind::Immediate8to32 | OpKind::Immediate8to64 | OpKind::Immediate32to64 | OpKind::Immediate8_2nd => {
+                let v = ins.immediate(i);
+                let n = match ins.op_kind(i) {
+                    OpKind::Immediate8 => v as u8 as i8 as i64,
+                    OpKind::Immediate16 => v as u16 as i16 as i64,
+                    OpKind::Immediate32 if self.word == 4 => v as u32 as i32 as i64,
+                    OpKind::Immediate32 => v as u32 as i64,
+                    _ => v as i64,
+                };
+                // an immediate that is a known address reads better as its name
+                let u = v as u64;
+                if u > 0xFFF && (self.names.contains_key(&u) || self.an.string_at.contains_key(&u)) {
+                    return self.global_addr(u);
+                }
+                Ex::Num(n)
+            }
+            OpKind::Memory => {
+                let sz = ins.memory_size().size() as u8;
+                let (_, lv) = self.mem_operand(st, ins, sz.max(1));
+                lv
+            }
+            OpKind::NearBranch16 | OpKind::NearBranch32 | OpKind::NearBranch64 => self.global_addr(ins.near_branch_target()),
+            _ => Ex::Raw("?".into()),
+        }
+    }
+
+    fn freeze(&mut self, st: &mut St, addr: u64, only_deref: bool, lv: Option<&Ex>) {
+        let keys: Vec<u8> = st.env.keys().copied().collect();
+        for k in keys {
+            let e = st.env[&k].clone();
+            if matches!(e, Ex::Var(_) | Ex::Num(_)) {
+                // plain variables are only a problem when that variable is being overwritten
+                if let (Some(l), Ex::Var(_)) = (lv, &e) {
+                    if &e == l {
+                        self.tmp += 1;
+                        let t = format!("t{}", self.tmp);
+                        st.stmts.push((addr, Stmt::Assign(var(&t), e)));
+                        st.env.insert(k, var(&t));
+                    }
+                }
+                continue;
+            }
+            let bad = match lv {
+                Some(l) => mentions(&e, l),
+                None => has_deref(&e),
+            };
+            if bad || (only_deref && has_deref(&e) && lv.is_none()) {
+                self.tmp += 1;
+                let t = format!("t{}", self.tmp);
+                st.stmts.push((addr, Stmt::Assign(var(&t), e)));
+                st.env.insert(k, var(&t));
+            }
+        }
+    }
+
+    fn store(&mut self, st: &mut St, addr: u64, lv: Ex, v: Ex) {
+        if lv == v {
+            return;
+        }
+        self.freeze(st, addr, false, Some(&lv));
+        // a call's return value stored directly keeps a single statement
+        st.stmts.push((addr, Stmt::Assign(lv, v)));
+    }
+
+    fn write_op(&mut self, st: &mut St, ins: &Instruction, i: u32, v: Ex) {
+        let addr = ins.ip();
+        match ins.op_kind(i) {
+            OpKind::Register => self.wr_reg(st, ins.op_register(i), v, addr),
+            OpKind::Memory => {
+                let sz = ins.memory_size().size() as u8;
+                let (_, lv) = self.mem_operand(st, ins, sz.max(1));
+                self.store(st, addr, lv, v);
+            }
+            _ => {}
+        }
+    }
+
+    fn do_call(&mut self, st: &mut St, ins: &Instruction, info: &crate::analysis::Insn) {
+        let addr = ins.ip();
+        let (callee, noret, skip): (Ex, bool, bool) = match info.flow {
+            Flow::Call if info.target != 0 => {
+                let n = self.callee_name(info.target);
+                let nr = self.an.functions.get(&info.target).map(|f| f.noreturn).unwrap_or(false) || is_noreturn_name(&n);
+                let skip = matches!(n.as_str(), "chkstk" | "alloca_probe" | "security_check_cookie" | "__chkstk" | "_alloca_probe" | "_chkstk" | "__security_check_cookie");
+                (Ex::Var(n), nr, skip)
+            }
+            _ => {
+                if info.mem != 0 && (self.names.contains_key(&info.mem) || self.an.import_slot.contains_key(&info.mem)) {
+                    let n = self.callee_name(info.mem);
+                    let nr = is_noreturn_name(&n);
+                    (Ex::Var(n), nr, false)
+                } else if ins.op_kind(0) == OpKind::Register {
+                    (self.rd_reg(st, ins.op_register(0)), false, false)
+                } else {
+                    let v = self.read_op(st, ins, 0);
+                    (v, false, false)
+                }
+            }
+        };
+        if skip {
+            return;
+        }
+        let regs = self.conv.arg_regs();
+        let idx = |r: &&str| GPR.iter().position(|g| g == r).unwrap() as u8;
+        let mut n_regs = 0;
+        for (k, r) in regs.iter().enumerate() {
+            if st.dirty.contains(&idx(r)) {
+                n_regs = k + 1;
+            }
+        }
+        let mut args: Vec<Ex> = vec![];
+        for r in regs.iter().take(n_regs) {
+            let i = idx(r);
+            args.push(match st.env.get(&i) {
+                Some(e) => e.clone(),
+                None => {
+                    st.uses.insert(i);
+                    Ex::Var(GPR[i as usize].to_string())
+                }
+            });
+        }
+        let mut pend = std::mem::take(&mut st.pending);
+        pend.reverse();
+        args.extend(pend);
+        // caller-saved registers die with the call
+        let dead: Vec<u8> = match self.conv {
+            CallConv::Win64 => vec![0, 1, 2, 8, 9, 10, 11],
+            _ => vec![0, 1, 2, 6, 7, 8, 9, 10, 11],
+        };
+        for d in &dead {
+            st.env.remove(d);
+        }
+        // everything else that reads memory must be read before the callee can change it
+        self.freeze(st, addr, true, None);
+        let call = Ex::Call(Box::new(callee), args);
+        if noret {
+            st.stmts.push((addr, Stmt::Expr(call)));
+            st.stmts.push((addr, Stmt::Comment("does not return".into())));
+            st.flags = Flags::None;
+            // mark so the terminator becomes Stop
+            st.out_args_used = true;
+            return;
+        }
+        self.tmp += 1;
+        let t = format!("v{}", self.tmp);
+        st.stmts.push((addr, Stmt::Assign(var(&t), call)));
+        st.env.insert(RAX, var(&t));
+        st.modified.insert(RAX);
+        st.modified.extend(dead.iter().copied());
+        st.dirty.clear();
+        st.dirty.insert(RAX);
+        st.flags = Flags::None;
+    }
+
+    fn exec(&mut self, f: &Function, bi: usize, sp_in: i64, bp_in: Option<i64>, is_entry: bool) -> BlockOut {
+        let blk = &f.blocks[bi];
+        let mut st = St {
+            env: HashMap::new(),
+            flags: Flags::None,
+            sp: sp_in,
+            bp: bp_in,
+            pending: vec![],
+            dirty: BTreeSet::new(),
+            uses: BTreeSet::new(),
+            modified: BTreeSet::new(),
+            stmts: vec![],
+            out_args_used: false,
+        };
+        let decoded: Vec<(u64, Instruction, crate::analysis::Insn)> =
+            blk.insns.iter().filter_map(|a| decode_at(self.bin, *a).map(|(i, info)| (*a, i, info))).collect();
+        // epilogue = trailing pops / leave / add rsp before ret
+        let mut epi_from = decoded.len();
+        if decoded.last().map(|d| d.2.flow == Flow::Ret).unwrap_or(false) {
+            let mut k = decoded.len() - 1;
+            while k > 0 {
+                let m = decoded[k - 1].1.mnemonic();
+                let ins = &decoded[k - 1].1;
+                let ok = matches!(m, Mnemonic::Pop | Mnemonic::Leave | Mnemonic::Nop)
+                    || (matches!(m, Mnemonic::Add | Mnemonic::Mov | Mnemonic::Lea) && ins.op_kind(0) == OpKind::Register && ins.op0_register() == if self.word == 8 { Register::RSP } else { Register::ESP });
+                if ok {
+                    k -= 1;
+                } else {
+                    break;
+                }
+            }
+            epi_from = k;
+        }
+        let mut in_prologue = is_entry;
+        let mut term = Term::Fall(blk.end);
+        let mut term_addr = blk.end;
+        let mut ret_val_known = false;
+        for (k, (addr, ins, info)) in decoded.iter().enumerate() {
+            let addr = *addr;
+            let m = ins.mnemonic();
+            let in_epi = k >= epi_from;
+            // prologue: push regs, mov rbp,rsp, sub rsp
+            if in_prologue {
+                let pro = match m {
+                    Mnemonic::Push => ins.op_kind(0) == OpKind::Register,
+                    Mnemonic::Mov => ins.op_kind(0) == OpKind::Register && ins.op0_register() == Register::RBP && ins.op_kind(1) == OpKind::Register && ins.op1_register() == Register::RSP
+                        || ins.op_kind(0) == OpKind::Register && ins.op0_register() == Register::EBP && ins.op_kind(1) == OpKind::Register && ins.op1_register() == Register::ESP,
+                    Mnemonic::Sub | Mnemonic::Endbr64 | Mnemonic::Endbr32 | Mnemonic::Nop => true,
+                    _ => false,
+                };
+                if !pro {
+                    in_prologue = false;
+                }
+            }
+            match m {
+                Mnemonic::Nop | Mnemonic::Endbr64 | Mnemonic::Endbr32 | Mnemonic::Int3 | Mnemonic::Ud2 | Mnemonic::Hlt if m != Mnemonic::Ud2 && m != Mnemonic::Hlt => {}
+                Mnemonic::Ud2 | Mnemonic::Hlt => {
+                    st.stmts.push((addr, Stmt::Comment(format!("{}", format!("{m:?}").to_lowercase()))));
+                    st.out_args_used = true;
+                }
+                Mnemonic::Push => {
+                    st.sp -= self.word;
+                    if in_prologue && ins.op_kind(0) == OpKind::Register {
+                        continue;
+                    }
+                    let v = self.read_op(&mut st, ins, 0);
+                    if self.word == 4 {
+                        st.pending.push(v);
+                    } else {
+                        st.stmts.push((addr, Stmt::Expr(Ex::Call(Box::new(var("push")), vec![v]))));
+                    }
+                }
+                Mnemonic::Pop => {
+                    st.sp += self.word;
+                    if in_epi {
+                        continue;
+                    }
+                    let v = if self.word == 4 && !st.pending.is_empty() { st.pending.pop().unwrap() } else { Ex::Call(Box::new(var("pop")), vec![]) };
+                    self.write_op(&mut st, ins, 0, v);
+                }
+                Mnemonic::Leave => {
+                    if let Some(b) = st.bp {
+                        st.sp = b + self.word;
+                    }
+                }
+                Mnemonic::Mov if ins.op_kind(0) == OpKind::Register && ins.op0_register().full_register() == Register::RSP => {
+                    if ins.op_kind(1) == OpKind::Register && ins.op1_register().full_register() == Register::RBP {
+                        if let Some(b) = st.bp {
+                            st.sp = b;
+                        }
+                    } else if ins.op_kind(1) == OpKind::Register && ins.op1_register().full_register() == Register::RSP {
+                        st.bp = Some(st.sp);
+                    }
+                }
+                Mnemonic::Mov if ins.op_kind(0) == OpKind::Register && ins.op0_register().full_register() == Register::RBP && ins.op_kind(1) == OpKind::Register && ins.op1_register().full_register() == Register::RSP && self.fp => {
+                    st.bp = Some(st.sp);
+                }
+                Mnemonic::Sub | Mnemonic::Add if ins.op_kind(0) == OpKind::Register && ins.op0_register().full_register() == Register::RSP => {
+                    if ins.op_kind(1) != OpKind::Register {
+                        let v = ins.immediate(1) as i64;
+                        let v = if ins.op_kind(1) == OpKind::Immediate32 && self.word == 4 { v as u32 as i32 as i64 } else { v };
+                        if m == Mnemonic::Sub {
+                            st.sp -= v;
+                        } else {
+                            st.sp += v;
+                        }
+                    }
+                }
+                Mnemonic::Lea if ins.op_kind(0) == OpKind::Register && ins.op0_register().full_register() == Register::RSP => {
+                    if ins.memory_base().full_register() == Register::RBP {
+                        if let Some(b) = st.bp {
+                            st.sp = b + ins.memory_displacement64() as i64;
+                        }
+                    }
+                }
+                Mnemonic::Mov | Mnemonic::Movzx | Mnemonic::Movaps | Mnemonic::Movups | Mnemonic::Movapd | Mnemonic::Movupd | Mnemonic::Movdqa
+                | Mnemonic::Movdqu | Mnemonic::Movq | Mnemonic::Movd | Mnemonic::Movss | Mnemonic::Movsd => {
+                    if m == Mnemonic::Movsd && ins.op_count() == 0 {
+                        continue;
+                    }
+                    let v = self.read_op(&mut st, ins, 1);
+                    self.write_op(&mut st, ins, 0, v);
+                }
+                Mnemonic::Movsx | Mnemonic::Movsxd => {
+                    let v = self.read_op(&mut st, ins, 1);
+                    let sz = if ins.op_kind(1) == OpKind::Register { ins.op1_register().size() } else { ins.memory_size().size() };
+                    let t = match sz {
+                        1 => "int8_t",
+                        2 => "int16_t",
+                        _ => "int32_t",
+                    };
+                    let v = match v {
+                        Ex::Cast(_, inner) => *inner,
+                        v => v,
+                    };
+                    self.write_op(&mut st, ins, 0, Ex::Cast(t, Box::new(v)));
+                }
+                Mnemonic::Cdqe => {
+                    let v = self.rd_reg(&mut st, Register::EAX);
+                    self.wr_reg(&mut st, Register::RAX, Ex::Cast("int32_t", Box::new(v)), addr);
+                }
+                Mnemonic::Cdq | Mnemonic::Cqo | Mnemonic::Cwd => {}
+                Mnemonic::Lea => {
+                    let sz = 1;
+                    let (a, _) = self.mem_operand(&mut st, ins, sz);
+                    self.write_op(&mut st, ins, 0, a);
+                }
+                Mnemonic::Xchg => {
+                    let a = self.read_op(&mut st, ins, 0);
+                    let b = self.read_op(&mut st, ins, 1);
+                    self.write_op(&mut st, ins, 0, b);
+                    self.write_op(&mut st, ins, 1, a);
+                }
+                Mnemonic::Add | Mnemonic::Sub | Mnemonic::And | Mnemonic::Or | Mnemonic::Xor | Mnemonic::Shl | Mnemonic::Sal | Mnemonic::Shr
+                | Mnemonic::Sar | Mnemonic::Addss | Mnemonic::Addsd | Mnemonic::Subss | Mnemonic::Subsd | Mnemonic::Mulss | Mnemonic::Mulsd
+                | Mnemonic::Divss | Mnemonic::Divsd | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd | Mnemonic::Andps | Mnemonic::Andpd
+                | Mnemonic::Orps | Mnemonic::Paddd | Mnemonic::Paddq | Mnemonic::Psubd | Mnemonic::Adc | Mnemonic::Sbb if ins.op_count() >= 2 => {
+                    let a = self.read_op(&mut st, ins, 0);
+                    let b = self.read_op(&mut st, ins, 1);
+                    let same = ins.op_kind(0) == OpKind::Register && ins.op_kind(1) == OpKind::Register && ins.op0_register() == ins.op1_register();
+                    let r = match m {
+                        Mnemonic::Xor | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd if same => Ex::Num(0),
+                        Mnemonic::Add | Mnemonic::Addss | Mnemonic::Addsd | Mnemonic::Paddd | Mnemonic::Paddq => bin("+", a.clone(), b),
+                        Mnemonic::Adc => bin("+", bin("+", a.clone(), b), Ex::Raw("CF".into())),
+                        Mnemonic::Sub | Mnemonic::Subss | Mnemonic::Subsd | Mnemonic::Psubd => bin("-", a.clone(), b),
+                        Mnemonic::Sbb => bin("-", bin("-", a.clone(), b), Ex::Raw("CF".into())),
+                        Mnemonic::And | Mnemonic::Andps | Mnemonic::Andpd => bin("&", a.clone(), b),
+                        Mnemonic::Or | Mnemonic::Orps => bin("|", a.clone(), b),
+                        Mnemonic::Xor | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd => bin("^", a.clone(), b),
+                        Mnemonic::Shl | Mnemonic::Sal => bin("<<", a.clone(), b),
+                        Mnemonic::Shr | Mnemonic::Sar => bin(">>", a.clone(), b),
+                        Mnemonic::Mulss | Mnemonic::Mulsd => bin("*", a.clone(), b),
+                        _ => bin("/", a.clone(), b),
+                    };
+                    st.flags = match m {
+                        Mnemonic::Sub => Flags::Cmp(a, self.read_op(&mut st, ins, 1)),
+                        _ => Flags::Op(r.clone()),
+                    };
+                    self.write_op(&mut st, ins, 0, r);
+                }
+                Mnemonic::Inc | Mnemonic::Dec | Mnemonic::Neg | Mnemonic::Not => {
+                    let a = self.read_op(&mut st, ins, 0);
+                    let r = match m {
+                        Mnemonic::Inc => bin("+", a, Ex::Num(1)),
+                        Mnemonic::Dec => bin("-", a, Ex::Num(1)),
+                        Mnemonic::Neg => {
+                            st.flags = Flags::Cmp(Ex::Num(0), a.clone());
+                            Ex::Un("-", Box::new(a))
+                        }
+                        _ => Ex::Un("~", Box::new(a)),
+                    };
+                    if m != Mnemonic::Neg && m != Mnemonic::Not {
+                        st.flags = Flags::Op(r.clone());
+                    }
+                    self.write_op(&mut st, ins, 0, r);
+                }
+                Mnemonic::Imul if ins.op_count() >= 2 => {
+                    let (a, b) = if ins.op_count() == 3 {
+                        (self.read_op(&mut st, ins, 1), self.read_op(&mut st, ins, 2))
+                    } else {
+                        (self.read_op(&mut st, ins, 0), self.read_op(&mut st, ins, 1))
+                    };
+                    let r = bin("*", a, b);
+                    st.flags = Flags::Op(r.clone());
+                    self.write_op(&mut st, ins, 0, r);
+                }
+                Mnemonic::Imul | Mnemonic::Mul => {
+                    let a = self.rd_reg(&mut st, Register::RAX);
+                    let b = self.read_op(&mut st, ins, 0);
+                    self.wr_reg(&mut st, Register::RDX, Ex::Call(Box::new(var("__mulhi")), vec![a.clone(), b.clone()]), addr);
+                    self.wr_reg(&mut st, Register::RAX, bin("*", a, b), addr);
+                }
+                Mnemonic::Idiv | Mnemonic::Div => {
+                    let a = self.rd_reg(&mut st, Register::RAX);
+                    let b = self.read_op(&mut st, ins, 0);
+                    self.wr_reg(&mut st, Register::RDX, Ex::Bin("%", Box::new(a.clone()), Box::new(b.clone())), addr);
+                    self.wr_reg(&mut st, Register::RAX, Ex::Bin("/", Box::new(a), Box::new(b)), addr);
+                }
+                Mnemonic::Cmp | Mnemonic::Ucomiss | Mnemonic::Ucomisd | Mnemonic::Comiss | Mnemonic::Comisd => {
+                    let a = self.read_op(&mut st, ins, 0);
+                    let b = self.read_op(&mut st, ins, 1);
+                    st.flags = Flags::Cmp(a, b);
+                }
+                Mnemonic::Test => {
+                    let a = self.read_op(&mut st, ins, 0);
+                    let b = self.read_op(&mut st, ins, 1);
+                    st.flags = if a == b { Flags::Op(a) } else { Flags::Op(bin("&", a, b)) };
+                }
+                Mnemonic::Cvtsi2sd | Mnemonic::Cvtsi2ss | Mnemonic::Cvtss2sd | Mnemonic::Cvtsd2ss | Mnemonic::Cvttsd2si | Mnemonic::Cvttss2si
+                | Mnemonic::Cvtsd2si | Mnemonic::Cvtss2si => {
+                    let t = match m {
+                        Mnemonic::Cvtsi2sd | Mnemonic::Cvtss2sd => "double",
+                        Mnemonic::Cvtsi2ss | Mnemonic::Cvtsd2ss => "float",
+                        _ => "int64_t",
+                    };
+                    let v = self.read_op(&mut st, ins, 1);
+                    self.write_op(&mut st, ins, 0, Ex::Cast(t, Box::new(v)));
+                }
+                Mnemonic::Sqrtss | Mnemonic::Sqrtsd => {
+                    let v = self.read_op(&mut st, ins, 1);
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("sqrt")), vec![v]));
+                }
+                Mnemonic::Call => {
+                    self.do_call(&mut st, ins, info);
+                    if st.out_args_used {
+                        term = Term::Stop;
+                        term_addr = addr;
+                        break;
+                    }
+                }
+                Mnemonic::Ret | Mnemonic::Retf => {
+                    let rax_set = st.modified.contains(&RAX) || st.env.contains_key(&RAX);
+                    let v = if rax_set || ret_val_known {
+                        Some(self.rd_reg(&mut st, Register::RAX))
+                    } else {
+                        None
+                    };
+                    term = Term::Ret(v);
+                    term_addr = addr;
+                }
+                _ => {
+                    let ms = format!("{m:?}");
+                    if info.flow == Flow::CondJump {
+                        let cc = ins.condition_code();
+                        let cond = cc_expr(cc, &st.flags);
+                        let fall = ins.next_ip();
+                        term = Term::Cond { cond, taken: info.target, fall };
+                        term_addr = addr;
+                    } else if info.flow == Flow::Jump {
+                        term = Term::Jmp(info.target);
+                        term_addr = addr;
+                    } else if info.flow == Flow::IndirectJump {
+                        let v = self.read_op(&mut st, ins, 0);
+                        term = Term::Indirect(v);
+                        term_addr = addr;
+                    } else if ms.starts_with("Set") && ins.op_count() == 1 {
+                        let cond = cc_expr(ins.condition_code(), &st.flags);
+                        self.write_op(&mut st, ins, 0, cond);
+                    } else if ms.starts_with("Cmov") && ins.op_count() == 2 {
+                        let cond = cc_expr(ins.condition_code(), &st.flags);
+                        let a = self.read_op(&mut st, ins, 1);
+                        let old = self.read_op(&mut st, ins, 0);
+                        self.write_op(&mut st, ins, 0, Ex::Tern(Box::new(cond), Box::new(a), Box::new(old)));
+                    } else {
+                        // anything else becomes an intrinsic so nothing is silently dropped
+                        let name = format!("__{}", ms.to_lowercase());
+                        let n = ins.op_count();
+                        if n == 0 {
+                            st.stmts.push((addr, Stmt::Comment(ms.to_lowercase())));
+                            continue;
+                        }
+                        let writes_op0 = !matches!(m, Mnemonic::Bt | Mnemonic::Ptest | Mnemonic::Prefetcht0 | Mnemonic::Prefetchnta | Mnemonic::Clflush);
+                        let args: Vec<Ex> = (if writes_op0 { 1 } else { 0 }..n).map(|i| self.read_op(&mut st, ins, i)).collect();
+                        let mut args = args;
+                        if writes_op0 && matches!(ins.op_kind(0), OpKind::Register | OpKind::Memory) && (matches!(m, Mnemonic::Rol | Mnemonic::Ror | Mnemonic::Bswap | Mnemonic::Bsf | Mnemonic::Bsr | Mnemonic::Popcnt) || n == 1) {
+                            let a = self.read_op(&mut st, ins, 0);
+                            if matches!(m, Mnemonic::Rol | Mnemonic::Ror | Mnemonic::Bswap) || n == 1 {
+                                args.insert(0, a);
+                            }
+                        }
+                        let call = Ex::Call(Box::new(var(&name)), args);
+                        if writes_op0 && matches!(ins.op_kind(0), OpKind::Register | OpKind::Memory) {
+                            self.write_op(&mut st, ins, 0, call);
+                        } else {
+                            st.flags = Flags::Op(call);
+                        }
+                    }
+                }
+            }
+        }
+        let _ = &mut ret_val_known;
+        // fall-through block end: a block that ends because the next one starts
+        if let Term::Fall(_) = term {
+            let next = blk.succs.first().map(|s| s.0);
+            term = match next {
+                Some(n) => Term::Fall(n),
+                None => Term::Stop,
+            };
+        }
+        // direct-jump terminators found through block successors (jmp to an import etc. = tail call)
+        if let Term::Jmp(t) = &term {
+            if !f.blocks.iter().any(|b| b.start == *t) && self.an.functions.contains_key(t) {
+                // tail call: call then return
+                let fake = Ex::Call(Box::new(Ex::Var(self.callee_name(*t))), vec![]);
+                let regs = self.conv.arg_regs();
+                let mut args = vec![];
+                for r in regs {
+                    let i = GPR.iter().position(|g| g == r).unwrap() as u8;
+                    if st.dirty.contains(&i) {
+                        args.push(st.env.get(&i).cloned().unwrap_or(var(r)));
+                    }
+                }
+                let call = if let Ex::Call(f, _) = fake { Ex::Call(f, args) } else { fake };
+                term = Term::Ret(Some(call));
+            }
+        }
+        let defs: BTreeMap<u8, Ex> = st.modified.iter().filter_map(|r| st.env.get(r).map(|e| (*r, e.clone()))).filter(|(r, e)| *e != Ex::Var(reg_name(*r))).collect();
+        // ret uses rax (resolved later)
+        BlockOut { stmts: st.stmts, defs, uses: st.uses, term, term_addr }
+    }
+}
+
+trait PipeNonEmpty {
+    fn pipe_nonempty(self, a: u64) -> String;
+}
+impl PipeNonEmpty for String {
+    fn pipe_nonempty(self, a: u64) -> String {
+        if self.is_empty() {
+            format!("sub_{a:X}")
+        } else {
+            self
+        }
+    }
+}
+
+// ------------------------------------------------------------------ structuring
+
+struct Emit<'a> {
+    f: &'a Function,
+    outs: &'a [BlockOut],
+    mat: Vec<Vec<(u8, Ex)>>,
+    idx: HashMap<u64, usize>,
+    fmt: Fmt<'a>,
+    lines: Vec<DLine>,
+    labels: HashSet<u64>,
+    suppress: HashSet<usize>,
+    open: HashSet<usize>,
+    loops: HashMap<usize, Vec<usize>>,
+    done: HashSet<usize>,
+}
+
+impl Emit<'_> {
+    fn line(&mut self, ind: usize, addr: u64, text: String) {
+        self.lines.push(DLine { text, addr, indent: ind });
+    }
+
+    fn block_stmts(&mut self, b: usize, ind: usize) {
+        let blk_start = self.f.blocks[b].start;
+        if self.labels.contains(&blk_start) {
+            // labels are printed at indent-1 so they stand out
+            self.line(ind.saturating_sub(1), blk_start, format!("L_{blk_start:X}:"));
+        }
+        let outs = self.outs;
+        let o = &outs[b];
+        for (addr, s) in &o.stmts {
+            let t = match s {
+                Stmt::Assign(l, r) => format!("{} = {};", self.fmt.show(l), self.fmt.show(r)),
+                Stmt::Expr(e) => format!("{};", self.fmt.show(e)),
+                Stmt::Comment(c) => format!("// {c}"),
+            };
+            self.line(ind, *addr, t);
+        }
+        for (r, e) in self.mat[b].clone() {
+            let n = self.fmt.show(&var(&reg_name(r)));
+            let v = self.fmt.show(&e);
+            if n != v {
+                self.line(ind, o.term_addr, format!("{n} = {v};"));
+            }
+        }
+    }
+
+    fn stmts_empty(&self, b: usize) -> bool {
+        self.outs[b].stmts.is_empty() && self.mat[b].is_empty()
+    }
+
+    fn cond_for(&self, b: usize) -> Option<Ex> {
+        let o = &self.outs[b];
+        if let Term::Cond { cond, .. } = &o.term {
+            let mut c = cond.clone();
+            for (r, e) in &self.mat[b] {
+                if *e != Ex::Var(reg_name(*r)) {
+                    c = subst(&c, e, &Ex::Var(reg_name(*r)));
+                }
+            }
+            return Some(c);
+        }
+        None
+    }
+
+    fn goto(&mut self, ind: usize, addr: u64, target: u64, lp: Option<(usize, usize)>, cond: Option<String>) {
+        let pre = match &cond {
+            Some(c) => format!("if ({c}) "),
+            None => String::new(),
+        };
+        if let (Some((head, exit)), Some(&ti)) = (lp, self.idx.get(&target)) {
+            if ti == head {
+                self.line(ind, addr, format!("{pre}continue;"));
+                return;
+            }
+            if ti == exit {
+                self.line(ind, addr, format!("{pre}break;"));
+                return;
+            }
+        }
+        self.labels.insert(target);
+        self.line(ind, addr, format!("{pre}goto L_{target:X};"));
+    }
+
+    fn emit(&mut self, mut i: usize, hi: usize, ind: usize, lp: Option<(usize, usize)>) {
+        while i < hi {
+            if let Some(latches) = self.loops.get(&i).cloned() {
+                if !self.open.contains(&i) {
+                    i = self.emit_loop(i, latches, hi, ind, lp);
+                    continue;
+                }
+            }
+            i = self.emit_one(i, hi, ind, lp);
+        }
+    }
+
+    fn emit_loop(&mut self, h: usize, latches: Vec<usize>, hi: usize, ind: usize, outer: Option<(usize, usize)>) -> usize {
+        let k = *latches.iter().max().unwrap();
+        if k >= hi {
+            // the loop runs past the current region: fall back to goto
+            self.open.insert(h);
+            let n = self.emit_one(h, hi, ind, outer);
+            self.open.remove(&h);
+            return n;
+        }
+        let exit = k + 1;
+        let lp = Some((h, exit));
+        self.open.insert(h);
+        let latch_term = self.outs[k].term.clone();
+        let entered_at_latch = h > 0
+            && matches!(&self.outs[h - 1].term, Term::Jmp(t) if self.idx.get(t) == Some(&k))
+            && matches!(&latch_term, Term::Cond { taken, .. } if self.idx.get(taken) == Some(&h));
+        let ba = self.f.blocks[h].start;
+        if entered_at_latch {
+            self.suppress.insert(h - 1);
+            let c = self.cond_for(k).unwrap();
+            if self.stmts_empty(k) {
+                self.line(ind, ba, format!("while ({}) {{", self.fmt.show(&c)));
+                self.emit(h, k, ind + 1, lp);
+                self.line(ind, ba, "}".into());
+            } else {
+                self.line(ind, ba, "while (1) {".into());
+                self.block_stmts(k, ind + 1);
+                self.line(ind + 1, ba, format!("if (!({})) break;", self.fmt.show(&c)));
+                self.emit(h, k, ind + 1, lp);
+                self.line(ind, ba, "}".into());
+            }
+            self.done.insert(k);
+        } else if matches!(&latch_term, Term::Cond { taken, .. } if self.idx.get(taken) == Some(&h)) {
+            self.line(ind, ba, "do {".into());
+            self.emit(h, k, ind + 1, lp);
+            self.block_stmts(k, ind + 1);
+            let c = self.cond_for(k).unwrap();
+            self.line(ind, ba, format!("}} while ({});", self.fmt.show(&c)));
+            self.done.insert(k);
+        } else {
+            // header-tested or plain infinite loop
+            let head_exit = matches!(&self.outs[h].term, Term::Cond { taken, .. } if self.idx.get(taken).map(|t| *t >= exit).unwrap_or(false));
+            if head_exit && h < k && matches!(&latch_term, Term::Jmp(t) if self.idx.get(t) == Some(&h)) {
+                let c = self.cond_for(h).unwrap();
+                if self.stmts_empty(h) {
+                    self.line(ind, ba, format!("while ({}) {{", self.fmt.show(&negate(c))));
+                } else {
+                    self.line(ind, ba, "while (1) {".into());
+                    self.block_stmts(h, ind + 1);
+                    self.line(ind + 1, ba, format!("if ({}) break;", self.fmt.show(&c)));
+                }
+                self.suppress.insert(k);
+                self.done.insert(h);
+                self.emit(h + 1, k + 1, ind + 1, lp);
+                self.line(ind, ba, "}".into());
+            } else {
+                self.line(ind, ba, "while (1) {".into());
+                self.suppress.insert(k);
+                let tmp_open = self.open.clone();
+                self.open.insert(h);
+                // emit the header as an ordinary block (it is `open`, so no re-entry)
+                self.emit(h, k + 1, ind + 1, lp);
+                self.open = tmp_open;
+                self.line(ind, ba, "}".into());
+            }
+        }
+        self.open.remove(&h);
+        let _ = outer;
+        exit
+    }
+
+    fn emit_one(&mut self, i: usize, hi: usize, ind: usize, lp: Option<(usize, usize)>) -> usize {
+        if self.done.contains(&i) {
+            return i + 1;
+        }
+        self.done.insert(i);
+        self.block_stmts(i, ind);
+        let o = &self.outs[i];
+        let term = o.term.clone();
+        let ta = o.term_addr;
+        let next_start = self.f.blocks.get(i + 1).map(|b| b.start);
+        match term {
+            Term::Ret(v) => {
+                let t = match v {
+                    Some(e) => format!("return {};", self.fmt.show(&e)),
+                    None => "return;".into(),
+                };
+                self.line(ind, ta, t);
+                i + 1
+            }
+            Term::Stop => i + 1,
+            Term::Indirect(e) => {
+                self.line(ind, ta, format!("goto *{}; // indirect jump (switch table?)", self.fmt.at(&e, 3)));
+                i + 1
+            }
+            Term::Fall(t) => {
+                if Some(t) != next_start {
+                    self.goto(ind, ta, t, lp, None);
+                }
+                i + 1
+            }
+            Term::Jmp(t) => {
+                if self.suppress.contains(&i) || Some(t) == next_start {
+                    return i + 1;
+                }
+                self.goto(ind, ta, t, lp, None);
+                i + 1
+            }
+            Term::Cond { taken, fall, .. } => {
+                let c = self.cond_for(i).unwrap();
+                let ti = self.idx.get(&taken).copied();
+                let fi = self.idx.get(&fall).copied();
+                // forward skip inside this region: if (!c) { fallthrough part }
+                if let (Some(t), Some(fi)) = (ti, fi) {
+                    if fi == i + 1 && t > i + 1 && t <= hi && !self.has_back_target(i + 1, t) {
+                        let last = t - 1;
+                        let else_end = match &self.outs[last].term {
+                            Term::Jmp(e) if last > i => self.idx.get(e).copied().filter(|e| *e > t && *e <= hi && !self.suppress.contains(&last)),
+                            _ => None,
+                        };
+                        if let Some(e) = else_end {
+                            self.line(ind, ta, format!("if ({}) {{", self.fmt.show(&negate(c.clone()))));
+                            self.suppress.insert(last);
+                            self.emit(i + 1, t, ind + 1, lp);
+                            self.line(ind, ta, "} else {".into());
+                            self.emit(t, e, ind + 1, lp);
+                            self.line(ind, ta, "}".into());
+                            return e;
+                        }
+                        self.line(ind, ta, format!("if ({}) {{", self.fmt.show(&negate(c))));
+                        self.emit(i + 1, t, ind + 1, lp);
+                        self.line(ind, ta, "}".into());
+                        return t;
+                    }
+                }
+                // otherwise: conditional jump out
+                self.goto(ind, ta, taken, lp, Some(self.fmt.show(&c)));
+                if Some(fall) != next_start {
+                    self.goto(ind, ta, fall, lp, None);
+                }
+                i + 1
+            }
+        }
+    }
+
+    fn has_back_target(&self, _from: usize, _to: usize) -> bool {
+        false
+    }
+}
+
+pub fn decompile(
+    bin: &Binary,
+    an: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    f: &Function,
+    conv: CallConv,
+    comp_note: &str,
+) -> Decompiled {
+    let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
+    let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default() };
+    let name = names.get(&f.start).map(|n| display_symbol(&n.0)).unwrap_or_else(|| format!("sub_{:X}", f.start));
+    if f.blocks.is_empty() {
+        return Decompiled { lines: vec![DLine { text: format!("// {name}: no code to show"), addr: f.start, indent: 0 }] };
+    }
+    // frame pointer?
+    if let Some(first) = f.blocks.first() {
+        let ins: Vec<Instruction> = first.insns.iter().take(6).filter_map(|a| decode_at(bin, *a).map(|x| x.0)).collect();
+        let (pb, mb) = if word == 8 { (Register::RBP, Register::RSP) } else { (Register::EBP, Register::ESP) };
+        dc.fp = ins.iter().any(|i| i.mnemonic() == Mnemonic::Push && i.op_kind(0) == OpKind::Register && i.op0_register() == pb)
+            && ins.iter().any(|i| i.mnemonic() == Mnemonic::Mov && i.op_kind(0) == OpKind::Register && i.op0_register() == pb && i.op_kind(1) == OpKind::Register && i.op1_register() == mb);
+    }
+    let n = f.blocks.len();
+    let idx: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
+
+    // pass 1: stack pointer at the start of each block
+    let mut sp_in: Vec<Option<(i64, Option<i64>)>> = vec![None; n];
+    sp_in[0] = Some((0, None));
+    let mut work = vec![0usize];
+    while let Some(b) = work.pop() {
+        let (mut sp, mut bp) = sp_in[b].unwrap();
+        for a in &f.blocks[b].insns {
+            let Some((ins, _)) = decode_at(bin, *a) else { continue };
+            let sp_r = if word == 8 { Register::RSP } else { Register::ESP };
+            let bp_r = if word == 8 { Register::RBP } else { Register::EBP };
+            match ins.mnemonic() {
+                Mnemonic::Push => sp -= word,
+                Mnemonic::Pop => sp += word,
+                Mnemonic::Leave => {
+                    if let Some(b) = bp {
+                        sp = b + word;
+                    }
+                }
+                Mnemonic::Mov if ins.op_kind(0) == OpKind::Register && ins.op_kind(1) == OpKind::Register => {
+                    if ins.op0_register() == bp_r && ins.op1_register() == sp_r {
+                        bp = Some(sp);
+                    } else if ins.op0_register() == sp_r && ins.op1_register() == bp_r {
+                        if let Some(b) = bp {
+                            sp = b;
+                        }
+                    }
+                }
+                Mnemonic::Lea if ins.op_kind(0) == OpKind::Register && ins.op0_register() == sp_r && ins.memory_base() == bp_r => {
+                    if let Some(b) = bp {
+                        sp = b + ins.memory_displacement64() as i64;
+                    }
+                }
+                Mnemonic::Sub | Mnemonic::Add if ins.op_kind(0) == OpKind::Register && ins.op0_register() == sp_r && ins.op_kind(1) != OpKind::Register => {
+                    let v = ins.immediate(1) as i64;
+                    let v = if ins.op_kind(1) == OpKind::Immediate32 && word == 4 { v as u32 as i32 as i64 } else { v };
+                    if ins.mnemonic() == Mnemonic::Sub {
+                        sp -= v;
+                    } else {
+                        sp += v;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for (t, _) in &f.blocks[b].succs {
+            if let Some(&ti) = idx.get(t) {
+                if sp_in[ti].is_none() {
+                    sp_in[ti] = Some((sp, bp));
+                    work.push(ti);
+                }
+            }
+        }
+    }
+
+    // pass 2: symbolic execution of each block
+    let mut outs: Vec<BlockOut> = vec![];
+    for b in 0..n {
+        let (sp, bp) = sp_in[b].unwrap_or((0, None));
+        outs.push(dc.exec(f, b, sp, bp, b == 0));
+    }
+
+    // pass 3: liveness of registers
+    let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
+    let rax_defined = outs.iter().any(|o| o.defs.contains_key(&RAX));
+    // `ret` that returns rax from an earlier block needs it live
+    let ret_needs_rax: Vec<bool> = outs.iter().map(|o| matches!(&o.term, Term::Ret(Some(Ex::Var(v))) if v == "rax")).collect();
+    let mut changed = true;
+    let succ_idx: Vec<Vec<usize>> = f.blocks.iter().map(|b| b.succs.iter().filter_map(|(t, _)| idx.get(t).copied()).collect()).collect();
+    while changed {
+        changed = false;
+        for b in (0..n).rev() {
+            let mut out: BTreeSet<u8> = BTreeSet::new();
+            for s in &succ_idx[b] {
+                out.extend(live_in[*s].iter().copied());
+            }
+            if ret_needs_rax[b] && rax_defined {
+                out.insert(RAX);
+            }
+            let mut li: BTreeSet<u8> = out.into_iter().filter(|r| !outs[b].defs.contains_key(r)).collect();
+            li.extend(outs[b].uses.iter().copied());
+            if li != live_in[b] {
+                live_in[b] = li;
+                changed = true;
+            }
+        }
+    }
+    // registers to write out at the end of each block
+    let mut mat: Vec<Vec<(u8, Ex)>> = vec![];
+    for b in 0..n {
+        let mut out: BTreeSet<u8> = BTreeSet::new();
+        for s in &succ_idx[b] {
+            out.extend(live_in[*s].iter().copied());
+        }
+        if ret_needs_rax[b] {
+            out.insert(RAX);
+        }
+        let mut v = vec![];
+        for (r, e) in &outs[b].defs {
+            if out.contains(r) && *r != RSP {
+                v.push((*r, e.clone()));
+            }
+        }
+        mat.push(v);
+    }
+    // parameters
+    let mut rename: HashMap<String, String> = HashMap::new();
+    let arg_regs = conv.arg_regs();
+    let mut nparams = 0;
+    for (k, r) in arg_regs.iter().enumerate() {
+        let i = GPR.iter().position(|g| g == r).unwrap() as u8;
+        if live_in[0].contains(&i) {
+            nparams = k + 1;
+        }
+    }
+    for (k, r) in arg_regs.iter().enumerate().take(nparams) {
+        rename.insert(r.to_string(), format!("a{}", k + 1));
+    }
+    let stack_max = dc.stack_args.iter().max().copied().unwrap_or(0);
+    let total_params = nparams.max(stack_max);
+    if word == 4 {
+        for (i, g) in GPR.iter().enumerate().take(8) {
+            if !rename.contains_key(*g) {
+                rename.insert(g.to_string(), format!("e{}", &g[1..]));
+            }
+            let _ = i;
+        }
+    }
+    if dc.fp {
+        rename.insert("fp".into(), "frame".into());
+    }
+    // `v5 = f(); … rax = v5;` at the end of a block reads better as `rax = f();`
+    for b in 0..n {
+        for (r, e) in mat[b].clone() {
+            let Ex::Var(v) = &e else { continue };
+            if !(v.starts_with('v') && v[1..].chars().all(|c| c.is_ascii_digit())) {
+                continue;
+            }
+            let target = Ex::Var(reg_name(r));
+            let clash = mat[b].iter().any(|(r2, e2)| *r2 != r && mentions(e2, &target));
+            if clash {
+                continue;
+            }
+            // statements after the call must not read the old value of the register
+            let call_pos = outs[b].stmts.iter().position(|(_, s)| matches!(s, Stmt::Assign(Ex::Var(x), _) if x == v));
+            let late_use = call_pos.map(|p| outs[b].stmts[p + 1..].iter().any(|(_, s)| match s {
+                Stmt::Assign(l, r2) => mentions(l, &target) || mentions(r2, &target),
+                Stmt::Expr(x) => mentions(x, &target),
+                _ => false,
+            })).unwrap_or(true);
+            if late_use || rename.contains_key(v) {
+                continue;
+            }
+            let shown = rename.get(&reg_name(r)).cloned().unwrap_or_else(|| reg_name(r));
+            rename.insert(v.clone(), shown);
+        }
+    }
+    // loops: back edges
+    let mut loops: HashMap<usize, Vec<usize>> = HashMap::new();
+    for b in 0..n {
+        for s in &succ_idx[b] {
+            if *s <= b {
+                loops.entry(*s).or_default().push(b);
+            }
+        }
+    }
+    // drop unused call results
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for o in &outs {
+        for (_, s) in &o.stmts {
+            match s {
+                Stmt::Assign(l, r) => {
+                    if !matches!(l, Ex::Var(_)) {
+                        count_vars(l, &mut counts);
+                    }
+                    count_vars(r, &mut counts)
+                }
+                Stmt::Expr(e) => count_vars(e, &mut counts),
+                _ => {}
+            }
+        }
+        for t in [&o.term] {
+            match t {
+                Term::Ret(Some(e)) | Term::Indirect(e) => count_vars(e, &mut counts),
+                Term::Cond { cond, .. } => count_vars(cond, &mut counts),
+                _ => {}
+            }
+        }
+    }
+    for m in &mat {
+        for (_, e) in m {
+            count_vars(e, &mut counts);
+        }
+    }
+    for o in outs.iter_mut() {
+        for (_, s) in o.stmts.iter_mut() {
+            if let Stmt::Assign(Ex::Var(v), r) = s {
+                if (v.starts_with('v') || v.starts_with('t')) && v[1..].chars().all(|c| c.is_ascii_digit()) && counts.get(v.as_str()).copied().unwrap_or(0) == 0 {
+                    *s = if matches!(r, Ex::Call(..)) { Stmt::Expr(r.clone()) } else { Stmt::Comment(String::new()) };
+                }
+            }
+        }
+    }
+    // inline single-use call results: `v1 = f(); x = v1;`-style is left alone; only drop trivial self-assignments
+    for o in outs.iter_mut() {
+        o.stmts.retain(|(_, s)| !matches!(s, Stmt::Assign(a, b) if a == b) && !matches!(s, Stmt::Comment(c) if c.is_empty()));
+    }
+
+    // emit (twice: the first run finds which blocks are jump targets, the second prints their labels)
+    let rename_ref = rename.clone();
+    let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
+        f,
+        outs: &outs,
+        mat,
+        idx: idx.clone(),
+        fmt: Fmt { rename: &rename_ref },
+        lines: vec![],
+        labels,
+        suppress: HashSet::new(),
+        open: HashSet::new(),
+        loops: loops.clone(),
+        done: HashSet::new(),
+    };
+    let mut first = make(HashSet::new(), mat.clone());
+    first.emit(0, n, 1, None);
+    let found = first.labels.clone();
+    let mut em = make(found, mat);
+    em.emit(0, n, 1, None);
+    let body = std::mem::take(&mut em.lines);
+    let labels = std::mem::take(&mut em.labels);
+
+    // header & declarations
+    let returns_value = outs.iter().any(|o| matches!(o.term, Term::Ret(Some(_))));
+    let ptype = if word == 8 { "int64_t" } else { "int32_t" };
+    let params: Vec<String> = (1..=total_params).map(|k| format!("{ptype} a{k}")).collect();
+    let mut lines: Vec<DLine> = vec![];
+    if !comp_note.is_empty() {
+        lines.push(DLine { text: format!("// {comp_note}"), addr: f.start, indent: 0 });
+    }
+    lines.push(DLine {
+        text: format!("{} {}({})", if returns_value { ptype } else { "void" }, name, if params.is_empty() { "void".to_string() } else { params.join(", ") }),
+        addr: f.start,
+        indent: 0,
+    });
+    lines.push(DLine { text: "{".into(), addr: f.start, indent: 0 });
+    for (n, sz) in &dc.locals {
+        let t = match sz {
+            1 => "int8_t",
+            2 => "int16_t",
+            4 => "int32_t",
+            8 => "int64_t",
+            _ => "int64_t",
+        };
+        lines.push(DLine { text: format!("{t} {n};"), addr: f.start, indent: 1 });
+    }
+    // variables that are still plain registers or temps
+    let mut used: BTreeSet<String> = BTreeSet::new();
+    let mut all: HashMap<String, usize> = HashMap::new();
+    for o in &outs {
+        for (_, s) in &o.stmts {
+            match s {
+                Stmt::Assign(l, r) => {
+                    count_vars(l, &mut all);
+                    count_vars(r, &mut all)
+                }
+                Stmt::Expr(e) => count_vars(e, &mut all),
+                _ => {}
+            }
+        }
+    }
+    for m in &em.mat {
+        for (r, e) in m {
+            used.insert(reg_name(*r));
+            count_vars(e, &mut all);
+        }
+    }
+    for k in all.keys() {
+        if dc.locals.contains_key(k) || k == "retaddr" {
+            continue;
+        }
+        if k.starts_with('a') && k[1..].chars().all(|c| c.is_ascii_digit()) && !k[1..].is_empty() {
+            continue;
+        }
+        let is_reg = GPR.contains(&k.as_str()) || (k.starts_with("xmm") && k[3..].chars().all(|c| c.is_ascii_digit()));
+        let is_tmp = (k.starts_with('v') || k.starts_with('t')) && k.len() > 1 && k[1..].chars().all(|c| c.is_ascii_digit());
+        if is_reg || is_tmp {
+            used.insert(k.clone());
+        }
+    }
+    let mut decl_regs: Vec<String> = vec![];
+    for u in used {
+        let disp = rename.get(&u).cloned().unwrap_or(u.clone());
+        if disp.starts_with('a') && disp[1..].chars().all(|c| c.is_ascii_digit()) && !disp[1..].is_empty() {
+            continue; // a parameter
+        }
+        if decl_regs.contains(&disp) {
+            continue;
+        }
+        decl_regs.push(disp);
+    }
+    if !decl_regs.is_empty() {
+        for chunk in decl_regs.chunks(8) {
+            lines.push(DLine { text: format!("{ptype} {};", chunk.join(", ")), addr: f.start, indent: 1 });
+        }
+    }
+    if !lines.is_empty() && lines.len() > 2 {
+        lines.push(DLine { text: String::new(), addr: f.start, indent: 0 });
+    }
+    // labels that were only needed for gotos: already printed in place
+    let _ = labels;
+    lines.extend(body);
+    lines.push(DLine { text: "}".into(), addr: f.end, indent: 0 });
+    Decompiled { lines }
+}
+
+pub fn render_text(d: &Decompiled) -> String {
+    let mut s = String::new();
+    for l in &d.lines {
+        s.push_str(&"    ".repeat(l.indent));
+        s.push_str(&l.text);
+        s.push('\n');
+    }
+    s
+}

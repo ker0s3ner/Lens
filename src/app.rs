@@ -2,6 +2,7 @@
 
 use crate::analysis::{self, Analysis, FuncKind, LineKind, NameKind};
 use crate::code::{CodeFormatter, NameTable};
+use crate::detect::{self, Detection};
 use crate::graph::{self, GraphView};
 use crate::loader::{self, Arch, Binary};
 use crate::store::{self, Annotations, Prefs};
@@ -21,8 +22,12 @@ pub const SHOW_XREFS: usize = 2;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum View {
+    Overview,
     Text,
     Graph,
+    Pseudo,
+    Calls,
+    Map,
     Hex,
 }
 
@@ -33,11 +38,13 @@ pub enum Side {
     Imports,
     Exports,
     Segments,
+    Names,
+    Marks,
 }
 
 impl Side {
-    pub fn all() -> [Side; 5] {
-        [Side::Functions, Side::Strings, Side::Imports, Side::Exports, Side::Segments]
+    pub fn all() -> [Side; 7] {
+        [Side::Functions, Side::Strings, Side::Imports, Side::Exports, Side::Segments, Side::Names, Side::Marks]
     }
     pub fn title(self) -> &'static str {
         match self {
@@ -46,6 +53,8 @@ impl Side {
             Side::Imports => "Imports",
             Side::Exports => "Exports",
             Side::Segments => "Sections",
+            Side::Names => "Names",
+            Side::Marks => "Marks",
         }
     }
 }
@@ -74,6 +83,10 @@ pub enum Action {
     Back,
     Forward,
     Follow,
+    ExportC,
+    Mark(u64),
+    SetLang(crate::lang::Lang),
+    ExtractAsar,
 }
 
 pub enum Modal {
@@ -90,6 +103,7 @@ pub struct Loaded {
     pub bin: Arc<Binary>,
     pub an: Analysis,
     pub ann: Annotations,
+    pub det: Detection,
     pub names: NameTable,
     pub fmt: CodeFormatter,
     pub nav: Vec<u8>,
@@ -98,9 +112,12 @@ pub struct Loaded {
     pub digits: usize,
     pub side_cache: Option<(Side, String, u64, Vec<usize>)>,
     pub func_list: Vec<u64>,
+    pub name_list: Vec<u64>,
+    pub name_index: HashMap<String, u64>,
+    pub pseudo: HashMap<u64, Arc<crate::decomp::Decompiled>>,
 }
 
-pub type LoadResult = Result<(Binary, Analysis, Annotations), String>;
+pub type LoadResult = Result<(Binary, Analysis, Annotations, Detection), String>;
 
 pub enum State {
     Empty,
@@ -143,6 +160,7 @@ pub struct LensApp {
     pub shot: Option<Shot>,
     pub title: String,
     pub char_w: f32,
+    pub vis: crate::visuals::VisState,
 }
 
 impl LensApp {
@@ -173,7 +191,7 @@ impl LensApp {
                 cursor_line: 0,
                 scroll_to: None,
                 hex_scroll: false,
-                view: View::Text,
+                view: View::Overview,
                 side: Side::Functions,
                 filter: String::new(),
                 visible: (0, 0),
@@ -190,10 +208,15 @@ impl LensApp {
             shot: screenshot.map(|path| Shot { path, done: Arc::new(AtomicBool::new(false)), requested: false, ready_frame: None }),
             title: String::new(),
             char_w: 7.8,
+            vis: crate::visuals::VisState::new(),
         };
         match view.as_deref() {
             Some("graph") => app.nav.view = View::Graph,
             Some("hex") => app.nav.view = View::Hex,
+            Some("pseudo") => app.nav.view = View::Pseudo,
+            Some("calls") => app.nav.view = View::Calls,
+            Some("map") => app.nav.view = View::Map,
+            Some("overview") => app.nav.view = View::Overview,
             _ => {}
         }
         if let Some(f) = file {
@@ -223,7 +246,8 @@ impl LensApp {
                     &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone() },
                     pr,
                 );
-                (bin, an, ann)
+                let det = detect::detect(&bin, &an);
+                (bin, an, ann, det)
             });
             let _ = tx.send(r);
         });
@@ -241,7 +265,7 @@ impl LensApp {
         }
         let Some((r, secs, path)) = done else { return };
         match r {
-            Ok((bin, an, ann)) => {
+            Ok((bin, an, ann, det)) => {
                 let mut msgs = vec![format!("Loaded {} — {} · {}", bin.file_name, bin.format, bin.arch_name)];
                 if bin.arch == Arch::Other {
                     msgs.push(format!(
@@ -250,6 +274,13 @@ impl LensApp {
                     ));
                 }
                 msgs.push(format!("Analysis finished in {secs:.2}s: {}", an.stats));
+                msgs.push(format!(
+                    "Detected: {} · {} · {} · calling convention {}",
+                    det.kind,
+                    det.compiler(),
+                    det.language(),
+                    det.conv.label()
+                ));
                 // notes last, so the newest message (shown in the status bar) explains what was opened
                 msgs.extend(bin.notes.iter().cloned());
                 let entry = bin.entry;
@@ -257,6 +288,7 @@ impl LensApp {
                     bin: Arc::new(bin),
                     an,
                     ann,
+                    det,
                     names: Arc::new(HashMap::new()),
                     fmt: CodeFormatter::new(Arc::new(HashMap::new())),
                     nav: vec![],
@@ -265,6 +297,9 @@ impl LensApp {
                     digits: 8,
                     side_cache: None,
                     func_list: vec![],
+                    name_list: vec![],
+                    name_index: HashMap::new(),
+                    pseudo: HashMap::new(),
                 };
                 l.refresh();
                 let start = pick_start(&l, entry);
@@ -319,9 +354,10 @@ impl LensApp {
         self.nav.scroll_to = Some(line);
         self.nav.hex_scroll = true;
         self.nav.graph.center_on = Some(addr);
-        if self.nav.view == View::Graph && !in_func {
+        if matches!(self.nav.view, View::Graph | View::Pseudo | View::Calls) && !in_func {
             self.nav.view = View::Text;
         }
+        self.vis.pseudo_scroll = None;
     }
 
     pub fn select(&mut self, addr: u64, line: usize) {
@@ -404,6 +440,23 @@ impl LensApp {
                         self.goto(a, false);
                     }
                 }
+                Action::ExportC => self.export_c(),
+                Action::SetLang(lg) => {
+                    self.vis.lang = Some(lg);
+                    self.vis.lang_cache = None;
+                }
+                Action::ExtractAsar => self.extract_asar(),
+                Action::Mark(x) => {
+                    if let State::Ready(l) = &mut self.state {
+                        if let Some(p) = l.ann.marks.iter().position(|m| *m == x) {
+                            l.ann.marks.remove(p);
+                        } else {
+                            l.ann.marks.push(x);
+                        }
+                        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                        l.side_cache = None;
+                    }
+                }
                 Action::Follow => {
                     if let Some(t) = self.loaded().and_then(|l| follow_target(l, self.nav.cursor, self.nav.cursor_line)) {
                         self.goto(t, true);
@@ -414,13 +467,16 @@ impl LensApp {
     }
 
     fn set_view(&mut self, v: View) {
-        if v == View::Graph {
+        if matches!(v, View::Graph | View::Pseudo | View::Calls) {
             let ok = self.loaded().map(|l| l.an.function_containing(self.nav.cursor).is_some()).unwrap_or(false);
             if !ok {
-                self.logm("The graph shows one function at a time — move the cursor into a function first.");
+                self.logm("This view shows one function at a time — move the cursor into a function first.");
                 return;
             }
             self.nav.graph.center_on = Some(self.nav.cursor);
+        }
+        if v == View::Pseudo {
+            self.vis.pseudo_scroll = None;
         }
         if v == View::Text {
             self.nav.scroll_to = Some(self.nav.cursor_line);
@@ -429,6 +485,28 @@ impl LensApp {
             self.nav.hex_scroll = true;
         }
         self.nav.view = v;
+    }
+
+    fn extract_asar(&mut self) {
+        let Some(info) = self.loaded().and_then(|l| l.det.asar.clone()) else { return };
+        let Some(dir) = rfd::FileDialog::new().set_title("Choose a folder for the JavaScript source").pick_folder() else { return };
+        let dest = dir.join("app-source");
+        match crate::source::extract_asar(&info.path, &dest) {
+            Ok(n) => self.logm(format!("Wrote {n} files of the original source to {}", dest.display())),
+            Err(e) => self.logm(format!("Couldn't extract app.asar: {e}")),
+        }
+    }
+
+    fn export_c(&mut self) {
+        let Some(l) = self.loaded() else { return };
+        let lg = self.vis.lang.unwrap_or(crate::lang::Lang::C);
+        let default = format!("{}.{}", l.bin.file_name, lg.ext());
+        let Some(path) = rfd::FileDialog::new().set_title("Save pseudocode").set_file_name(&default).save_file() else { return };
+        let text = crate::visuals::export_c(l, lg);
+        match std::fs::write(&path, text) {
+            Ok(_) => self.logm(format!("Saved pseudocode for every function to {}", path.display())),
+            Err(e) => self.logm(format!("Couldn't save the file: {e}")),
+        }
     }
 
     fn make_function(&mut self, addr: u64) {
@@ -454,9 +532,52 @@ impl LensApp {
         self.goto(addr, false);
     }
 
+    /// Searches the raw bytes of every section, starting after the cursor and wrapping round.
+    fn find_bytes(&mut self, pat: &[Option<u8>]) {
+        let cur = self.nav.cursor;
+        let Some(l) = self.loaded() else { return };
+        let mut segs: Vec<&crate::loader::Segment> = l.bin.segments.iter().collect();
+        segs.sort_by_key(|s| s.start);
+        let scan = |s: &crate::loader::Segment, from: usize| -> Option<u64> {
+            let d = &s.data;
+            if d.len() < pat.len() {
+                return None;
+            }
+            (from..=d.len() - pat.len()).find(|i| pat.iter().enumerate().all(|(k, b)| b.map(|b| d[i + k] == b).unwrap_or(true))).map(|i| s.start + i as u64)
+        };
+        let mut hit = None;
+        // rest of the section the cursor is in, then later sections, then wrap
+        for pass in 0..2 {
+            for s in &segs {
+                let from = if pass == 0 && s.contains(cur) { (cur + 1 - s.start) as usize } else if pass == 0 && s.start < cur { continue } else { 0 };
+                if pass == 1 && s.start > cur {
+                    break;
+                }
+                if let Some(a) = scan(s, from) {
+                    hit = Some(a);
+                    break;
+                }
+            }
+            if hit.is_some() {
+                break;
+            }
+        }
+        match hit {
+            Some(a) => {
+                self.logm(format!("Bytes found at {a:X}"));
+                self.goto(a, true);
+            }
+            None => self.logm("Those bytes weren't found."),
+        }
+    }
+
     fn find_next(&mut self) {
         let needle = self.find_text.to_lowercase();
         if needle.is_empty() {
+            return;
+        }
+        if let Some(pat) = parse_byte_pattern(&self.find_text) {
+            self.find_bytes(&pat);
             return;
         }
         let start = self.nav.cursor_line + 1;
@@ -547,6 +668,12 @@ impl LensApp {
             if i.consume_key(M::CTRL, Key::T) || i.consume_key(none, Key::F3) {
                 acts.push(Action::FindNext);
             }
+            if i.consume_key(none, Key::F5) {
+                acts.push(Action::SetView(View::Pseudo));
+            }
+            if i.consume_key(none, Key::M) {
+                acts.push(Action::Mark(cur));
+            }
             if i.consume_key(none, Key::H) {
                 acts.push(Action::SetView(View::Hex));
             }
@@ -603,6 +730,30 @@ impl LensApp {
     }
 }
 
+/// "48 8B ?? 05" (optionally after "hex:") → bytes to look for; `None` = a bytes pattern wasn't meant.
+fn parse_byte_pattern(s: &str) -> Option<Vec<Option<u8>>> {
+    let t = s.trim();
+    let (t, forced) = match t.strip_prefix("hex:") {
+        Some(r) => (r.trim(), true),
+        None => (t, false),
+    };
+    let toks: Vec<&str> = t.split_whitespace().collect();
+    if toks.is_empty() || (!forced && toks.len() < 2) {
+        return None;
+    }
+    let mut out = vec![];
+    for tk in toks {
+        if tk == "?" || tk == "??" {
+            out.push(None);
+        } else if tk.len() == 2 && tk.chars().all(|c| c.is_ascii_hexdigit()) {
+            out.push(u8::from_str_radix(tk, 16).ok());
+        } else {
+            return None;
+        }
+    }
+    Some(out)
+}
+
 fn pick_start(l: &Loaded, entry: Option<u64>) -> Option<u64> {
     for n in ["main", "_main", "WinMain", "wmain", "DllMain"] {
         if let Some((a, _)) = l.names.iter().find(|(_, (x, k))| x == n && *k == NameKind::Function) {
@@ -617,23 +768,23 @@ fn pick_start(l: &Loaded, entry: Option<u64>) -> Option<u64> {
 
 impl Loaded {
     pub fn refresh(&mut self) {
-        let mut m: HashMap<u64, (String, NameKind)> = self.an.names.clone();
-        for (a, n) in &self.ann.names {
-            let k = m.get(a).map(|x| x.1).unwrap_or(if self.an.functions.contains_key(a) {
-                NameKind::Function
-            } else if self.bin.is_exec(*a) {
-                NameKind::Label
-            } else {
-                NameKind::Data
-            });
-            m.insert(*a, (n.clone(), k));
-        }
+        let m = build_names(&self.an, &self.ann, &self.det, &self.bin);
         self.names = Arc::new(m);
         self.fmt = CodeFormatter::new(self.names.clone());
         self.graphs.clear();
         self.version += 1;
         self.side_cache = None;
         self.func_list = self.an.functions.keys().copied().collect();
+        let mut nl: Vec<u64> = self.names.keys().copied().collect();
+        nl.sort();
+        self.name_list = nl;
+        self.name_index = self
+            .names
+            .iter()
+            .filter(|(_, (_, k))| matches!(k, NameKind::Function | NameKind::Import))
+            .map(|(a, (n, _))| (analysis::display_symbol(n), *a))
+            .collect();
+        self.pseudo.clear();
         self.digits = format!("{:X}", self.bin.max_addr()).len().max(4);
         self.nav = build_nav(self);
     }
@@ -733,6 +884,28 @@ fn build_nav(l: &Loaded) -> Vec<u8> {
         }
     }
     nav
+}
+
+/// All names shown in the listing: automatic ones, the person's own, and the guessed `main`.
+pub fn build_names(an: &Analysis, ann: &Annotations, det: &Detection, bin: &Binary) -> HashMap<u64, (String, NameKind)> {
+    let mut m: HashMap<u64, (String, NameKind)> = an.names.clone();
+    if let Some((a, _)) = &det.main {
+        let unnamed = m.get(a).map(|n| n.0.starts_with("sub_") || n.0 == "start" || n.0 == "_start").unwrap_or(true);
+        if unnamed {
+            m.insert(*a, ("main".to_string(), NameKind::Function));
+        }
+    }
+    for (a, n) in &ann.names {
+        let k = m.get(a).map(|x| x.1).unwrap_or(if an.functions.contains_key(a) {
+            NameKind::Function
+        } else if bin.is_exec(*a) {
+            NameKind::Label
+        } else {
+            NameKind::Data
+        });
+        m.insert(*a, (n.clone(), k));
+    }
+    m
 }
 
 pub fn follow_target(l: &Loaded, addr: u64, line: usize) -> Option<u64> {

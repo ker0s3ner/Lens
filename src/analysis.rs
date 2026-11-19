@@ -315,6 +315,14 @@ fn looks_like_prologue(b: &[u8]) -> bool {
 }
 
 pub fn demangle(name: &str) -> Option<String> {
+    // Rust (legacy _ZN…17h<hash>E and v0 _R…) first; macOS adds one more underscore
+    for cand in [name, name.strip_prefix('_').unwrap_or(name)] {
+        if cand.starts_with("_R") || (cand.starts_with("_ZN") && cand.contains("17h")) {
+            if let Ok(d) = rustc_demangle::try_demangle(cand) {
+                return Some(format!("{d:#}"));
+            }
+        }
+    }
     let n = if name.starts_with("__Z") { &name[1..] } else { name };
     if n.starts_with("_Z") {
         let sym = cpp_demangle::Symbol::new(n).ok()?;

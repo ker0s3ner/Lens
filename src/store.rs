@@ -12,6 +12,8 @@ pub struct Annotations {
     pub comments: HashMap<u64, String>,
     #[serde(default)]
     pub functions: Vec<u64>,
+    #[serde(default)]
+    pub marks: Vec<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

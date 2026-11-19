@@ -51,6 +51,18 @@ impl LensApp {
                     .collect(),
                 Side::Exports => (0..l.bin.exports.len()).filter(|i| m(&l.bin.exports[*i].name)).collect(),
                 Side::Segments => (0..l.bin.segments.len()).filter(|i| m(&l.bin.segments[*i].name)).collect(),
+                Side::Names => (0..l.name_list.len())
+                    .filter(|i| {
+                        let a = l.name_list[*i];
+                        m(l.name(a).unwrap_or("")) || m(&format!("{a:x}"))
+                    })
+                    .collect(),
+                Side::Marks => (0..l.ann.marks.len())
+                    .filter(|i| {
+                        let a = l.ann.marks[*i];
+                        m(l.name(a).unwrap_or("")) || m(&format!("{a:x}")) || m(l.ann.comments.get(&a).map(|s| s.as_str()).unwrap_or(""))
+                    })
+                    .collect(),
             };
             l.side_cache = Some((key.0, key.1, key.2, idx));
         }
@@ -61,6 +73,8 @@ impl LensApp {
             Side::Imports => l.bin.imports.len(),
             Side::Exports => l.bin.exports.len(),
             Side::Segments => l.bin.segments.len(),
+            Side::Names => l.name_list.len(),
+            Side::Marks => l.ann.marks.len(),
         };
         let count = if idx.len() == total { format!("{total} items") } else { format!("{} of {total}", idx.len()) };
         ui.label(RichText::new(count).small().color(p.muted));
@@ -94,6 +108,16 @@ impl LensApp {
                     Side::Exports => {
                         let e = &l.bin.exports[i];
                         (e.addr, analysis::display_symbol(&e.name), p.func_name, format!("{:X}", e.addr))
+                    }
+                    Side::Names => {
+                        let a = l.name_list[i];
+                        let (n, k) = l.names.get(&a).cloned().unwrap_or((String::new(), NameKind::Data));
+                        (a, analysis::display_symbol(&n), code::name_color(k, &p), format!("{a:X}"))
+                    }
+                    Side::Marks => {
+                        let a = l.ann.marks[i];
+                        let label = l.ann.comments.get(&a).cloned().unwrap_or_else(|| l.loc(a));
+                        (a, label, p.func_name, format!("{a:X}"))
                     }
                     Side::Segments => {
                         let s = &l.bin.segments[i];
@@ -465,7 +489,7 @@ impl LensApp {
             logo(ui, &p, 64.0);
             ui.add_space(8.0);
             ui.label(RichText::new("Lens").size(30.0).strong());
-            ui.label(RichText::new("See how a program works, one function at a time.").size(15.0).color(p.muted));
+            ui.label(RichText::new("Drop in an .exe or an .app — Lens works out the rest.").size(15.0).color(p.muted));
             ui.add_space(22.0);
             let b = egui::Button::new(RichText::new("Open a program…").size(15.0).color(Color32::WHITE))
                 .fill(p.accent)
@@ -507,13 +531,15 @@ impl LensApp {
                         }
                         ui.add_space(14.0);
                         ui.label(RichText::new("WORKS WITH").small().strong().color(p.muted));
-                        ui.label("Windows .exe / .dll  ·  Linux ELF  ·  macOS Mach-O (incl. universal)  ·  x86 and x64 code");
+                        ui.label("Windows .exe / .dll  ·  Linux ELF  ·  macOS .app and Mach-O (incl. universal)  ·  x86 and x64 code\nFinds the compiler, language, packer and calling convention by itself.");
                         ui.add_space(14.0);
                         ui.label(RichText::new("HANDY KEYS").small().strong().color(p.muted));
                         egui::Grid::new("keys").num_columns(4).spacing(vec2(14.0, 6.0)).show(ui, |ui| {
                             let keys = [
                                 ("G", "Go to address"),
                                 ("Space", "Graph / code"),
+                                ("F5", "Pseudocode"),
+                                ("M", "Bookmark"),
                                 ("N", "Rename"),
                                 ("X", "Who uses this"),
                                 (";", "Add a note"),
