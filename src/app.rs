@@ -87,6 +87,25 @@ pub enum Action {
     Mark(u64),
     SetLang(crate::lang::Lang),
     ExtractAsar,
+    CheckUpdate,
+    InstallUpdate,
+    ToggleAutoUpdate,
+    CopyHash,
+    Reveal,
+    ExportNotes,
+    Search,
+    HexTool,
+    Settings,
+    Reanalyze,
+    OpenRaw(Box<crate::loader::RawSpec>),
+    Patches,
+    Structs,
+    LearnSigs,
+    ApplySigs,
+    ToggleBreakpoint(u64),
+    Debugger,
+    Script,
+    RunPlugin(String),
 }
 
 pub enum Modal {
@@ -115,6 +134,7 @@ pub struct Loaded {
     pub name_list: Vec<u64>,
     pub name_index: HashMap<String, u64>,
     pub pseudo: HashMap<u64, Arc<crate::decomp::Decompiled>>,
+    pub dbg_pc: Option<u64>,
 }
 
 pub type LoadResult = Result<(Binary, Analysis, Annotations, Detection), String>;
@@ -161,6 +181,22 @@ pub struct LensApp {
     pub title: String,
     pub char_w: f32,
     pub vis: crate::visuals::VisState,
+    pub update: crate::updater::Status,
+    pub update_manual: bool,
+    pub tools: crate::tools::Tools,
+    pub tools2: TwoState,
+    pub dbg: Option<crate::debugger::Dbg>,
+    pub jobs: crate::tools2::Jobs,
+    pub pending_goto: Option<u64>,
+    pub last_raw: Option<crate::loader::RawSpec>,
+}
+
+#[derive(Default)]
+pub struct TwoState {
+    pub patch: crate::tools2::PatchState,
+    pub types: crate::tools2::TypesState,
+    pub dbg: crate::debugger::DbgUi,
+    pub script: crate::script::ScriptState,
 }
 
 impl LensApp {
@@ -201,7 +237,7 @@ impl LensApp {
             hist_pos: 0,
             modal: None,
             actions: vec![],
-            log: vec!["Lens is ready. Open an x86 or x64 program to begin.".into()],
+            log: vec!["Lens is ready. Open a program to begin.".into()],
             show_log: false,
             find_text: String::new(),
             frame: 0,
@@ -209,7 +245,37 @@ impl LensApp {
             title: String::new(),
             char_w: 7.8,
             vis: crate::visuals::VisState::new(),
+            update: crate::updater::Status::Idle,
+            update_manual: false,
+            tools: crate::tools::Tools::default(),
+            tools2: TwoState::default(),
+            dbg: None,
+            jobs: Default::default(),
+            pending_goto: None,
+            last_raw: None,
         };
+        cc.egui_ctx.set_zoom_factor(app.prefs.zoom.clamp(0.8, 1.6));
+        if let Ok(t) = std::env::var("LENS_TOOL") {
+            match t.as_str() {
+                "hex" => {
+                    app.tools.hex.open = true;
+                    app.tools.hex.text = std::env::var("LENS_HEX").unwrap_or_default();
+                    if let Ok(a) = std::env::var("LENS_ARCH") {
+                        if let Some(x) = crate::loader::Arch::all().into_iter().find(|x| x.name().to_lowercase().starts_with(&a.to_lowercase())) { app.tools.hex.arch = x; }
+                    }
+                }
+                "search" => { app.tools.search.open = true; app.tools.search.focus = true; app.tools.search.text = std::env::var("LENS_Q").unwrap_or_default(); }
+                "settings" => app.tools.settings_open = true,
+                "patch" => app.tools2.patch.open = true,
+                "structs" => { app.tools2.types.open = true; app.tools2.types.def = "struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};".into(); }
+                "script" => app.tools2.script.open = true,
+                "debugger" => app.tools2.dbg.open = true,
+                _ => {}
+            }
+        }
+        if app.prefs.auto_update && app.shot.is_none() {
+            app.update = crate::updater::Status::Checking(crate::updater::check_async());
+        }
         match view.as_deref() {
             Some("graph") => app.nav.view = View::Graph,
             Some("hex") => app.nav.view = View::Hex,
@@ -225,6 +291,10 @@ impl LensApp {
         app
     }
 
+    pub fn modal_message(&mut self, title: &str, text: String) {
+        self.modal = Some(Modal::Message { title: title.into(), text });
+    }
+
     pub fn logm(&mut self, s: impl Into<String>) {
         self.log.push(s.into());
         if self.log.len() > 500 {
@@ -233,20 +303,23 @@ impl LensApp {
     }
 
     pub fn open(&mut self, path: String) {
+        self.last_raw = None;
         let progress = Arc::new(AtomicU32::new(0));
         let (tx, rx) = channel();
         let pr = progress.clone();
         let min = self.prefs.min_string_len;
         let p2 = path.clone();
         std::thread::spawn(move || {
-            let r = loader::load(&p2).map(|bin| {
-                let ann = store::load_annotations(&bin.path, bin.file_size);
+            let r = loader::load(&p2).map(|mut bin| {
+                let mut ann = store::load_annotations(&bin.path, bin.file_size);
+                crate::patch::apply(&mut bin, &ann.patches);
                 let an = analysis::analyze(
                     &bin,
                     &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone() },
                     pr,
                 );
                 let det = detect::detect(&bin, &an);
+                ann.sig_names = crate::sigs::apply(&bin, &an);
                 (bin, an, ann, det)
             });
             let _ = tx.send(r);
@@ -254,6 +327,62 @@ impl LensApp {
         self.logm(format!("Opening {path} …"));
         self.state = State::Loading { path, rx, progress, started: Instant::now() };
         self.modal = None;
+    }
+
+    pub fn open_raw(&mut self, spec: crate::loader::RawSpec) {
+        let progress = Arc::new(AtomicU32::new(0));
+        let (tx, rx) = channel();
+        let pr = progress.clone();
+        let min = self.prefs.min_string_len;
+        let label = spec.name.clone();
+        std::thread::spawn(move || {
+            let mut bin = loader::raw_binary(&spec);
+            let mut ann = store::load_annotations(&bin.path, bin.file_size);
+            crate::patch::apply(&mut bin, &ann.patches);
+            let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone() }, pr);
+            let det = detect::detect(&bin, &an);
+            ann.sig_names = crate::sigs::apply(&bin, &an);
+            let _ = tx.send(Ok((bin, an, ann, det)));
+        });
+        self.logm(format!("Opening raw code {label} …"));
+        self.state = State::Loading { path: label, rx, progress, started: Instant::now() };
+        self.modal = None;
+    }
+
+    pub fn poll_update(&mut self, ctx: &egui::Context) {
+        use crate::updater::Status;
+        let st = std::mem::replace(&mut self.update, Status::Idle);
+        self.update = match st {
+            Status::Checking(rx) => match rx.try_recv() {
+                Ok(Ok(Some(r))) => {
+                    self.logm(format!("Lens {} is available (you have {}).", r.version, crate::updater::CURRENT));
+                    Status::Available(r)
+                }
+                Ok(Ok(None)) => {
+                    if self.update_manual { self.logm(format!("Lens {} is the latest version.", crate::updater::CURRENT)); }
+                    Status::UpToDate
+                }
+                Ok(Err(e)) => {
+                    if self.update_manual { self.logm(format!("Update check failed: {e}")); }
+                    Status::Failed(e)
+                }
+                Err(_) => { ctx.request_repaint_after(std::time::Duration::from_millis(300)); Status::Checking(rx) }
+            },
+            Status::Downloading(r, rx) => match rx.try_recv() {
+                Ok(Ok(())) => {
+                    self.logm("Update ready — restarting Lens…");
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    Status::Idle
+                }
+                Ok(Err(e)) => {
+                    self.logm(format!("Update failed: {e}"));
+                    self.modal = Some(Modal::Message { title: "Couldn't update".into(), text: e });
+                    Status::Available(r)
+                }
+                Err(_) => { ctx.request_repaint_after(std::time::Duration::from_millis(200)); Status::Downloading(r, rx) }
+            },
+            other => other,
+        };
     }
 
     pub fn poll(&mut self) {
@@ -269,7 +398,7 @@ impl LensApp {
                 let mut msgs = vec![format!("Loaded {} — {} · {}", bin.file_name, bin.format, bin.arch_name)];
                 if bin.arch == Arch::Other {
                     msgs.push(format!(
-                        "This program is built for {}. Like IDA Free, Lens reads x86 and x64 code, so only sections, strings, imports and exports are shown.",
+                        "This program is built for {}. Lens can't decode that CPU yet, so only sections, strings, imports and exports are shown.",
                         bin.arch_name
                     ));
                 }
@@ -300,6 +429,7 @@ impl LensApp {
                     name_list: vec![],
                     name_index: HashMap::new(),
                     pseudo: HashMap::new(),
+                    dbg_pc: None,
                 };
                 l.refresh();
                 let start = pick_start(&l, entry);
@@ -315,9 +445,10 @@ impl LensApp {
                 }
                 self.history.clear();
                 self.hist_pos = 0;
-                if let Some(s) = start {
+                if let Some(s) = self.pending_goto.take().or(start) {
                     self.goto(s, true);
                 }
+                self.plugins_on_open();
             }
             Err(e) => {
                 self.logm(format!("Couldn't open {path}: {e}"));
@@ -446,6 +577,62 @@ impl LensApp {
                     self.vis.lang_cache = None;
                 }
                 Action::ExtractAsar => self.extract_asar(),
+                Action::CheckUpdate => {
+                    self.update_manual = true;
+                    self.update = crate::updater::Status::Checking(crate::updater::check_async());
+                }
+                Action::InstallUpdate => {
+                    if let crate::updater::Status::Available(r) = &self.update {
+                        let r = r.clone();
+                        self.logm(format!("Downloading Lens {} …", r.version));
+                        self.update = crate::updater::Status::Downloading(r.clone(), crate::updater::install_async(r));
+                    }
+                }
+                Action::Search => {
+                    self.tools.search.open = true;
+                    self.tools.search.focus = true;
+                }
+                Action::HexTool => self.tools.hex.open = true,
+                Action::Settings => self.tools.settings_open = true,
+                Action::Reanalyze => self.reanalyze(),
+                Action::OpenRaw(spec) => {
+                    self.last_raw = Some((*spec).clone());
+                    self.open_raw(*spec)
+                }
+                Action::Debugger => self.tools2.dbg.open = true,
+                Action::Script => self.tools2.script.open = true,
+                Action::RunPlugin(p) => self.run_plugin(&p),
+                Action::Patches => self.tools2.patch.open = true,
+                Action::Structs => self.tools2.types.open = true,
+                Action::LearnSigs => self.learn_sigs(),
+                Action::ApplySigs => self.apply_sigs_now(),
+                Action::ToggleBreakpoint(a) => self.toggle_breakpoint(a),
+                Action::CopyHash => {
+                    if let Some(h) = self.loaded().map(|l| l.det.sha256.clone()) {
+                        ctx.copy_text(h.clone());
+                        self.logm(format!("Copied SHA-256 {h}"));
+                    }
+                }
+                Action::Reveal => {
+                    if let Some(p) = self.loaded().map(|l| l.bin.path.clone()) {
+                        let _ = std::process::Command::new("open").arg("-R").arg(p).spawn();
+                    }
+                }
+                Action::ExportNotes => {
+                    let Some(l) = self.loaded() else { return };
+                    let default = format!("{}.lens-notes.json", l.bin.file_name);
+                    let json = serde_json::to_string_pretty(&l.ann).unwrap_or_default();
+                    if let Some(path) = rfd::FileDialog::new().set_title("Save your names and notes").set_file_name(&default).save_file() {
+                        match std::fs::write(&path, json) {
+                            Ok(_) => self.logm(format!("Saved names and notes to {}", path.display())),
+                            Err(e) => self.logm(format!("Couldn't save: {e}")),
+                        }
+                    }
+                }
+                Action::ToggleAutoUpdate => {
+                    self.prefs.auto_update = !self.prefs.auto_update;
+                    store::save_prefs(&self.prefs);
+                }
                 Action::Mark(x) => {
                     if let State::Ready(l) = &mut self.state {
                         if let Some(p) = l.ann.marks.iter().position(|m| *m == x) {
@@ -616,6 +803,15 @@ impl LensApp {
         let mut delta: i64 = 0;
         ctx.input_mut(|i| {
             use egui::Modifiers as M;
+            if i.consume_key(none_mod(), Key::F2) && ready && !modal && !typing {
+                acts.push(Action::ToggleBreakpoint(cur));
+            }
+            if i.consume_key(M::COMMAND, Key::F) {
+                acts.push(Action::Search);
+            }
+            if i.consume_key(M::COMMAND, Key::Comma) {
+                acts.push(Action::Settings);
+            }
             if i.consume_key(M::COMMAND, Key::O) {
                 acts.push(Action::OpenDialog);
             }
@@ -662,7 +858,7 @@ impl LensApp {
             if i.consume_key(M::SHIFT, Key::F7) {
                 acts.push(Action::SetSide(Side::Segments));
             }
-            if i.consume_key(M::ALT, Key::T) || i.consume_key(M::COMMAND, Key::F) {
+            if i.consume_key(M::ALT, Key::T) {
                 acts.push(Action::Find);
             }
             if i.consume_key(M::CTRL, Key::T) || i.consume_key(none, Key::F3) {
@@ -731,6 +927,10 @@ impl LensApp {
 }
 
 /// "48 8B ?? 05" (optionally after "hex:") → bytes to look for; `None` = a bytes pattern wasn't meant.
+fn none_mod() -> egui::Modifiers {
+    egui::Modifiers::NONE
+}
+
 fn parse_byte_pattern(s: &str) -> Option<Vec<Option<u8>>> {
     let t = s.trim();
     let (t, forced) = match t.strip_prefix("hex:") {
@@ -895,6 +1095,15 @@ pub fn build_names(an: &Analysis, ann: &Annotations, det: &Detection, bin: &Bina
             m.insert(*a, ("main".to_string(), NameKind::Function));
         }
     }
+    for (a, n) in &ann.sig_names {
+        let unnamed = m.get(a).map(|x| x.0.starts_with("sub_")).unwrap_or(true);
+        if unnamed {
+            m.insert(*a, (n.clone(), NameKind::Function));
+        }
+    }
+    for (a, n) in crate::types::field_names(&ann.structs, &ann.applied) {
+        m.insert(a, (n, NameKind::Data));
+    }
     for (a, n) in &ann.names {
         let k = m.get(a).map(|x| x.1).unwrap_or(if an.functions.contains_key(a) {
             NameKind::Function
@@ -921,7 +1130,7 @@ pub fn follow_target(l: &Loaded, addr: u64, line: usize) -> Option<u64> {
 }
 
 /// Plain text of a listing line (for find).
-fn line_text(l: &mut Loaded, i: usize) -> String {
+pub fn line_text(l: &mut Loaded, i: usize) -> String {
     let ln = l.an.lines[i];
     match ln.kind {
         LineKind::Insn => {

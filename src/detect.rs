@@ -20,6 +20,8 @@ pub enum CallConv {
     Delphi32,
     /// Go register ABI (1.17+): rax, rbx, rcx, rdi, rsi, r8, r9, r10, r11.
     GoAbi,
+    /// Non-x86 CPUs: the standard ABI for that architecture (not used by the decompiler yet).
+    Native(&'static str),
 }
 
 impl CallConv {
@@ -31,6 +33,7 @@ impl CallConv {
             CallConv::Fastcall32 => &["rcx", "rdx"],
             CallConv::Delphi32 => &["rax", "rdx", "rcx"],
             CallConv::GoAbi => &["rax", "rbx", "rcx", "rdi", "rsi", "r8", "r9", "r10", "r11"],
+            CallConv::Native(_) => &[],
         }
     }
     pub fn label(self) -> &'static str {
@@ -41,6 +44,7 @@ impl CallConv {
             CallConv::Fastcall32 => "32-bit fastcall / thiscall (ecx, edx, then stack)",
             CallConv::Delphi32 => "Delphi register convention (eax, edx, ecx, then stack)",
             CallConv::GoAbi => "Go register ABI (rax, rbx, rcx, rdi, rsi, r8…)",
+            CallConv::Native(l) => l,
         }
     }
 }
@@ -759,7 +763,9 @@ pub fn detect(bin: &Binary, an: &Analysis) -> Detection {
     // ---- calling convention (the "how to decompile" decision)
     let comp_name = compilers.first().map(|g| g.name.clone()).unwrap_or_default();
     let lang_name = languages.first().map(|g| g.name.clone()).unwrap_or_default();
-    let conv = if lang_name == "Go" && bin.arch == Arch::X64 {
+    let conv = if let Some(l) = native_conv(bin.arch, is_pe) {
+        CallConv::Native(l)
+    } else if lang_name == "Go" && bin.arch == Arch::X64 {
         CallConv::GoAbi
     } else if bin.arch == Arch::X64 {
         if is_pe { CallConv::Win64 } else { CallConv::SysV64 }
@@ -783,7 +789,9 @@ pub fn detect(bin: &Binary, an: &Analysis) -> Detection {
     let unsupported_note = if raw.clr {
         Some("This is a .NET program: it holds intermediate language, not machine code. Open it in ILSpy or dnSpy for real C#. Lens shows the native shell only.".to_string())
     } else if bin.arch == Arch::Other {
-        Some(format!("This program is built for {}. Lens decodes x86 and x64 only, so only sections, strings, imports and exports can be shown.", bin.arch_name))
+        Some(format!("This program is built for {}, which Lens can't decode yet, so only sections, strings, imports and exports can be shown.", bin.arch_name))
+    } else if !bin.arch.is_x86() {
+        Some(format!("This program is built for {}. Lens shows its disassembly, graph, strings, hex and pseudocode (pseudocode for this CPU is newer and less polished than for x86).", bin.arch.name()))
     } else if lang_name.starts_with("JavaScript") {
         Some("This is an Electron app: the interesting logic is JavaScript inside app.asar, not machine code. Lens can extract that JavaScript as real source (see Source code below).".to_string())
     } else {
@@ -981,4 +989,16 @@ fn plan(bin: &Binary, d: &Detection) -> Vec<String> {
     });
     p.push("Decompiler: each function is lifted to pseudo-C (registers become variables, stack slots become locals, jumps become if / while).".into());
     p
+}
+
+fn native_conv(arch: Arch, is_pe: bool) -> Option<&'static str> {
+    Some(match arch {
+        Arch::Arm64 if is_pe => "Windows ARM64 (x0–x7)",
+        Arch::Arm64 => "AAPCS64 (x0–x7, result in x0)",
+        Arch::Arm32 | Arch::Thumb => "AAPCS (r0–r3, then stack)",
+        Arch::RiscV32 | Arch::RiscV64 => "RISC-V psABI (a0–a7)",
+        Arch::Mips32 | Arch::Mips64 => "MIPS o32/n64 ($a0–$a3)",
+        Arch::Ppc32 | Arch::Ppc64 => "PowerPC ABI (r3–r10)",
+        _ => return None,
+    })
 }

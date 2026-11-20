@@ -2,23 +2,56 @@ mod analysis;
 mod app;
 mod code;
 mod detect;
+mod debugger;
 mod decomp;
 mod dialogs;
 mod graph;
 mod lang;
 mod loader;
+mod multiarch;
 mod panels;
+mod patch;
+mod script;
+mod sigs;
 mod source;
 mod store;
 mod theme;
+mod tools;
+mod tools2;
+mod types;
+mod updater;
 mod views;
 mod visuals;
 
 use eframe::egui;
 
 fn cli(args: &[String]) -> bool {
+    if let Some(a) = args.iter().position(|a| a == "--arch").and_then(|i| args.get(i + 1)) {
+        let want = a.to_lowercase().replace(['-', ' '], "");
+        let want = match want.as_str() { "ppc" | "ppc32" => "powerpc".to_string(), "ppc64" => "powerpc64".to_string(), "arm" => "arm(32".to_string(), w => w.to_string() };
+        let arch = loader::Arch::all().into_iter().find(|x| x.name().to_lowercase().replace([' ', '-'], "").starts_with(&want));
+        let base = args.iter().position(|a| a == "--base").and_then(|i| args.get(i + 1)).and_then(|b| dialogs::parse_addr(b)).unwrap_or(0);
+        if let Some(x) = arch {
+            *loader::RAW_PREF.lock().unwrap() = Some((x, args.iter().any(|a| a == "--big"), base));
+        }
+    }
+    if let Some(sl) = args.iter().position(|a| a == "--slice").and_then(|i| args.get(i + 1)) {
+        *loader::SLICE_PREF.lock().unwrap() = Some(sl.clone());
+    }
     let Some(file) = args.iter().find(|a| !a.starts_with("--") && std::path::Path::new(a.as_str()).exists()).cloned() else { return false };
     let report = args.iter().any(|a| a == "--report");
+    let arg_of = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
+    if let Some(sf) = arg_of("--learn-sigs") {
+        let bin = match loader::load(&sf) { Ok(b) => b, Err(e) => { eprintln!("{e}"); return true } };
+        let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+        let sig = sigs::learn(&bin, &an);
+        println!("learned {} signatures -> {:?}", sig.entries.len(), sigs::save(&sig));
+        return true;
+    }
+    let script = arg_of("--run-script");
+    let sig_apply = args.iter().any(|a| a == "--sigs");
+    let patch = arg_of("--patch");
+    let report = report || args.iter().any(|a| a == "--dbg-test") || script.is_some() || sig_apply || patch.is_some();
     let dec = args.iter().position(|a| a == "--decompile").and_then(|i| args.get(i + 1)).cloned();
     if !report && dec.is_none() {
         return false;
@@ -32,7 +65,58 @@ fn cli(args: &[String]) -> bool {
     };
     let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
     let det = detect::detect(&bin, &an);
-    if report {
+    if sig_apply {
+        let m = sigs::apply(&bin, &an);
+        println!("signatures matched {} functions", m.len());
+        for (a, n) in m.iter().take(8) { println!("  {a:X} {n}"); }
+    }
+    if let Some(p) = &patch {
+        // ADDR:HEX  e.g. 1000:9090
+        if let Some((a, h)) = p.split_once(':') {
+            let addr = dialogs::parse_addr(a).unwrap_or(0);
+            let new = loader::parse_hex_text(h);
+            let old = bin.read(addr, new.len()).to_vec();
+            let pt = patch::Patch { addr, old, new };
+            if let Some(out) = arg_of("--save") {
+                println!("{:?}", patch::save_patched(&bin, &[pt], std::path::Path::new(&out)));
+            }
+        }
+    }
+    if args.iter().any(|a| a == "--dbg-test") {
+        let main_addr = det.main.as_ref().map(|m| m.0).unwrap_or(0);
+        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", &[main_addr]) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
+        let t0 = std::time::Instant::now();
+        let mut step = 0;
+        while t0.elapsed().as_secs() < 25 {
+            let pc = d.poll();
+            if let Some(pc) = pc { println!("pc {pc:X} (slide {:X}) regs={} bt={} state={:?}", d.slide, d.regs.len(), d.bt.len(), d.state); }
+            if d.state == debugger::RunState::Stopped && d.regs.len() > 0 && d.queue_idle() {
+                step += 1;
+                match step { 1 => { println!("main is {main_addr:X}; continuing"); d.resume("process continue") } 2 => d.resume("thread step-inst"), 3 => d.resume("process continue"), _ => break }
+            }
+            if d.state == debugger::RunState::Exited { println!("exited"); break; }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let skip = d.console.len().saturating_sub(45); for l in d.console.iter().skip(skip) { println!("| {l}"); } println!("regs: {:?}", d.regs.iter().take(6).collect::<Vec<_>>()); println!("bt: {:?}", d.bt); println!("stack: {:?}", d.stack.iter().take(2).collect::<Vec<_>>());
+        return true;
+    }
+    if let Some(sp) = &script {
+        let src = std::fs::read_to_string(sp).unwrap_or_default();
+        let ann = store::Annotations::default();
+        let names = app::build_names(&an, &ann, &det, &bin);
+        let snap = script::Snap {
+            bin: std::sync::Arc::new(bin.clone()),
+            funcs: an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| (f.start, names.get(&f.start).map(|n| n.0.clone()).unwrap_or_default(), f.end - f.start, f.blocks.len())).collect(),
+            names: names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
+            strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
+            xrefs: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect(),
+        };
+        let r = script::run(&src, snap, None);
+        print!("{}", r.text);
+        if let Some(e) = r.error { println!("error: {e}"); }
+        for c in r.cmds { println!("cmd: {c:?}"); }
+    }
+    if report && script.is_none() && !sig_apply && patch.is_none() || args.iter().any(|a| a == "--report") {
         println!("{} | {} | {} | {}-bit", det.kind, det.os, det.arch, det.bits);
         for c in &det.container { println!("container: {c}"); }
         for (k, v) in &det.app_info { println!("  {k}: {v}"); }
@@ -88,6 +172,10 @@ fn main() -> eframe::Result {
         match args[i].as_str() {
             "--screenshot" => {
                 screenshot = args.get(i + 1).cloned();
+                i += 1;
+            }
+            "--slice" => {
+                *loader::SLICE_PREF.lock().unwrap() = args.get(i + 1).cloned();
                 i += 1;
             }
             "--dark" => dark = Some(true),

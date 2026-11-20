@@ -21,6 +21,19 @@ A clean, friendly disassembler for x86 and x64 programs, written in Rust with eg
 
 `lens <file> --report` prints the detection result, `lens <file> --decompile main|all|<name>|<address>` prints pseudocode.
 
+### Multi-CPU, raw code, search
+- Disassembly, graph, xrefs, strings and imports for **x86, x64, ARM64, ARM, Thumb, RISC-V, MIPS and PowerPC** (Capstone). Pseudocode is x86/x64 only so far.
+- Universal Mach-O: pick a part with `--slice arm64`. Chained-fixup imports on arm64 are resolved.
+- **Tools > Hex to Code**: paste hex / C arrays / `\x` escapes, or load `.bin`, Intel HEX, S-record; choose CPU, endianness and base address; copy the listing or open it as a program.
+- **Cmd+F** search: code and notes, strings, names, byte patterns with `??`, numbers. **Cmd+,** settings.
+- **Pseudocode on ARM64, ARM, RISC-V, MIPS and PowerPC** (integer core; anything else shows as a visible `__mnemonic(...)` call).
+- **Patching** (Tools > Patch bytes): NOP, invert branch, always-jump or raw bytes; patches are a revertible list; *Save patched copy* writes the file and re-signs Mach-O ad hoc.
+- **Signatures** (Tools > Learn signatures from a file): learn from any program with function names, then unnamed library functions are recognised in other programs.
+- **Structs** (Tools > Structs): paste a C struct, lay it over data; fields become names in the listing and pseudocode.
+- **Scripts and plugins** (Tools > Script): Rhai scripts over the analysis; `.rhai` files in the plugins folder appear under Tools > Plugins and may define `fn on_open()`.
+- **Debugger** (Tools > Debugger, F2 for breakpoints): drives lldb; registers, stack, call stack, console, `gdb-remote` for emulators and boards.
+- Releases: push a `vX.Y.Z` tag and CI publishes `Lens-macos-arm64.zip`; the app updates itself from it.
+
 ## Build and run
 
 ```sh
@@ -32,3 +45,6 @@ cargo build --release
 `--view graph|hex` and `--dark` / `--light` choose the starting view and theme.
 
 See `MECHANICS.md` for the analysis and naming rules.
+
+## Roadmap
+See [ROADMAP.md](ROADMAP.md) for the plan to bring Lens as close to IDA Pro as possible.

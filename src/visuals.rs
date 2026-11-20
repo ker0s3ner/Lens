@@ -434,7 +434,7 @@ impl LensApp {
         let cw = self.char_w;
         let unsupported = self.loaded().map(|l| l.bin.arch == crate::loader::Arch::Other).unwrap_or(true);
         if unsupported {
-            ui.centered_and_justified(|ui| ui.label(RichText::new("Pseudocode needs x86 or x64 code.").color(p.muted)));
+            ui.centered_and_justified(|ui| ui.label(RichText::new("Pseudocode needs a CPU Lens can decode.").color(p.muted)));
             return;
         }
         let Some((fs, d)) = self.pseudo_for() else {

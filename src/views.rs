@@ -171,6 +171,15 @@ impl LensApp {
                 }
                 let y = rect.top() + 2.0;
                 let cx = rect.left() + x_code;
+                if matches!(ln.kind, LineKind::Insn) {
+                    if l.dbg_pc == Some(ln.addr) {
+                        painter.rect_filled(rect, 0.0, p.accent_soft);
+                        painter.text(pos2(rect.left() + 1.0, rect.center().y), egui::Align2::LEFT_CENTER, ">", FontId::monospace(12.0), p.accent);
+                    }
+                    if l.ann.breakpoints.contains(&ln.addr) {
+                        painter.circle_filled(pos2(rect.left() + 8.0, rect.center().y), 4.5, Color32::from_rgb(214, 62, 62));
+                    }
+                }
                 if !matches!(ln.kind, LineKind::Blank | LineKind::FuncSep) {
                     paint_text(&painter, pos2(rect.left() + x_addr, y), &format!("{:0w$X}", ln.addr, w = l.digits), &font, p.address);
                 }

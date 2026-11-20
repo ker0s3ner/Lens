@@ -126,11 +126,23 @@ impl CodeFormatter {
         Self { fmt, names }
     }
 
+    /// Plain text of the instruction at `addr`.
+    pub fn clone_names_text(&self, bin: &Binary, addr: u64) -> String {
+        let mut f = CodeFormatter::new(self.names.clone());
+        f.format(bin, addr).map(|(_, t)| t.iter().map(|x| x.text.as_str()).collect::<String>()).unwrap_or_default()
+    }
+
     pub fn names(&self) -> &NameTable {
         &self.names
     }
 
-    pub fn format(&mut self, bin: &Binary, addr: u64) -> Option<(Instruction, Vec<Token>)> {
+    pub fn format(&mut self, bin: &Binary, addr: u64) -> Option<((), Vec<Token>)> {
+        if !bin.arch.is_x86() {
+            let a = crate::multiarch::one(bin, addr)?;
+            let fused = crate::multiarch::decode_info(bin, addr).filter(|i| i.len > 4 && i.flow == crate::analysis::Flow::IndirectJump).map(|i| i.mem);
+            let names = self.names.clone();
+            return Some(((), crate::multiarch::tokens(bin, &a, &names, fused)));
+        }
         let bytes = bin.read(addr, 16);
         if bytes.is_empty() {
             return None;
@@ -149,7 +161,7 @@ impl CodeFormatter {
             let _ = pos;
         }
         merge_spaces(&mut toks);
-        Some((ins, toks))
+        Some(((), toks))
     }
 }
 

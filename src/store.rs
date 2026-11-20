@@ -14,6 +14,18 @@ pub struct Annotations {
     pub functions: Vec<u64>,
     #[serde(default)]
     pub marks: Vec<u64>,
+    #[serde(default)]
+    pub patches: Vec<crate::patch::Patch>,
+    #[serde(default)]
+    pub structs: Vec<crate::types::StructDef>,
+    /// (address, struct name) pairs: the struct is laid over the data at that address.
+    #[serde(default)]
+    pub applied: Vec<(u64, String)>,
+    #[serde(default)]
+    pub breakpoints: Vec<u64>,
+    /// Names found by signature matching (not saved; recomputed on every open).
+    #[serde(skip)]
+    pub sig_names: HashMap<u64, String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -26,10 +38,17 @@ pub struct Prefs {
     pub inspector: bool,
     #[serde(default = "default_min")]
     pub min_string_len: usize,
+    #[serde(default = "yes")]
+    pub auto_update: bool,
+    #[serde(default = "one")]
+    pub zoom: f32,
 }
 
 fn yes() -> bool {
     true
+}
+fn one() -> f32 {
+    1.0
 }
 fn default_min() -> usize {
     5
@@ -37,7 +56,7 @@ fn default_min() -> usize {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { recent: vec![], dark: false, inspector: true, min_string_len: 5 }
+        Prefs { recent: vec![], dark: false, inspector: true, min_string_len: 5, auto_update: true, zoom: 1.0 }
     }
 }
 

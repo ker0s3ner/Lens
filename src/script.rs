@@ -1,0 +1,377 @@
+//! Scripting and plugins. Scripts are Rhai (a small Rust-like language). They read a snapshot of the
+//! analysis and queue changes (rename, comment, patch, goto …) that Lens applies when the script ends.
+//!
+//! Plugins are `.rhai` files in the plugins folder; each shows up under Tools > Plugins and may define
+//! `fn on_open() { … }`, which runs every time a program finishes loading.
+
+use crate::analysis::FuncKind;
+use crate::app::{Action, LensApp, State};
+use crate::loader::Binary;
+use eframe::egui::{self, FontId, RichText, ScrollArea, TextEdit};
+use rhai::{Array, Blob, Dynamic, Engine, Map, Scope, INT};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
+
+pub struct Snap {
+    pub bin: Arc<Binary>,
+    pub funcs: Vec<(u64, String, u64, usize)>,
+    pub names: HashMap<u64, String>,
+    pub strings: Vec<(u64, String)>,
+    pub xrefs: HashMap<u64, Vec<u64>>,
+}
+
+#[derive(Debug)]
+pub enum Cmd {
+    Rename(u64, String),
+    Comment(u64, String),
+    Mark(u64),
+    Goto(u64),
+    Log(String),
+    Patch(u64, Vec<u8>),
+    MakeFunction(u64),
+}
+
+pub struct Output {
+    pub text: String,
+    pub cmds: Vec<Cmd>,
+    pub error: Option<String>,
+}
+
+pub fn plugins_dir() -> std::path::PathBuf {
+    let d = crate::store::config_dir().join("plugins");
+    let _ = std::fs::create_dir_all(&d);
+    d
+}
+
+pub fn scripts_dir() -> std::path::PathBuf {
+    let d = crate::store::config_dir().join("scripts");
+    let _ = std::fs::create_dir_all(&d);
+    d
+}
+
+pub fn list_plugins() -> Vec<(String, std::path::PathBuf)> {
+    let mut v: Vec<(String, std::path::PathBuf)> = std::fs::read_dir(plugins_dir())
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.extension().map(|x| x == "rhai").unwrap_or(false))
+                .map(|p| (p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(), p))
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort();
+    v
+}
+
+fn arr_u64(v: &[u64]) -> Array {
+    v.iter().map(|x| Dynamic::from(*x as INT)).collect()
+}
+
+pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
+    let snap = Rc::new(snap);
+    let cmds: Rc<RefCell<Vec<Cmd>>> = Rc::new(RefCell::new(vec![]));
+    let out: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+    let mut e = Engine::new();
+    e.set_max_operations(40_000_000);
+    e.set_max_call_levels(48);
+    e.set_max_string_size(4 << 20);
+    e.set_max_array_size(2 << 20);
+    e.set_max_map_size(1 << 20);
+    {
+        let o = out.clone();
+        e.on_print(move |s| {
+            let mut b = o.borrow_mut();
+            b.push_str(s);
+            b.push('\n');
+        });
+        let o = out.clone();
+        e.on_debug(move |s, _, _| {
+            let mut b = o.borrow_mut();
+            b.push_str(s);
+            b.push('\n');
+        });
+    }
+    // ---- reading
+    let s = snap.clone();
+    e.register_fn("functions", move || -> Array {
+        s.funcs
+            .iter()
+            .map(|(a, n, size, blocks)| {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*a as INT));
+                m.insert("name".into(), Dynamic::from(n.clone()));
+                m.insert("size".into(), Dynamic::from(*size as INT));
+                m.insert("blocks".into(), Dynamic::from(*blocks as INT));
+                Dynamic::from_map(m)
+            })
+            .collect()
+    });
+    let s = snap.clone();
+    e.register_fn("name_at", move |a: INT| -> String { s.names.get(&(a as u64)).cloned().unwrap_or_default() });
+    let s = snap.clone();
+    e.register_fn("find", move |n: &str| -> INT { s.names.iter().find(|(_, v)| v.as_str() == n).map(|(a, _)| *a as INT).unwrap_or(0) });
+    let s = snap.clone();
+    e.register_fn("strings", move || -> Array {
+        s.strings
+            .iter()
+            .map(|(a, t)| {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*a as INT));
+                m.insert("text".into(), Dynamic::from(t.clone()));
+                Dynamic::from_map(m)
+            })
+            .collect()
+    });
+    let s = snap.clone();
+    e.register_fn("xrefs_to", move |a: INT| -> Array { arr_u64(s.xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
+    for (name, n) in [("read_u8", 1usize), ("read_u16", 2), ("read_u32", 4), ("read_u64", 8)] {
+        let s = snap.clone();
+        e.register_fn(name, move |a: INT| -> INT {
+            let b = s.bin.read(a as u64, n);
+            if b.len() < n {
+                return -1;
+            }
+            let mut v: u64 = 0;
+            if s.bin.big_endian { for x in b { v = (v << 8) | *x as u64 } } else { for x in b.iter().rev() { v = (v << 8) | *x as u64 } }
+            v as INT
+        });
+    }
+    let s = snap.clone();
+    e.register_fn("read_bytes", move |a: INT, n: INT| -> Blob { s.bin.read(a as u64, n.clamp(0, 1 << 20) as usize).to_vec() });
+    let s = snap.clone();
+    e.register_fn("disasm", move |a: INT| -> String { crate::multiarch::one(&s.bin, a as u64).map(|r| crate::multiarch::text(&r)).unwrap_or_default() });
+    let s = snap.clone();
+    e.register_fn("is_code", move |a: INT| -> bool { s.bin.is_exec(a as u64) });
+    let s = snap.clone();
+    e.register_fn("entry", move || -> INT { s.bin.entry.unwrap_or(0) as INT });
+    let s = snap.clone();
+    e.register_fn("arch", move || -> String { s.bin.arch.name().to_string() });
+    let s = snap.clone();
+    e.register_fn("file_name", move || -> String { s.bin.file_name.clone() });
+    e.register_fn("hex", |n: INT| -> String { format!("{:X}", n) });
+    // ---- changing things (applied after the script finishes)
+    let c = cmds.clone();
+    e.register_fn("rename", move |a: INT, n: &str| c.borrow_mut().push(Cmd::Rename(a as u64, n.to_string())));
+    let c = cmds.clone();
+    e.register_fn("comment", move |a: INT, t: &str| c.borrow_mut().push(Cmd::Comment(a as u64, t.to_string())));
+    let c = cmds.clone();
+    e.register_fn("mark", move |a: INT| c.borrow_mut().push(Cmd::Mark(a as u64)));
+    let c = cmds.clone();
+    e.register_fn("goto", move |a: INT| c.borrow_mut().push(Cmd::Goto(a as u64)));
+    let c = cmds.clone();
+    e.register_fn("log", move |t: &str| c.borrow_mut().push(Cmd::Log(t.to_string())));
+    let c = cmds.clone();
+    e.register_fn("make_function", move |a: INT| c.borrow_mut().push(Cmd::MakeFunction(a as u64)));
+    let c = cmds.clone();
+    e.register_fn("patch", move |a: INT, b: Blob| c.borrow_mut().push(Cmd::Patch(a as u64, b)));
+    let c = cmds.clone();
+    e.register_fn("patch", move |a: INT, b: Array| {
+        c.borrow_mut().push(Cmd::Patch(a as u64, b.iter().filter_map(|x| x.as_int().ok()).map(|x| x as u8).collect()))
+    });
+
+    let mut error = None;
+    match e.compile(src) {
+        Err(err) => error = Some(err.to_string()),
+        Ok(ast) => {
+            let mut scope = Scope::new();
+            match hook {
+                None => {
+                    if let Err(err) = e.run_ast_with_scope(&mut scope, &ast) {
+                        error = Some(err.to_string());
+                    }
+                }
+                Some(h) => {
+                    // run top-level code once so `const`s and helper fns exist, then call the hook
+                    if let Err(err) = e.run_ast_with_scope(&mut scope, &ast) {
+                        error = Some(err.to_string());
+                    } else if ast.iter_functions().any(|f| f.name == h) {
+                        if let Err(err) = e.call_fn::<Dynamic>(&mut scope, &ast, h, ()) {
+                            error = Some(err.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let text = out.borrow().clone();
+    let cmds = std::mem::take(&mut *cmds.borrow_mut());
+    Output { text, cmds, error }
+}
+
+#[derive(Default)]
+pub struct ScriptState {
+    pub open: bool,
+    pub src: String,
+    pub out: String,
+    pub name: String,
+}
+
+pub const EXAMPLE: &str = r#"// Lens script (Rhai). Run with Cmd+Enter.
+// Find functions that call exit-like imports and mark them.
+let n = 0;
+for f in functions() {
+    if f.size > 2000 {
+        print(`${hex(f.addr)}  ${f.name}  ${f.size} bytes`);
+        n += 1;
+    }
+}
+print(`${n} large functions`);
+// rename(0x1000, "my_name");   comment(0x1000, "checks the licence");
+// patch(0x1000, [0x90, 0x90]);   goto(entry());
+"#;
+
+impl LensApp {
+    fn snapshot(&self) -> Option<Snap> {
+        let l = self.loaded()?;
+        let funcs = l
+            .an
+            .functions
+            .values()
+            .filter(|f| f.kind != FuncKind::Import)
+            .map(|f| (f.start, l.name(f.start).unwrap_or("").to_string(), f.end.saturating_sub(f.start), f.blocks.len()))
+            .collect();
+        Some(Snap {
+            bin: l.bin.clone(),
+            funcs,
+            names: l.names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
+            strings: l.an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
+            xrefs: l.an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect(),
+        })
+    }
+
+    pub fn run_script_text(&mut self, src: &str, hook: Option<&str>) -> String {
+        let Some(snap) = self.snapshot() else { return "Open a program first.".into() };
+        let r = run(src, snap, hook);
+        let mut text = r.text;
+        if let Some(e) = &r.error {
+            text.push_str(&format!("\nerror: {e}\n"));
+        }
+        let mut patches = vec![];
+        let mut changed = false;
+        for c in r.cmds {
+            match c {
+                Cmd::Goto(a) => self.actions.push(Action::Goto(a)),
+                Cmd::Log(t) => self.logm(t),
+                Cmd::MakeFunction(a) => self.actions.push(Action::MakeFunction(a)),
+                Cmd::Patch(a, b) => patches.push((a, b)),
+                Cmd::Rename(a, n) => {
+                    if let State::Ready(l) = &mut self.state {
+                        l.ann.names.insert(a, n);
+                        changed = true;
+                    }
+                }
+                Cmd::Comment(a, t) => {
+                    if let State::Ready(l) = &mut self.state {
+                        l.ann.comments.insert(a, t);
+                        changed = true;
+                    }
+                }
+                Cmd::Mark(a) => {
+                    if let State::Ready(l) = &mut self.state {
+                        if !l.ann.marks.contains(&a) {
+                            l.ann.marks.push(a);
+                        }
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if changed {
+            if let State::Ready(l) = &mut self.state {
+                crate::store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                l.refresh();
+            }
+        }
+        if !patches.is_empty() {
+            if let State::Ready(l) = &mut self.state {
+                for (a, b) in patches {
+                    let old = l.bin.read(a, b.len()).to_vec();
+                    if old.len() == b.len() && old != b {
+                        l.ann.patches.push(crate::patch::Patch { addr: a, old, new: b });
+                    }
+                }
+                crate::store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+            }
+            self.reanalyze();
+        }
+        text
+    }
+
+    pub fn run_plugin(&mut self, name: &str) {
+        let Some((_, path)) = list_plugins().into_iter().find(|(n, _)| n == name) else { return };
+        match std::fs::read_to_string(&path) {
+            Ok(src) => {
+                let out = self.run_script_text(&src, None);
+                if !out.trim().is_empty() {
+                    self.logm(format!("[{name}] {}", out.trim().lines().last().unwrap_or("")));
+                    self.tools2.script.out = out;
+                    self.tools2.script.open = true;
+                }
+            }
+            Err(e) => self.logm(format!("Couldn't read the plugin: {e}")),
+        }
+    }
+
+    /// Runs `on_open` in every plugin that defines it.
+    pub fn plugins_on_open(&mut self) {
+        for (name, path) in list_plugins() {
+            if let Ok(src) = std::fs::read_to_string(&path) {
+                if !src.contains("fn on_open") {
+                    continue;
+                }
+                let out = self.run_script_text(&src, Some("on_open"));
+                if out.contains("error:") {
+                    self.logm(format!("Plugin {name}: {}", out.trim()));
+                }
+            }
+        }
+    }
+
+    pub fn script_window(&mut self, ctx: &egui::Context) {
+        let p = self.p;
+        let mut open = true;
+        let mut run = false;
+        egui::Window::new("Script").open(&mut open).default_size([640.0, 560.0]).show(ctx, |ui| {
+            let s = &mut self.tools2.script;
+            if s.src.is_empty() {
+                s.src = EXAMPLE.to_string();
+            }
+            ui.horizontal(|ui| {
+                if ui.add(egui::Button::new("Run  (Cmd+Enter)").fill(p.accent_soft)).clicked() { run = true; }
+                if ui.button("Open…").clicked() {
+                    if let Some(f) = rfd::FileDialog::new().set_directory(scripts_dir()).add_filter("Rhai script", &["rhai"]).pick_file() {
+                        if let Ok(t) = std::fs::read_to_string(&f) { s.src = t; s.name = f.file_stem().map(|x| x.to_string_lossy().to_string()).unwrap_or_default(); }
+                    }
+                }
+                if ui.button("Save…").clicked() {
+                    if let Some(f) = rfd::FileDialog::new().set_directory(scripts_dir()).set_file_name(if s.name.is_empty() { "script.rhai".to_string() } else { format!("{}.rhai", s.name) }).save_file() {
+                        let _ = std::fs::write(&f, &s.src);
+                    }
+                }
+                if ui.button("Install as plugin").on_hover_text("Saves it to the plugins folder so it appears under Tools > Plugins").clicked() {
+                    let n = if s.name.is_empty() { "my_plugin".to_string() } else { s.name.clone() };
+                    let f = plugins_dir().join(format!("{n}.rhai"));
+                    s.out = match std::fs::write(&f, &s.src) { Ok(_) => format!("Saved {}", f.display()), Err(e) => e.to_string() };
+                }
+                if ui.button("Plugins folder").clicked() { let _ = std::process::Command::new("open").arg(plugins_dir()).spawn(); }
+            });
+            ScrollArea::vertical().id_salt("src").max_height(300.0).show(ui, |ui| {
+                let r = ui.add(TextEdit::multiline(&mut s.src).code_editor().desired_rows(14).desired_width(f32::INFINITY).font(FontId::monospace(13.0)));
+                if r.has_focus() && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter)) { run = true; }
+            });
+            ui.label(RichText::new("OUTPUT").small().color(p.faint));
+            ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
+                ui.label(RichText::new(&s.out).monospace().small());
+            });
+            ui.label(RichText::new("API: functions() strings() name_at(a) find(name) xrefs_to(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function log").small().color(p.muted));
+        });
+        if run {
+            let src = self.tools2.script.src.clone();
+            let out = self.run_script_text(&src, None);
+            self.tools2.script.out = out;
+        }
+        self.tools2.script.open = open;
+    }
+}

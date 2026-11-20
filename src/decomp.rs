@@ -14,6 +14,8 @@ use crate::loader::Binary;
 use iced_x86::{ConditionCode, Instruction, Mnemonic, OpKind, Register};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+mod generic;
+
 // ------------------------------------------------------------------ expressions
 
 #[derive(Clone, PartialEq, Debug)]
@@ -282,7 +284,40 @@ fn reg_index(r: Register) -> Option<u8> {
     None
 }
 
+/// Register file of the CPU being decompiled (x86 by default).
+#[derive(Clone)]
+pub struct Abi {
+    pub names: Vec<String>,
+    pub ret: u8,
+    pub sp: u8,
+    pub args: Vec<u8>,
+    pub caller_saved: Vec<u8>,
+    pub callee_saved: Vec<u8>,
+    pub x86: bool,
+}
+
+thread_local! {
+    static ABI: std::cell::RefCell<Option<Abi>> = const { std::cell::RefCell::new(None) };
+}
+
+fn abi_ret() -> u8 {
+    ABI.with(|a| a.borrow().as_ref().map(|x| x.ret).unwrap_or(RAX))
+}
+fn abi_sp() -> u8 {
+    ABI.with(|a| a.borrow().as_ref().map(|x| x.sp).unwrap_or(RSP))
+}
+fn reg_by_name(n: &str) -> Option<u8> {
+    ABI.with(|a| match a.borrow().as_ref() {
+        Some(x) if !x.x86 => x.names.iter().position(|g| g == n).map(|i| i as u8),
+        _ => GPR.iter().position(|g| *g == n).map(|i| i as u8),
+    })
+}
+
 fn reg_name(i: u8) -> String {
+    let custom = ABI.with(|a| a.borrow().as_ref().filter(|x| !x.x86).and_then(|x| x.names.get(i as usize).cloned()));
+    if let Some(n) = custom {
+        return n;
+    }
     if i < 16 {
         GPR[i as usize].to_string()
     } else {
@@ -386,6 +421,8 @@ struct Dc<'a> {
     stack_args: BTreeSet<usize>,
     tmp: usize,
     dem: std::cell::RefCell<HashMap<u64, String>>,
+    /// Stack slots that only hold saved registers (non-x86 front-end).
+    spills: BTreeSet<i64>,
 }
 
 #[derive(Clone)]
@@ -1369,13 +1406,15 @@ pub fn decompile(
     comp_note: &str,
 ) -> Decompiled {
     let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
-    let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default() };
+    let x86 = bin.arch.is_x86();
+    ABI.with(|a| *a.borrow_mut() = Some(if x86 { Abi { names: vec![], ret: RAX, sp: RSP, args: vec![], caller_saved: vec![], callee_saved: vec![], x86: true } } else { generic::abi_for(bin.arch) }));
+    let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default(), spills: BTreeSet::new() };
     let name = names.get(&f.start).map(|n| display_symbol(&n.0)).unwrap_or_else(|| format!("sub_{:X}", f.start));
     if f.blocks.is_empty() {
         return Decompiled { lines: vec![DLine { text: format!("// {name}: no code to show"), addr: f.start, indent: 0 }] };
     }
     // frame pointer?
-    if let Some(first) = f.blocks.first() {
+    if let Some(first) = f.blocks.first().filter(|_| x86) {
         let ins: Vec<Instruction> = first.insns.iter().take(6).filter_map(|a| decode_at(bin, *a).map(|x| x.0)).collect();
         let (pb, mb) = if word == 8 { (Register::RBP, Register::RSP) } else { (Register::EBP, Register::ESP) };
         dc.fp = ins.iter().any(|i| i.mnemonic() == Mnemonic::Push && i.op_kind(0) == OpKind::Register && i.op0_register() == pb)
@@ -1387,7 +1426,10 @@ pub fn decompile(
     // pass 1: stack pointer at the start of each block
     let mut sp_in: Vec<Option<(i64, Option<i64>)>> = vec![None; n];
     sp_in[0] = Some((0, None));
-    let mut work = vec![0usize];
+    let mut work = if x86 { vec![0usize] } else { vec![] };
+    if !x86 {
+        sp_in = generic::sp_pass(&dc, f, &idx);
+    }
     while let Some(b) = work.pop() {
         let (mut sp, mut bp) = sp_in[b].unwrap();
         for a in &f.blocks[b].insns {
@@ -1442,14 +1484,14 @@ pub fn decompile(
     let mut outs: Vec<BlockOut> = vec![];
     for b in 0..n {
         let (sp, bp) = sp_in[b].unwrap_or((0, None));
-        outs.push(dc.exec(f, b, sp, bp, b == 0));
+        outs.push(if x86 { dc.exec(f, b, sp, bp, b == 0) } else { generic::exec(&mut dc, f, b, sp, bp) });
     }
 
     // pass 3: liveness of registers
     let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
-    let rax_defined = outs.iter().any(|o| o.defs.contains_key(&RAX));
+    let rax_defined = outs.iter().any(|o| o.defs.contains_key(&abi_ret()));
     // `ret` that returns rax from an earlier block needs it live
-    let ret_needs_rax: Vec<bool> = outs.iter().map(|o| matches!(&o.term, Term::Ret(Some(Ex::Var(v))) if v == "rax")).collect();
+    let ret_needs_rax: Vec<bool> = outs.iter().map(|o| matches!(&o.term, Term::Ret(Some(Ex::Var(v))) if *v == reg_name(abi_ret()))).collect();
     let mut changed = true;
     let succ_idx: Vec<Vec<usize>> = f.blocks.iter().map(|b| b.succs.iter().filter_map(|(t, _)| idx.get(t).copied()).collect()).collect();
     while changed {
@@ -1460,7 +1502,7 @@ pub fn decompile(
                 out.extend(live_in[*s].iter().copied());
             }
             if ret_needs_rax[b] && rax_defined {
-                out.insert(RAX);
+                out.insert(abi_ret());
             }
             let mut li: BTreeSet<u8> = out.into_iter().filter(|r| !outs[b].defs.contains_key(r)).collect();
             li.extend(outs[b].uses.iter().copied());
@@ -1478,11 +1520,11 @@ pub fn decompile(
             out.extend(live_in[*s].iter().copied());
         }
         if ret_needs_rax[b] {
-            out.insert(RAX);
+            out.insert(abi_ret());
         }
         let mut v = vec![];
         for (r, e) in &outs[b].defs {
-            if out.contains(r) && *r != RSP {
+            if out.contains(r) && *r != abi_sp() {
                 v.push((*r, e.clone()));
             }
         }
@@ -1490,10 +1532,10 @@ pub fn decompile(
     }
     // parameters
     let mut rename: HashMap<String, String> = HashMap::new();
-    let arg_regs = conv.arg_regs();
+    let arg_regs: Vec<String> = if x86 { conv.arg_regs().iter().map(|s| s.to_string()).collect() } else { ABI.with(|a| a.borrow().as_ref().map(|x| x.args.iter().map(|i| x.names[*i as usize].clone()).collect()).unwrap_or_default()) };
     let mut nparams = 0;
     for (k, r) in arg_regs.iter().enumerate() {
-        let i = GPR.iter().position(|g| g == r).unwrap() as u8;
+        let i = reg_by_name(r.as_str()).unwrap_or(255);
         if live_in[0].contains(&i) {
             nparams = k + 1;
         }
@@ -1503,7 +1545,7 @@ pub fn decompile(
     }
     let stack_max = dc.stack_args.iter().max().copied().unwrap_or(0);
     let total_params = nparams.max(stack_max);
-    if word == 4 {
+    if word == 4 && x86 {
         for (i, g) in GPR.iter().enumerate().take(8) {
             if !rename.contains_key(*g) {
                 rename.insert(g.to_string(), format!("e{}", &g[1..]));
@@ -1666,7 +1708,7 @@ pub fn decompile(
         if k.starts_with('a') && k[1..].chars().all(|c| c.is_ascii_digit()) && !k[1..].is_empty() {
             continue;
         }
-        let is_reg = GPR.contains(&k.as_str()) || (k.starts_with("xmm") && k[3..].chars().all(|c| c.is_ascii_digit()));
+        let is_reg = reg_by_name(k).is_some() || GPR.contains(&k.as_str()) || (k.starts_with("xmm") && k[3..].chars().all(|c| c.is_ascii_digit()));
         let is_tmp = (k.starts_with('v') || k.starts_with('t')) && k.len() > 1 && k[1..].chars().all(|c| c.is_ascii_digit());
         if is_reg || is_tmp {
             used.insert(k.clone());

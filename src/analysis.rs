@@ -201,6 +201,18 @@ pub fn is_noreturn_name(name: &str) -> bool {
     NORETURN.iter().any(|x| *x == n)
 }
 
+/// Arch-neutral summary of the instruction at `addr` (any supported CPU).
+pub fn decode_info(bin: &Binary, addr: u64) -> Option<Insn> {
+    if !bin.is_exec(addr) {
+        return None;
+    }
+    if bin.arch.is_x86() {
+        decode_at(bin, addr).map(|x| x.1)
+    } else {
+        crate::multiarch::decode_info(bin, addr)
+    }
+}
+
 pub fn decode_at(bin: &Binary, addr: u64) -> Option<(Instruction, Insn)> {
     if !bin.is_exec(addr) {
         return None;
@@ -295,6 +307,22 @@ fn insn_info(bin: &Binary, ins: &Instruction) -> Insn {
         imm,
         is_lea: ins.mnemonic() == Mnemonic::Lea,
         is_write,
+    }
+}
+
+/// Typical function entry sequences on other CPUs (little-endian words).
+fn other_prologue(arch: Arch, b: &[u8]) -> bool {
+    if b.len() < 4 {
+        return false;
+    }
+    let w = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
+    match arch {
+        // stp x29, x30, [sp, #-N]!   |  sub sp, sp, #N   |  pacibsp  |  bti c
+        Arch::Arm64 => (w & 0xFFC0_7FFF) == 0xA980_7BFD || (w & 0xFF00_03FF) == 0xD100_03FF || w == 0xD503_237F || w == 0xD503_245F,
+        // push {.., lr}
+        Arch::Arm32 => (w & 0xFFFF_4000) == 0xE92D_4000,
+        Arch::RiscV64 | Arch::RiscV32 => (w & 0x000F_FFFF) == 0x0001_0113 && (w >> 31) == 1,
+        _ => false,
     }
 }
 
@@ -431,7 +459,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         }
         None
     };
-    let dec_only = |a: u64| decode_at(bin, a).map(|x| x.1);
+    let dec_only = |a: u64| decode_info(bin, a);
 
     let mut noret_cache: HashMap<u64, bool> = HashMap::new();
     let mut total = 0usize;
@@ -460,8 +488,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                     }
                     let info = match insns.get(&a) {
                         Some(i) => *i,
-                        None => match decode_at(bin, a) {
-                            Some((_, i)) => {
+                        None => match decode_info(bin, a) {
+                            Some(i) => {
                                 insns.insert(a, i);
                                 total += 1;
                                 i
@@ -613,14 +641,20 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             // The very distinctive frame setups (endbr64; push rbp/mov rbp,rsp) are trusted at any
             // byte; the looser patterns only at 16-byte aligned spots.
             let mut a = s.start;
+            let step = bin.arch.fixed_width().unwrap_or(1);
             while a < s.end() {
                 let b = bin.read(a, 8);
-                let strong = b.starts_with(&[0xF3, 0x0F, 0x1E, 0xFA]) || b.starts_with(&[0x55, 0x48, 0x89, 0xE5]);
-                if (strong || (a % 16 == 0 && looks_like_prologue(b))) && !covered(&insns, a) {
+                let hit = if bin.arch.is_x86() {
+                    let strong = b.starts_with(&[0xF3, 0x0F, 0x1E, 0xFA]) || b.starts_with(&[0x55, 0x48, 0x89, 0xE5]);
+                    strong || (a % 16 == 0 && looks_like_prologue(b))
+                } else {
+                    other_prologue(bin.arch, b)
+                };
+                if hit && !covered(&insns, a) {
                     push(&mut queue, a);
                     found += 1;
                 }
-                a += 1;
+                a += step;
             }
         }
         if found == 0 {

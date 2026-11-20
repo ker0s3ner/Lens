@@ -359,9 +359,46 @@ impl LensApp {
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.add_space(4.0);
+                match &self.update {
+                    crate::updater::Status::Available(r) => {
+                        let b = egui::Button::new(RichText::new(format!("Update to {}", r.version)).color(egui::Color32::WHITE).strong()).fill(p.accent);
+                        if ui.add(b).on_hover_text(format!("Download and install, then restart\n\n{}", r.notes.chars().take(400).collect::<String>())).clicked() {
+                            self.actions.push(Action::InstallUpdate);
+                        }
+                    }
+                    crate::updater::Status::Downloading(r, _) => {
+                        ui.add(egui::Spinner::new().size(14.0));
+                        ui.label(RichText::new(format!("Installing {}…", r.version)).color(p.muted));
+                    }
+                    _ => {}
+                }
                 if ui.button(if p.dark { "Light" } else { "Dark" }).on_hover_text("Switch light / dark").clicked() {
                     self.actions.push(Action::ToggleTheme);
                 }
+                ui.menu_button("Tools", |ui| {
+                    if ui.button("Search…   Cmd+F").clicked() { self.actions.push(Action::Search); ui.close(); }
+                    if ui.button("Hex to Code…").clicked() { self.actions.push(Action::HexTool); ui.close(); }
+                    ui.separator();
+                    if ui.button("Patch bytes…").clicked() { self.actions.push(Action::Patches); ui.close(); }
+                    if ui.button("Structs…").clicked() { self.actions.push(Action::Structs); ui.close(); }
+                    if ui.button("Debugger…").clicked() { self.actions.push(Action::Debugger); ui.close(); }
+                    ui.separator();
+                    if ui.button("Script…").clicked() { self.actions.push(Action::Script); ui.close(); }
+                    let plugins = crate::script::list_plugins();
+                    if !plugins.is_empty() {
+                        ui.menu_button("Plugins", |ui| {
+                            for (n, _) in plugins {
+                                if ui.button(&n).clicked() { self.actions.push(Action::RunPlugin(n)); ui.close(); }
+                            }
+                        });
+                    }
+                    ui.separator();
+                    if ui.button("Learn signatures from a file…").clicked() { self.actions.push(Action::LearnSigs); ui.close(); }
+                    if ui.button("Recognise library functions").clicked() { self.actions.push(Action::ApplySigs); ui.close(); }
+                    ui.separator();
+                    if ui.button("Settings…   Cmd+,").clicked() { self.actions.push(Action::Settings); ui.close(); }
+                    if ui.button("Check for updates").clicked() { self.actions.push(Action::CheckUpdate); ui.close(); }
+                });
                 if self.loaded().is_some() {
                     if ui.selectable_label(self.prefs.inspector, "Outline").on_hover_text("Show the function outline").clicked() {
                         self.actions.push(Action::ToggleInspector);
@@ -454,11 +491,14 @@ impl LensApp {
                     );
                 }
                 State::Empty => {
-                    ui.label(RichText::new("No file open").small().color(p.muted));
+                    ui.label(RichText::new(format!("Lens {}", crate::updater::CURRENT)).small().color(p.muted));
                 }
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.add_space(6.0);
+                if matches!(self.state, State::Ready(_)) {
+                    ui.label(RichText::new(format!("v{}", crate::updater::CURRENT)).small().color(p.faint));
+                }
                 let t = if self.show_log { "Hide messages" } else { "Messages" };
                 if ui.add(egui::Button::new(RichText::new(t).small()).frame(false)).clicked() {
                     self.actions.push(Action::ToggleLog);
@@ -531,7 +571,7 @@ impl LensApp {
                         }
                         ui.add_space(14.0);
                         ui.label(RichText::new("WORKS WITH").small().strong().color(p.muted));
-                        ui.label("Windows .exe / .dll  ·  Linux ELF  ·  macOS .app and Mach-O (incl. universal)  ·  x86 and x64 code\nFinds the compiler, language, packer and calling convention by itself.");
+                        ui.label("Windows .exe / .dll  ·  Linux ELF  ·  macOS .app and Mach-O (incl. universal)  ·  x86, ARM64, ARM, RISC-V, MIPS and PowerPC  ·  raw hex / .bin / .hex files\nFinds the compiler, language, packer and calling convention by itself.");
                         ui.add_space(14.0);
                         ui.label(RichText::new("HANDY KEYS").small().strong().color(p.muted));
                         egui::Grid::new("keys").num_columns(4).spacing(vec2(14.0, 6.0)).show(ui, |ui| {
@@ -584,6 +624,9 @@ impl eframe::App for LensApp {
         self.frame += 1;
         self.char_w = ctx.fonts_mut(|f| f.glyph_width(&FontId::monospace(FONT_SIZE), '0'));
         self.poll();
+        self.poll_update(&ctx);
+        self.poll_jobs(&ctx);
+        self.poll_debugger(&ctx);
         if matches!(self.state, State::Loading { .. }) {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
@@ -635,6 +678,7 @@ impl eframe::App for LensApp {
         } else {
             egui::CentralPanel::default().frame(egui::Frame::new().fill(p.bg)).show(ui, |ui| self.welcome(ui));
         }
+        self.tool_windows(&ctx);
         self.modals(&ctx);
         self.apply_actions(&ctx);
         self.screenshot_tick(&ctx);
