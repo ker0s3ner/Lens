@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lens - see what any program really does</title>
+<meta name="description" content="Lens is a fast disassembler, decompiler and debugger for x86, ARM64, RISC-V, MIPS and PowerPC. Free, native, with in-app updates.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head>
+<body>
+<nav class="top"><div class="wrap">
+<a class="brand" href="./"><img src="logo.svg" width="28" height="28" alt="">Lens</a><span class="sp"></span>
+<a class="l hide" href="#features">Features</a><a class="l hide" href="#how">How it works</a><a class="l" href="docs.html">Documentation</a><a class="l hide" href="https://github.com/ker0s3ner/Lens">GitHub</a>
+<a class="btn small primary" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+<img class="logo" src="logo.svg" alt="">
+<h1>Lens</h1>
+<div class="tag">See what any program really does</div>
+<p class="sub">A fast, native disassembler, decompiler and debugger. Open a program and read it as code, a graph, or plain pseudocode. No setup, no licence server.</p>
+<div class="cta"><a class="btn primary" href="https://github.com/ker0s3ner/Lens/releases/latest">Download for Apple Silicon</a><a class="btn" href="docs.html">Read the docs</a></div>
+<span class="pill" id="ver">Latest release</span>
+
+<div class="mock"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span>hello - Lens</span></div>
+<div class="cols">
+<div class="col"><h6>DISASSEMBLY</h6><div class="line" style="animation-delay:.2s"><span class="f">_main</span>:</div><div class="line" style="animation-delay:.6s"><span class="a">  100003f50  </span><span class="m">stp </span><span class="r">x29, x30</span>, [sp, <span class="n">#-0x20</span>]!</div><div class="line" style="animation-delay:1s"><span class="a">  100003f54  </span><span class="m">mov </span><span class="r">x29</span>, <span class="r">sp</span></div><div class="line" style="animation-delay:1.4s"><span class="a">  100003f58  </span><span class="m">adrp</span> <span class="r">x0</span>, <span class="n">0x100003000</span></div><div class="line" style="animation-delay:1.8s"><span class="a">  100003f5c  </span><span class="m">bl  </span> <span class="f">_puts</span>   <span class="c">; hello</span></div><div class="line" style="animation-delay:2.2s"><span class="a">  100003f60  </span><span class="m">cbnz</span> <span class="r">w0</span>, <span class="f">loc_100003f6c</span></div><div class="line" style="animation-delay:2.6s"><span class="a">  100003f64  </span><span class="m">mov </span><span class="r">w0</span>, <span class="n">#0</span></div><div class="line" style="animation-delay:3s"><span class="a">  100003f68  </span><span class="m">ret</span></div></div>
+<div class="col"><h6>PSEUDOCODE</h6><div class="line" style="animation-delay:3.4s"><span class="k">int</span> <span class="f">main</span>(void) {</div><div class="line" style="animation-delay:3.8s">    <span class="k">int</span> r = <span class="f">puts</span>(<span class="s">"hello"</span>);</div><div class="line" style="animation-delay:4.2s">    <span class="k">if</span> (r != <span class="n">0</span>) {</div><div class="line" style="animation-delay:4.6s">        <span class="k">return</span> <span class="n">1</span>;</div><div class="line" style="animation-delay:5s">    }</div><div class="line" style="animation-delay:5.4s">    <span class="k">return</span> <span class="n">0</span>;</div><div class="line" style="animation-delay:5.8s">}</div></div>
+</div></div>
+</div></header>
+
+<section id="features"><div class="wrap">
+<h2>Everything you need to read a binary</h2>
+<p class="lead">Lens finds functions, strings and cross-references on its own, so you start reading instead of configuring.</p>
+<div class="grid">
+<div class="card"><span class="ic" style="background:#5b8cff22;color:#5b8cff">&lt;/&gt;</span><h3>Disassembler</h3><p>x86, x64, ARM64, ARM, RISC-V, MIPS and PowerPC. Functions, xrefs, imports and strings are found for you.</p></div>
+<div class="card"><span class="ic" style="background:#ff7ab622;color:#ff7ab6">{ }</span><h3>Pseudocode</h3><p>Readable C-like code for every function, in several output languages. Rename as you learn.</p></div>
+<div class="card"><span class="ic" style="background:#ffb45422;color:#ffb454">-o&lt;</span><h3>Graphs and maps</h3><p>Control-flow graphs, a call graph and a map of the whole program at a glance.</p></div>
+<div class="card"><span class="ic" style="background:#4cc38a22;color:#4cc38a">0x</span><h3>Patch and save</h3><p>Change bytes, NOP an instruction or flip a branch, then save a patched copy that still runs (re-signed on macOS).</p></div>
+<div class="card"><span class="ic" style="background:#7fd1ff22;color:#7fd1ff">&gt; _</span><h3>Debugger</h3><p>Breakpoints, stepping and registers on Apple Silicon, driven through lldb.</p></div>
+<div class="card"><span class="ic" style="background:#b48cff22;color:#b48cff">fn()</span><h3>Scripts and signatures</h3><p>Rhai scripts and plugins, a struct editor, and library recognition from learned signatures.</p></div>
+<div class="card"><span class="ic" style="background:#5b8cff22;color:#5b8cff">hex</span><h3>Hex to code</h3><p>Paste hex, load a .bin, Intel HEX or S-record, pick a CPU and see the instructions.</p></div>
+<div class="card"><span class="ic" style="background:#ffb45422;color:#ffb454">Cmd+F</span><h3>Search</h3><p>Search listings, strings, names, byte patterns and numbers from one window.</p></div>
+<div class="card"><span class="ic" style="background:#4cc38a22;color:#4cc38a">auto</span><h3>Updates itself</h3><p>A card shows when a new version is out, downloads with a progress bar, then restarts into it.</p></div>
+</div>
+</div></section>
+
+<section id="cpus"><div class="wrap"><h2>One tool, many CPUs</h2><p class="lead">Mach-O (including universal binaries), ELF and PE, plus raw firmware.</p>
+<div class="cpus"><span>x86</span><span>x86-64</span><span>ARM64</span><span>ARM</span><span>RISC-V</span><span>MIPS</span><span>PowerPC</span><span>Windows .exe / .dll</span><span>Linux ELF</span><span>macOS .app</span></div></div></section>
+
+<section id="how"><div class="wrap"><h2>Up and running in a minute</h2><p class="lead">Install once. After that, Lens updates itself.</p>
+<div class="steps">
+<div class="step"><h3>Download</h3><p>Grab <code>Lens-macos-arm64.zip</code> from the latest release and drag Lens.app to Applications.</p></div>
+<div class="step"><h3>Open a program</h3><p>Drop an .exe, .app or ELF onto the window. Lens detects the compiler, language and packer.</p></div>
+<div class="step"><h3>Read it</h3><p>Press <kbd>F5</kbd> for pseudocode, <kbd>Space</kbd> for the graph, <kbd>N</kbd> to rename.</p></div>
+</div>
+<p style="margin-top:26px;color:var(--faint)">First launch blocked by macOS? Right-click the app and choose Open. The build is ad-hoc signed, not notarized.</p></div></section>
+
+<footer><div class="wrap"><span>Lens - made with Rust and egui.</span><span><a href="docs.html">Documentation</a> &nbsp;·&nbsp; <a href="https://github.com/ker0s3ner/Lens">GitHub</a> &nbsp;·&nbsp; <a href="https://github.com/ker0s3ner/Lens/blob/main/ROADMAP.md">Roadmap</a></span></div></footer>
+<script>
+fetch("https://api.github.com/repos/ker0s3ner/Lens/releases/latest").then(r=>r.json()).then(j=>{if(j.tag_name)document.getElementById("ver").textContent="Latest: "+j.tag_name}).catch(()=>{});
+</script>
+</body></html>

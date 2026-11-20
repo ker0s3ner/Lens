@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lens documentation</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head>
+<body>
+<nav class="top"><div class="wrap">
+<a class="brand" href="./"><img src="logo.svg" width="28" height="28" alt="">Lens</a><span class="sp"></span>
+<a class="l" href="./">Home</a><a class="l hide" href="https://github.com/ker0s3ner/Lens">GitHub</a>
+<a class="btn small primary" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a>
+</div></nav>
+<div class="wrap docs">
+<aside>
+<h5>Start</h5><a href="#install">Install</a><a href="#open">Open a program</a><a href="#updates">Updates</a>
+<h5>Reading code</h5><a href="#views">Views</a><a href="#navigate">Navigate and annotate</a><a href="#search">Search</a><a href="#shortcuts">Keyboard shortcuts</a>
+<h5>Tools</h5><a href="#hex">Hex to code</a><a href="#patch">Patching</a><a href="#types">Structs</a><a href="#sigs">Signatures</a><a href="#debug">Debugger</a><a href="#script">Scripting and plugins</a>
+<h5>Reference</h5><a href="#formats">Supported formats</a><a href="#cli">Command line</a><a href="#settings">Settings and data</a><a href="#limits">Limitations</a><a href="#build">Building and releasing</a>
+</aside>
+<article>
+<h1>Documentation</h1>
+<p>Lens is a disassembler, decompiler and debugger. This page covers everything in the app.</p>
+
+<h2 id="install">Install</h2>
+<ol><li>Download <code>Lens-macos-arm64.zip</code> from the <a href="https://github.com/ker0s3ner/Lens/releases/latest">latest release</a>.</li>
+<li>Unzip and drag <strong>Lens.app</strong> into <code>/Applications</code> or <code>~/Applications</code>.</li>
+<li>Right-click the app and choose <strong>Open</strong> the first time. The build is ad-hoc signed and not notarized, so macOS asks for confirmation once.</li></ol>
+<div class="note">Put the app in a folder you can write to. Updates replace the app in place and need write access to its folder.</div>
+
+<h2 id="open">Open a program</h2>
+<p>Drop a file onto the window, use <strong>Open a program</strong>, or press <kbd>Cmd</kbd>+<kbd>O</kbd>. Lens detects the compiler, language, packer and calling convention by itself. Universal Mach-O files ask which slice to read. Recent files appear on the start screen.</p>
+
+<h2 id="updates">Updates</h2>
+<p>Lens checks GitHub for a newer release when it starts (turn this off in Settings). You can also choose <strong>Tools &gt; Check for updates</strong>.</p>
+<ul><li><strong>Up to date:</strong> a small card says so and fades away after a few seconds.</li>
+<li><strong>Update available:</strong> a card shows the version and what changed. Choose <strong>Download and install</strong>, or <strong>Later</strong> (a button stays in the toolbar).</li>
+<li><strong>Downloading:</strong> the card shows a progress bar with the percentage, then unpacks and verifies the signature.</li>
+<li><strong>Restarting:</strong> Lens swaps in the new version and reopens itself. Your notes, names and patches are kept.</li></ul>
+
+<h2 id="views">Views</h2>
+<table><tr><th>View</th><th>What it shows</th></tr>
+<tr><td>Listing</td><td>Disassembly with names, comments, cross-references and colour-coded operands.</td></tr>
+<tr><td>Graph</td><td>Control-flow graph of the current function. <kbd>Space</kbd> toggles between graph and listing.</td></tr>
+<tr><td>Pseudocode</td><td>C-like code for the current function (<kbd>F5</kbd>), also as Python, Rust, Go or JavaScript style.</td></tr>
+<tr><td>Hex</td><td>Raw bytes at the cursor (<kbd>H</kbd>).</td></tr>
+<tr><td>Call graph, Map, Overview</td><td>Who calls whom, a map of the whole program, and a summary of what Lens found.</td></tr></table>
+
+<h2 id="navigate">Navigate and annotate</h2>
+<ul><li><kbd>G</kbd> jumps to an address or name. <kbd>Enter</kbd> follows the target under the cursor, <kbd>Esc</kbd> goes back.</li>
+<li><kbd>N</kbd> renames, <kbd>;</kbd> adds a note, <kbd>M</kbd> bookmarks, <kbd>X</kbd> lists everything that uses the item, <kbd>P</kbd> turns the cursor into a function.</li>
+<li>Names, notes, bookmarks and patches are saved per program and come back when you reopen it.</li></ul>
+
+<h2 id="search">Search</h2>
+<p><kbd>Cmd</kbd>+<kbd>F</kbd> opens Search with five modes: <strong>Listing</strong> (instruction text), <strong>Strings</strong>, <strong>Names</strong>, <strong>Bytes</strong> (hex pattern, <code>??</code> for any byte) and <strong>Number</strong>. Results are capped at 3,000 and the search stops after a few seconds on huge files. Click a result to jump to it.</p>
+
+<h2 id="shortcuts">Keyboard shortcuts</h2>
+<table><tr><th>Key</th><th>Action</th></tr>
+<tr><td><kbd>Cmd</kbd>+<kbd>P</kbd></td><td>Command palette (every command)</td></tr>
+<tr><td><kbd>Cmd</kbd>+<kbd>F</kbd></td><td>Search</td></tr>
+<tr><td><kbd>Cmd</kbd>+<kbd>,</kbd></td><td>Settings</td></tr>
+<tr><td><kbd>Cmd</kbd>+<kbd>O</kbd></td><td>Open a program</td></tr>
+<tr><td><kbd>G</kbd></td><td>Go to address or name</td></tr>
+<tr><td><kbd>Space</kbd></td><td>Graph / listing</td></tr>
+<tr><td><kbd>F5</kbd></td><td>Pseudocode</td></tr>
+<tr><td><kbd>H</kbd></td><td>Hex view</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Toggle a breakpoint at the cursor</td></tr>
+<tr><td><kbd>N</kbd> / <kbd>;</kbd> / <kbd>M</kbd> / <kbd>X</kbd> / <kbd>P</kbd></td><td>Rename / note / bookmark / who uses this / make function</td></tr>
+<tr><td><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Follow / go back (<kbd>Cmd</kbd>+<kbd>]</kbd> goes forward)</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F3</kbd> / <kbd>F12</kbd> / <kbd>F7</kbd></td><td>Sidebar: functions / strings / segments</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>T</kbd>, <kbd>F3</kbd></td><td>Find text, find next</td></tr></table>
+
+<h2 id="hex">Hex to code</h2>
+<p><strong>Tools &gt; Hex to Code</strong> turns bytes into instructions. Paste hex text (spaces, <code>0x</code> prefixes and <code>\x41</code> escapes are fine), or load a <code>.bin</code>, Intel HEX or Motorola S-record file. Choose the CPU, byte order and base address, then read the listing, copy it, or choose <strong>Open as program</strong> to get the full analysis, graph and pseudocode.</p>
+
+<h2 id="patch">Patching</h2>
+<p><strong>Tools &gt; Patch bytes</strong> lists every change you made. You can write raw hex, NOP an instruction, invert a conditional branch or turn it into an unconditional jump. Patches are stored with the program and re-applied each time you open it, and each can be reverted. <strong>Save patched copy</strong> writes a new file; on macOS it is re-signed ad hoc so it still launches. The original is never modified.</p>
+
+<h2 id="types">Structs</h2>
+<p><strong>Tools &gt; Structs</strong> takes plain C declarations (<code>struct Header { uint32_t magic; char name[16]; void *next; };</code>), computes offsets and lets you lay a struct over data at an address. Field names then show up as names in the listing.</p>
+
+<h2 id="sigs">Signatures</h2>
+<p><strong>Learn signatures from a file</strong> asks you to pick an unstripped program or library, then records the first instructions of every named function in it (addresses are masked out, so relocated copies still match) and saves them to your signature folder. <strong>Recognise library functions</strong> then names matching functions in any other program, which is how stripped binaries get their library calls back. Ambiguous matches are dropped rather than guessed.</p>
+<div class="note">No signature library ships with Lens yet. Learn from an unstripped build of a library to create your own.</div>
+
+<h2 id="debug">Debugger</h2>
+<p><strong>Tools &gt; Debugger</strong> runs the program under <code>lldb</code> (included with the Xcode command line tools). Tick the confirmation box first: the debugger really runs the program.</p>
+<ul><li>Set breakpoints with <kbd>F2</kbd>; they show as red dots in the listing.</li>
+<li>Run, continue, step into, step over, pause and stop. The current instruction is highlighted and the registers update at every stop.</li>
+<li>Addresses are translated between the file and the running (slid) process automatically.</li></ul>
+<div class="note warn">Apple-protected system binaries cannot be debugged (SIP), and the program's own stdin is not connected.</div>
+
+<h2 id="script">Scripting and plugins</h2>
+<p>Scripts use <a href="https://rhai.rs">Rhai</a>. Open <strong>Tools &gt; Script</strong>, type, and run. Plugins are <code>.rhai</code> files in the <code>plugins</code> folder (see Settings and data); they appear under <strong>Tools &gt; Plugins</strong>, and a plugin that defines <code>fn on_open()</code> runs every time a program finishes loading.</p>
+<table><tr><th>Read</th><th>Does</th></tr>
+<tr><td><code>functions()</code></td><td>Array of maps with <code>addr</code>, <code>name</code>, <code>size</code>, <code>blocks</code></td></tr>
+<tr><td><code>strings()</code></td><td>Array of maps with <code>addr</code>, <code>text</code></td></tr>
+<tr><td><code>name_at(a)</code>, <code>find(name)</code></td><td>Name of an address; address of a name (0 if none)</td></tr>
+<tr><td><code>xrefs_to(a)</code></td><td>Addresses that reference <code>a</code></td></tr>
+<tr><td><code>read_u8/u16/u32/u64(a)</code>, <code>read_bytes(a, n)</code></td><td>Read memory from the file image</td></tr>
+<tr><td><code>disasm(a)</code>, <code>is_code(a)</code></td><td>One instruction as text; whether the address is executable</td></tr>
+<tr><td><code>entry()</code>, <code>arch()</code>, <code>file_name()</code>, <code>hex(n)</code></td><td>Entry point, CPU name, file name, hex text</td></tr></table>
+<table><tr><th>Change</th><th>Does</th></tr>
+<tr><td><code>rename(a, name)</code>, <code>comment(a, text)</code>, <code>mark(a)</code></td><td>Annotate</td></tr>
+<tr><td><code>make_function(a)</code>, <code>goto(a)</code>, <code>log(text)</code></td><td>Define a function, move the cursor, write to Messages</td></tr>
+<tr><td><code>patch(a, bytes)</code></td><td>Queue a patch (array or blob of bytes)</td></tr></table>
+<pre><code>// name every function that references the string "password"
+for s in strings() {
+    if s.text.contains("password") {
+        for x in xrefs_to(s.addr) {
+            comment(x, "uses: " + s.text);
+        }
+    }
+}
+log("done: " + functions().len() + " functions");</code></pre>
+<p>Scripts are limited to 40 million operations so a runaway loop cannot freeze the app.</p>
+
+<h2 id="formats">Supported formats</h2>
+<table><tr><th>Kind</th><th>Details</th></tr>
+<tr><td>Executables</td><td>PE (.exe, .dll), ELF, Mach-O including universal binaries and .app bundles (arm64 chained-fixup imports are resolved)</td></tr>
+<tr><td>CPUs</td><td>x86, x86-64, ARM64, ARM, RISC-V (32/64), MIPS, PowerPC</td></tr>
+<tr><td>Raw code</td><td>Hex text, .bin, Intel HEX, Motorola S-record (via Hex to Code)</td></tr>
+<tr><td>Pseudocode</td><td>Full on x86; integer core on ARM64, ARM, RISC-V, MIPS and PowerPC, with unknown instructions shown as <code>__mnemonic(...)</code></td></tr></table>
+
+<h2 id="cli">Command line</h2>
+<pre><code>Lens.app/Contents/MacOS/Lens [file] [options]
+
+--report                 print a summary and exit
+--decompile ADDR         print pseudocode for the function at ADDR   (--lang c|python|rust|go|js)
+--slice NAME             pick a slice of a universal Mach-O (e.g. arm64)
+--arch NAME --base ADDR  treat the file as raw code (--big for big-endian)
+--run-script FILE        run a Rhai script against the file
+--learn-sigs OUT         save signatures from the file;  --sigs  apply saved ones
+--patch ADDR:HEX --save OUT   patch and write a copy
+--dark / --light         theme (with --screenshot OUT to render a PNG)</code></pre>
+
+<h2 id="settings">Settings and data</h2>
+<p><kbd>Cmd</kbd>+<kbd>,</kbd> opens Settings: theme, zoom, outline, minimum string length, re-analyse, update checks and shortcuts. Everything is stored in <code>~/Library/Application Support/Lens</code>:</p>
+<table><tr><th>Folder / file</th><th>Contents</th></tr>
+<tr><td><code>prefs.json</code></td><td>Settings and recent files</td></tr>
+<tr><td><code>notes/</code></td><td>Your names, notes, bookmarks, patches and structs, one file per program</td></tr>
+<tr><td><code>plugins/</code>, <code>scripts/</code></td><td>Rhai plugins and saved scripts</td></tr>
+<tr><td><code>sigs/</code></td><td>Learned signature files</td></tr></table>
+
+<h2 id="limits">Limitations</h2>
+<ul><li>Lens is young. Expect rough edges on very large, obfuscated or unusual binaries.</li>
+<li>Pseudocode on non-x86 CPUs covers integer code only; MIPS delay slots are not modelled; Thumb is available through Hex to Code only.</li>
+<li>No type recovery, switch-table recovery or vtable recovery yet. See the <a href="https://github.com/ker0s3ner/Lens/blob/main/ROADMAP.md">roadmap</a>.</li>
+<li>The debugger needs lldb and cannot attach to protected system binaries.</li>
+<li>Builds are Apple Silicon only and ad-hoc signed.</li></ul>
+
+<h2 id="build">Building and releasing</h2>
+<pre><code>cargo run --release                 # run from source
+./scripts/bundle-macos.sh           # build dist/Lens.app and the zip
+
+# publish: bump version in Cargo.toml, commit, push, then
+git tag v0.3.0 &amp;&amp; git push origin v0.3.0</code></pre>
+<p>Pushing a <code>v*</code> tag starts the GitHub Actions workflow, which checks the tag matches <code>Cargo.toml</code>, builds on an Apple Silicon runner and attaches <code>Lens-macos-arm64.zip</code> to a release. Installed copies pick it up through the update card.</p>
+</article></div>
+<footer><div class="wrap"><span>Lens documentation</span><span><a href="./">Home</a> &nbsp;·&nbsp; <a href="https://github.com/ker0s3ner/Lens">GitHub</a></span></div></footer>
+</body></html>

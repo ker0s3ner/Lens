@@ -502,8 +502,8 @@ impl LensApp {
                         if ui.button("Install & restart").clicked() { acts.push(Action::InstallUpdate); }
                     }
                     crate::updater::Status::Checking(_) => { ui.add(egui::Spinner::new().size(12.0)); }
-                    crate::updater::Status::UpToDate => { ui.label(RichText::new("· up to date").color(p.muted)); }
-                    crate::updater::Status::Failed(e) => { ui.label(RichText::new(format!("· {e}")).color(p.muted)); }
+                    crate::updater::Status::UpToDate(_) => { ui.label(RichText::new("· up to date").color(p.muted)); }
+                    crate::updater::Status::Failed(e, _) => { ui.label(RichText::new(format!("· {e}")).color(p.muted)); }
                     _ => {}
                 }
                 if ui.button("Check now").clicked() { acts.push(Action::CheckUpdate); }

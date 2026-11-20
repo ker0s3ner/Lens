@@ -366,10 +366,6 @@ impl LensApp {
                             self.actions.push(Action::InstallUpdate);
                         }
                     }
-                    crate::updater::Status::Downloading(r, _) => {
-                        ui.add(egui::Spinner::new().size(14.0));
-                        ui.label(RichText::new(format!("Installing {}…", r.version)).color(p.muted));
-                    }
                     _ => {}
                 }
                 if ui.button(if p.dark { "Light" } else { "Dark" }).on_hover_text("Switch light / dark").clicked() {
@@ -522,82 +518,423 @@ impl LensApp {
             });
             return;
         }
-        let avail = ui.available_size();
-        let card_w = 560.0f32.min(avail.x - 40.0);
-        ui.add_space((avail.y * 0.08).max(16.0));
-        ui.vertical_centered(|ui| {
-            logo(ui, &p, 64.0);
-            ui.add_space(8.0);
-            ui.label(RichText::new("Lens").size(30.0).strong());
-            ui.label(RichText::new("Drop in an .exe or an .app — Lens works out the rest.").size(15.0).color(p.muted));
-            ui.add_space(22.0);
-            let b = egui::Button::new(RichText::new("Open a program…").size(15.0).color(Color32::WHITE))
-                .fill(p.accent)
-                .min_size(vec2(220.0, 40.0))
-                .corner_radius(CornerRadius::same(8));
-            if ui.add(b).clicked() {
-                self.actions.push(Action::OpenDialog);
+        let t = ui.input(|i| i.time) as f32;
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
+        let full = ui.max_rect();
+        self.welcome_backdrop(ui, full, t);
+        let col_w = (full.width() - 48.0).min(980.0);
+        let left = ((full.width() - col_w) / 2.0).max(0.0);
+        let mut sa = ScrollArea::vertical().auto_shrink(false);
+        if let Some(o) = std::env::var("LENS_SCROLL").ok().and_then(|v| v.parse::<f32>().ok()) { sa = sa.vertical_scroll_offset(o); }
+        sa.show(ui, |ui| {
+            ui.horizontal_top(|ui| {
+                ui.add_space(left);
+                ui.vertical(|ui| {
+                    ui.set_width(col_w);
+                    self.welcome_hero(ui, t);
+                    ui.add_space(30.0);
+                    self.welcome_preview(ui, t, col_w);
+                    ui.add_space(34.0);
+                    self.welcome_features(ui, col_w);
+                    ui.add_space(30.0);
+                    self.welcome_recent(ui, col_w);
+                    ui.add_space(26.0);
+                    self.welcome_keys(ui);
+                    ui.add_space(40.0);
+                });
+            });
+        });
+    }
+
+    fn welcome_backdrop(&self, ui: &mut egui::Ui, r: Rect, t: f32) {
+        let p = self.p;
+        let painter = ui.painter_at(r);
+        // soft glow behind the logo that slowly breathes
+        let c = pos2(r.center().x, r.top() + 170.0);
+        let pulse = 1.0 + 0.04 * (t * 0.9).sin();
+        for i in 0..28 {
+            let k = i as f32 / 28.0;
+            painter.circle_filled(c, 440.0 * (1.0 - k) * pulse, p.accent.gamma_multiply(0.012 + 0.002 * k));
+        }
+        // dot grid, brightest near the glow
+        let step = 30.0;
+        let off = (t * 6.0) % step;
+        let mut y = r.top() + off - step;
+        while y < r.bottom() {
+            let mut x = r.left();
+            while x < r.right() {
+                let d = ((x - c.x).powi(2) + (y - c.y).powi(2)).sqrt();
+                let a = (1.0 - d / 760.0).clamp(0.0, 1.0);
+                if a > 0.02 {
+                    painter.circle_filled(pos2(x, y), 1.2, p.accent.gamma_multiply(0.05 + 0.35 * a * a));
+                }
+                x += step;
             }
+            y += step;
+        }
+        // a thin scan line sweeping down, like a lens passing over code
+        let sy = r.top() + ((t * 70.0) % (r.height() + 200.0)) - 100.0;
+        for i in 0..14 {
+            painter.line_segment([pos2(r.left(), sy - i as f32 * 2.0), pos2(r.right(), sy - i as f32 * 2.0)], Stroke::new(1.0, p.accent.gamma_multiply(0.05 * (1.0 - i as f32 / 14.0))));
+        }
+    }
+
+    fn welcome_hero(&mut self, ui: &mut egui::Ui, t: f32) {
+        let p = self.p;
+        ui.add_space(46.0);
+        ui.vertical_centered(|ui| {
+            let bob = (t * 1.3).sin() * 3.0;
+            ui.add_space(6.0 + bob);
+            logo(ui, &p, 92.0);
+            ui.add_space(6.0 - bob);
+            ui.label(RichText::new("Lens").size(58.0).strong().color(p.text));
+            ui.add_space(2.0);
+            ui.label(RichText::new("See what any program really does").size(22.0).color(p.accent));
             ui.add_space(6.0);
-            ui.label(RichText::new("or drop a file anywhere in this window").color(p.faint));
+            ui.label(RichText::new("Disassembler, decompiler and debugger for x86, ARM64, RISC-V, MIPS and PowerPC.\nOpen a program and read it as code, a graph, or plain pseudocode.").size(15.0).color(p.muted));
             ui.add_space(24.0);
-            egui::Frame::new()
-                .fill(p.panel)
-                .stroke(Stroke::new(1.0, p.border))
-                .corner_radius(CornerRadius::same(12))
-                .inner_margin(Margin::same(18))
-                .show(ui, |ui| {
-                    ui.set_width(card_w);
-                    ui.with_layout(Layout::top_down(Align::Min), |ui| {
-                        ui.label(RichText::new("RECENT").small().strong().color(p.muted));
-                        ui.add_space(4.0);
-                        if self.prefs.recent.is_empty() {
-                            ui.label(RichText::new("Nothing opened yet.").color(p.faint));
-                        }
-                        for r in self.prefs.recent.clone() {
-                            let name = std::path::Path::new(&r).file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or(r.clone());
-                            ui.horizontal(|ui| {
-                                if ui.add(egui::Button::new(RichText::new(name).strong()).frame(false)).clicked() {
-                                    self.actions.push(Action::Open(r.clone()));
-                                }
-                                ui.label(RichText::new(short_path(&r)).small().color(p.faint));
-                            });
-                        }
-                        if let Some(sample) = sample_path() {
-                            ui.add_space(6.0);
-                            if ui.link(format!("Try a sample: {sample}")).clicked() {
-                                self.actions.push(Action::Open(sample.to_string()));
-                            }
-                        }
-                        ui.add_space(14.0);
-                        ui.label(RichText::new("WORKS WITH").small().strong().color(p.muted));
-                        ui.label("Windows .exe / .dll  ·  Linux ELF  ·  macOS .app and Mach-O (incl. universal)  ·  x86, ARM64, ARM, RISC-V, MIPS and PowerPC  ·  raw hex / .bin / .hex files\nFinds the compiler, language, packer and calling convention by itself.");
-                        ui.add_space(14.0);
-                        ui.label(RichText::new("HANDY KEYS").small().strong().color(p.muted));
-                        egui::Grid::new("keys").num_columns(4).spacing(vec2(14.0, 6.0)).show(ui, |ui| {
-                            let keys = [
-                                ("G", "Go to address"),
-                                ("Space", "Graph / code"),
-                                ("F5", "Pseudocode"),
-                                ("M", "Bookmark"),
-                                ("N", "Rename"),
-                                ("X", "Who uses this"),
-                                (";", "Add a note"),
-                                ("Esc", "Go back"),
-                                ("Enter", "Follow"),
-                                ("Cmd/Ctrl P", "All commands"),
-                            ];
-                            for (i, (k, d)) in keys.iter().enumerate() {
-                                kbd(ui, &p, k);
-                                ui.label(RichText::new(*d).color(p.muted));
-                                if i % 2 == 1 {
-                                    ui.end_row();
-                                }
-                            }
+            ui.horizontal(|ui| {
+                let w = 150.0 + 140.0 + 150.0 + 24.0;
+                ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
+                let b = egui::Button::new(RichText::new("Open a program").size(16.0).strong().color(Color32::WHITE))
+                    .fill(p.accent)
+                    .min_size(vec2(170.0, 46.0))
+                    .corner_radius(CornerRadius::same(10));
+                if ui.add(b).clicked() {
+                    self.actions.push(Action::OpenDialog);
+                }
+                let b2 = egui::Button::new(RichText::new("Hex to code").size(15.0)).min_size(vec2(140.0, 46.0)).corner_radius(CornerRadius::same(10));
+                if ui.add(b2).clicked() {
+                    self.actions.push(Action::HexTool);
+                }
+                if let Some(sample) = sample_path() {
+                    let b3 = egui::Button::new(RichText::new(format!("Try {sample}")).size(15.0)).min_size(vec2(130.0, 46.0)).corner_radius(CornerRadius::same(10));
+                    if ui.add(b3).clicked() {
+                        self.actions.push(Action::Open(sample.to_string()));
+                    }
+                }
+            });
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                ui.add_space(((ui.available_width() - 360.0) / 2.0).max(0.0));
+                chip(ui, &p, &format!("v{}", crate::updater::CURRENT), p.accent, p.accent_soft);
+                ui.label(RichText::new("or drop a file anywhere in this window").color(p.faint));
+            });
+        });
+    }
+
+    fn welcome_preview(&self, ui: &mut egui::Ui, t: f32, w: f32) {
+        use egui::text::{LayoutJob, TextFormat};
+        let p = self.p;
+        #[derive(Clone, Copy)]
+        enum K { A, M, R, N, F, C, Kw, S, P }
+        let col = |k: K| match k {
+            K::A => p.address, K::M => p.mnemonic, K::R => p.register, K::N => p.number, K::F => p.func_name,
+            K::C => p.comment, K::Kw => p.keyword, K::S => p.string, K::P => p.punct,
+        };
+        use K::*;
+        let asm: Vec<Vec<(&str, K)>> = vec![
+            vec![("_main", F), (":", P)],
+            vec![("  100003f50  ", A), ("stp ", M), ("x29, x30", R), (", [sp, ", P), ("#-0x20", N), ("]!", P)],
+            vec![("  100003f54  ", A), ("mov ", M), ("x29", R), (", ", P), ("sp", R)],
+            vec![("  100003f58  ", A), ("adrp", M), (" x0", R), (", ", P), ("0x100003000", N)],
+            vec![("  100003f5c  ", A), ("bl  ", M), ("_puts", F), ("   ; hello", C)],
+            vec![("  100003f60  ", A), ("cbnz", M), (" w0", R), (", ", P), ("loc_100003f6c", F)],
+            vec![("  100003f64  ", A), ("mov ", M), ("w0", R), (", ", P), ("#0", N)],
+            vec![("  100003f68  ", A), ("ret", M)],
+        ];
+        let pseudo: Vec<Vec<(&str, K)>> = vec![
+            vec![("int ", Kw), ("main", F), ("(void) {", P)],
+            vec![("    int ", Kw), ("r = ", P), ("puts", F), ("(", P), ("\"hello\"", S), (");", P)],
+            vec![("    if ", Kw), ("(r != ", P), ("0", N), (") {", P)],
+            vec![("        return ", Kw), ("1", N), (";", P)],
+            vec![("    }", P)],
+            vec![("    return ", Kw), ("0", N), (";", P)],
+            vec![("}", P)],
+        ];
+        let total: usize = asm.iter().map(|l| l.iter().map(|(s, _)| s.chars().count()).sum::<usize>() + 1).sum();
+        let cycle = total as f32 + 70.0;
+        let budget = ((t * 38.0) % cycle) as usize;
+        let build = |lines: &Vec<Vec<(&str, K)>>, mut left: usize| -> LayoutJob {
+            let mut job = LayoutJob::default();
+            for l in lines {
+                for (s, k) in l {
+                    let n = s.chars().count().min(left);
+                    if n > 0 {
+                        job.append(&s.chars().take(n).collect::<String>(), 0.0, TextFormat { font_id: FontId::monospace(13.0), color: col(*k), ..Default::default() });
+                    }
+                    left -= n;
+                }
+                if left > 0 { job.append("\n", 0.0, TextFormat { font_id: FontId::monospace(13.0), ..Default::default() }); left -= 1; } else { job.append("\n", 0.0, TextFormat { font_id: FontId::monospace(13.0), ..Default::default() }); }
+            }
+            job
+        };
+        egui::Frame::new()
+            .fill(p.panel)
+            .stroke(Stroke::new(1.0, p.border))
+            .corner_radius(CornerRadius::same(14))
+            .shadow(egui::Shadow { offset: [0, 18], blur: 48, spread: 0, color: Color32::from_black_alpha(110) })
+            .show(ui, |ui| {
+                ui.set_width(w - 2.0);
+                // title bar with traffic lights
+                let (bar, _) = ui.allocate_exact_size(vec2(w - 2.0, 30.0), Sense::hover());
+                for (i, c) in [Color32::from_rgb(255, 95, 86), Color32::from_rgb(255, 189, 46), Color32::from_rgb(39, 201, 63)].iter().enumerate() {
+                    ui.painter().circle_filled(pos2(bar.left() + 18.0 + i as f32 * 18.0, bar.center().y), 5.5, *c);
+                }
+                ui.painter().text(bar.center(), egui::Align2::CENTER_CENTER, "hello  -  Lens", FontId::proportional(12.5), p.faint);
+                ui.painter().hline(bar.x_range(), bar.bottom(), Stroke::new(1.0, p.border));
+                ui.horizontal_top(|ui| {
+                    let half = (w - 2.0) / 2.0;
+                    ui.vertical(|ui| {
+                        ui.set_width(half);
+                        ui.set_min_height(170.0);
+                        egui::Frame::new().inner_margin(Margin::symmetric(16, 12)).show(ui, |ui| {
+                            ui.label(RichText::new("DISASSEMBLY").small().strong().color(p.faint));
+                            ui.add_space(4.0);
+                            ui.label(build(&asm, budget));
+                        });
+                    });
+                    let (sep, _) = ui.allocate_exact_size(vec2(1.0, 190.0), Sense::hover());
+                    ui.painter().rect_filled(sep, 0.0, p.border);
+                    ui.vertical(|ui| {
+                        ui.set_width(half - 2.0);
+                        egui::Frame::new().inner_margin(Margin::symmetric(16, 12)).show(ui, |ui| {
+                            ui.label(RichText::new("PSEUDOCODE").small().strong().color(p.faint));
+                            ui.add_space(4.0);
+                            let pb = budget.saturating_sub(total / 3);
+                            ui.label(build(&pseudo, pb));
                         });
                     });
                 });
+            });
+    }
+
+    fn welcome_features(&self, ui: &mut egui::Ui, col_w: f32) {
+        let p = self.p;
+        let items: [(&str, &str, &str, Color32); 6] = [
+            ("</>", "Disassembler", "x86, x64, ARM64, ARM, RISC-V, MIPS and PowerPC. Functions, cross-references and strings are found for you.", p.mnemonic),
+            ("{ }", "Pseudocode", "Readable C-like code for every function, shown in several languages. Rename things as you learn them.", p.keyword),
+            ("-o<", "Graphs and maps", "Control-flow graphs, a call graph and a map of the whole program at a glance.", p.func_name),
+            ("0x", "Patch and save", "Change bytes, NOP an instruction or flip a branch, then save a patched copy that still runs.", p.number),
+            ("> _", "Debugger", "Breakpoints, stepping and registers on Apple Silicon, driven through lldb.", p.string),
+            ("fn()", "Scripts and signatures", "Rhai scripts, plugins, a struct editor and library recognition.", p.import_name),
+        ];
+        let gap = 14.0;
+        let w = (col_w - 2.0 * gap) / 3.0;
+        ui.label(RichText::new("WHAT YOU CAN DO").small().strong().color(p.muted));
+        ui.add_space(8.0);
+        for row in items.chunks(3) {
+            ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for (ic, title, body, c) in row {
+                    let resp = egui::Frame::new()
+                        .fill(p.panel)
+                        .stroke(Stroke::new(1.0, p.border))
+                        .corner_radius(CornerRadius::same(12))
+                        .inner_margin(Margin::same(16))
+                        .show(ui, |ui| {
+                            ui.vertical(|ui| {
+                                ui.set_width(w - 34.0);
+                                ui.set_min_height(130.0);
+                                egui::Frame::new().fill(c.gamma_multiply(0.16)).corner_radius(CornerRadius::same(8)).inner_margin(Margin::symmetric(8, 3)).show(ui, |ui| {
+                                    ui.label(RichText::new(*ic).monospace().strong().size(14.0).color(*c));
+                                });
+                                ui.add_space(8.0);
+                                ui.label(RichText::new(*title).strong().size(16.0));
+                                ui.add_space(2.0);
+                                ui.add(egui::Label::new(RichText::new(*body).size(13.0).color(p.muted)).wrap());
+                            });
+                        })
+                        .response;
+                    if resp.hovered() {
+                        ui.painter().rect_stroke(resp.rect, CornerRadius::same(12), Stroke::new(1.0, c.gamma_multiply(0.8)), egui::StrokeKind::Inside);
+                    }
+                }
+            });
+            ui.add_space(gap);
+        }
+    }
+
+    fn welcome_recent(&mut self, ui: &mut egui::Ui, col_w: f32) {
+        let p = self.p;
+        ui.label(RichText::new("RECENT").small().strong().color(p.muted));
+        ui.add_space(8.0);
+        if self.prefs.recent.is_empty() {
+            ui.label(RichText::new("Nothing opened yet. Drop a program here to start.").color(p.faint));
+            return;
+        }
+        let gap = 12.0;
+        let w = (col_w - 2.0 * gap) / 3.0;
+        for row in self.prefs.recent.iter().take(6).cloned().collect::<Vec<_>>().chunks(3) {
+            ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for r in row {
+                    let name = std::path::Path::new(r).file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or(r.clone());
+                    let (rect, resp) = ui.allocate_exact_size(vec2(w, 54.0), Sense::click());
+                    let hot = resp.hovered();
+                    ui.painter().rect(rect, CornerRadius::same(10), if hot { p.hover_row } else { p.panel }, Stroke::new(1.0, if hot { p.accent } else { p.border }), egui::StrokeKind::Inside);
+                    let ext = std::path::Path::new(r).extension().map(|e| e.to_string_lossy().to_uppercase()).unwrap_or_else(|| "BIN".into());
+                    let badge = Rect::from_min_size(rect.min + vec2(10.0, 11.0), vec2(32.0, 32.0));
+                    ui.painter().rect_filled(badge, CornerRadius::same(7), p.accent_soft);
+                    ui.painter().text(badge.center(), egui::Align2::CENTER_CENTER, ext.chars().take(4).collect::<String>(), FontId::monospace(9.5), p.accent);
+                    let mut tn = name.clone();
+                    if tn.chars().count() > 26 { tn = tn.chars().take(25).collect::<String>() + "..."; }
+                    ui.painter().text(rect.min + vec2(52.0, 18.0), egui::Align2::LEFT_CENTER, tn, FontId::proportional(14.0), p.text);
+                    let mut sp = short_path(r);
+                    if sp.chars().count() > 34 { sp = format!("..{}", sp.chars().skip(sp.chars().count() - 32).collect::<String>()); }
+                    ui.painter().text(rect.min + vec2(52.0, 37.0), egui::Align2::LEFT_CENTER, sp, FontId::proportional(11.0), p.faint);
+                    if resp.clicked() {
+                        self.actions.push(Action::Open(r.clone()));
+                    }
+                }
+            });
+            ui.add_space(gap);
+        }
+    }
+
+    fn welcome_keys(&self, ui: &mut egui::Ui) {
+        let p = self.p;
+        ui.label(RichText::new("HANDY KEYS").small().strong().color(p.muted));
+        ui.add_space(8.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = vec2(8.0, 10.0);
+            for (k, d) in [("G", "go to address"), ("Space", "graph / code"), ("F5", "pseudocode"), ("N", "rename"), ("X", "who uses this"), ("M", "bookmark"), (";", "note"), ("Cmd+F", "search"), ("Cmd+P", "all commands")] {
+                kbd(ui, &p, k);
+                ui.label(RichText::new(d).color(p.muted));
+                ui.add_space(10.0);
+            }
         });
+    }
+
+    /// Floating card in the bottom-right corner that shows update progress.
+    pub fn update_card(&mut self, ctx: &egui::Context) {
+        use crate::updater::Status;
+        let p = self.p;
+        let visible = match &self.update {
+            Status::Idle => false,
+            Status::Checking(_) | Status::Failed(..) => self.update_manual,
+            Status::Available(_) => !self.update_hidden,
+            _ => true,
+        };
+        let alpha = ctx.animate_bool_with_time(egui::Id::new("update_card_vis"), visible, 0.25);
+        if alpha <= 0.0 {
+            return;
+        }
+        let mut fade = alpha;
+        if let Status::UpToDate(t) = &self.update {
+            fade = fade.min((3.5 - t.elapsed().as_secs_f32()).clamp(0.0, 0.6) / 0.6);
+        }
+        let ok = p.edge_taken;
+        let mut acts: Vec<Action> = vec![];
+        let mut hide = false;
+        egui::Area::new(egui::Id::new("update_card"))
+            .anchor(egui::Align2::RIGHT_BOTTOM, vec2(-16.0, -44.0 + (1.0 - alpha) * 12.0))
+            .order(egui::Order::Foreground)
+            .show(ctx, |ui| {
+                ui.set_opacity(fade);
+                egui::Frame::new()
+                    .fill(p.panel)
+                    .stroke(Stroke::new(1.0, p.border))
+                    .corner_radius(CornerRadius::same(12))
+                    .inner_margin(Margin::same(14))
+                    .shadow(egui::Shadow { offset: [0, 6], blur: 24, spread: 0, color: Color32::from_black_alpha(100) })
+                    .show(ui, |ui| {
+                        ui.set_width(300.0);
+                        match &self.update {
+                            Status::Checking(_) => {
+                                ui.horizontal(|ui| {
+                                    ui.add(egui::Spinner::new().size(16.0));
+                                    ui.label(RichText::new("Checking for updates...").strong());
+                                });
+                            }
+                            Status::UpToDate(_) => {
+                                ui.horizontal(|ui| {
+                                    let (r, _) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::hover());
+                                    ui.painter().circle_filled(r.center(), 11.0, ok.gamma_multiply(0.25));
+                                    let c = r.center();
+                                    ui.painter().line_segment([c + vec2(-5.0, 0.5), c + vec2(-1.5, 4.0)], Stroke::new(2.0, ok));
+                                    ui.painter().line_segment([c + vec2(-1.5, 4.0), c + vec2(5.5, -4.0)], Stroke::new(2.0, ok));
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new("Lens is up to date").strong());
+                                        ui.label(RichText::new(format!("Version {}", crate::updater::CURRENT)).small().color(p.muted));
+                                    });
+                                });
+                            }
+                            Status::Available(r) => {
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("UPDATE AVAILABLE").small().strong().color(p.accent));
+                                });
+                                ui.add_space(2.0);
+                                ui.label(RichText::new(format!("Lens {}", r.version)).size(18.0).strong());
+                                ui.label(RichText::new(format!("You have {}", crate::updater::CURRENT)).small().color(p.muted));
+                                let notes: String = r.notes.lines().map(|l| l.trim().trim_start_matches(['#', '-', '*', ' '])).filter(|l| !l.is_empty()).take(3).collect::<Vec<_>>().join("\n");
+                                if !notes.is_empty() {
+                                    ui.add_space(6.0);
+                                    ui.label(RichText::new(notes.chars().take(220).collect::<String>()).small().color(p.muted));
+                                }
+                                ui.add_space(10.0);
+                                ui.horizontal(|ui| {
+                                    let b = egui::Button::new(RichText::new("Download and install").color(Color32::WHITE).strong())
+                                        .fill(p.accent)
+                                        .min_size(vec2(170.0, 30.0))
+                                        .corner_radius(CornerRadius::same(7));
+                                    if ui.add(b).clicked() {
+                                        acts.push(Action::InstallUpdate);
+                                    }
+                                    if ui.add(egui::Button::new("Later").min_size(vec2(70.0, 30.0)).corner_radius(CornerRadius::same(7))).clicked() {
+                                        hide = true;
+                                    }
+                                });
+                            }
+                            Status::Downloading(r, _, prog) => {
+                                let installing = prog.phase.load(std::sync::atomic::Ordering::Relaxed) == 1;
+                                ui.label(RichText::new(if installing { "Installing" } else { "Downloading" }).small().strong().color(p.accent));
+                                ui.label(RichText::new(format!("Lens {}", r.version)).size(18.0).strong());
+                                ui.add_space(8.0);
+                                if installing {
+                                    ui.add(egui::ProgressBar::new(1.0).animate(true).desired_height(14.0).fill(p.accent));
+                                    ui.add_space(4.0);
+                                    ui.label(RichText::new("Unpacking and checking the signature...").small().color(p.muted));
+                                } else if let Some(f) = prog.fraction() {
+                                    ui.add(egui::ProgressBar::new(f).desired_height(14.0).fill(p.accent).text(RichText::new(format!("{:.0}%", f * 100.0)).small().color(Color32::WHITE)));
+                                    ui.add_space(4.0);
+                                    let d = prog.done.load(std::sync::atomic::Ordering::Relaxed);
+                                    let t = prog.total.load(std::sync::atomic::Ordering::Relaxed);
+                                    ui.label(RichText::new(format!("{} of {}", human(d), human(t))).small().color(p.muted));
+                                } else {
+                                    ui.add(egui::ProgressBar::new(0.0).animate(true).desired_height(14.0));
+                                    ui.add_space(4.0);
+                                    ui.label(RichText::new("Starting download...").small().color(p.muted));
+                                }
+                            }
+                            Status::Restarting(_) => {
+                                ui.horizontal(|ui| {
+                                    ui.add(egui::Spinner::new().size(18.0));
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new("Restarting Lens...").strong());
+                                        ui.label(RichText::new("The new version opens in a moment").small().color(p.muted));
+                                    });
+                                });
+                            }
+                            Status::Failed(e, _) => {
+                                ui.label(RichText::new("UPDATE").small().strong().color(p.edge_not));
+                                ui.label(RichText::new(e.as_str()).color(p.text));
+                                ui.add_space(6.0);
+                                if ui.button("Dismiss").clicked() {
+                                    hide = true;
+                                }
+                            }
+                            Status::Idle => {}
+                        }
+                    });
+            });
+        if hide {
+            match &self.update {
+                Status::Available(_) => self.update_hidden = true,
+                _ => self.update = Status::Idle,
+            }
+        }
+        self.actions.extend(acts);
     }
 
     fn log_panel(&mut self, ui: &mut egui::Ui) {
@@ -678,6 +1015,7 @@ impl eframe::App for LensApp {
         } else {
             egui::CentralPanel::default().frame(egui::Frame::new().fill(p.bg)).show(ui, |ui| self.welcome(ui));
         }
+        self.update_card(&ctx);
         self.tool_windows(&ctx);
         self.modals(&ctx);
         self.apply_actions(&ctx);

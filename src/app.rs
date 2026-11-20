@@ -183,6 +183,8 @@ pub struct LensApp {
     pub vis: crate::visuals::VisState,
     pub update: crate::updater::Status,
     pub update_manual: bool,
+    /// The person dismissed the "update available" card (the toolbar button stays).
+    pub update_hidden: bool,
     pub tools: crate::tools::Tools,
     pub tools2: TwoState,
     pub dbg: Option<crate::debugger::Dbg>,
@@ -247,6 +249,7 @@ impl LensApp {
             vis: crate::visuals::VisState::new(),
             update: crate::updater::Status::Idle,
             update_manual: false,
+            update_hidden: false,
             tools: crate::tools::Tools::default(),
             tools2: TwoState::default(),
             dbg: None,
@@ -275,6 +278,24 @@ impl LensApp {
         }
         if app.prefs.auto_update && app.shot.is_none() {
             app.update = crate::updater::Status::Checking(crate::updater::check_async());
+        }
+        if let Ok(d) = std::env::var("LENS_DEMO_UPDATE") {
+            use crate::updater::{Progress, Release, Status};
+            let rel = Release { version: "0.3.0".into(), notes: "## What's new\n- Faster analysis on large binaries\n- Switch-table recovery\n- New welcome screen".into(), url: String::new() };
+            app.update_manual = true;
+            app.update = match d.as_str() {
+                "available" => Status::Available(rel),
+                "uptodate" => Status::UpToDate(Instant::now()),
+                "restart" => Status::Restarting(Instant::now()),
+                _ => {
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    std::mem::forget(tx);
+                    let pr = std::sync::Arc::new(Progress::default());
+                    pr.total.store(7_600_000, std::sync::atomic::Ordering::Relaxed);
+                    pr.done.store(3_100_000, std::sync::atomic::Ordering::Relaxed);
+                    Status::Downloading(rel, rx, pr)
+                }
+            };
         }
         match view.as_deref() {
             Some("graph") => app.nav.view = View::Graph,
@@ -360,27 +381,38 @@ impl LensApp {
                 }
                 Ok(Ok(None)) => {
                     if self.update_manual { self.logm(format!("Lens {} is the latest version.", crate::updater::CURRENT)); }
-                    Status::UpToDate
+                    Status::UpToDate(Instant::now())
                 }
                 Ok(Err(e)) => {
                     if self.update_manual { self.logm(format!("Update check failed: {e}")); }
-                    Status::Failed(e)
+                    Status::Failed(e, Instant::now())
                 }
                 Err(_) => { ctx.request_repaint_after(std::time::Duration::from_millis(300)); Status::Checking(rx) }
             },
-            Status::Downloading(r, rx) => match rx.try_recv() {
+            Status::Downloading(r, rx, prog) => match rx.try_recv() {
                 Ok(Ok(())) => {
                     self.logm("Update ready — restarting Lens…");
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    Status::Idle
+                    Status::Restarting(Instant::now())
                 }
                 Ok(Err(e)) => {
                     self.logm(format!("Update failed: {e}"));
-                    self.modal = Some(Modal::Message { title: "Couldn't update".into(), text: e });
-                    Status::Available(r)
+                    Status::Failed(e, Instant::now())
                 }
-                Err(_) => { ctx.request_repaint_after(std::time::Duration::from_millis(200)); Status::Downloading(r, rx) }
+                Err(_) => { ctx.request_repaint_after(std::time::Duration::from_millis(50)); Status::Downloading(r, rx, prog) }
             },
+            Status::Restarting(t) => {
+                if t.elapsed().as_millis() > 1300 {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                ctx.request_repaint_after(std::time::Duration::from_millis(50));
+                Status::Restarting(t)
+            }
+            Status::UpToDate(t) => {
+                if t.elapsed().as_secs_f32() > 3.5 { Status::Idle } else { ctx.request_repaint_after(std::time::Duration::from_millis(100)); Status::UpToDate(t) }
+            }
+            Status::Failed(e, t) => {
+                if t.elapsed().as_secs_f32() > 8.0 { Status::Idle } else { ctx.request_repaint_after(std::time::Duration::from_millis(200)); Status::Failed(e, t) }
+            }
             other => other,
         };
     }
@@ -579,13 +611,16 @@ impl LensApp {
                 Action::ExtractAsar => self.extract_asar(),
                 Action::CheckUpdate => {
                     self.update_manual = true;
+                    self.update_hidden = false;
                     self.update = crate::updater::Status::Checking(crate::updater::check_async());
                 }
                 Action::InstallUpdate => {
                     if let crate::updater::Status::Available(r) = &self.update {
                         let r = r.clone();
+                        self.update_manual = true;
                         self.logm(format!("Downloading Lens {} …", r.version));
-                        self.update = crate::updater::Status::Downloading(r.clone(), crate::updater::install_async(r));
+                        let (rx, prog) = crate::updater::install_async(r.clone());
+                        self.update = crate::updater::Status::Downloading(r, rx, prog);
                     }
                 }
                 Action::Search => {

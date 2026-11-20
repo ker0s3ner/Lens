@@ -192,7 +192,7 @@ fn main() -> eframe::Result {
 
     let mut vp = egui::ViewportBuilder::default()
         .with_title("Lens")
-        .with_inner_size([1440.0, 900.0])
+        .with_inner_size([1440.0, std::env::var("LENS_H").ok().and_then(|v| v.parse().ok()).unwrap_or(900.0)])
         .with_min_inner_size([900.0, 560.0]);
     if screenshot.is_some() {
         vp = vp.with_active(false);

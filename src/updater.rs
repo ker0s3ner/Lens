@@ -2,7 +2,27 @@
 
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
+use std::sync::Arc;
+use std::time::Instant;
+
+/// Live progress of a download, shared with the UI thread.
+#[derive(Default)]
+pub struct Progress {
+    pub done: AtomicU64,
+    pub total: AtomicU64,
+    /// 0 = downloading, 1 = unpacking and verifying
+    pub phase: AtomicU64,
+}
+
+impl Progress {
+    /// 0.0 to 1.0 while downloading (None if the size is unknown).
+    pub fn fraction(&self) -> Option<f32> {
+        let t = self.total.load(Ordering::Relaxed);
+        (t > 0).then(|| (self.done.load(Ordering::Relaxed) as f32 / t as f32).clamp(0.0, 1.0))
+    }
+}
 
 const REPO: &str = "ker0s3ner/Lens";
 const ASSET: &str = "Lens-macos-arm64.zip";
@@ -32,9 +52,11 @@ pub enum Status {
     Idle,
     Checking(Receiver<Result<Option<Release>, String>>),
     Available(Release),
-    Downloading(Release, Receiver<Result<(), String>>),
-    Failed(String),
-    UpToDate,
+    Downloading(Release, Receiver<Result<(), String>>, Arc<Progress>),
+    /// The new version is in place; the app closes itself and reopens.
+    Restarting(Instant),
+    Failed(String, Instant),
+    UpToDate(Instant),
 }
 
 fn agent() -> ureq::Agent {
@@ -93,15 +115,17 @@ pub fn bundle_path() -> Option<PathBuf> {
     app.extension().map(|e| e == "app").unwrap_or(false).then(|| app.to_path_buf())
 }
 
-pub fn install_async(rel: Release) -> Receiver<Result<(), String>> {
+pub fn install_async(rel: Release) -> (Receiver<Result<(), String>>, Arc<Progress>) {
     let (tx, rx) = channel();
+    let prog = Arc::new(Progress::default());
+    let p2 = prog.clone();
     std::thread::spawn(move || {
-        let _ = tx.send(install(&rel));
+        let _ = tx.send(install(&rel, &p2));
     });
-    rx
+    (rx, prog)
 }
 
-fn install(rel: &Release) -> Result<(), String> {
+fn install(rel: &Release, prog: &Progress) -> Result<(), String> {
     let app = bundle_path().ok_or("Lens isn't running from an installed app, so it can't update itself. Download the new version from the GitHub releases page.")?;
     let parent = app.parent().ok_or("bad app path")?;
     // make sure we can write next to the old app before downloading anything
@@ -113,9 +137,22 @@ fn install(rel: &Release) -> Result<(), String> {
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
     let zip = work.join(ASSET);
     let mut resp = agent().get(&rel.url).call().map_err(|e| format!("Download failed: {e}"))?;
+    let total = resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
+    prog.total.store(total, Ordering::Relaxed);
     let mut f = std::fs::File::create(&zip).map_err(|e| e.to_string())?;
-    std::io::copy(&mut resp.body_mut().as_reader(), &mut f).map_err(|e| format!("Download failed: {e}"))?;
+    {
+        use std::io::{Read, Write};
+        let mut r = resp.body_mut().as_reader();
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            let n = r.read(&mut buf).map_err(|e| format!("Download failed: {e}"))?;
+            if n == 0 { break; }
+            f.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+            prog.done.fetch_add(n as u64, Ordering::Relaxed);
+        }
+    }
     drop(f);
+    prog.phase.store(1, Ordering::Relaxed);
     let out = work.join("new");
     run("ditto", &["-x", "-k", zip.to_str().unwrap(), out.to_str().unwrap()])?;
     let new_app = out.join("Lens.app");
