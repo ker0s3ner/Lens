@@ -1,23 +1,27 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lens documentation</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head>
+<meta name="theme-color" content="#efece4">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head>
 <body>
-<nav class="top"><div class="wrap">
-<a class="brand" href="./"><img src="logo.svg" width="28" height="28" alt="">Lens</a><span class="sp"></span>
-<a class="l" href="./">Home</a><a class="l hide" href="https://github.com/ker0s3ner/Lens">GitHub</a>
-<a class="btn small primary" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a>
-</div></nav>
+<header class="bar"><div class="wrap">
+<a class="mark" href="./"><img src="logo.svg" alt="">Lens</a>
+<nav><a href="./">Home</a><a class="opt" href="https://github.com/ker0s3ner/Lens">Source</a><a class="btn sm" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a></nav>
+</div></header>
 <div class="wrap docs">
 <aside>
 <h5>Start</h5><a href="#install">Install</a><a href="#open">Open a program</a><a href="#updates">Updates</a>
 <h5>Reading code</h5><a href="#views">Views</a><a href="#navigate">Navigate and annotate</a><a href="#search">Search</a><a href="#shortcuts">Keyboard shortcuts</a>
 <h5>Tools</h5><a href="#hex">Hex to code</a><a href="#patch">Patching</a><a href="#types">Structs</a><a href="#sigs">Signatures</a><a href="#debug">Debugger</a><a href="#script">Scripting and plugins</a>
+<h5>Customise</h5><a href="#custom">Fonts, keys, assistants</a><a href="#menus">Menu bar</a>
 <h5>Reference</h5><a href="#formats">Supported formats</a><a href="#cli">Command line</a><a href="#settings">Settings and data</a><a href="#limits">Limitations</a><a href="#build">Building and releasing</a>
 </aside>
 <article>
 <h1>Documentation</h1>
-<p>Lens is a disassembler, decompiler and debugger. This page covers everything in the app.</p>
+<p>Lens is a disassembler, decompiler and debugger for macOS. This page covers everything in the app.</p>
 
 <h2 id="install">Install</h2>
 <ol><li>Download <code>Lens-macos-arm64.zip</code> from the <a href="https://github.com/ker0s3ner/Lens/releases/latest">latest release</a>.</li>
@@ -131,8 +135,17 @@ log("done: " + functions().len() + " functions");</code></pre>
 --patch ADDR:HEX --save OUT   patch and write a copy
 --dark / --light         theme (with --screenshot OUT to render a PNG)</code></pre>
 
+<h2 id="custom">Fonts, keys and assistants</h2>
+<p>Open Settings with <kbd>Cmd</kbd>+<kbd>,</kbd>. It has five tabs.</p>
+<ul><li><strong>Fonts.</strong> Pick the code size, a code font and an interface font from the ones installed on your Mac, or point Lens at any <code>.ttf</code> or <code>.otf</code> file. The code font should be monospaced.</li>
+<li><strong>Keys.</strong> Every shortcut in the list can be changed. Click Change, press the keys, done. Lens refuses a combination that another action already uses. Reset puts one back, Reset all puts everything back.</li>
+<li><strong>Assistants.</strong> Lens can hand the function under the cursor to another tool. Claude Code (<code>claude -p</code>) and Codex (<code>codex exec</code>) are set up for you, and you can add any command. Lens sends your question and the decompiled function to the command on standard input and shows what it prints in the Assistant window (<kbd>Cmd</kbd>+<kbd>L</kbd>). <code>{file}</code>, <code>{func}</code> and <code>{addr}</code> are filled in, so <code>open -a Cursor {file}</code> works too (untick the answer box for apps that just open). The Test button checks the command exists. Claude Code and Codex must be installed and signed in on your Mac.</li>
+<li><strong>Updates and General.</strong> Theme, interface size, string length and update checks.</li></ul>
+<div class="note"><b>Privacy.</b> The function text goes only to the command you configured. Lens itself sends nothing anywhere except the update check to GitHub.</div>
+<h2 id="menus">Menu bar</h2>
+<p>The macOS menu bar has File, View, Navigate, Analysis, Assistant, Window and Help. Everything in the command palette (<kbd>Cmd</kbd>+<kbd>P</kbd>) is also there, and plugins you install appear under Analysis &gt; Plugins.</p>
 <h2 id="settings">Settings and data</h2>
-<p><kbd>Cmd</kbd>+<kbd>,</kbd> opens Settings: theme, zoom, outline, minimum string length, re-analyse, update checks and shortcuts. Everything is stored in <code>~/Library/Application Support/Lens</code>:</p>
+<p>Everything Lens remembers is stored in <code>~/Library/Application Support/Lens</code>:</p>
 <table><tr><th>Folder / file</th><th>Contents</th></tr>
 <tr><td><code>prefs.json</code></td><td>Settings and recent files</td></tr>
 <tr><td><code>notes/</code></td><td>Your names, notes, bookmarks, patches and structs, one file per program</td></tr>
@@ -154,5 +167,15 @@ log("done: " + functions().len() + " functions");</code></pre>
 git tag v0.3.0 &amp;&amp; git push origin v0.3.0</code></pre>
 <p>Pushing a <code>v*</code> tag starts the GitHub Actions workflow, which checks the tag matches <code>Cargo.toml</code>, builds on an Apple Silicon runner and attaches <code>Lens-macos-arm64.zip</code> to a release. Installed copies pick it up through the update card.</p>
 </article></div>
-<footer><div class="wrap"><span>Lens documentation</span><span><a href="./">Home</a> &nbsp;·&nbsp; <a href="https://github.com/ker0s3ner/Lens">GitHub</a></span></div></footer>
+<footer><div class="wrap"><div class="cols"><a href="./">Home</a><a href="https://github.com/ker0s3ner/Lens">Source on GitHub</a><a href="https://github.com/ker0s3ner/Lens/releases">Releases</a><a href="https://github.com/ker0s3ner/Lens/blob/main/ROADMAP.md">Roadmap</a><span class="r">Lens documentation</span></div></div></footer>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('aside a'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(e.isIntersecting){links.forEach(function(a){a.classList.remove('on')});var a=map[e.target.id];if(a)a.classList.add('on')}
+  })},{rootMargin:'-90px 0px -70% 0px'});
+  document.querySelectorAll('article h2[id]').forEach(function(h){io.observe(h)});
+})();
+</script>
 </body></html>

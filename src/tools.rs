@@ -132,6 +132,9 @@ impl LensApp {
         if self.tools.settings_open {
             self.settings_window(ctx);
         }
+        if self.ai.open {
+            self.assistant_window(ctx);
+        }
         if self.tools2.patch.open {
             self.patch_window(ctx);
         }
@@ -458,83 +461,4 @@ impl LensApp {
     }
 
     // -------------------------------------------------------------- settings
-    fn settings_window(&mut self, ctx: &egui::Context) {
-        let p = self.p;
-        let mut open = true;
-        let mut acts: Vec<Action> = vec![];
-        let mut zoom = self.prefs.zoom;
-        let mut min_str = self.prefs.min_string_len;
-        egui::Window::new("Settings").open(&mut open).default_width(460.0).resizable(false).show(ctx, |ui| {
-            let head = |ui: &mut egui::Ui, t: &str| {
-                ui.add_space(6.0);
-                ui.label(RichText::new(t.to_uppercase()).small().color(p.faint));
-            };
-            head(ui, "Appearance");
-            ui.horizontal(|ui| {
-                ui.label("Theme");
-                if ui.selectable_label(!self.prefs.dark, "Light").clicked() && self.prefs.dark { acts.push(Action::ToggleTheme); }
-                if ui.selectable_label(self.prefs.dark, "Dark").clicked() && !self.prefs.dark { acts.push(Action::ToggleTheme); }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Interface size");
-                ui.add(egui::Slider::new(&mut zoom, 0.8..=1.6).custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-                if ui.small_button("Reset").clicked() { zoom = 1.0; }
-            });
-            let mut insp = self.prefs.inspector;
-            if ui.checkbox(&mut insp, "Show the function outline panel").changed() { acts.push(Action::ToggleInspector); }
-
-            head(ui, "Analysis");
-            ui.horizontal(|ui| {
-                ui.label("Shortest string to list");
-                ui.add(egui::Slider::new(&mut min_str, 3..=16).suffix(" chars"));
-            });
-            ui.label(RichText::new("Applies the next time a program is opened.").small().color(p.muted));
-            if self.loaded().is_some() && ui.button("Re-analyse the open program").clicked() { acts.push(Action::Reanalyze); }
-
-            head(ui, "Updates");
-            let mut auto = self.prefs.auto_update;
-            if ui.checkbox(&mut auto, "Check for new versions when Lens starts").changed() { acts.push(Action::ToggleAutoUpdate); }
-            ui.horizontal(|ui| {
-                ui.label(format!("Lens {}", crate::updater::CURRENT));
-                match &self.update {
-                    crate::updater::Status::Available(r) => {
-                        ui.label(RichText::new(format!("· {} is available", r.version)).color(p.accent));
-                        if ui.button("Install & restart").clicked() { acts.push(Action::InstallUpdate); }
-                    }
-                    crate::updater::Status::Checking(_) => { ui.add(egui::Spinner::new().size(12.0)); }
-                    crate::updater::Status::UpToDate(_) => { ui.label(RichText::new("· up to date").color(p.muted)); }
-                    crate::updater::Status::Failed(e, _) => { ui.label(RichText::new(format!("· {e}")).color(p.muted)); }
-                    _ => {}
-                }
-                if ui.button("Check now").clicked() { acts.push(Action::CheckUpdate); }
-            });
-
-            head(ui, "Files");
-            ui.horizontal(|ui| {
-                if ui.button("Clear recent files").clicked() { self.prefs.recent.clear(); crate::store::save_prefs(&self.prefs); }
-                if ui.button("Open settings folder").clicked() { let _ = std::process::Command::new("open").arg(crate::store::config_dir()).spawn(); }
-            });
-            head(ui, "Shortcuts");
-            let keys = [("Cmd+F", "Search"), ("Cmd+P", "All commands"), ("Cmd+O", "Open"), ("Cmd+,", "Settings"), ("G", "Go to"), ("Space", "Graph / code"), ("F5", "Pseudocode"), ("N / ;", "Rename / note"), ("X", "Cross-references")];
-            egui::Grid::new("keys").num_columns(4).spacing([18.0, 4.0]).show(ui, |ui| {
-                for (i, (k, d)) in keys.iter().enumerate() {
-                    ui.label(RichText::new(*k).monospace().color(p.accent));
-                    ui.label(RichText::new(*d).color(p.muted));
-                    if i % 2 == 1 { ui.end_row(); }
-                }
-            });
-        });
-        if (zoom - self.prefs.zoom).abs() > 0.001 {
-            self.prefs.zoom = zoom;
-            ctx.set_zoom_factor(zoom);
-            crate::store::save_prefs(&self.prefs);
-        }
-        if min_str != self.prefs.min_string_len {
-            self.prefs.min_string_len = min_str;
-            crate::store::save_prefs(&self.prefs);
-        }
-        self.actions.extend(acts);
-        self.tools.settings_open = open;
-        let _ = Color32::WHITE;
-    }
 }

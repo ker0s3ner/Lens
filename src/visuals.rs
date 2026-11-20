@@ -415,7 +415,7 @@ impl LensApp {
     }
 
     // ------------------------------------------------------------------ pseudocode
-    fn pseudo_for(&mut self) -> Option<(u64, Arc<Decompiled>)> {
+    pub fn pseudo_for(&mut self) -> Option<(u64, Arc<Decompiled>)> {
         let cursor = self.nav.cursor;
         let State::Ready(l) = &mut self.state else { return None };
         let fs = l.an.function_containing(cursor).map(|f| f.start)?;

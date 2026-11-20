@@ -14,8 +14,6 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
 
-pub const ROW_H: f32 = 19.0;
-pub const FONT_SIZE: f32 = 13.0;
 pub const NAV_BUCKETS: usize = 2048;
 /// IDA shows 2 cross-references next to an item (SHOW_XREFS = 2 in cfg/ida.cfg).
 pub const SHOW_XREFS: usize = 2;
@@ -106,6 +104,9 @@ pub enum Action {
     Debugger,
     Script,
     RunPlugin(String),
+    Assistant,
+    AskAi(usize),
+    OpenUrl(String),
 }
 
 pub enum Modal {
@@ -187,6 +188,9 @@ pub struct LensApp {
     pub update_hidden: bool,
     pub tools: crate::tools::Tools,
     pub tools2: TwoState,
+    pub sui: crate::settings::SettingsUi,
+    pub ai: crate::settings::AiState,
+    pub menu: Option<crate::menubar::MenuBar>,
     pub dbg: Option<crate::debugger::Dbg>,
     pub jobs: crate::tools2::Jobs,
     pub pending_goto: Option<u64>,
@@ -256,7 +260,12 @@ impl LensApp {
             jobs: Default::default(),
             pending_goto: None,
             last_raw: None,
+            sui: Default::default(),
+            ai: Default::default(),
+            menu: None,
         };
+        crate::custom::set_font_size(app.prefs.code_size);
+        crate::custom::apply_fonts(&cc.egui_ctx, &app.prefs.ui_font, &app.prefs.mono_font);
         cc.egui_ctx.set_zoom_factor(app.prefs.zoom.clamp(0.8, 1.6));
         if let Ok(t) = std::env::var("LENS_TOOL") {
             match t.as_str() {
@@ -268,7 +277,8 @@ impl LensApp {
                     }
                 }
                 "search" => { app.tools.search.open = true; app.tools.search.focus = true; app.tools.search.text = std::env::var("LENS_Q").unwrap_or_default(); }
-                "settings" => app.tools.settings_open = true,
+                "settings" => { app.tools.settings_open = true; app.sui.tab = std::env::var("LENS_TAB").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
+                "assistant" => app.ai.open = true,
                 "patch" => app.tools2.patch.open = true,
                 "structs" => { app.tools2.types.open = true; app.tools2.types.def = "struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};".into(); }
                 "script" => app.tools2.script.open = true,
@@ -636,6 +646,9 @@ impl LensApp {
                 }
                 Action::Debugger => self.tools2.dbg.open = true,
                 Action::Script => self.tools2.script.open = true,
+                Action::Assistant => self.ai.open = true,
+                Action::AskAi(i) => self.ask_ai(i),
+                Action::OpenUrl(u) => { let _ = std::process::Command::new("open").arg(u).spawn(); }
                 Action::RunPlugin(p) => self.run_plugin(&p),
                 Action::Patches => self.tools2.patch.open = true,
                 Action::Structs => self.tools2.types.open = true,
@@ -830,96 +843,87 @@ impl LensApp {
     }
 
     pub fn keys(&mut self, ctx: &egui::Context) {
+        // recording a new key binding in Settings
+        if let Some(id) = self.sui.rebinding.clone() {
+            let ev = ctx.input(|i| {
+                i.events.iter().find_map(|e| match e {
+                    egui::Event::Key { key, pressed: true, modifiers, repeat: false, .. } => Some((*key, *modifiers)),
+                    _ => None,
+                })
+            });
+            if let Some((key, m)) = ev {
+                let s = crate::custom::describe(m, key);
+                if let Some(other) = crate::custom::conflict(&self.prefs.keys, &id, &s) {
+                    self.sui.font_msg = format!("{s} is already used for \"{other}\".");
+                } else {
+                    self.prefs.keys.insert(id, s);
+                    self.save_prefs();
+                    self.sui.font_msg.clear();
+                }
+                self.sui.rebinding = None;
+            }
+            ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Key { .. })));
+            return;
+        }
         let typing = ctx.egui_wants_keyboard_input();
         let modal = self.modal.is_some();
         let ready = self.loaded().is_some();
         let cur = self.nav.cursor;
         let mut acts = vec![];
         let mut delta: i64 = 0;
+        let km = self.prefs.keys.clone();
         ctx.input_mut(|i| {
             use egui::Modifiers as M;
-            if i.consume_key(none_mod(), Key::F2) && ready && !modal && !typing {
+            let mut hit = |id: &str| crate::custom::hit(i, &crate::custom::spec(&km, id));
+            if hit("breakpoint") && ready && !modal && !typing {
                 acts.push(Action::ToggleBreakpoint(cur));
             }
-            if i.consume_key(M::COMMAND, Key::F) {
+            if hit("search") {
                 acts.push(Action::Search);
             }
-            if i.consume_key(M::COMMAND, Key::Comma) {
+            if hit("settings") {
                 acts.push(Action::Settings);
             }
-            if i.consume_key(M::COMMAND, Key::O) {
+            if hit("assistant") {
+                acts.push(Action::Assistant);
+            }
+            if hit("open") {
                 acts.push(Action::OpenDialog);
             }
-            if (i.consume_key(M::COMMAND, Key::P) || i.consume_key(M::COMMAND | M::SHIFT, Key::P)) && ready && !modal {
+            if (hit("palette") || i.consume_key(M::COMMAND | M::SHIFT, Key::P)) && ready && !modal {
                 acts.push(Action::Palette);
             }
             if modal || typing || !ready {
                 return;
             }
             let none = M::NONE;
-            if i.consume_key(none, Key::G) {
-                acts.push(Action::Jump);
-            }
-            if i.consume_key(none, Key::N) {
-                acts.push(Action::Rename(cur));
-            }
-            if i.consume_key(none, Key::Semicolon) || i.consume_key(M::SHIFT, Key::Semicolon) || i.consume_key(none, Key::Colon) {
-                acts.push(Action::Comment(cur));
-            }
-            if i.consume_key(none, Key::X) || i.consume_key(M::CTRL, Key::X) {
-                acts.push(Action::Xrefs(cur));
-            }
-            if i.consume_key(none, Key::P) {
-                acts.push(Action::MakeFunction(cur));
-            }
-            if i.consume_key(none, Key::Escape) || i.consume_key(M::COMMAND, Key::OpenBracket) {
-                acts.push(Action::Back);
-            }
-            if i.consume_key(M::COMMAND, Key::CloseBracket) || i.consume_key(M::CTRL, Key::Enter) {
-                acts.push(Action::Forward);
-            }
-            if i.consume_key(none, Key::Enter) {
-                acts.push(Action::Follow);
-            }
-            if i.consume_key(none, Key::Space) {
-                acts.push(Action::ToggleGraph);
-            }
-            if i.consume_key(M::SHIFT, Key::F12) {
-                acts.push(Action::SetSide(Side::Strings));
-            }
-            if i.consume_key(M::SHIFT, Key::F3) {
-                acts.push(Action::SetSide(Side::Functions));
-            }
-            if i.consume_key(M::SHIFT, Key::F7) {
-                acts.push(Action::SetSide(Side::Segments));
-            }
-            if i.consume_key(M::ALT, Key::T) {
-                acts.push(Action::Find);
-            }
-            if i.consume_key(M::CTRL, Key::T) || i.consume_key(none, Key::F3) {
-                acts.push(Action::FindNext);
-            }
-            if i.consume_key(none, Key::F5) {
-                acts.push(Action::SetView(View::Pseudo));
-            }
-            if i.consume_key(none, Key::M) {
-                acts.push(Action::Mark(cur));
-            }
-            if i.consume_key(none, Key::H) {
-                acts.push(Action::SetView(View::Hex));
-            }
-            if i.consume_key(none, Key::ArrowDown) {
-                delta = 1;
-            }
-            if i.consume_key(none, Key::ArrowUp) {
-                delta = -1;
-            }
-            if i.consume_key(none, Key::PageDown) {
-                delta = 30;
-            }
-            if i.consume_key(none, Key::PageUp) {
-                delta = -30;
-            }
+            let mut hit = |id: &str| crate::custom::hit(i, &crate::custom::spec(&km, id));
+            if hit("jump") { acts.push(Action::Jump); }
+            if hit("rename") { acts.push(Action::Rename(cur)); }
+            if hit("comment") { acts.push(Action::Comment(cur)); }
+            if hit("xrefs") { acts.push(Action::Xrefs(cur)); }
+            if hit("make_func") { acts.push(Action::MakeFunction(cur)); }
+            if hit("back") { acts.push(Action::Back); }
+            if hit("forward") { acts.push(Action::Forward); }
+            if hit("follow") { acts.push(Action::Follow); }
+            if hit("graph") { acts.push(Action::ToggleGraph); }
+            if hit("side_strings") { acts.push(Action::SetSide(Side::Strings)); }
+            if hit("side_funcs") { acts.push(Action::SetSide(Side::Functions)); }
+            if hit("side_segs") { acts.push(Action::SetSide(Side::Segments)); }
+            if hit("find") { acts.push(Action::Find); }
+            if hit("find_next") { acts.push(Action::FindNext); }
+            if hit("pseudo") { acts.push(Action::SetView(View::Pseudo)); }
+            if hit("mark") { acts.push(Action::Mark(cur)); }
+            if hit("hex") { acts.push(Action::SetView(View::Hex)); }
+            // always available alongside the configurable ones
+            if i.consume_key(M::SHIFT, Key::Semicolon) || i.consume_key(none, Key::Colon) { acts.push(Action::Comment(cur)); }
+            if i.consume_key(M::COMMAND, Key::OpenBracket) { acts.push(Action::Back); }
+            if i.consume_key(M::CTRL, Key::Enter) { acts.push(Action::Forward); }
+            if i.consume_key(M::CTRL, Key::T) { acts.push(Action::FindNext); }
+            if i.consume_key(none, Key::ArrowDown) { delta = 1; }
+            if i.consume_key(none, Key::ArrowUp) { delta = -1; }
+            if i.consume_key(none, Key::PageDown) { delta = 30; }
+            if i.consume_key(none, Key::PageUp) { delta = -30; }
         });
         self.actions.extend(acts);
         if delta != 0 {

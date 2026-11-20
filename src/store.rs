@@ -42,6 +42,28 @@ pub struct Prefs {
     pub auto_update: bool,
     #[serde(default = "one")]
     pub zoom: f32,
+    #[serde(default = "code13")]
+    pub code_size: f32,
+    #[serde(default = "builtin")]
+    pub ui_font: String,
+    #[serde(default = "builtin")]
+    pub mono_font: String,
+    /// Key bindings that differ from the defaults (action id -> "Cmd+F").
+    #[serde(default)]
+    pub keys: HashMap<String, String>,
+    #[serde(default = "crate::custom::default_integrations")]
+    pub integrations: Vec<crate::custom::Integration>,
+    #[serde(default = "ask_default")]
+    pub ask_text: String,
+}
+fn code13() -> f32 {
+    13.0
+}
+fn builtin() -> String {
+    "Built-in".into()
+}
+fn ask_default() -> String {
+    "Explain what this function does, then suggest clearer names for it and its variables.".into()
 }
 
 fn yes() -> bool {
@@ -56,7 +78,20 @@ fn default_min() -> usize {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { recent: vec![], dark: false, inspector: true, min_string_len: 5, auto_update: true, zoom: 1.0 }
+        Prefs {
+            recent: vec![],
+            dark: false,
+            inspector: true,
+            min_string_len: 5,
+            auto_update: true,
+            zoom: 1.0,
+            code_size: 13.0,
+            ui_font: builtin(),
+            mono_font: builtin(),
+            keys: HashMap::new(),
+            integrations: crate::custom::default_integrations(),
+            ask_text: ask_default(),
+        }
     }
 }
 

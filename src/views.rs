@@ -1,7 +1,7 @@
 //! The centre area: code listing, flow graph and hex view.
 
 use crate::analysis::{FuncKind, LineKind, NameKind};
-use crate::app::{follow_target, Action, LensApp, Loaded, State, View, FONT_SIZE, ROW_H, SHOW_XREFS};
+use crate::app::{follow_target, Action, LensApp, Loaded, State, View, SHOW_XREFS};
 use crate::code::{self, Tok};
 use crate::graph::{self, GraphAction};
 use eframe::egui::{self, pos2, vec2, Color32, FontId, Margin, Pos2, Rect, RichText, ScrollArea, Sense, Stroke};
@@ -147,22 +147,22 @@ impl LensApp {
         let State::Ready(l) = &mut self.state else { return };
         let nav = &mut self.nav;
         let acts = &mut self.actions;
-        let font = FontId::monospace(FONT_SIZE);
+        let font = FontId::monospace(crate::custom::font_size());
         ui.spacing_mut().item_spacing.y = 0.0;
         let n = l.an.lines.len();
         let mut sa = ScrollArea::both().auto_shrink(false).id_salt("listing");
         if let Some(li) = nav.scroll_to.take() {
-            sa = sa.vertical_scroll_offset((li as f32 - 8.0).max(0.0) * ROW_H);
+            sa = sa.vertical_scroll_offset((li as f32 - 8.0).max(0.0) * crate::custom::row_h());
         }
         let x_addr = 14.0;
         let x_code = x_addr + (l.digits as f32 + 3.0) * cw;
         let x_cmt = x_code + 58.0 * cw;
-        sa.show_rows(ui, ROW_H, n, |ui, range| {
+        sa.show_rows(ui, crate::custom::row_h(), n, |ui, range| {
             nav.visible = (range.start, range.end);
             for i in range {
                 let ln = l.an.lines[i];
                 let w = ui.available_width().max(x_cmt + 360.0);
-                let (rect, resp) = ui.allocate_exact_size(vec2(w, ROW_H), Sense::click());
+                let (rect, resp) = ui.allocate_exact_size(vec2(w, crate::custom::row_h()), Sense::click());
                 let painter = ui.painter_at(rect);
                 if i == nav.cursor_line {
                     painter.rect_filled(rect, 0.0, p.selection);
@@ -380,7 +380,7 @@ impl LensApp {
         let State::Ready(l) = &mut self.state else { return };
         let nav = &mut self.nav;
         let Some(seg) = l.bin.segment_of(nav.cursor).or(l.bin.segments.first()) else { return };
-        let font = FontId::monospace(FONT_SIZE);
+        let font = FontId::monospace(crate::custom::font_size());
         let base = seg.start & !15;
         let rows = (seg.end() - base).div_ceil(16) as usize;
         let cur_len = l.item_len(nav.cursor_line);
@@ -399,13 +399,13 @@ impl LensApp {
         if nav.hex_scroll {
             nav.hex_scroll = false;
             let r = (nav.cursor.saturating_sub(base) / 16) as f32;
-            sa = sa.vertical_scroll_offset((r - 8.0).max(0.0) * ROW_H);
+            sa = sa.vertical_scroll_offset((r - 8.0).max(0.0) * crate::custom::row_h());
         }
         let mut click = None;
-        sa.show_rows(ui, ROW_H, rows, |ui, range| {
+        sa.show_rows(ui, crate::custom::row_h(), rows, |ui, range| {
             for r in range {
                 let a = base + r as u64 * 16;
-                let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::click());
+                let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), crate::custom::row_h()), Sense::click());
                 let painter = ui.painter_at(rect);
                 if resp.hovered() {
                     painter.rect_filled(rect, 0.0, p.hover_row);
@@ -418,8 +418,8 @@ impl LensApp {
                     let ba = a + k;
                     let x = hx + (k as f32 * 3.0 + if k >= 8 { 1.0 } else { 0.0 }) * cw;
                     let inside = seg.contains(ba);
-                    let br = Rect::from_min_size(pos2(x - 2.0, rect.top() + 1.0), vec2(cw * 2.0 + 4.0, ROW_H - 2.0));
-                    let ar = Rect::from_min_size(pos2(ax + k as f32 * cw, rect.top() + 1.0), vec2(cw, ROW_H - 2.0));
+                    let br = Rect::from_min_size(pos2(x - 2.0, rect.top() + 1.0), vec2(cw * 2.0 + 4.0, crate::custom::row_h() - 2.0));
+                    let ar = Rect::from_min_size(pos2(ax + k as f32 * cw, rect.top() + 1.0), vec2(cw, crate::custom::row_h() - 2.0));
                     if ba >= c0 && ba < c1 {
                         painter.rect_filled(br, 3.0, p.selection);
                         painter.rect_filled(ar, 2.0, p.selection);

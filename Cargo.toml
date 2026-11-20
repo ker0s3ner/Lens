@@ -1,6 +1,6 @@
 [package]
 name = "lens"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Lens - a clean, friendly disassembler for x86/x64 programs (ELF, PE, Mach-O)"
 
@@ -21,10 +21,13 @@ rustc-demangle = "0.1.28"
 capstone = "0.13"
 rhai = "1"
 libc = "0.2"
+ab_glyph = "0.2"
+
 ureq = { version = "3", features = ["json"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 winit = "0.30"
+muda = "0.17"
 
 [profile.dev]
 opt-level = 2
