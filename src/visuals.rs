@@ -20,6 +20,8 @@ pub struct VisState {
     pub cg_depth: usize,
     pub cg_for: u64,
     pub map_mode: u8,
+    pub map_pan: Vec2,
+    pub map_zoom: f32,
     pub pseudo_scroll: Option<usize>,
     pub pseudo_for: u64,
     pub lang: Option<Lang>,
@@ -28,7 +30,7 @@ pub struct VisState {
 
 impl VisState {
     pub fn new() -> Self {
-        VisState { cg_zoom: 1.0, cg_depth: 2, lang: Some(Lang::C), ..Default::default() }
+        VisState { cg_zoom: 1.0, map_zoom: 1.0, cg_depth: 2, lang: Some(Lang::C), ..Default::default() }
     }
 }
 
@@ -683,19 +685,68 @@ impl LensApp {
     pub fn map_view(&mut self, ui: &mut egui::Ui) {
         let p = self.p;
         let State::Ready(l) = &self.state else { return };
-        let mode = &mut self.vis.map_mode;
+        let mut zoom_btn = 1.0f32;
+        let mode_ref = &mut self.vis.map_mode;
         ui.horizontal(|ui| {
             ui.add_space(12.0);
+            let mode = mode_ref;
             ui.label(RichText::new("Every function, sized by its code. Colour shows").color(p.muted));
             for (m, t) in [(0u8, "how often it's called"), (1, "how branchy it is"), (2, "named vs guessed")] {
                 if ui.add(egui::Button::selectable(*mode == m, t)).clicked() {
                     *mode = m;
                 }
             }
+            ui.add_space(16.0);
+            if ui.button("−").on_hover_text("Zoom out").clicked() { zoom_btn = 0.7; }
+            if ui.button("+").on_hover_text("Zoom in").clicked() { zoom_btn = 1.4; }
+            if ui.button("Fit").on_hover_text("Show everything").clicked() { zoom_btn = 0.0; }
         });
-        let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click());
+        let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let area = resp.rect.shrink(8.0);
-        painter.rect_filled(resp.rect, 0.0, p.panel_alt);
+        let full = resp.rect;
+        painter.rect_filled(full, 0.0, p.panel_alt);
+        let painter = painter.with_clip_rect(full);
+        // pan and zoom: drag or scroll to move, Cmd/Ctrl + scroll or pinch to zoom
+        let vis = &mut self.vis;
+        if resp.dragged() {
+            vis.map_pan += resp.drag_delta();
+        }
+        if resp.hovered() {
+            // scrolling zooms toward the pointer; holding Shift scrolls sideways instead
+            let (scroll, zoom_d, shift) = ui.input(|i| (i.smooth_scroll_delta, i.zoom_delta(), i.modifiers.shift));
+            let f = if (zoom_d - 1.0).abs() > 1e-4 { zoom_d } else if !shift && scroll.y != 0.0 { (scroll.y * 0.004).exp() } else { 1.0 };
+            if f != 1.0 {
+                let old = vis.map_zoom;
+                vis.map_zoom = (vis.map_zoom * f).clamp(1.0, 60.0);
+                if let Some(mp) = resp.hover_pos() {
+                    let rel = mp - (area.center() + vis.map_pan);
+                    vis.map_pan += rel - rel * (vis.map_zoom / old);
+                }
+            } else if shift {
+                vis.map_pan += vec2(scroll.x + scroll.y, 0.0);
+            } else {
+                vis.map_pan += vec2(scroll.x, 0.0);
+            }
+        }
+        if zoom_btn == 0.0 {
+            vis.map_zoom = 1.0;
+            vis.map_pan = Vec2::ZERO;
+        } else if zoom_btn != 1.0 {
+            vis.map_zoom = (vis.map_zoom * zoom_btn).clamp(1.0, 60.0);
+        }
+        if vis.map_zoom <= 1.0 {
+            vis.map_pan = Vec2::ZERO;
+        }
+        if vis.map_zoom <= 1.0 {
+            vis.map_pan = Vec2::ZERO;
+        } else {
+            let lim = vec2(area.width(), area.height()) * 0.5 * vis.map_zoom;
+            vis.map_pan = vec2(vis.map_pan.x.clamp(-lim.x, lim.x), vis.map_pan.y.clamp(-lim.y, lim.y));
+        }
+        let (mz, mpan) = (vis.map_zoom, vis.map_pan);
+        let ctr = area.center();
+        let tf = |r: Rect| Rect::from_min_max(ctr + mpan + (r.min - ctr) * mz, ctr + mpan + (r.max - ctr) * mz);
+        let mode = &self.vis.map_mode;
         let mut items: Vec<(u64, f64)> = l
             .an
             .functions
@@ -708,7 +759,7 @@ impl LensApp {
             return;
         }
         items.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(&b.0)));
-        items.truncate(1800);
+        items.truncate(8000);
         let total: f64 = items.iter().map(|i| i.1).sum();
         let scale = (area.width() * area.height()) as f64 / total;
         let norm: Vec<(usize, f64)> = items.iter().enumerate().map(|(i, it)| (i, it.1 * scale)).collect();
@@ -717,6 +768,10 @@ impl LensApp {
         let hover = resp.hover_pos();
         let mut hit: Option<usize> = None;
         for (i, r) in &rects {
+            let r = &tf(*r);
+            if !r.intersects(full) {
+                continue;
+            }
             let (addr, _) = items[*i];
             let f = &l.an.functions[&addr];
             let col = match *mode {
@@ -747,11 +802,11 @@ impl LensApp {
             let (addr, sz) = items[i];
             let f = &l.an.functions[&addr];
             if let Some((_, r)) = rects.iter().find(|(k, _)| *k == i) {
-                painter.rect_stroke(r.shrink(0.6), 2.0, Stroke::new(2.5, p.text), StrokeKind::Inside);
+                painter.rect_stroke(tf(*r).shrink(0.6), 2.0, Stroke::new(2.5, p.text), StrokeKind::Inside);
             }
             let callers = l.an.xrefs_to.get(&addr).map(|v| v.len()).unwrap_or(0);
             let tip = format!(
-                "{}\n{:X} · {} bytes · {} blocks · {} instructions\ncalled from {} place(s)\nClick: open · double-click: pseudocode",
+                "{}\n{:X} · {} bytes · {} blocks · {} instructions\ncalled from {} place(s)\nClick: open · double-click: pseudocode · scroll to zoom · drag to move",
                 l.name(addr).map(display_symbol).unwrap_or_default(),
                 addr,
                 sz as u64,

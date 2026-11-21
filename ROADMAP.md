@@ -47,6 +47,17 @@ Each phase ends with testing on real binaries, not just samples.
 - Binary diffing, cross-references everywhere, structure/enum windows, local and global search upgrades.
 - Collaboration / export (IDC-like scripts, JSON, Ghidra/IDA database import).
 
+## Done so far (toward parity)
+- Undo / redo for names, notes, bookmarks, structs and functions (Cmd+Z, Cmd+Shift+Z).
+- Lists window: functions, names, imports, exports, entry points, bookmarks, sortable and filterable.
+- Binary diff: compare two versions of a program by function name and shape.
+- Export: IDA script (.idc), Ghidra script (.py), JSON database, map file.
+- Chat with AI inside the app (Claude Code, Codex or any command), with conversation history.
+- Function map: scroll to zoom, drag to pan, zoom buttons.
+- Import names and notes from Lens JSON, IDA .idc or Ghidra .py scripts.
+- Lists window also covers strings (with use counts) and sections.
+- First unit tests (regression suite is still to be built out).
+
 ## Releasing
 Bump `version` in Cargo.toml, commit, push, then `git tag vX.Y.Z && git push --tags`. CI builds Apple Silicon
 and publishes the release; installed apps update themselves from Settings or Tools > Check for updates.

@@ -109,11 +109,13 @@ pub enum ListTab {
     Imports,
     Exports,
     Entries,
+    Strings,
+    Sections,
     Bookmarks,
 }
 
 impl ListTab {
-    const ALL: [ListTab; 6] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Bookmarks];
+    const ALL: [ListTab; 8] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Bookmarks];
     fn label(self) -> &'static str {
         match self {
             ListTab::Functions => "Functions",
@@ -121,6 +123,8 @@ impl ListTab {
             ListTab::Imports => "Imports",
             ListTab::Exports => "Exports",
             ListTab::Entries => "Entry points",
+            ListTab::Strings => "Strings",
+            ListTab::Sections => "Sections",
             ListTab::Bookmarks => "Bookmarks",
         }
     }
@@ -184,6 +188,21 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             v.dedup_by_key(|r| r.addr);
             v
         }
+        ListTab::Strings => l
+            .an
+            .strings
+            .iter()
+            .map(|s| {
+                let xr = l.an.xrefs_to.get(&s.addr).map(|v| v.len()).unwrap_or(0);
+                Row { addr: s.addr, name: crate::code::escape_str(&s.text, 90), detail: format!("{xr} uses"), num: xr as u64 }
+            })
+            .collect(),
+        ListTab::Sections => l
+            .bin
+            .segments
+            .iter()
+            .map(|g| Row { addr: g.start, name: g.name.clone(), detail: format!("{} bytes · {}{}", g.size, if g.exec { "code " } else { "" }, if g.write { "writable" } else { "read-only" }), num: g.size })
+            .collect(),
         ListTab::Bookmarks => l
             .ann
             .marks
@@ -209,14 +228,14 @@ impl LensApp {
             let mut r: Vec<Row> = rows(l, ls.tab).into_iter().filter(|r| q.is_empty() || r.name.to_lowercase().contains(&q) || r.detail.to_lowercase().contains(&q) || format!("{:x}", r.addr).contains(&q)).collect();
             match ls.sort {
                 1 => r.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
-                2 => if ls.tab == ListTab::Functions { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
+                2 => if matches!(ls.tab, ListTab::Functions | ListTab::Strings | ListTab::Sections) { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
                 _ => r.sort_by_key(|x| x.addr),
             }
             if ls.desc { r.reverse(); }
             ls.cache = Some((key, r));
         }
         let digits = l.digits;
-        let detail_head = match ls.tab { ListTab::Functions => "Size", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", _ => "Kind" };
+        let detail_head = match ls.tab { ListTab::Functions | ListTab::Sections => "Size", ListTab::Strings => "Uses", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", _ => "Kind" };
         egui::Window::new("Lists").open(&mut open).default_size([640.0, 520.0]).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 for t in ListTab::ALL {
@@ -569,5 +588,126 @@ impl LensApp {
                 Err(e) => self.logm(format!("Couldn't export: {e}")),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fingerprint_changes_with_edits_not_order() {
+        let mut a = Annotations::default();
+        let f0 = fingerprint(&a);
+        a.names.insert(0x10, "foo".into());
+        a.names.insert(0x20, "bar".into());
+        let f1 = fingerprint(&a);
+        assert_ne!(f0, f1);
+        let mut b = Annotations::default();
+        b.names.insert(0x20, "bar".into());
+        b.names.insert(0x10, "foo".into());
+        assert_eq!(f1, fingerprint(&b));
+        b.comments.insert(1, "x".into());
+        assert_ne!(f1, fingerprint(&b));
+    }
+
+    #[test]
+    fn reads_idc_and_ghidra_lines() {
+        let t = "  set_name(0x401000, \"main\", SN_NOWARN);\n  set_cmt(0x401004, \"say \\\"hi\\\"\", 0);\n  add_func(0x402000, BADADDR);\ncreateLabel(addr(0x403000), \"foo\", True, SourceType.USER_DEFINED)\n";
+        let (n, c, f) = parse_script(t);
+        assert_eq!(n, vec![(0x401000, "main".to_string()), (0x403000, "foo".to_string())]);
+        assert_eq!(c, vec![(0x401004, "say \"hi\"".to_string())]);
+        assert_eq!(f, vec![0x402000]);
+    }
+
+    #[test]
+    fn escapes_quotes_and_newlines_for_scripts() {
+        assert_eq!(esc("a\"b\\c\n"), "a\\\"b\\\\c\\n");
+    }
+}
+
+// ------------------------------------------------------------------ import
+
+fn parse_num(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if let Some(h) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u64::from_str_radix(h, 16).ok()
+    } else {
+        s.parse().ok()
+    }
+}
+
+fn quoted(s: &str) -> Option<String> {
+    let a = s.find('"')? + 1;
+    let mut out = String::new();
+    let mut it = s[a..].chars();
+    while let Some(c) = it.next() {
+        match c {
+            '"' => return Some(out),
+            '\\' => match it.next() {
+                Some('n') => out.push('\n'),
+                Some(o) => out.push(o),
+                None => break,
+            },
+            c => out.push(c),
+        }
+    }
+    None
+}
+
+/// Reads names, comments and function starts from an IDC script (set_name / set_cmt / add_func and the older Make* forms)
+/// or a Ghidra script written by Lens.
+pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<u64>) {
+    let (mut names, mut cmts, mut funcs) = (vec![], vec![], vec![]);
+    for line in text.lines() {
+        let t = line.trim();
+        let call = |name: &str| t.split_once(&format!("{name}(")).map(|x| x.1.to_string());
+        if let Some(a) = call("set_name").or_else(|| call("MakeName")).or_else(|| call("createLabel")) {
+            if let (Some(ad), Some(n)) = (a.split(',').next().and_then(|x| parse_num(x.trim_start_matches("addr(").trim_end_matches(')'))), quoted(&a)) {
+                names.push((ad, n));
+            }
+        } else if let Some(a) = call("set_cmt").or_else(|| call("MakeComm")).or_else(|| call("setEOLComment")) {
+            if let (Some(ad), Some(n)) = (a.split(',').next().and_then(|x| parse_num(x.trim_start_matches("addr(").trim_end_matches(')'))), quoted(&a)) {
+                cmts.push((ad, n));
+            }
+        } else if let Some(a) = call("add_func").or_else(|| call("MakeFunction")).or_else(|| call("createFunction")) {
+            if let Some(ad) = a.split(',').next().and_then(|x| parse_num(x.trim_start_matches("addr(").trim_end_matches(')'))) {
+                funcs.push(ad);
+            }
+        }
+    }
+    (names, cmts, funcs)
+}
+
+impl LensApp {
+    pub fn import_db(&mut self) {
+        if self.loaded().is_none() { return; }
+        let Some(path) = rfd::FileDialog::new().set_title("Import names and notes (Lens JSON, IDA .idc or Ghidra .py)").pick_file() else { return };
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) => { self.logm(format!("Couldn't read the file: {e}")); return; }
+        };
+        let State::Ready(l) = &mut self.state else { return };
+        let (mut n, mut c, mut f) = (0, 0, 0);
+        if text.trim_start().starts_with('{') {
+            match serde_json::from_str::<Annotations>(&text) {
+                Ok(a) => {
+                    for (k, v) in a.names { l.ann.names.insert(k, v); n += 1; }
+                    for (k, v) in a.comments { l.ann.comments.insert(k, v); c += 1; }
+                    for k in a.marks { if !l.ann.marks.contains(&k) { l.ann.marks.push(k); } }
+                    for k in a.functions { if !l.ann.functions.contains(&k) { l.ann.functions.push(k); f += 1; } }
+                }
+                Err(e) => { self.logm(format!("That isn't a Lens notes file: {e}")); return; }
+            }
+        } else {
+            let (names, cmts, funcs) = parse_script(&text);
+            for (a, s) in names { l.ann.names.insert(a, s); n += 1; }
+            for (a, s) in cmts { l.ann.comments.insert(a, s); c += 1; }
+            for a in funcs { if !l.ann.functions.contains(&a) && !l.an.functions.contains_key(&a) { l.ann.functions.push(a); f += 1; } }
+        }
+        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+        l.refresh();
+        self.logm(format!("Imported {n} names, {c} notes and {f} new functions."));
+        if f > 0 { self.reanalyze(); }
     }
 }

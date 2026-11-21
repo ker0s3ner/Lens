@@ -49,7 +49,7 @@ mod imp {
             add(&file, &[
                 ("open", "Open..."), ("hex_tool", "Hex to Code..."), ("", ""),
                 ("export_notes", "Export Names and Notes..."), ("export_c", "Export Pseudocode..."),
-                ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("", ""),
+                ("import", "Import Names and Notes..."), ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("", ""),
                 ("reveal", "Show in Finder"), ("hash", "Copy SHA-256"), ("close", "Close Program"),
             ]);
             let _ = menu.append(&file);
@@ -202,6 +202,7 @@ impl LensApp {
                 "side_strings" => Action::SetSide(Side::Strings),
                 "side_imports" => Action::SetSide(Side::Imports),
                 "side_segs" => Action::SetSide(Side::Segments),
+                "import" => Action::Import,
                 "undo" => Action::Undo,
                 "redo" => Action::Redo,
                 "lists" => Action::Lists,

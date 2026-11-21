@@ -10,9 +10,11 @@ pub struct AiState {
     pub open: bool,
     pub sel: usize,
     pub running: Option<Receiver<Result<String, String>>>,
-    pub output: String,
-    pub error: bool,
-    pub title: String,
+    /// The conversation: (0 you, 1 assistant, 2 error, text).
+    pub chat: Vec<(u8, String)>,
+    pub input: String,
+    pub no_code: bool,
+    pub focus: bool,
     pub started: Option<std::time::Instant>,
 }
 
@@ -244,32 +246,48 @@ impl LensApp {
         Some((text, name, format!("{fs:X}")))
     }
 
+    /// Menu entry "Ask X about this function": sends the saved default question.
     pub fn ask_ai(&mut self, idx: usize) {
-        let Some(it) = self.prefs.integrations.get(idx).cloned() else { return };
-        let q = self.prefs.ask_text.clone();
-        let Some((text, func, addr)) = self.ai_context(&q) else {
-            self.ai.output = "Open a program and put the cursor inside a function first.".into();
-            self.ai.error = true;
-            self.ai.open = true;
-            return;
-        };
-        let file = self.loaded().map(|l| l.bin.path.clone()).unwrap_or_default();
         self.ai.sel = idx;
-        self.ai.title = format!("{} on {func}", it.name);
-        self.ai.output.clear();
-        self.ai.error = false;
-        self.ai.started = Some(std::time::Instant::now());
-        self.ai.running = Some(custom::run(&it, text, &file, &func, &addr));
+        self.ai.no_code = false;
+        let q = self.prefs.ask_text.clone();
+        self.send_chat(q);
         self.ai.open = true;
-        self.logm(format!("Asked {} about {func}.", it.name));
+    }
+
+    /// Sends a chat message to the chosen assistant with the earlier conversation and (optionally) the current function.
+    pub fn send_chat(&mut self, q: String) {
+        let q = q.trim().to_string();
+        if q.is_empty() || self.ai.running.is_some() { return; }
+        let Some(it) = self.prefs.integrations.get(self.ai.sel).cloned() else { return };
+        let ctx = if self.ai.no_code { None } else { self.ai_context("") };
+        let (func, addr) = ctx.as_ref().map(|c| (c.1.clone(), c.2.clone())).unwrap_or_default();
+        let file = self.loaded().map(|l| l.bin.path.clone()).unwrap_or_default();
+        let mut prompt = String::from("You are helping someone reverse engineer a program in the Lens disassembler. Answer clearly and concisely.\n\n");
+        if let Some((c, ..)) = &ctx {
+            prompt.push_str("Current function (decompiler output, names and types are guesses):\n");
+            prompt.push_str(c.trim_start());
+            prompt.push_str("\n\n");
+        }
+        let keep = self.ai.chat.len().saturating_sub(16);
+        for (role, t) in &self.ai.chat[keep..] {
+            match role { 0 => prompt.push_str(&format!("User: {t}\n\n")), 1 => prompt.push_str(&format!("Assistant: {t}\n\n")), _ => {} }
+        }
+        prompt.push_str(&format!("User: {q}\n\nAssistant:"));
+        self.ai.chat.push((0, q));
+        self.ai.started = Some(std::time::Instant::now());
+        self.ai.running = Some(custom::run(&it, prompt, &file, &func, &addr));
+        self.logm(format!("Asked {}.", it.name));
     }
 
     pub fn poll_ai(&mut self, ctx: &egui::Context) {
         if let Some(rx) = &self.ai.running {
             match rx.try_recv() {
                 Ok(r) => {
-                    self.ai.error = r.is_err();
-                    self.ai.output = r.unwrap_or_else(|e| e);
+                    match r {
+                        Ok(t) => self.ai.chat.push((1, t.trim().to_string())),
+                        Err(e) => self.ai.chat.push((2, e)),
+                    }
                     self.ai.running = None;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => ctx.request_repaint_after(std::time::Duration::from_millis(150)),
@@ -281,50 +299,70 @@ impl LensApp {
     pub fn assistant_window(&mut self, ctx: &egui::Context) {
         let p = self.p;
         let mut open = true;
-        let mut ask: Option<usize> = None;
-        egui::Window::new("Assistant").open(&mut open).default_width(640.0).default_height(520.0).show(ctx, |ui| {
+        let mut send: Option<String> = None;
+        egui::Window::new("Chat with AI").open(&mut open).default_width(620.0).default_height(560.0).show(ctx, |ui| {
             let enabled: Vec<usize> = self.prefs.integrations.iter().enumerate().filter(|(_, i)| i.enabled).map(|(i, _)| i).collect();
             if enabled.is_empty() {
                 ui.label("No assistants are switched on. Open Settings > Assistants to add Claude Code, Codex or your own command.");
                 if ui.button("Open settings").clicked() { self.tools.settings_open = true; self.sui.tab = 3; }
                 return;
             }
+            if !enabled.contains(&self.ai.sel) { self.ai.sel = enabled[0]; }
             ui.horizontal(|ui| {
-                ui.label("Ask");
                 let cur = self.prefs.integrations.get(self.ai.sel).map(|i| i.name.clone()).unwrap_or_default();
                 egui::ComboBox::from_id_salt("aisel").selected_text(cur).show_ui(ui, |ui| {
                     for i in &enabled {
                         if ui.selectable_label(self.ai.sel == *i, self.prefs.integrations[*i].name.as_str()).clicked() { self.ai.sel = *i; }
                     }
                 });
-                ui.label(RichText::new("about the function under the cursor").color(p.muted));
-            });
-            ui.add_space(4.0);
-            let r = ui.add(TextEdit::multiline(&mut self.prefs.ask_text).desired_rows(2).desired_width(f32::INFINITY).hint_text("What do you want to know?"));
-            if r.lost_focus() { self.save_prefs(); }
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                let busy = self.ai.running.is_some();
-                let b = egui::Button::new(RichText::new(if busy { "Waiting..." } else { "Send" }).strong().color(Color32::WHITE)).fill(p.accent).min_size(vec2(90.0, 28.0));
-                if ui.add_enabled(!busy, b).clicked() { ask = Some(self.ai.sel); }
-                if busy {
-                    ui.add(egui::Spinner::new().size(14.0));
-                    if let Some(t) = self.ai.started { ui.label(RichText::new(format!("{:.0}s", t.elapsed().as_secs_f32())).color(p.muted)); }
-                }
-                if !self.ai.output.is_empty() && ui.button("Copy answer").clicked() { ui.ctx().copy_text(self.ai.output.clone()); }
+                let mut with = !self.ai.no_code;
+                if ui.checkbox(&mut with, "Include the function under the cursor").changed() { self.ai.no_code = !with; }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if !self.ai.chat.is_empty() && ui.small_button("Clear").clicked() { self.ai.chat.clear(); }
+                    if let Some(t) = self.ai.chat.iter().rev().find(|c| c.0 == 1) {
+                        if ui.small_button("Copy last answer").clicked() { ui.ctx().copy_text(t.1.clone()); }
+                    }
+                });
             });
             ui.separator();
-            if !self.ai.title.is_empty() { ui.label(RichText::new(&self.ai.title).small().color(p.faint)); }
-            ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                if self.ai.output.is_empty() && self.ai.running.is_none() {
-                    ui.label(RichText::new("The answer appears here. Claude Code and Codex must be installed and signed in on this Mac.").color(p.faint));
-                } else {
-                    let col = if self.ai.error { p.edge_not } else { p.text };
-                    ui.add(egui::Label::new(RichText::new(&self.ai.output).color(col)).selectable(true));
+            let input_h = 150.0;
+            let avail = (ui.available_height() - input_h).max(80.0);
+            ScrollArea::vertical().max_height(avail).min_scrolled_height(avail).auto_shrink(false).stick_to_bottom(true).show(ui, |ui| {
+                if self.ai.chat.is_empty() {
+                    ui.label(RichText::new("Ask anything about this program. With the box ticked, the function under your cursor goes along as pseudocode. Claude Code and Codex must be installed and signed in on this Mac.").color(p.faint));
                 }
+                for (role, t) in &self.ai.chat {
+                    let (who, col, bg) = match role {
+                        0 => ("You", p.muted, p.panel_alt),
+                        1 => ("Assistant", p.accent, p.panel),
+                        _ => ("Problem", p.edge_not, p.panel),
+                    };
+                    egui::Frame::new().fill(bg).corner_radius(CornerRadius::same(8)).inner_margin(Margin::same(10)).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        ui.label(RichText::new(who).small().strong().color(col));
+                        ui.add(egui::Label::new(RichText::new(t).color(if *role == 2 { p.edge_not } else { p.text })).selectable(true));
+                    });
+                    ui.add_space(6.0);
+                }
+                if self.ai.running.is_some() {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Spinner::new().size(14.0));
+                        if let Some(t) = self.ai.started { ui.label(RichText::new(format!("thinking… {:.0}s", t.elapsed().as_secs_f32())).color(p.muted)); }
+                    });
+                }
+            });
+            ui.separator();
+            let busy = self.ai.running.is_some();
+            let in_id = egui::Id::new("lens_chat_input");
+            let enter = ctx.memory(|m| m.has_focus(in_id)) && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+            let r = ui.add(TextEdit::multiline(&mut self.ai.input).id(in_id).desired_rows(3).desired_width(f32::INFINITY).hint_text("Message… (Enter sends, Shift+Enter adds a line)"));
+            if self.ai.focus { r.request_focus(); self.ai.focus = false; }
+            ui.horizontal(|ui| {
+                let b = egui::Button::new(RichText::new(if busy { "Waiting…" } else { "Send" }).strong().color(Color32::WHITE)).fill(p.accent).min_size(vec2(90.0, 28.0));
+                if (ui.add_enabled(!busy, b).clicked() || enter) && !busy { send = Some(std::mem::take(&mut self.ai.input)); }
             });
         });
         self.ai.open = open;
-        if let Some(i) = ask { self.ask_ai(i); }
+        if let Some(q) = send { self.send_chat(q); }
     }
 }

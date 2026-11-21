@@ -112,6 +112,7 @@ pub enum Action {
     Lists,
     Diff,
     Export(crate::ida::ExportKind),
+    Import,
 }
 
 pub enum Modal {
@@ -658,12 +659,13 @@ impl LensApp {
                 }
                 Action::Debugger => self.tools2.dbg.open = true,
                 Action::Script => self.tools2.script.open = true,
-                Action::Assistant => self.ai.open = true,
+                Action::Assistant => { self.ai.open = true; self.ai.focus = true; }
                 Action::Undo => self.do_undo(false),
                 Action::Redo => self.do_undo(true),
                 Action::Lists => self.lists.open = true,
                 Action::Diff => self.start_diff(),
                 Action::Export(k) => self.export_db(k),
+                Action::Import => self.import_db(),
                 Action::AskAi(i) => self.ask_ai(i),
                 Action::OpenUrl(u) => { let _ = std::process::Command::new("open").arg(u).spawn(); }
                 Action::RunPlugin(p) => self.run_plugin(&p),
