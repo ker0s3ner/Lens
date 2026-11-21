@@ -147,6 +147,12 @@ impl LensApp {
         if self.tools2.dbg.open {
             self.debugger_window(ctx);
         }
+        if self.lists.open {
+            self.lists_window(ctx);
+        }
+        if self.diff.open {
+            self.diff_window(ctx);
+        }
     }
 
     // ---------------------------------------------------------------- search

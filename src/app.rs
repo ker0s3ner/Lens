@@ -107,6 +107,11 @@ pub enum Action {
     Assistant,
     AskAi(usize),
     OpenUrl(String),
+    Undo,
+    Redo,
+    Lists,
+    Diff,
+    Export(crate::ida::ExportKind),
 }
 
 pub enum Modal {
@@ -191,6 +196,9 @@ pub struct LensApp {
     pub sui: crate::settings::SettingsUi,
     pub ai: crate::settings::AiState,
     pub menu: Option<crate::menubar::MenuBar>,
+    pub undo: crate::ida::UndoStack,
+    pub lists: crate::ida::ListState,
+    pub diff: crate::ida::DiffState,
     pub dbg: Option<crate::debugger::Dbg>,
     pub jobs: crate::tools2::Jobs,
     pub pending_goto: Option<u64>,
@@ -256,6 +264,9 @@ impl LensApp {
             update_hidden: false,
             tools: crate::tools::Tools::default(),
             tools2: TwoState::default(),
+            undo: Default::default(),
+            lists: Default::default(),
+            diff: Default::default(),
             dbg: None,
             jobs: Default::default(),
             pending_goto: None,
@@ -279,6 +290,7 @@ impl LensApp {
                 "search" => { app.tools.search.open = true; app.tools.search.focus = true; app.tools.search.text = std::env::var("LENS_Q").unwrap_or_default(); }
                 "settings" => { app.tools.settings_open = true; app.sui.tab = std::env::var("LENS_TAB").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
                 "assistant" => app.ai.open = true,
+                "lists" => { app.lists.open = true; app.lists.tab = match std::env::var("LENS_TAB").as_deref() { Ok("imports") => crate::ida::ListTab::Imports, Ok("names") => crate::ida::ListTab::Names, _ => crate::ida::ListTab::Functions }; }
                 "patch" => app.tools2.patch.open = true,
                 "structs" => { app.tools2.types.open = true; app.tools2.types.def = "struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};".into(); }
                 "script" => app.tools2.script.open = true,
@@ -647,6 +659,11 @@ impl LensApp {
                 Action::Debugger => self.tools2.dbg.open = true,
                 Action::Script => self.tools2.script.open = true,
                 Action::Assistant => self.ai.open = true,
+                Action::Undo => self.do_undo(false),
+                Action::Redo => self.do_undo(true),
+                Action::Lists => self.lists.open = true,
+                Action::Diff => self.start_diff(),
+                Action::Export(k) => self.export_db(k),
                 Action::AskAi(i) => self.ask_ai(i),
                 Action::OpenUrl(u) => { let _ = std::process::Command::new("open").arg(u).spawn(); }
                 Action::RunPlugin(p) => self.run_plugin(&p),
@@ -896,6 +913,8 @@ impl LensApp {
             if modal || typing || !ready {
                 return;
             }
+            if i.consume_key(M::COMMAND | M::SHIFT, Key::Z) { acts.push(Action::Redo); }
+            if i.consume_key(M::COMMAND, Key::Z) { acts.push(Action::Undo); }
             let none = M::NONE;
             let mut hit = |id: &str| crate::custom::hit(i, &crate::custom::spec(&km, id));
             if hit("jump") { acts.push(Action::Jump); }

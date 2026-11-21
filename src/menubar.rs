@@ -48,10 +48,15 @@ mod imp {
             let file = Submenu::new("File", true);
             add(&file, &[
                 ("open", "Open..."), ("hex_tool", "Hex to Code..."), ("", ""),
-                ("export_notes", "Export Names and Notes..."), ("export_c", "Export Pseudocode..."), ("", ""),
+                ("export_notes", "Export Names and Notes..."), ("export_c", "Export Pseudocode..."),
+                ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("", ""),
                 ("reveal", "Show in Finder"), ("hash", "Copy SHA-256"), ("close", "Close Program"),
             ]);
             let _ = menu.append(&file);
+
+            let edit = Submenu::new("Edit", true);
+            add(&edit, &[("undo", "Undo"), ("redo", "Redo")]);
+            let _ = menu.append(&edit);
 
             let view = Submenu::new("View", true);
             add(&view, &[
@@ -73,7 +78,7 @@ mod imp {
 
             let tools = Submenu::new("Analysis", true);
             add(&tools, &[
-                ("patches", "Patch Bytes..."), ("structs", "Structs..."), ("debugger", "Debugger..."), ("breakpoint", "Toggle Breakpoint"), ("", ""),
+                ("lists", "Lists (Names, Imports, Exports)..."), ("diff", "Compare With Another Program..."), ("", ""), ("patches", "Patch Bytes..."), ("structs", "Structs..."), ("debugger", "Debugger..."), ("breakpoint", "Toggle Breakpoint"), ("", ""),
                 ("script", "Script..."),
             ]);
             let plug_sub = Submenu::new("Plugins", true);
@@ -197,6 +202,14 @@ impl LensApp {
                 "side_strings" => Action::SetSide(Side::Strings),
                 "side_imports" => Action::SetSide(Side::Imports),
                 "side_segs" => Action::SetSide(Side::Segments),
+                "undo" => Action::Undo,
+                "redo" => Action::Redo,
+                "lists" => Action::Lists,
+                "diff" => Action::Diff,
+                "export_idc" => Action::Export(crate::ida::ExportKind::Idc),
+                "export_ghidra" => Action::Export(crate::ida::ExportKind::Ghidra),
+                "export_json" => Action::Export(crate::ida::ExportKind::Json),
+                "export_map" => Action::Export(crate::ida::ExportKind::Map),
                 "patches" => Action::Patches,
                 "structs" => Action::Structs,
                 "debugger" => Action::Debugger,

@@ -2,6 +2,7 @@ mod analysis;
 mod app;
 mod code;
 mod custom;
+mod ida;
 mod detect;
 mod debugger;
 mod decomp;

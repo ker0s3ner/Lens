@@ -812,6 +812,7 @@ impl eframe::App for LensApp {
             egui::CentralPanel::default().frame(egui::Frame::new().fill(p.bg)).show(ui, |ui| self.welcome(ui));
         }
         self.update_card(&ctx);
+        self.track_undo();
         self.tool_windows(&ctx);
         self.modals(&ctx);
         self.apply_actions(&ctx);

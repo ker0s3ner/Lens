@@ -1,0 +1,573 @@
+//! Things IDA has that Lens was missing: undo/redo, the Lists windows (Names, Imports, Exports,
+//! Entry points, Bookmarks), binary diffing and database export (IDC, JSON, MAP, Ghidra script).
+
+use crate::analysis::{self, display_symbol, NameKind};
+use crate::app::{Action, Loaded, LensApp, State};
+use crate::store::{self, Annotations};
+use eframe::egui::{self, RichText, ScrollArea, TextEdit};
+use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::mpsc::{channel, Receiver};
+use std::sync::Arc;
+
+// ------------------------------------------------------------------ undo / redo
+
+#[derive(Default)]
+pub struct UndoStack {
+    key: String,
+    shadow: Option<Annotations>,
+    print: u64,
+    undo: Vec<Annotations>,
+    redo: Vec<Annotations>,
+}
+
+fn h<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
+/// Order-independent fingerprint of everything the person edits (not patches).
+fn fingerprint(a: &Annotations) -> u64 {
+    let mut x = 0u64;
+    for (k, v) in &a.names { x ^= h(&(1u8, k, v)); }
+    for (k, v) in &a.comments { x ^= h(&(2u8, k, v)); }
+    for f in &a.functions { x ^= h(&(3u8, f)); }
+    for m in &a.marks { x ^= h(&(4u8, m)); }
+    for b in &a.breakpoints { x ^= h(&(5u8, b)); }
+    for (k, v) in &a.applied { x ^= h(&(6u8, k, v)); }
+    x ^= h(&(7u8, a.structs.len()));
+    x
+}
+
+impl UndoStack {
+    pub fn can_undo(&self) -> bool { !self.undo.is_empty() }
+    pub fn can_redo(&self) -> bool { !self.redo.is_empty() }
+}
+
+impl LensApp {
+    /// Call once per frame: notices edits and remembers the state before them.
+    pub fn track_undo(&mut self) {
+        let State::Ready(l) = &self.state else {
+            self.undo = UndoStack::default();
+            return;
+        };
+        let key = format!("{}:{}", l.bin.path, l.bin.file_size);
+        let fp = fingerprint(&l.ann);
+        let u = &mut self.undo;
+        if u.key != key || u.shadow.is_none() {
+            *u = UndoStack { key, shadow: Some(l.ann.clone()), print: fp, ..Default::default() };
+            return;
+        }
+        if fp != u.print {
+            if let Some(prev) = u.shadow.take() {
+                u.undo.push(prev);
+                if u.undo.len() > 200 { u.undo.remove(0); }
+            }
+            u.redo.clear();
+            u.shadow = Some(l.ann.clone());
+            u.print = fp;
+        }
+    }
+
+    pub fn do_undo(&mut self, redo: bool) {
+        let from = if redo { self.undo.redo.pop() } else { self.undo.undo.pop() };
+        let Some(target) = from else {
+            self.logm(if redo { "Nothing to redo." } else { "Nothing to undo." });
+            return;
+        };
+        let State::Ready(l) = &mut self.state else { return };
+        let current = l.ann.clone();
+        if redo { self.undo.undo.push(current); } else { self.undo.redo.push(current); }
+        let funcs_changed = l.ann.functions != target.functions;
+        l.ann.names = target.names.clone();
+        l.ann.comments = target.comments.clone();
+        l.ann.functions = target.functions.clone();
+        l.ann.marks = target.marks.clone();
+        l.ann.breakpoints = target.breakpoints.clone();
+        l.ann.applied = target.applied.clone();
+        l.ann.structs = target.structs.clone();
+        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+        l.refresh();
+        self.undo.print = fingerprint(&l.ann);
+        self.undo.shadow = Some(l.ann.clone());
+        self.logm(if redo { "Redone." } else { "Undone." });
+        if funcs_changed {
+            self.reanalyze();
+        }
+    }
+}
+
+// ------------------------------------------------------------------ lists
+
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum ListTab {
+    #[default]
+    Functions,
+    Names,
+    Imports,
+    Exports,
+    Entries,
+    Bookmarks,
+}
+
+impl ListTab {
+    const ALL: [ListTab; 6] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Bookmarks];
+    fn label(self) -> &'static str {
+        match self {
+            ListTab::Functions => "Functions",
+            ListTab::Names => "Names",
+            ListTab::Imports => "Imports",
+            ListTab::Exports => "Exports",
+            ListTab::Entries => "Entry points",
+            ListTab::Bookmarks => "Bookmarks",
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct ListState {
+    pub open: bool,
+    pub tab: ListTab,
+    pub filter: String,
+    /// 0 = address, 1 = name, 2 = detail (size / library / note)
+    pub sort: u8,
+    pub desc: bool,
+    cache: Option<((ListTab, String, u8, bool, u64), Vec<Row>)>,
+}
+
+#[derive(Clone)]
+struct Row {
+    addr: u64,
+    name: String,
+    detail: String,
+    num: u64,
+}
+
+fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
+    let name_of = |a: u64| l.names.get(&a).map(|(n, _)| display_symbol(n)).unwrap_or_else(|| format!("{a:X}"));
+    match tab {
+        ListTab::Functions => l
+            .an
+            .functions
+            .values()
+            .map(|f| {
+                let xr = l.an.xrefs_to.get(&f.start).map(|v| v.len()).unwrap_or(0);
+                Row { addr: f.start, name: name_of(f.start), detail: format!("{} B · {} blocks · {} callers", f.size(), f.blocks.len(), xr), num: f.size() }
+            })
+            .collect(),
+        ListTab::Names => l
+            .names
+            .iter()
+            .map(|(a, (n, k))| Row {
+                addr: *a,
+                name: display_symbol(n),
+                detail: match k { NameKind::Function => "function", NameKind::Import => "import", NameKind::Label => "label", NameKind::String => "string", NameKind::Data => "data" }.into(),
+                num: 0,
+            })
+            .collect(),
+        ListTab::Imports => l.bin.imports.iter().map(|i| Row { addr: i.slot, name: display_symbol(&i.name), detail: i.library.clone(), num: 0 }).collect(),
+        ListTab::Exports => l.bin.exports.iter().map(|e| Row { addr: e.addr, name: display_symbol(&e.name), detail: String::new(), num: 0 }).collect(),
+        ListTab::Entries => {
+            let mut v: Vec<Row> = vec![];
+            if let Some(e) = l.bin.entry {
+                v.push(Row { addr: e, name: name_of(e), detail: "program entry".into(), num: 0 });
+            }
+            if let Some((a, _)) = &l.det.main {
+                v.push(Row { addr: *a, name: name_of(*a), detail: "main".into(), num: 0 });
+            }
+            for e in &l.bin.exports {
+                v.push(Row { addr: e.addr, name: display_symbol(&e.name), detail: "exported".into(), num: 0 });
+            }
+            v.sort_by_key(|r| r.addr);
+            v.dedup_by_key(|r| r.addr);
+            v
+        }
+        ListTab::Bookmarks => l
+            .ann
+            .marks
+            .iter()
+            .map(|a| Row { addr: *a, name: name_of(*a), detail: l.ann.comments.get(a).cloned().unwrap_or_default(), num: 0 })
+            .collect(),
+    }
+}
+
+impl LensApp {
+    pub fn lists_window(&mut self, ctx: &egui::Context) {
+        let p = self.p;
+        let mut open = true;
+        let mut goto: Option<u64> = None;
+        let State::Ready(l) = &self.state else {
+            self.lists.open = false;
+            return;
+        };
+        let ls = &mut self.lists;
+        let key = (ls.tab, ls.filter.clone(), ls.sort, ls.desc, l.version ^ (l.ann.marks.len() as u64) << 40);
+        if ls.cache.as_ref().map(|c| c.0 != key).unwrap_or(true) {
+            let q = ls.filter.to_lowercase();
+            let mut r: Vec<Row> = rows(l, ls.tab).into_iter().filter(|r| q.is_empty() || r.name.to_lowercase().contains(&q) || r.detail.to_lowercase().contains(&q) || format!("{:x}", r.addr).contains(&q)).collect();
+            match ls.sort {
+                1 => r.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+                2 => if ls.tab == ListTab::Functions { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
+                _ => r.sort_by_key(|x| x.addr),
+            }
+            if ls.desc { r.reverse(); }
+            ls.cache = Some((key, r));
+        }
+        let digits = l.digits;
+        let detail_head = match ls.tab { ListTab::Functions => "Size", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", _ => "Kind" };
+        egui::Window::new("Lists").open(&mut open).default_size([640.0, 520.0]).show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for t in ListTab::ALL {
+                    if ui.selectable_label(ls.tab == t, t.label()).clicked() {
+                        ls.tab = t;
+                        ls.sort = 0;
+                        ls.desc = false;
+                    }
+                }
+            });
+            ui.add(TextEdit::singleline(&mut ls.filter).desired_width(f32::INFINITY).hint_text("Filter by name, address or note…"));
+            let n = ls.cache.as_ref().map(|c| c.1.len()).unwrap_or(0);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(format!("{n} shown")).small().color(p.faint));
+                ui.add_space(12.0);
+                for (i, name) in [(0u8, "Address"), (1, "Name"), (2, detail_head)] {
+                    let arrow = if ls.sort == i { if ls.desc { " ↓" } else { " ↑" } } else { "" };
+                    if ui.small_button(format!("{name}{arrow}")).clicked() {
+                        if ls.sort == i { ls.desc = !ls.desc } else { ls.sort = i; ls.desc = false }
+                    }
+                }
+            });
+            ui.separator();
+            let rows = ls.cache.as_ref().map(|c| &c.1[..]).unwrap_or(&[]);
+            ScrollArea::vertical().auto_shrink([false, false]).show_rows(ui, 20.0, rows.len(), |ui, range| {
+                for r in &rows[range] {
+                    let resp = ui.horizontal(|ui| {
+                        ui.label(RichText::new(format!("{:0w$X}", r.addr, w = digits)).monospace().color(p.func_name));
+                        ui.label(RichText::new(&r.name).monospace());
+                        ui.label(RichText::new(&r.detail).small().color(p.muted));
+                    });
+                    let resp = ui.interact(resp.response.rect, egui::Id::new(("lrow", r.addr, &r.name)), egui::Sense::click());
+                    if resp.clicked() { goto = Some(r.addr); }
+                    if resp.hovered() { ui.painter().rect_filled(resp.rect, 2.0, p.accent.gamma_multiply(0.08)); }
+                }
+            });
+        });
+        if let Some(a) = goto { self.actions.push(Action::Goto(a)); }
+        if !open { self.lists.open = false; }
+    }
+}
+
+// ------------------------------------------------------------------ binary diff
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DiffKind {
+    Same,
+    Changed,
+    Renamed,
+    OnlyA,
+    OnlyB,
+}
+
+impl DiffKind {
+    fn label(self) -> &'static str {
+        match self {
+            DiffKind::Same => "identical",
+            DiffKind::Changed => "changed",
+            DiffKind::Renamed => "renamed",
+            DiffKind::OnlyA => "only here",
+            DiffKind::OnlyB => "only in other",
+        }
+    }
+}
+
+pub struct DiffRow {
+    pub kind: DiffKind,
+    pub name: String,
+    pub a: Option<u64>,
+    pub b: Option<u64>,
+    pub size_a: u64,
+    pub size_b: u64,
+    pub note: String,
+}
+
+pub struct DiffOut {
+    pub other: String,
+    pub rows: Vec<DiffRow>,
+}
+
+#[derive(Default)]
+pub struct DiffState {
+    pub open: bool,
+    pub filter: String,
+    pub show: [bool; 5],
+    pub busy: Option<(String, Arc<AtomicU32>, Receiver<Result<DiffOut, String>>)>,
+    pub out: Option<DiffOut>,
+    pub err: String,
+}
+
+struct Sig {
+    name: String,
+    addr: u64,
+    size: u64,
+    shape: u64,
+    insns: usize,
+}
+
+fn signatures(bin: &crate::loader::Binary, an: &analysis::Analysis) -> Vec<Sig> {
+    an.functions
+        .values()
+        .map(|f| {
+            // hash instruction lengths + flow kinds: stable when only addresses move
+            let mut hs = DefaultHasher::new();
+            for b in &f.blocks {
+                for a in &b.insns {
+                    if let Some(i) = an.insns.get(a) {
+                        i.len.hash(&mut hs);
+                        format!("{:?}", i.flow).hash(&mut hs);
+                    }
+                }
+            }
+            let raw = bin.read(f.start, f.size() as usize);
+            let _ = raw;
+            let name = an.names.get(&f.start).map(|(n, _)| display_symbol(n)).unwrap_or_default();
+            Sig { name, addr: f.start, size: f.size(), shape: hs.finish(), insns: f.insn_count }
+        })
+        .collect()
+}
+
+fn bytes_hash(bin: &crate::loader::Binary, f: &Sig) -> u64 {
+    h(&bin.read(f.addr, f.size as usize).to_vec())
+}
+
+fn diff_binaries(a: &crate::loader::Binary, aa: &analysis::Analysis, b: &crate::loader::Binary, ab: &analysis::Analysis, names_a: &HashMap<u64, (String, NameKind)>) -> Vec<DiffRow> {
+    let mut sa = signatures(a, aa);
+    for s in &mut sa {
+        if let Some((n, _)) = names_a.get(&s.addr) { s.name = display_symbol(n); }
+    }
+    let sb = signatures(b, ab);
+    let named = |n: &str| !n.is_empty() && !n.starts_with("sub_") && !n.starts_with("loc_");
+    let mut by_name: HashMap<&str, usize> = HashMap::new();
+    for (i, s) in sb.iter().enumerate() {
+        if named(&s.name) { by_name.insert(&s.name, i); }
+    }
+    let mut by_shape: HashMap<u64, Vec<usize>> = HashMap::new();
+    for (i, s) in sb.iter().enumerate() {
+        by_shape.entry(s.shape).or_default().push(i);
+    }
+    let mut used = vec![false; sb.len()];
+    let mut out = vec![];
+    let mut rest = vec![];
+    for s in &sa {
+        let m = if named(&s.name) { by_name.get(s.name.as_str()).copied().filter(|i| !used[*i]) } else { None };
+        match m {
+            Some(i) => {
+                used[i] = true;
+                let t = &sb[i];
+                let same = bytes_hash(a, s) == bytes_hash(b, t);
+                let (kind, note) = if same {
+                    (DiffKind::Same, String::new())
+                } else if s.shape == t.shape {
+                    (DiffKind::Changed, "same shape, different bytes (constants or addresses)".into())
+                } else {
+                    (DiffKind::Changed, format!("{} → {} instructions", s.insns, t.insns))
+                };
+                out.push(DiffRow { kind, name: s.name.clone(), a: Some(s.addr), b: Some(t.addr), size_a: s.size, size_b: t.size, note });
+            }
+            None => rest.push(s),
+        }
+    }
+    for s in rest {
+        let m = by_shape.get(&s.shape).and_then(|v| v.iter().copied().find(|i| !used[*i] && sb[*i].size == s.size && s.insns > 3));
+        match m {
+            Some(i) => {
+                used[i] = true;
+                let t = &sb[i];
+                let nm = if s.name.is_empty() { format!("sub_{:X}", s.addr) } else { s.name.clone() };
+                out.push(DiffRow { kind: DiffKind::Renamed, name: nm, a: Some(s.addr), b: Some(t.addr), size_a: s.size, size_b: t.size, note: format!("now {}", if t.name.is_empty() { format!("sub_{:X}", t.addr) } else { t.name.clone() }) });
+            }
+            None => {
+                let nm = if s.name.is_empty() { format!("sub_{:X}", s.addr) } else { s.name.clone() };
+                out.push(DiffRow { kind: DiffKind::OnlyA, name: nm, a: Some(s.addr), b: None, size_a: s.size, size_b: 0, note: String::new() });
+            }
+        }
+    }
+    for (i, t) in sb.iter().enumerate() {
+        if !used[i] {
+            let nm = if t.name.is_empty() { format!("sub_{:X}", t.addr) } else { t.name.clone() };
+            out.push(DiffRow { kind: DiffKind::OnlyB, name: nm, a: None, b: Some(t.addr), size_a: 0, size_b: t.size, note: String::new() });
+        }
+    }
+    out.sort_by_key(|r| (r.kind == DiffKind::Same, r.a.or(r.b)));
+    out
+}
+
+impl LensApp {
+    pub fn start_diff(&mut self) {
+        let Some(path) = rfd::FileDialog::new().set_title("Compare with another version of this program").pick_file() else { return };
+        let State::Ready(l) = &self.state else { return };
+        let (bin, names) = (l.bin.clone(), l.names.clone());
+        let progress = Arc::new(AtomicU32::new(0));
+        let pr = progress.clone();
+        let (tx, rx) = channel();
+        let p2 = path.to_string_lossy().to_string();
+        let p3 = p2.clone();
+        std::thread::spawn(move || {
+            let aa = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, Arc::new(AtomicU32::new(0)));
+            let r = crate::loader::load(&p3).map(|other| {
+                let ab = analysis::analyze(&other, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, pr);
+                DiffOut { other: other.file_name.clone(), rows: diff_binaries(&bin, &aa, &other, &ab, &names) }
+            });
+            let _ = tx.send(r);
+        });
+        self.diff.busy = Some((p2, progress, rx));
+        self.diff.open = true;
+        self.diff.err.clear();
+        self.diff.show = [false, true, true, true, true];
+    }
+
+    pub fn diff_window(&mut self, ctx: &egui::Context) {
+        let p = self.p;
+        if let Some((_, _, rx)) = &self.diff.busy {
+            match rx.try_recv() {
+                Ok(Ok(o)) => { self.diff.out = Some(o); self.diff.busy = None; }
+                Ok(Err(e)) => { self.diff.err = e; self.diff.busy = None; }
+                Err(_) => ctx.request_repaint_after(std::time::Duration::from_millis(200)),
+            }
+        }
+        let mut open = true;
+        let mut goto = None;
+        let mut again = false;
+        let d = &mut self.diff;
+        egui::Window::new("Compare programs").open(&mut open).default_size([720.0, 520.0]).show(ctx, |ui| {
+            if let Some((path, pr, _)) = &d.busy {
+                ui.label(format!("Analysing {path} …"));
+                ui.add(egui::ProgressBar::new((pr.load(Ordering::Relaxed) as f32 / 100.0).clamp(0.02, 1.0)).animate(true));
+                return;
+            }
+            if !d.err.is_empty() { ui.label(RichText::new(&d.err).color(p.accent)); }
+            let Some(o) = &d.out else {
+                ui.label(RichText::new("Pick another version of this program to see which functions are new, gone, renamed or changed.").color(p.muted));
+                if ui.button("Choose a file…").clicked() { again = true; }
+                return;
+            };
+            let count = |k: DiffKind| o.rows.iter().filter(|r| r.kind == k).count();
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(format!("vs {}", o.other)).strong());
+                if ui.button("Compare with another file…").clicked() { again = true; }
+            });
+            ui.horizontal_wrapped(|ui| {
+                for (i, k) in [DiffKind::Same, DiffKind::Changed, DiffKind::Renamed, DiffKind::OnlyA, DiffKind::OnlyB].iter().enumerate() {
+                    ui.checkbox(&mut d.show[i], format!("{} {}", count(*k), k.label()));
+                }
+            });
+            ui.add(TextEdit::singleline(&mut d.filter).desired_width(f32::INFINITY).hint_text("Filter by name…"));
+            ui.separator();
+            let q = d.filter.to_lowercase();
+            let list: Vec<&DiffRow> = o.rows.iter().filter(|r| {
+                let i = match r.kind { DiffKind::Same => 0, DiffKind::Changed => 1, DiffKind::Renamed => 2, DiffKind::OnlyA => 3, DiffKind::OnlyB => 4 };
+                d.show[i] && (q.is_empty() || r.name.to_lowercase().contains(&q))
+            }).collect();
+            ScrollArea::vertical().auto_shrink([false, false]).show_rows(ui, 20.0, list.len(), |ui, range| {
+                for r in &list[range] {
+                    let col = match r.kind { DiffKind::Same => p.muted, DiffKind::Changed => p.accent, DiffKind::Renamed => p.func_name, DiffKind::OnlyA => p.faint, DiffKind::OnlyB => p.faint };
+                    let resp = ui.horizontal(|ui| {
+                        ui.label(RichText::new(r.kind.label()).small().color(col));
+                        ui.label(RichText::new(&r.name).monospace());
+                        ui.label(RichText::new(format!("{} → {} B  {}", r.size_a, r.size_b, r.note)).small().color(p.muted));
+                    });
+                    let resp = ui.interact(resp.response.rect, egui::Id::new(("drow", r.a, r.b, &r.name)), egui::Sense::click());
+                    if resp.clicked() { goto = r.a; }
+                }
+            });
+        });
+        if let Some(a) = goto { self.actions.push(Action::Goto(a)); }
+        if again { self.start_diff(); }
+        if !open { self.diff.open = false; }
+    }
+}
+
+// ------------------------------------------------------------------ export
+
+#[derive(Clone, Copy)]
+pub enum ExportKind {
+    Idc,
+    Json,
+    Map,
+    Ghidra,
+}
+
+fn esc(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")
+}
+
+pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
+    let mut names: Vec<(&u64, &(String, NameKind))> = l.names.iter().collect();
+    names.sort_by_key(|(a, _)| **a);
+    let mut comments: Vec<(&u64, &String)> = l.ann.comments.iter().collect();
+    comments.sort_by_key(|(a, _)| **a);
+    match kind {
+        ExportKind::Idc => {
+            let mut s = String::from("// Generated by Lens. Run in IDA with File > Script file.\n#include <idc.idc>\nstatic main() {\n");
+            for f in l.an.functions.keys() { s += &format!("  add_func(0x{f:X}, BADADDR);\n"); }
+            for (a, (n, k)) in &names {
+                if matches!(k, NameKind::Function | NameKind::Data | NameKind::Label) {
+                    s += &format!("  set_name(0x{a:X}, \"{}\", SN_NOWARN);\n", esc(n));
+                }
+            }
+            for (a, c) in &comments { s += &format!("  set_cmt(0x{a:X}, \"{}\", 0);\n", esc(c)); }
+            s += "}\n";
+            (s, "idc")
+        }
+        ExportKind::Ghidra => {
+            let mut s = String::from("# Generated by Lens. Run in Ghidra's Script Manager (Python).\n# @category Lens\nfrom ghidra.program.model.symbol import SourceType\n\ndef addr(x):\n    return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(x)\n\n");
+            for f in l.an.functions.keys() { s += &format!("try:\n    createFunction(addr(0x{f:X}), None)\nexcept Exception:\n    pass\n"); }
+            for (a, (n, k)) in &names {
+                if matches!(k, NameKind::Function | NameKind::Data | NameKind::Label) {
+                    s += &format!("createLabel(addr(0x{a:X}), \"{}\", True, SourceType.USER_DEFINED)\n", esc(n));
+                }
+            }
+            for (a, c) in &comments { s += &format!("setEOLComment(addr(0x{a:X}), \"{}\")\n", esc(c)); }
+            (s, "py")
+        }
+        ExportKind::Map => {
+            let mut s = format!("Lens map of {}\n{} · {}\n\nSections\n", l.bin.file_name, l.bin.format, l.bin.arch_name);
+            for g in &l.bin.segments { s += &format!("  {:016X}  {:016X}  {}\n", g.start, g.end(), g.name); }
+            s += "\nSymbols (by address)\n";
+            for (a, (n, k)) in &names {
+                s += &format!("  {a:016X}  {:<9} {n}\n", match k { NameKind::Function => "function", NameKind::Import => "import", NameKind::Label => "label", NameKind::String => "string", NameKind::Data => "data" });
+            }
+            (s, "map")
+        }
+        ExportKind::Json => {
+            let v = serde_json::json!({
+                "file": l.bin.file_name, "format": l.bin.format, "arch": l.bin.arch_name, "entry": l.bin.entry,
+                "sha256": l.det.sha256,
+                "segments": l.bin.segments.iter().map(|s| serde_json::json!({"name": s.name, "start": s.start, "end": s.end()})).collect::<Vec<_>>(),
+                "functions": l.an.functions.values().map(|f| serde_json::json!({
+                    "start": f.start, "end": f.end, "name": l.names.get(&f.start).map(|n| n.0.clone()),
+                    "blocks": f.blocks.len(), "calls": f.calls })).collect::<Vec<_>>(),
+                "imports": l.bin.imports.iter().map(|i| serde_json::json!({"slot": i.slot, "name": i.name, "library": i.library})).collect::<Vec<_>>(),
+                "exports": l.bin.exports.iter().map(|e| serde_json::json!({"addr": e.addr, "name": e.name})).collect::<Vec<_>>(),
+                "strings": l.an.strings.iter().map(|s| serde_json::json!({"addr": s.addr, "text": s.text})).collect::<Vec<_>>(),
+                "comments": l.ann.comments, "bookmarks": l.ann.marks,
+            });
+            (serde_json::to_string_pretty(&v).unwrap_or_default(), "json")
+        }
+    }
+}
+
+impl LensApp {
+    pub fn export_db(&mut self, kind: ExportKind) {
+        let Some(l) = self.loaded() else { return };
+        let (text, ext) = export_text(l, kind);
+        let default = format!("{}.{ext}", l.bin.file_name);
+        if let Some(path) = rfd::FileDialog::new().set_title("Export").set_file_name(&default).save_file() {
+            match std::fs::write(&path, text) {
+                Ok(_) => self.logm(format!("Exported to {}", path.display())),
+                Err(e) => self.logm(format!("Couldn't export: {e}")),
+            }
+        }
+    }
+}
