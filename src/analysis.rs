@@ -187,6 +187,8 @@ pub struct Analysis {
     /// Conservative vtable-like tables: table address -> consecutive code pointers.
     /// Only runs with at least two executable, mapped targets are reported.
     pub vtables: HashMap<u64, Vec<u64>>,
+    /// Optional RTTI/typeinfo symbol associated with an Itanium vtable.
+    pub vtable_names: HashMap<u64, String>,
     /// Validated pointer tables in non-executable data, including data and code pointers.
     pub pointer_tables: HashMap<u64, Vec<u64>>,
 }
@@ -1232,6 +1234,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     // references to globals and vtables as well as the common function/string cases.
     let w = (bin.bitness() / 8) as usize;
     let mut vtables: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut vtable_names: HashMap<u64, String> = HashMap::new();
     let mut pointer_tables: HashMap<u64, Vec<u64>> = HashMap::new();
     for s in bin.segments.iter().filter(|s| !s.exec && s.file_offset.is_some()) {
         let mut off = 0usize;
@@ -1293,6 +1296,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             }
             if funcs.len() >= 2 {
                 vtables.entry(header).or_insert(funcs);
+                if let Some((_, symbol)) = bin.data_symbols.iter().find(|(addr, _)| *addr == typeinfo) {
+                    vtable_names.entry(header).or_insert_with(|| format!("vtable for {}", display_symbol(symbol)));
+                }
             }
         }
     }
@@ -1429,6 +1435,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         stats: String::new(),
         switches,
         vtables,
+        vtable_names,
         pointer_tables,
     };
     a.lines = build_lines(bin, &a);

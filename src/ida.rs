@@ -230,7 +230,7 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             .iter()
             .map(|(a, entries)| Row {
                 addr: *a,
-                name: name_of(*a),
+                name: l.an.vtable_names.get(a).cloned().unwrap_or_else(|| name_of(*a)),
                 detail: format!("{} entries · {} code xrefs", entries.len(), entries.iter().map(|t| l.an.xrefs_to.get(t).map(|x| x.len()).unwrap_or(0)).sum::<usize>()),
                 num: entries.len() as u64,
             })
@@ -725,7 +725,7 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 "imports": l.bin.imports.iter().map(|i| serde_json::json!({"slot": i.slot, "name": i.name, "library": i.library})).collect::<Vec<_>>(),
                 "exports": l.bin.exports.iter().map(|e| serde_json::json!({"addr": e.addr, "name": e.name})).collect::<Vec<_>>(),
                 "strings": l.an.strings.iter().map(|s| serde_json::json!({"addr": s.addr, "text": s.text})).collect::<Vec<_>>(),
-                "vtables": l.an.vtables.iter().map(|(addr, entries)| serde_json::json!({"addr": addr, "entries": entries})).collect::<Vec<_>>(),
+                "vtables": l.an.vtables.iter().map(|(addr, entries)| serde_json::json!({"addr": addr, "name": l.an.vtable_names.get(addr), "entries": entries})).collect::<Vec<_>>(),
                 "pointer_tables": l.an.pointer_tables.iter().map(|(addr, entries)| serde_json::json!({"addr": addr, "entries": entries})).collect::<Vec<_>>(),
                 "xrefs": l.an.xrefs_to.iter().flat_map(|(target, refs)| refs.iter().map(move |x| serde_json::json!({
                     "from": x.from, "to": target, "kind": x.kind.label()
