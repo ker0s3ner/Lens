@@ -1932,6 +1932,7 @@ fn decompile_inner(
         for (t, rhs) in &assignments {
             let ty = match rhs {
                 Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                Ex::Cast(ty, _) => Some((*ty).to_string()),
                 Ex::CastOwned(ty, _) => Some(ty.clone()),
                 Ex::Var(v) => known_types.get(v).cloned(),
                 _ => None,
@@ -1948,6 +1949,7 @@ fn decompile_inner(
     for (t, rhs) in &assignments {
         let ty = match rhs {
             Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+            Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Var(v) => known_types.get(v).cloned(),
             _ => None,

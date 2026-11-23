@@ -1,4 +1,4 @@
-# Lens 0.6.9 — Fourier
+# Lens 0.6.10 — Fourier
 
 ## What's new
 
@@ -8,6 +8,7 @@
 - Repeated assignments with conflicting or unknown types remain conservatively untyped.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 - The macOS release job now uses an explicit Apple Silicon runner and verbose bundle-build diagnostics.
+- Decompiler type propagation now recognizes both internal and owned cast expressions.
 
 ## Release cadence
 

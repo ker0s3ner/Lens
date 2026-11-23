@@ -34,6 +34,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Decompiler types survive unambiguous call-result copy chains and explicit casts.",
     "Conflicting or unknown repeated assignments remain conservatively untyped.",
     "The macOS release build now uses an explicit Apple Silicon runner with verbose diagnostics.",
+    "Decompiler type propagation recognizes both internal and owned cast expressions.",
 ];
 
 pub fn current_release_title() -> String {
