@@ -79,12 +79,15 @@ pub fn short_lib(s: &str) -> String {
 }
 
 pub fn row_menu(ui: &mut egui::Ui, addr: u64, acts: &mut Vec<Action>) {
-    let items: [(&str, Action); 8] = [
+    let items: [(&str, Action); 11] = [
         ("Rename…            N", Action::Rename(addr)),
         ("Add a note…        ;", Action::Comment(addr)),
         ("Who uses this      X", Action::Xrefs(addr)),
         ("Make a function    P", Action::MakeFunction(addr)),
         ("Define data        D", Action::DefineData(addr, crate::app::DataDef::Cycle)),
+        ("Define pointer     O", Action::DefineData(addr, crate::app::DataDef::Pointer)),
+        ("Define pointer table T", Action::DefinePointerTable(addr)),
+        ("Define inferred array Y", Action::DefineArray(addr)),
         ("Define string      A", Action::DefineData(addr, crate::app::DataDef::Str)),
         ("Undefine           U", Action::DefineData(addr, crate::app::DataDef::Undefine)),
         ("Show in hex        H", Action::SetView(View::Hex)),

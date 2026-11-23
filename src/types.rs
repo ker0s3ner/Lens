@@ -106,10 +106,12 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
     let Some(open) = clean.find('{') else {
         let decl = clean.trim().trim_end_matches(';').trim();
         let decl = decl.strip_prefix("typedef").ok_or("Expected a struct, union, enum or typedef declaration")?.trim();
-        if let Some((_, tail)) = decl.split_once("(*") {
+        if let Some((ret, tail)) = decl.split_once("(*") {
             if let Some((alias, signature)) = tail.split_once(')') {
                 if signature.trim_start().starts_with('(') && valid_ident(alias.trim()) {
-                    return Ok(StructDef { name: alias.trim().to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some("void *".into()) });
+                    let params = signature.trim().trim_start_matches('(').trim_end_matches(')').trim();
+                    let target = format!("fn({params}) -> {} *", ret.trim());
+                    return Ok(StructDef { name: alias.trim().to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(target) });
                 }
             }
         }
@@ -175,16 +177,25 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             (Some(a), Some(b)) if b > a => (format!("{}{}", &d[..a], &d[b + 1..]), d[a + 1..b].trim().parse::<u32>().ok().or_else(|| u32::from_str_radix(d[a + 1..b].trim().trim_start_matches("0x"), 16).ok()).ok_or(format!("Unsupported array size in `{decl}`"))?),
             _ => (d.to_string(), 1),
         };
-        let stars = d.matches('*').count();
-        let words: Vec<&str> = d.split(|c: char| c.is_whitespace() || c == '*').filter(|w| !w.is_empty()).collect();
-        if words.len() < 2 {
-            return Err(format!("Can't read the field `{}`", decl.trim()));
-        }
-        let fname = words.last().unwrap().to_string();
-        let mut ty = words[..words.len() - 1].join(" ");
-        for _ in 0..stars {
-            ty.push('*');
-        }
+        let (fname, ty, stars) = if let Some((ret, tail)) = d.split_once("(*") {
+            // Common C function-pointer field: `int (*callback)(int, void *)`.
+            let (name, params) = tail.split_once(')').ok_or(format!("Can't read the function-pointer field `{}`", decl.trim()))?;
+            if !params.trim_start().starts_with('(') || !valid_ident(name.trim()) {
+                return Err(format!("Can't read the function-pointer field `{}`", decl.trim()));
+            }
+            let signature = params.trim().trim_start_matches('(').trim_end_matches(')').trim();
+            (name.trim().to_string(), format!("fn({signature}) -> {} *", ret.trim()), 1usize)
+        } else {
+            let stars = d.matches('*').count();
+            let words: Vec<&str> = d.split(|c: char| c.is_whitespace() || c == '*').filter(|w| !w.is_empty()).collect();
+            if words.len() < 2 {
+                return Err(format!("Can't read the field `{}`", decl.trim()));
+            }
+            let fname = words.last().unwrap().to_string();
+            let mut ty = words[..words.len() - 1].join(" ");
+            for _ in 0..stars { ty.push('*'); }
+            (fname, ty, stars)
+        };
         let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
         if let Some(width) = bit_width {
             if stars != 0 || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) || width as u32 > sz * 8 {
@@ -398,5 +409,18 @@ mod tests {
         assert_eq!(s.fields[2].off, 16);
         assert_eq!(s.fields[3].off, 24);
         assert_eq!(s.size, 32);
+    }
+
+    #[test]
+    fn parses_function_pointer_fields() {
+        let s = parse_c("struct Callbacks { int (*on_value)(int, void *); void (*destroy)(void); }", 8, &[]).unwrap();
+        assert_eq!(s.fields.len(), 2);
+        assert_eq!(s.fields[0].name, "on_value");
+        assert_eq!(s.fields[0].ty, "fn(int, void *) -> int *");
+        assert_eq!(s.fields[0].size, 8);
+        assert_eq!(s.fields[1].off, 8);
+        let alias = parse_c("typedef int (*callback_t)(int, void *);", 8, &[]).unwrap();
+        assert_eq!(alias.alias_of.as_deref(), Some("fn(int, void *) -> int *"));
+        assert!(is_pointer_type("callback_t", &[alias]));
     }
 }

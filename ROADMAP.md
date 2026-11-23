@@ -57,7 +57,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Phase 8 - Workflow and UI
 - Promote the new versioned per-file annotation container into a user-managed project database with project naming, migration, and multi-file sessions. Per-file annotations, undo/redo for supported edits, bookmarks, multiple views, and a function graph already exist.
 - Extend xrefs consistently across pseudocode, graph and all data references; xref lists, listing comments, segment pointer scans, and pointer members in applied types already produce xrefs.
-- Add top-level array/pointer-table declarations and a dedicated synchronized structure/data pane; fixed arrays inside applied types expand into individually navigable elements and pointer-array entries produce xrefs, but there is no standalone table definition or persistent side-by-side browser. Improve local/global search.
+- Add a dedicated synchronized structure/data pane; top-level inferred arrays and pointer-table definitions can now be persisted and browsed from Lists, while fixed arrays inside applied types already expand into individually navigable elements and pointer-array entries produce xrefs. Improve local/global search.
 - Improve collaboration and interchange; IDC/Ghidra script and JSON/map exports and partial IDC/Ghidra import already exist, but richer database import remains.
 
 ## Done so far (toward parity)
@@ -83,7 +83,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Undo / redo for names, notes, bookmarks, structs and functions (Cmd+Z, Cmd+Shift+Z).
 - Lists window: functions, names, imports, exports, entry points, bookmarks, sortable and filterable.
 - Binary diff: compare two versions of a program by function name and shape.
-- Export: IDA script (.idc), Ghidra script (.py), JSON database, map file.
+- Export: IDA script (.idc), Ghidra script (.py), JSON database (including function metadata and discovered pointer tables), and map file.
 - Chat with AI inside the app (Claude Code, Codex or any command), with conversation history.
 - Function map: scroll to zoom, drag to pan, zoom buttons.
 - Import names and notes from Lens JSON, IDA .idc or Ghidra .py scripts.
@@ -95,7 +95,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Corpus run: 200 system programs decompiled end to end with no crashes or timeouts (found and fixed a runaway-memory bug on stack offsets).
 - Export the listing as text and the call graph as Graphviz.
 - Function prototypes (type library): ~190 built-in libc / POSIX / sockets / threads / Win32 / macOS signatures plus your own. Calls get the exact argument count, noreturn functions end paths, call results get real types (`char *v5`), and a function with a prototype is printed with its types and parameter names.
-- Rhai scripts can read a snapshot of functions, names, strings, segments, imports/exports, types, xrefs, bytes and disassembly, and queue changes such as renames, comments, marks, patches, navigation, function creation, and type definitions/application. `.rhai` plugins can run manually or on file open.
+- Rhai scripts can read a snapshot of functions, names, strings, segments, imports/exports, types, xrefs, pointer tables, vtables, bytes and disassembly, and queue changes such as renames, comments, marks, patches, navigation, function creation, and type definitions/application. `.rhai` plugins can run manually or on file open.
 - Scripts can query outgoing as well as incoming xrefs; command-line and GUI script snapshots expose the same additions.
 - Thumb TBB/TBH indirect branches recover bounded case targets when a nearby compare supplies a usable bound.
 - Per-file annotation storage now wraps data in a versioned project-database envelope, writes via a temporary file, and still reads legacy annotation JSON.
@@ -103,6 +103,42 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.
 - FindCrypt-style detection of AES, SHA, MD5, CRC, Blowfish, ChaCha, Base64 and other constants (Lists > Crypto, overview).
+- Conservative vtable-like table discovery: validated runs of consecutive executable pointers in non-executable data are retained in the analysis result and reported in the analysis summary.
+- Vtable-like tables are available in the Lists window with entry counts and code-xref counts, and can be opened at their data address.
+- Validated mapped-pointer runs are also retained as generic pointer tables and exposed in Lists, covering global/data pointer arrays as well as vtables.
+- Direct one-instruction jumps to known functions are classified as forwarding thunks and shown with their destination.
+- ARM32 absolute `ldr pc, [pc, index, lsl #2]` switch tables are recovered with bounded compare-derived case counts.
+- Common RISC-V `auipc` + `lw/ld` + `jr/jalr` absolute switch tables are recovered with bounded case counts.
+- Common MIPS `lui`/address-build + `lw` + `jr` absolute switch tables are recovered with bounded case counts.
+- Common PowerPC `lis`/`addi` + `lwz` + `mtctr`/`bctr` absolute switch tables are recovered with bounded case counts.
+- Discovered pointer tables can be promoted into persistent native-pointer definitions in one action.
+- JSON export now preserves no-return/thunk function metadata and discovered vtable/pointer-table entries.
+- JSON export now includes explicit source/target/kind cross-reference records.
+- JSON export preserves persisted data definitions and applied types.
+- JSON import restores exported annotations, data definitions, applied-type references and function starts.
+- JSON import also restores names embedded in exported function records.
+- JSON import restores exported symbol names as well.
+- JSON export/import preserves user-defined struct, union, enum and alias definitions.
+- JSON export/import preserves user-authored function prototypes and reinstalls them for decompilation.
+- JSON export/import preserves user-authored names without persisting generated analysis labels.
+- Exported analysis JSON is distinguished from legacy annotation JSON before import, preserving the richer database fields.
+- Exported JSON carries schema version 2 for explicit database-format evolution.
+- Contiguous matching data elements can be promoted to persistent inferred arrays in one action.
+- Lists includes an Arrays tab for persisted inferred data runs.
+- Rhai snapshots expose discovered pointer tables and vtables through `pointer_tables()` and `vtables()`.
+- Rhai scripts can promote discovered pointer tables and inferred arrays with `define_pointer_table` and `define_array`.
+- Prototype parsing preserves named function-pointer parameters and emits valid callback signatures.
+- Known prototype return types now propagate through simple temporary-to-temporary assignments in pseudocode declarations.
+- No-return recognition covers additional C++, Rust and Swift panic/trap entry points.
+- Common C function-pointer field declarations such as `int (*callback)(int)` now parse as pointer-sized typed fields.
+- Data definitions now include an IDA-style `O` action for explicitly marking a native-width pointer, with persistence and re-analysis.
+- Added a deterministic pseudocode golden regression fixture for a simple x86-64 function; corpus-scale golden coverage remains planned.
+- Scalar SSE/XMM temporaries now get float/double declarations, and packed single/double move/arithmetic families get vector declarations and binary expressions in pseudocode.
+- Common VEX `vadd*`, `vsub*`, `vmul*`, `vdiv*` and vector-move forms now share the SIMD lifting path with XMM/YMM/ZMM declarations.
+- ARM64 generic lifting now tracks `v0`-`v31` NEON operands as 128-bit registers, preserving unsupported vector instructions as visible intrinsic assignments instead of dropping them.
+- Recovered indirect switch targets now produce explicit `switch case` xrefs in the listing, xref views and JSON export, distinct from direct jump edges.
+- Common ARM64 scalar/NEON `fadd`, `fsub`, `fmul`, `fdiv`, `fmla`, `fmls`, `fneg`, `fabs` and `fsqrt` instructions now lift to visible arithmetic expressions or calls.
+- SIMD declaration width is inferred from the actual XMM/YMM/ZMM operand, avoiding blanket `__m256` labels for 128-bit VEX instructions.
 - Rename variables in pseudocode (double-click), remembered per function and undoable.
 - First unit tests (regression suite is still to be built out).
 - Data definition keys like IDA: D cycles byte / word / dword / qword, A makes a C string, U undefines; saved per file and re-analysed.
@@ -111,7 +147,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Next implementation queue
 1. **Types:** validate bitfield layouts across compiler ABIs; expand function-pointer declarations and enum constant propagation in pseudocode.
 2. **Analysis quality:** improve tail-call and thunk classification; expand ARM/Thumb switch recovery beyond TBB/TBH; discover vtables and RTTI with confidence and source locations.
-3. **Data views and xrefs:** add top-level array/pointer-table definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
+3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.
 6. **Projects and scale:** add user-managed multi-file projects, support large binaries with incremental analysis/listing, and expand repeatable corpus fixtures across formats and architectures.

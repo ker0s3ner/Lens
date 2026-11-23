@@ -19,6 +19,19 @@ struct R {
     w: u8,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a64_vector_registers_and_names_them() {
+        let r = parse_reg(Fam::A64, "v7.4s").expect("vector register");
+        assert_eq!(r.i, 39);
+        assert_eq!(r.w, 16);
+        assert_eq!(abi_for(Arch::Arm64).names[r.i as usize], "v7");
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Fam {
     A64,
@@ -50,6 +63,7 @@ pub fn abi_for(arch: Arch) -> Abi {
         Fam::A64 => {
             let mut n: Vec<String> = (0..29).map(|i| format!("x{i}")).collect();
             n.extend(["fp".into(), "lr".into(), "sp".into()]);
+            n.extend((0..32).map(|i| format!("v{i}")));
             (n, 0, 31, (0..8).collect(), (0..=17).collect(), (19..=30).collect())
         }
         Fam::A32 => {
@@ -79,7 +93,7 @@ fn parse_imm(s: &str) -> Option<i64> {
 }
 
 fn parse_reg(f: Fam, tok: &str) -> Option<R> {
-    let t = tok.trim().trim_end_matches('!');
+    let t = tok.trim().trim_end_matches('!').split('.').next().unwrap_or(tok.trim());
     let num = |p: &str, max: u8| t.strip_prefix(p).and_then(|d| if d.is_empty() || !d.chars().all(|c| c.is_ascii_digit()) { None } else { d.parse::<u8>().ok() }).filter(|n| *n <= max);
     match f {
         Fam::A64 => match t {
@@ -88,7 +102,9 @@ fn parse_reg(f: Fam, tok: &str) -> Option<R> {
             "wzr" => Some(R { i: ZERO, w: 4 }),
             "fp" => Some(R { i: 29, w: 8 }),
             "lr" => Some(R { i: 30, w: 8 }),
-            _ => num("x", 30).map(|i| R { i, w: 8 }).or_else(|| num("w", 30).map(|i| R { i, w: 4 })),
+            _ => num("x", 30).map(|i| R { i, w: 8 })
+                .or_else(|| num("w", 30).map(|i| R { i, w: 4 }))
+                .or_else(|| num("v", 31).map(|i| R { i: 32 + i, w: 16 })),
         },
         Fam::A32 => match t {
             "sp" => Some(R { i: 13, w: 4 }),
@@ -830,6 +846,34 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 }
             }
             set(dc, st, 0, v);
+        }
+        // Common scalar and NEON floating-point arithmetic.  Vector registers
+        // are represented as 128-bit values, so preserving the operation as a
+        // binary expression is more useful than hiding it behind a comment.
+        (Fam::A64, "fadd" | "fsub" | "fmul" | "fdiv") => {
+            let op = match base_mn { "fadd" => "+", "fsub" => "-", "fmul" => "*", _ => "/" };
+            arith(dc, st, op, false);
+        }
+        (Fam::A64, "fneg" | "fabs" | "fsqrt") => {
+            let a = dc.g_val(st, o(1), None);
+            let v = match base_mn {
+                "fneg" => Ex::Un("-", Box::new(a)),
+                "fabs" => Ex::Call(Box::new(var("fabs")), vec![a]),
+                _ => Ex::Call(Box::new(var("sqrt")), vec![a]),
+            };
+            set(dc, st, 0, v);
+        }
+        (Fam::A64, "scvtf" | "ucvtf" | "fcvtzs" | "fcvtzu" | "fcvt") => {
+            let a = dc.g_val(st, o(1), None);
+            let ty = if base_mn == "scvtf" { "double" } else if base_mn == "ucvtf" { "double" } else { "int64_t" };
+            set(dc, st, 0, Ex::Cast(ty, Box::new(a)));
+        }
+        (Fam::A64, "fmla" | "fmls") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let c = dc.g_val(st, o(0), None);
+            let product = bin("*", b, c);
+            set(dc, st, 0, if base_mn == "fmla" { bin("+", a, product) } else { bin("-", a, product) });
         }
         (Fam::A64, "movk") => {
             let old = reg(0).map(|r| dc.g_rd_raw(st, r)).unwrap_or(Ex::Num(0));

@@ -24,7 +24,7 @@ impl LensApp {
         let mut find_text: Option<String> = None;
         let view = self.nav.view;
         let cur = self.nav.cursor;
-        let modal = egui::Modal::new(egui::Id::new("lens_modal")).frame(
+        let modal = egui::Modal::new(egui::Id::unique("lens_modal")).frame(
             egui::Frame::new()
                 .fill(p.panel)
                 .stroke(Stroke::new(1.0, p.border))
@@ -200,6 +200,7 @@ impl LensApp {
                                 let (tag, col) = match x.kind {
                                     XrefKind::Call => ("call", p.edge_taken),
                                     XrefKind::Jump => ("jump", p.edge_always),
+                                    XrefKind::Switch => ("switch case", p.edge_always),
                                     XrefKind::Read => ("read", p.data_name),
                                     XrefKind::Write => ("write", p.edge_not),
                                     XrefKind::Offset => ("address taken", p.muted),

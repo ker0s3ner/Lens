@@ -118,11 +118,14 @@ pub enum ListTab {
     Strings,
     Sections,
     Findings,
+    Vtables,
+    PointerTables,
+    Arrays,
     Bookmarks,
 }
 
 impl ListTab {
-    const ALL: [ListTab; 9] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Findings, ListTab::Bookmarks];
+    const ALL: [ListTab; 12] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Findings, ListTab::Vtables, ListTab::PointerTables, ListTab::Arrays, ListTab::Bookmarks];
     fn label(self) -> &'static str {
         match self {
             ListTab::Functions => "Functions",
@@ -133,6 +136,9 @@ impl ListTab {
             ListTab::Strings => "Strings",
             ListTab::Sections => "Sections",
             ListTab::Findings => "Crypto",
+            ListTab::Vtables => "Vtables",
+            ListTab::PointerTables => "Pointer tables",
+            ListTab::Arrays => "Arrays",
             ListTab::Bookmarks => "Bookmarks",
         }
     }
@@ -166,7 +172,8 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             .values()
             .map(|f| {
                 let xr = l.an.xrefs_to.get(&f.start).map(|v| v.len()).unwrap_or(0);
-                Row { addr: f.start, name: name_of(f.start), detail: format!("{} B · {} blocks · {} callers", f.size(), f.blocks.len(), xr), num: f.size() }
+                let thunk = f.thunk_target.map(|t| format!(" · thunk → {t:X}")).unwrap_or_default();
+                Row { addr: f.start, name: name_of(f.start), detail: format!("{} B · {} blocks · {} callers{thunk}", f.size(), f.blocks.len(), xr), num: f.size() }
             })
             .collect(),
         ListTab::Names => l
@@ -217,6 +224,45 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             .iter()
             .map(|(a, n, algo)| Row { addr: *a, name: n.clone(), detail: algo.clone(), num: 0 })
             .collect(),
+        ListTab::Vtables => l
+            .an
+            .vtables
+            .iter()
+            .map(|(a, entries)| Row {
+                addr: *a,
+                name: name_of(*a),
+                detail: format!("{} entries · {} code xrefs", entries.len(), entries.iter().map(|t| l.an.xrefs_to.get(t).map(|x| x.len()).unwrap_or(0)).sum::<usize>()),
+                num: entries.len() as u64,
+            })
+            .collect(),
+        ListTab::PointerTables => l
+            .an
+            .pointer_tables
+            .iter()
+            .map(|(a, entries)| Row {
+                addr: *a,
+                name: name_of(*a),
+                detail: format!("{} entries", entries.len()),
+                num: entries.len() as u64,
+            })
+            .collect(),
+        ListTab::Arrays => {
+            let mut defs: Vec<(u64, u8)> = l.ann.data_defs.iter().map(|(a, d)| (*a, *d)).filter(|(_, d)| *d != crate::analysis::DEF_STRING && *d != crate::analysis::DEF_UNDEFINE && (*d & 0x80) == 0 && (*d & 0x7f) > 0).collect();
+            defs.sort_by_key(|(a, _)| *a);
+            let mut out = Vec::new();
+            let mut i = 0;
+            while i < defs.len() {
+                let (start, code) = defs[i];
+                let width = (code & 0x7f) as u64;
+                let mut n = 1usize;
+                while i + n < defs.len() && defs[i + n].1 == code && defs[i + n].0 == start + n as u64 * width { n += 1; }
+                if n >= 2 {
+                    out.push(Row { addr: start, name: name_of(start), detail: format!("{n} elements · {}-byte", width), num: n as u64 });
+                }
+                i += n;
+            }
+            out
+        }
         ListTab::Bookmarks => l
             .ann
             .marks
@@ -242,14 +288,14 @@ impl LensApp {
             let mut r: Vec<Row> = rows(l, ls.tab).into_iter().filter(|r| q.is_empty() || r.name.to_lowercase().contains(&q) || r.detail.to_lowercase().contains(&q) || format!("{:x}", r.addr).contains(&q)).collect();
             match ls.sort {
                 1 => r.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
-                2 => if matches!(ls.tab, ListTab::Functions | ListTab::Strings | ListTab::Sections) { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
+                2 => if matches!(ls.tab, ListTab::Functions | ListTab::Strings | ListTab::Sections | ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays) { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
                 _ => r.sort_by_key(|x| x.addr),
             }
             if ls.desc { r.reverse(); }
             ls.cache = Some((key, r));
         }
         let digits = l.digits;
-        let detail_head = match ls.tab { ListTab::Functions | ListTab::Sections => "Size", ListTab::Strings => "Uses", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", _ => "Kind" };
+        let detail_head = match ls.tab { ListTab::Functions | ListTab::Sections => "Size", ListTab::Strings => "Uses", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays => "Entries", _ => "Kind" };
         egui::Window::new("Lists").open(&mut open).default_size([640.0, 520.0]).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 for t in ListTab::ALL {
@@ -281,7 +327,7 @@ impl LensApp {
                         ui.label(RichText::new(&r.name).monospace());
                         ui.label(RichText::new(&r.detail).small().color(p.muted));
                     });
-                    let resp = ui.interact(resp.response.rect, egui::Id::new(("lrow", r.addr, &r.name)), egui::Sense::click());
+                    let resp = ui.interact(resp.response.rect, egui::Id::unique(("lrow", r.addr, &r.name)), egui::Sense::click());
                     if resp.clicked() { goto = Some(r.addr); }
                     if resp.hovered() { ui.painter().rect_filled(resp.rect, 2.0, p.accent.gamma_multiply(0.08)); }
                 }
@@ -572,7 +618,7 @@ impl LensApp {
                         ui.label(RichText::new(&r.name).monospace());
                         ui.label(RichText::new(format!("{} → {} B  {}", r.size_a, r.size_b, r.note)).small().color(p.muted));
                     });
-                    let resp = ui.interact(resp.response.rect, egui::Id::new(("drow", r.a, r.b, &r.name)), egui::Sense::click());
+                    let resp = ui.interact(resp.response.rect, egui::Id::unique(("drow", r.a, r.b, &r.name)), egui::Sense::click());
                     if resp.clicked() { goto = r.a; }
                 }
             });
@@ -667,15 +713,27 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
         }
         ExportKind::Json => {
             let v = serde_json::json!({
+                "schema": 2,
                 "file": l.bin.file_name, "format": l.bin.format, "arch": l.bin.arch_name, "entry": l.bin.entry,
                 "sha256": l.det.sha256,
                 "segments": l.bin.segments.iter().map(|s| serde_json::json!({"name": s.name, "start": s.start, "end": s.end()})).collect::<Vec<_>>(),
                 "functions": l.an.functions.values().map(|f| serde_json::json!({
                     "start": f.start, "end": f.end, "name": l.names.get(&f.start).map(|n| n.0.clone()),
-                    "blocks": f.blocks.len(), "calls": f.calls })).collect::<Vec<_>>(),
+                    "blocks": f.blocks.len(), "calls": f.calls, "noreturn": f.noreturn,
+                    "thunk_target": f.thunk_target })).collect::<Vec<_>>(),
+                "names": l.ann.names.iter().map(|(addr, name)| serde_json::json!({"addr": addr, "name": name})).collect::<Vec<_>>(),
                 "imports": l.bin.imports.iter().map(|i| serde_json::json!({"slot": i.slot, "name": i.name, "library": i.library})).collect::<Vec<_>>(),
                 "exports": l.bin.exports.iter().map(|e| serde_json::json!({"addr": e.addr, "name": e.name})).collect::<Vec<_>>(),
                 "strings": l.an.strings.iter().map(|s| serde_json::json!({"addr": s.addr, "text": s.text})).collect::<Vec<_>>(),
+                "vtables": l.an.vtables.iter().map(|(addr, entries)| serde_json::json!({"addr": addr, "entries": entries})).collect::<Vec<_>>(),
+                "pointer_tables": l.an.pointer_tables.iter().map(|(addr, entries)| serde_json::json!({"addr": addr, "entries": entries})).collect::<Vec<_>>(),
+                "xrefs": l.an.xrefs_to.iter().flat_map(|(target, refs)| refs.iter().map(move |x| serde_json::json!({
+                    "from": x.from, "to": target, "kind": x.kind.label()
+                }))).collect::<Vec<_>>(),
+                "data_definitions": l.ann.data_defs.iter().map(|(addr, code)| serde_json::json!({"addr": addr, "code": code})).collect::<Vec<_>>(),
+                "applied_types": l.ann.applied.iter().map(|(addr, ty)| serde_json::json!({"addr": addr, "type": ty})).collect::<Vec<_>>(),
+                "types": l.ann.structs,
+                "prototypes": l.ann.protos,
                 "comments": l.ann.comments, "bookmarks": l.ann.marks,
             });
             (serde_json::to_string_pretty(&v).unwrap_or_default(), "json")
@@ -788,22 +846,98 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
 impl LensApp {
     pub fn import_db(&mut self) {
         if self.loaded().is_none() { return; }
-        let Some(path) = rfd::FileDialog::new().set_title("Import names and notes (Lens JSON, IDA .idc or Ghidra .py)").pick_file() else { return };
+        let Some(path) = rfd::FileDialog::new().set_title("Import Lens database, names and notes (JSON, IDA .idc or Ghidra .py)").pick_file() else { return };
         let text = match std::fs::read_to_string(&path) {
             Ok(t) => t,
             Err(e) => { self.logm(format!("Couldn't read the file: {e}")); return; }
         };
         let State::Ready(l) = &mut self.state else { return };
-        let (mut n, mut c, mut f) = (0, 0, 0);
+        let (mut n, mut c, mut f, mut d) = (0, 0, 0, 0);
         if text.trim_start().starts_with('{') {
-            match serde_json::from_str::<Annotations>(&text) {
+            let exported = serde_json::from_str::<serde_json::Value>(&text).ok().map(|v| v.get("schema").is_some() || v.get("file").is_some() || v.get("data_definitions").is_some()).unwrap_or(false);
+            let parsed = if exported {
+                Err(serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, "Lens analysis export")))
+            } else {
+                serde_json::from_str::<Annotations>(&text)
+            };
+            match parsed {
                 Ok(a) => {
                     for (k, v) in a.names { l.ann.names.insert(k, v); n += 1; }
                     for (k, v) in a.comments { l.ann.comments.insert(k, v); c += 1; }
                     for k in a.marks { if !l.ann.marks.contains(&k) { l.ann.marks.push(k); } }
                     for k in a.functions { if !l.ann.functions.contains(&k) { l.ann.functions.push(k); f += 1; } }
                 }
-                Err(e) => { self.logm(format!("That isn't a Lens notes file: {e}")); return; }
+                Err(e) => {
+                    let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
+                        self.logm(format!("That isn't a Lens notes file: {e}")); return;
+                    };
+                    let mut recognized = false;
+                    if let Some(obj) = v.get("comments").and_then(|x| x.as_object()) {
+                        for (addr, text) in obj {
+                            if let (Some(a), Some(s)) = (parse_num(addr), text.as_str()) { l.ann.comments.insert(a, s.to_string()); c += 1; recognized = true; }
+                        }
+                    }
+                    if let Some(arr) = v.get("bookmarks").and_then(|x| x.as_array()) {
+                        for addr in arr.iter().filter_map(|x| x.as_u64()) { if !l.ann.marks.contains(&addr) { l.ann.marks.push(addr); } recognized = true; }
+                    }
+                    if let Some(arr) = v.get("data_definitions").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            if let (Some(addr), Some(code)) = (item.get("addr").and_then(|x| x.as_u64()), item.get("code").and_then(|x| x.as_u64())) {
+                                l.ann.data_defs.insert(addr, code as u8); d += 1; recognized = true;
+                            }
+                        }
+                    }
+                    if let Some(arr) = v.get("applied_types").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            if let (Some(addr), Some(ty)) = (item.get("addr").and_then(|x| x.as_u64()), item.get("type").and_then(|x| x.as_str())) {
+                                if let Some(existing) = l.ann.applied.iter_mut().find(|(a, _)| *a == addr) { existing.1 = ty.to_string(); }
+                                else { l.ann.applied.push((addr, ty.to_string())); }
+                                recognized = true;
+                            }
+                        }
+                    }
+                    if let Some(arr) = v.get("types") {
+                        if let Ok(types) = serde_json::from_value::<Vec<crate::types::StructDef>>(arr.clone()) {
+                            for def in types {
+                                if let Some(existing) = l.ann.structs.iter_mut().find(|x| x.name == def.name) { *existing = def; }
+                                else { l.ann.structs.push(def); }
+                                recognized = true;
+                            }
+                        }
+                    }
+                    if let Some(protos) = v.get("prototypes").and_then(|x| x.as_str()) {
+                        l.ann.protos = protos.to_string();
+                        crate::protos::set_user(&l.ann.protos);
+                        recognized = true;
+                    }
+                    if let Some(arr) = v.get("functions").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            let Some(addr) = item.get("start").and_then(|a| a.as_u64()) else { continue };
+                            if !l.ann.functions.contains(&addr) { l.ann.functions.push(addr); f += 1; }
+                            if let Some(name) = item.get("name").and_then(|n| n.as_str()).filter(|n| !n.is_empty()) {
+                                l.ann.names.insert(addr, name.to_string()); n += 1;
+                            }
+                            recognized = true;
+                        }
+                    }
+                    if let Some(arr) = v.get("exports").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            if let (Some(addr), Some(name)) = (item.get("addr").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
+                                if !name.is_empty() { l.ann.names.insert(addr, name.to_string()); n += 1; }
+                                recognized = true;
+                            }
+                        }
+                    }
+                    if let Some(arr) = v.get("names").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            if let (Some(addr), Some(name)) = (item.get("addr").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
+                                if !name.is_empty() { l.ann.names.insert(addr, name.to_string()); n += 1; }
+                                recognized = true;
+                            }
+                        }
+                    }
+                    if !recognized { self.logm(format!("That isn't a Lens notes file: {e}")); return; }
+                }
             }
         } else {
             let (names, cmts, funcs) = parse_script(&text);
@@ -813,7 +947,7 @@ impl LensApp {
         }
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.refresh();
-        self.logm(format!("Imported {n} names, {c} notes and {f} new functions."));
-        if f > 0 { self.reanalyze(); }
+        self.logm(format!("Imported {n} names, {c} notes, {d} data definitions and {f} new functions."));
+        if f > 0 || d > 0 { self.reanalyze(); }
     }
 }

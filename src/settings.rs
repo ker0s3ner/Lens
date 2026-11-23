@@ -353,7 +353,7 @@ impl LensApp {
             });
             ui.separator();
             let busy = self.ai.running.is_some();
-            let in_id = egui::Id::new("lens_chat_input");
+            let in_id = egui::Id::unique("lens_chat_input");
             let enter = ctx.memory(|m| m.has_focus(in_id)) && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
             let r = ui.add(TextEdit::multiline(&mut self.ai.input).id(in_id).desired_rows(3).desired_width(f32::INFINITY).hint_text("Message… (Enter sends, Shift+Enter adds a line)"));
             if self.ai.focus { r.request_focus(); self.ai.focus = false; }

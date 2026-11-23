@@ -71,6 +71,8 @@ pub struct Function {
     pub noreturn: bool,
     pub calls: Vec<u64>,
     pub has_symbol: bool,
+    /// Direct forwarding target for a one-instruction thunk, when known.
+    pub thunk_target: Option<u64>,
 }
 
 impl Function {
@@ -86,6 +88,7 @@ impl Function {
 pub enum XrefKind {
     Call,
     Jump,
+    Switch,
     Read,
     Write,
     Offset,
@@ -98,6 +101,7 @@ impl XrefKind {
         match self {
             XrefKind::Call => "p",
             XrefKind::Jump => "j",
+            XrefKind::Switch => "j",
             XrefKind::Read => "r",
             XrefKind::Write => "w",
             XrefKind::Offset => "o",
@@ -105,12 +109,13 @@ impl XrefKind {
         }
     }
     pub fn is_code(self) -> bool {
-        matches!(self, XrefKind::Call | XrefKind::Jump)
+        matches!(self, XrefKind::Call | XrefKind::Jump | XrefKind::Switch)
     }
     pub fn label(self) -> &'static str {
         match self {
             XrefKind::Call => "call",
             XrefKind::Jump => "jump",
+            XrefKind::Switch => "switch case",
             XrefKind::Read => "read",
             XrefKind::Write => "write",
             XrefKind::Offset => "address taken",
@@ -179,6 +184,11 @@ pub struct Analysis {
     pub stats: String,
     /// Recovered jump tables: address of the indirect jump -> its case targets.
     pub switches: HashMap<u64, Vec<u64>>,
+    /// Conservative vtable-like tables: table address -> consecutive code pointers.
+    /// Only runs with at least two executable, mapped targets are reported.
+    pub vtables: HashMap<u64, Vec<u64>>,
+    /// Validated pointer tables in non-executable data, including data and code pointers.
+    pub pointer_tables: HashMap<u64, Vec<u64>>,
 }
 
 pub struct Settings {
@@ -201,12 +211,21 @@ pub const NORETURN: &[&str] = &[
     "stack_smash_handler", "report_gsfailure", "report_rangecheckfailure", "report_securityfailure",
     "CxxThrowException", "Unwind_Resume", "Unwind_SjLj_Resume", "cxa_throw", "cxa_rethrow",
     "Exit", "exit_group", "pthread_exit", "assert_rtn", "libc_fatal", "fortify_fail", "chk_fail",
+    "rust_begin_unwind", "rust_start_panic", "panic", "panic_fmt", "panic_nounwind", "panic_cannot_unwind",
+    "swift_fatalError", "fatalError", "fatal", "builtin_trap", "trap", "cxa_pure_virtual",
+    "ubsan_handle_builtin_unreachable", "ubsan_handle_type_mismatch_v1",
 ];
 
 pub fn is_noreturn_name(name: &str) -> bool {
-    let n = name.trim_start_matches(['_', '.']);
-    let n = n.split('@').next().unwrap_or(n);
-    NORETURN.iter().any(|x| *x == n)
+    let mut n = name.trim();
+    // Strip common symbol decoration from Mach-O/COFF and ELF versioning.
+    n = n.trim_start_matches(['_', '.']);
+    n = n.split("@@").next().unwrap_or(n);
+    n = n.split('@').next().unwrap_or(n);
+    n = n.strip_suffix(".cold").unwrap_or(n);
+    n = n.strip_suffix("() ").unwrap_or(n).trim_end_matches("()").trim();
+    let short = n.rsplit("::").next().unwrap_or(n);
+    NORETURN.iter().any(|x| *x == n || *x == short)
 }
 
 /// Arch-neutral summary of the instruction at `addr` (any supported CPU).
@@ -323,12 +342,219 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
     if unique.len() < 2 { vec![] } else { targets }
 }
 
+/// Recover the common ARM32 absolute jump table form:
+/// `cmp rN, #bound; ...; ldr pc, [pc, rN, lsl #2]`.
+fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
+    if !raw.mnemonic.starts_with("ldr") || !raw.ops.to_ascii_lowercase().starts_with("pc,") {
+        return vec![];
+    }
+    let ops = raw.ops.to_ascii_lowercase();
+    if !ops.contains("[pc,") || !ops.contains("lsl #2") { return vec![]; }
+    let mut bound = None;
+    for (&addr, _) in insns.range(..at).rev().take(24) {
+        let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+        if prev.mnemonic == "cmp" {
+            let n = prev.ops.rsplit(',').next().unwrap_or("").trim().trim_start_matches('#');
+            bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).map(|v| v + 1);
+            break;
+        }
+    }
+    let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
+    // In ARM state the PC operand reads as address + 8.
+    let table = at.saturating_add(8);
+    let mut out = Vec::new();
+    for k in 0..count {
+        let b = bin.read(table + (k * 4) as u64, 4);
+        if b.len() != 4 { break; }
+        let t = if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 };
+        if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
+        out.push(t);
+    }
+    if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
+}
+
+/// Recover a common MIPS absolute jump table:
+/// `lui t9, hi(table); addiu t9, t9, lo(table); lw t9, 0(t9); jr t9`.
+fn mips_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    let Some(last) = crate::multiarch::one(bin, at) else { return vec![] };
+    if last.mnemonic != "jr" { return vec![]; }
+    let reg = |s: &str| s.trim().trim_start_matches('$').to_ascii_lowercase();
+    let target_reg = reg(last.ops.split(',').next().unwrap_or(""));
+    if target_reg.is_empty() || target_reg == "ra" { return vec![]; }
+    let num = |s: &str| -> Option<i64> {
+        let s = s.trim().trim_start_matches('#');
+        if let Some(h) = s.strip_prefix("0x") { i64::from_str_radix(h, 16).ok() }
+        else { s.parse().ok() }
+    };
+    let mut table: Option<u64> = None;
+    let mut bound: Option<usize> = None;
+    let mut back: Vec<u64> = insns.range(..at).rev().take(18).map(|(addr, _)| *addr).collect();
+    back.reverse();
+    for addr in back {
+        let Some(i) = crate::multiarch::one(bin, addr) else { continue };
+        let ops: Vec<&str> = i.ops.split(',').map(str::trim).collect();
+        match i.mnemonic.as_str() {
+            "lui" if ops.len() >= 2 && reg(ops[0]) == target_reg => {
+                if let Some(v) = num(ops[1]) { table = Some((v as u64) << 16); }
+            }
+            "addiu" | "daddiu" | "ori" if ops.len() >= 3 && reg(ops[0]) == target_reg && reg(ops[1]) == target_reg => {
+                if let (Some(base), Some(delta)) = (table, num(ops[2])) { table = Some(base.wrapping_add(delta as u64)); }
+            }
+            "lw" | "ld" if ops.len() >= 2 && reg(ops[0]) == target_reg => {
+                if let Some((off, base)) = ops[1].split_once('(') {
+                    if reg(base.trim_end_matches(')')) == target_reg {
+                        if let (Some(t), Some(d)) = (table, num(off)) { table = Some(t.wrapping_add(d as u64)); }
+                    }
+                }
+            }
+            "slti" | "sltiu" if ops.len() >= 3 => bound = num(ops[2]).and_then(|n| usize::try_from(n).ok()),
+            _ => {}
+        }
+    }
+    let Some(table) = table else { return vec![] };
+    if !bin.is_mapped(table) { return vec![]; }
+    let width = if bin.arch == Arch::Mips64 { 8 } else { 4 };
+    let count = bound.unwrap_or(256).clamp(2, 1024);
+    let mut out = Vec::new();
+    for k in 0..count {
+        let b = bin.read(table + (k * width) as u64, width);
+        if b.len() != width { break; }
+        let t = if width == 8 {
+            if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
+        } else if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 };
+        if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
+        out.push(t);
+    }
+    if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
+}
+
+/// Recover a common PowerPC absolute jump table:
+/// `lis rX, hi(table); addi rX, rX, lo(table); lwz rY, 0(rX); mtctr rY; bctr`.
+fn ppc_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    let Some(last) = crate::multiarch::one(bin, at) else { return vec![] };
+    if last.mnemonic != "bctr" { return vec![]; }
+    let reg = |s: &str| s.trim().to_ascii_lowercase();
+    let mut table_reg = String::new();
+    let mut target_reg = String::new();
+    let mut table = None;
+    let mut bound = None;
+    let mut back: Vec<u64> = insns.range(..at).rev().take(20).map(|(addr, _)| *addr).collect();
+    back.reverse();
+    for addr in back {
+        let Some(i) = crate::multiarch::one(bin, addr) else { continue };
+        let ops: Vec<&str> = i.ops.split(',').map(str::trim).collect();
+        let num = |s: &str| -> Option<i64> {
+            let s = s.trim().trim_start_matches('#');
+            if let Some(h) = s.strip_prefix("0x") { i64::from_str_radix(h, 16).ok().or_else(|| u64::from_str_radix(h, 16).ok().map(|v| v as i64)) }
+            else { s.parse().ok() }
+        };
+        match i.mnemonic.as_str() {
+            "lis" if ops.len() >= 2 => {
+                table_reg = reg(ops[0]);
+                table = num(ops[1]).map(|v| (v as u64) << 16);
+            }
+            "addi" | "addis" if ops.len() >= 3 && reg(ops[0]) == table_reg && reg(ops[1]) == table_reg => {
+                if let (Some(base), Some(delta)) = (table, num(ops[2])) { table = Some(base.wrapping_add(delta as u64)); }
+            }
+            "lwz" | "lwzu" if ops.len() >= 2 => {
+                target_reg = reg(ops[0]);
+                if let Some((off, base)) = ops[1].split_once('(') {
+                    if reg(base.trim_end_matches(')')) == table_reg {
+                        if let (Some(t), Some(d)) = (table, num(off)) { table = Some(t.wrapping_add(d as u64)); }
+                    }
+                }
+            }
+            "mtctr" if ops.first().map(|x| reg(x)) == Some(target_reg.clone()) => {}
+            "cmpwi" | "cmplwi" if ops.len() >= 3 => bound = num(ops[2]).and_then(|n| usize::try_from(n).ok()),
+            _ => {}
+        }
+    }
+    let Some(table) = table else { return vec![] };
+    if !bin.is_mapped(table) { return vec![]; }
+    let count = bound.unwrap_or(256).clamp(2, 1024);
+    let mut out = Vec::new();
+    for k in 0..count {
+        let b = bin.read(table + (k * 4) as u64, 4);
+        if b.len() != 4 { break; }
+        let t = if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 };
+        if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
+        out.push(t);
+    }
+    if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
+}
+
+/// Recover a RISC-V absolute table used by compiler switches:
+/// `auipc t, table; ...; lw t, offset(t); jr t`.
+fn riscv_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    let Some(last) = crate::multiarch::one(bin, at) else { return vec![] };
+    if !matches!(last.mnemonic.as_str(), "jr" | "jalr") { return vec![]; }
+    let reg = last.ops.split(',').next().unwrap_or("").trim();
+    if reg.is_empty() || reg == "ra" { return vec![]; }
+    let mut table = None;
+    let mut bound = None;
+    let mut back: Vec<u64> = insns.range(..at).rev().take(16).map(|(addr, _)| *addr).collect();
+    back.reverse();
+    for addr in back {
+        let Some(i) = crate::multiarch::one(bin, addr) else { continue };
+        let ops: Vec<&str> = i.ops.split(',').map(str::trim).collect();
+        match i.mnemonic.as_str() {
+            "auipc" if ops.len() >= 2 && ops[0] == reg => {
+                table = parse_riscv_num(ops[1]);
+            }
+            "lw" | "ld" if ops.len() >= 2 && ops[0] == reg => {
+                let mem = ops[1];
+                if let Some((off, b)) = mem.split_once('(') {
+                    if b.trim_end_matches(')') == reg {
+                        if let (Some(base), Some(delta)) = (table, parse_riscv_num(off)) { table = Some(base.wrapping_add(delta)); }
+                    }
+                }
+            }
+            "sltiu" | "slti" if ops.len() >= 3 => bound = parse_riscv_num(ops[2]).map(|n| n as usize),
+            _ => {}
+        }
+    }
+    let Some(table) = table else { return vec![] };
+    if !bin.is_mapped(table) { return vec![]; }
+    let width = (bin.bitness() / 8) as usize;
+    let count = bound.unwrap_or(256).clamp(2, 1024);
+    let mut out = Vec::new();
+    for k in 0..count {
+        let b = bin.read(table + (k * width) as u64, width);
+        if b.len() != width { break; }
+        let target = if width == 8 {
+            if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
+        } else if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 };
+        if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
+        out.push(target);
+    }
+    if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
+}
+
+fn parse_riscv_num(text: &str) -> Option<u64> {
+    let t = text.trim().trim_start_matches('#');
+    if let Some(h) = t.strip_prefix("0x") { u64::from_str_radix(h, 16).ok() } else { t.parse().ok() }
+}
+
 fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     if bin.arch == Arch::Arm64 {
         return arm64_switch_targets(bin, insns, at, fstart);
     }
     if matches!(bin.arch, Arch::Arm32 | Arch::Thumb) {
+        if bin.arch == Arch::Arm32 {
+            let targets = arm32_switch_targets(bin, insns, at, fstart);
+            if !targets.is_empty() { return targets; }
+        }
         return arm_thumb_switch_targets(bin, insns, at, fstart);
+    }
+    if matches!(bin.arch, Arch::RiscV32 | Arch::RiscV64) {
+        return riscv_switch_targets(bin, insns, at, fstart);
+    }
+    if matches!(bin.arch, Arch::Mips32 | Arch::Mips64) {
+        return mips_switch_targets(bin, insns, at, fstart);
+    }
+    if matches!(bin.arch, Arch::Ppc32 | Arch::Ppc64) {
+        return ppc_switch_targets(bin, insns, at, fstart);
     }
     use iced_x86::Register;
     let Some((jmp, _)) = decode_at(bin, at) else { return vec![] };
@@ -873,6 +1099,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                     noreturn,
                     calls,
                     has_symbol: sym_at.contains_key(&fstart),
+                    thunk_target: None,
                 },
             );
             progress.store(functions.len() as u32, Ordering::Relaxed);
@@ -964,6 +1191,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     // Pointers stored in data that point into mapped program data/code. This catches
     // references to globals and vtables as well as the common function/string cases.
     let w = (bin.bitness() / 8) as usize;
+    let mut vtables: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut pointer_tables: HashMap<u64, Vec<u64>> = HashMap::new();
     for s in bin.segments.iter().filter(|s| !s.exec && s.file_offset.is_some()) {
         let mut off = 0usize;
         while off + w <= s.data.len() {
@@ -975,6 +1204,33 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             }
             off += w;
         }
+
+        // Tables are runs of at least two mapped pointers. Keep the executable
+        // subset separately as vtables; isolated callbacks never qualify.
+        let mut run_start = 0usize;
+        let mut run: Vec<u64> = Vec::new();
+        let flush = |start: &mut usize, entries: &mut Vec<u64>, all: &mut HashMap<u64, Vec<u64>>, code: &mut HashMap<u64, Vec<u64>>, seg_start: u64| {
+            if entries.len() >= 2 {
+                let addr = seg_start + *start as u64;
+                all.insert(addr, entries.clone());
+                if entries.iter().all(|v| bin.is_exec(*v)) {
+                    code.insert(addr, entries.clone());
+                }
+            }
+            entries.clear();
+        };
+        for off in (0..s.data.len()).step_by(w) {
+            if off + w > s.data.len() { break; }
+            let from = s.start + off as u64;
+            let v = bin.read_ptr(from).unwrap_or(0);
+            if v != 0 && bin.is_mapped(v) {
+                if run.is_empty() { run_start = off; }
+                run.push(v);
+            } else {
+                flush(&mut run_start, &mut run, &mut pointer_tables, &mut vtables, s.start);
+            }
+        }
+        flush(&mut run_start, &mut run, &mut pointer_tables, &mut vtables, s.start);
     }
     for (&a, &d) in &settings.data_defs {
         match d {
@@ -987,6 +1243,14 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             }
         }
     }
+    // Indirect switch targets are real code xrefs, but keeping them distinct
+    // from ordinary direct jumps makes xref lists and exports explain why the
+    // edge exists.
+    for (&from, targets) in &switches {
+        for &to in targets {
+            xrefs_to.entry(to).or_default().push(Xref { from, kind: XrefKind::Switch });
+        }
+    }
     for v in xrefs_to.values_mut() {
         v.sort_by_key(|x| x.from);
         // A single instruction can refer to the same address in more than one
@@ -994,6 +1258,25 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         // operand). Keep the distinct relationship kinds while removing only
         // truly duplicated edges.
         v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
+    }
+
+    // Mark direct one-instruction forwarding thunks after discovery is complete,
+    // so targets reached later in the queue are visible too.
+    let function_starts: HashSet<u64> = functions.keys().copied().collect();
+    let import_starts: HashSet<u64> = functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
+    for f in functions.values_mut() {
+        if f.insn_count == 1 {
+            if let Some(&addr) = f.blocks.first().and_then(|b| b.insns.first()) {
+                if let Some(i) = insns.get(&addr) {
+                    if i.flow == Flow::Jump
+                        && i.target != f.start
+                        && (function_starts.contains(&i.target) || sym_at.contains_key(&i.target) || import_starts.contains(&i.target))
+                    {
+                        f.thunk_target = Some(i.target);
+                    }
+                }
+            }
+        }
     }
 
     // ---- names ----
@@ -1077,6 +1360,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         data_size,
         stats: String::new(),
         switches,
+        vtables,
+        pointer_tables,
     };
     a.lines = build_lines(bin, &a);
     a.stats = format!(
@@ -1088,6 +1373,12 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     );
     if !a.switches.is_empty() {
         a.stats.push_str(&format!(", {} switch tables", a.switches.len()));
+    }
+    if !a.vtables.is_empty() {
+        a.stats.push_str(&format!(", {} vtable-like tables", a.vtables.len()));
+    }
+    if !a.pointer_tables.is_empty() {
+        a.stats.push_str(&format!(", {} pointer tables", a.pointer_tables.len()));
     }
     if total > max_total {
         a.stats.push_str(" — very large program: analysis stopped early, so some code shows as unexplored (press P on it to make a function)");
@@ -1272,6 +1563,17 @@ mod tests {
     use crate::loader::{raw_binary, RawSpec};
 
     #[test]
+    fn recognises_decorated_noreturn_symbols() {
+        assert!(is_noreturn_name("___stack_chk_fail@@GLIBC_2.4"));
+        assert!(is_noreturn_name("std::__1::terminate()"));
+        assert!(is_noreturn_name("abort.cold"));
+        assert!(!is_noreturn_name("strerror"));
+        assert!(is_noreturn_name("core::panicking::panic_fmt"));
+        assert!(is_noreturn_name("__cxa_pure_virtual"));
+        assert!(is_noreturn_name("panic"));
+    }
+
+    #[test]
     fn recovers_a_position_independent_switch() {
         let mut code: Vec<u8> = vec![
             0x83, 0xFF, 0x02, // cmp edi, 2
@@ -1295,8 +1597,35 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let t = an.switches.get(&0x1015).expect("switch found");
         assert_eq!(t, &vec![0x1017, 0x101D, 0x1023]);
+        assert!(an.xrefs_to.get(&0x1017).unwrap().iter().any(|x| x.from == 0x1015 && x.kind == XrefKind::Switch));
         let f = &an.functions[&0x1000];
         assert!(f.blocks.iter().any(|b| b.succs.len() == 3), "switch block has three successors");
+    }
+
+    #[test]
+    fn recovers_arm32_absolute_switch_table() {
+        // cmp r0, #2; ldr pc, [pc, r0, lsl #2]; table at PC+8.
+        let mut code = vec![0x02, 0x00, 0x50, 0xE3, 0x00, 0xF1, 0x9F, 0xE7];
+        code.extend_from_slice(&[0; 4]);
+        for target in [0x101C_u32, 0x1020, 0x1024] { code.extend_from_slice(&target.to_le_bytes()); }
+        code.extend_from_slice(&[0; 0x101C - 0x1000 - 20]);
+        code.extend_from_slice(&[0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1]);
+        let spec = RawSpec { path: "arm".into(), name: "arm".into(), arch: Arch::Arm32, big: false, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into() };
+        let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert_eq!(an.switches.get(&0x1004), Some(&vec![0x101C, 0x1020, 0x1024]));
+    }
+
+    #[test]
+    fn classifies_direct_forwarding_thunks() {
+        let spec = RawSpec {
+            path: "t".into(), name: "t".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xE9, 0x01, 0x00, 0x00, 0x00, 0xC3, 0xC3])],
+            entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.symbols.push((0x1006, "target".into()));
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
     }
 }
 
@@ -1340,10 +1669,27 @@ mod idea_tests {
         let bin = bin_of(code, data);
         let an = run(&bin, HashMap::from([(0x200C, 4u8)]));
         assert!(an.lines.iter().any(|l| l.addr == 0x200C && l.kind == LineKind::Data && l.len == 4));
+        let an = run(&bin, HashMap::from([(0x200C, 0x88u8)]));
+        assert_eq!(an.data_size.get(&0x200C), Some(&0x88));
         // making a string out of non-string-looking bytes, and undefining the auto string
         let an = run(&bin, HashMap::from([(0x2000, DEF_UNDEFINE), (0x200C, DEF_STRING)]));
         assert!(!an.string_at.contains_key(&0x2000));
         let an = run(&bin, HashMap::from([(0x2002, DEF_STRING)]));
         assert!(an.string_at.contains_key(&0x2002));
+    }
+
+    #[test]
+    fn discovers_consecutive_code_pointer_tables() {
+        let code = vec![0xC3, 0xC3, 0xC3];
+        let mut data = Vec::new();
+        for target in [0x1000u64, 0x1001, 0x1002] {
+            data.extend_from_slice(&target.to_le_bytes());
+        }
+        data.extend_from_slice(&0u64.to_le_bytes());
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
+        let an = run(&bin, Default::default());
+        assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
+        assert_eq!(an.pointer_tables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
     }
 }

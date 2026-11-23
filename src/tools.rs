@@ -3,7 +3,7 @@
 use crate::app::{Action, LensApp, State, View};
 use crate::loader::{self, Arch, RawSpec};
 use crate::multiarch;
-use eframe::egui::{self, vec2, Color32, FontId, RichText, ScrollArea, Sense, TextEdit};
+use eframe::egui::{self, vec2, FontId, RichText, ScrollArea, Sense, TextEdit};
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, PartialEq, Eq)]

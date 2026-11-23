@@ -953,7 +953,8 @@ impl<'a> Dc<'a> {
                     }
                 }
                 Mnemonic::Mov | Mnemonic::Movzx | Mnemonic::Movaps | Mnemonic::Movups | Mnemonic::Movapd | Mnemonic::Movupd | Mnemonic::Movdqa
-                | Mnemonic::Movdqu | Mnemonic::Movq | Mnemonic::Movd | Mnemonic::Movss | Mnemonic::Movsd => {
+                | Mnemonic::Movdqu | Mnemonic::Movq | Mnemonic::Movd | Mnemonic::Movss | Mnemonic::Movsd
+                | Mnemonic::Vmovaps | Mnemonic::Vmovups | Mnemonic::Vmovapd | Mnemonic::Vmovupd | Mnemonic::Vmovdqa | Mnemonic::Vmovdqu => {
                     if m == Mnemonic::Movsd && ins.op_count() == 0 {
                         continue;
                     }
@@ -992,23 +993,26 @@ impl<'a> Dc<'a> {
                 }
                 Mnemonic::Add | Mnemonic::Sub | Mnemonic::And | Mnemonic::Or | Mnemonic::Xor | Mnemonic::Shl | Mnemonic::Sal | Mnemonic::Shr
                 | Mnemonic::Sar | Mnemonic::Addss | Mnemonic::Addsd | Mnemonic::Subss | Mnemonic::Subsd | Mnemonic::Mulss | Mnemonic::Mulsd
-                | Mnemonic::Divss | Mnemonic::Divsd | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd | Mnemonic::Andps | Mnemonic::Andpd
+                | Mnemonic::Divss | Mnemonic::Divsd | Mnemonic::Addps | Mnemonic::Addpd | Mnemonic::Subps | Mnemonic::Subpd
+                | Mnemonic::Mulps | Mnemonic::Mulpd | Mnemonic::Divps | Mnemonic::Divpd
+                | Mnemonic::Vaddps | Mnemonic::Vaddpd | Mnemonic::Vsubps | Mnemonic::Vsubpd | Mnemonic::Vmulps | Mnemonic::Vmulpd | Mnemonic::Vdivps | Mnemonic::Vdivpd
+                | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd | Mnemonic::Andps | Mnemonic::Andpd
                 | Mnemonic::Orps | Mnemonic::Paddd | Mnemonic::Paddq | Mnemonic::Psubd | Mnemonic::Adc | Mnemonic::Sbb if ins.op_count() >= 2 => {
                     let a = self.read_op(&mut st, ins, 0);
                     let b = self.read_op(&mut st, ins, 1);
                     let same = ins.op_kind(0) == OpKind::Register && ins.op_kind(1) == OpKind::Register && ins.op0_register() == ins.op1_register();
                     let r = match m {
                         Mnemonic::Xor | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd if same => Ex::Num(0),
-                        Mnemonic::Add | Mnemonic::Addss | Mnemonic::Addsd | Mnemonic::Paddd | Mnemonic::Paddq => bin("+", a.clone(), b),
+                        Mnemonic::Add | Mnemonic::Addss | Mnemonic::Addsd | Mnemonic::Addps | Mnemonic::Addpd | Mnemonic::Vaddps | Mnemonic::Vaddpd | Mnemonic::Paddd | Mnemonic::Paddq => bin("+", a.clone(), b),
                         Mnemonic::Adc => bin("+", bin("+", a.clone(), b), Ex::Raw("CF".into())),
-                        Mnemonic::Sub | Mnemonic::Subss | Mnemonic::Subsd | Mnemonic::Psubd => bin("-", a.clone(), b),
+                        Mnemonic::Sub | Mnemonic::Subss | Mnemonic::Subsd | Mnemonic::Subps | Mnemonic::Subpd | Mnemonic::Vsubps | Mnemonic::Vsubpd | Mnemonic::Psubd => bin("-", a.clone(), b),
                         Mnemonic::Sbb => bin("-", bin("-", a.clone(), b), Ex::Raw("CF".into())),
                         Mnemonic::And | Mnemonic::Andps | Mnemonic::Andpd => bin("&", a.clone(), b),
                         Mnemonic::Or | Mnemonic::Orps => bin("|", a.clone(), b),
                         Mnemonic::Xor | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd => bin("^", a.clone(), b),
                         Mnemonic::Shl | Mnemonic::Sal => bin("<<", a.clone(), b),
                         Mnemonic::Shr | Mnemonic::Sar => bin(">>", a.clone(), b),
-                        Mnemonic::Mulss | Mnemonic::Mulsd => bin("*", a.clone(), b),
+                        Mnemonic::Mulss | Mnemonic::Mulsd | Mnemonic::Mulps | Mnemonic::Mulpd | Mnemonic::Vmulps | Mnemonic::Vmulpd => bin("*", a.clone(), b),
                         _ => bin("/", a.clone(), b),
                     };
                     st.flags = match m {
@@ -1775,7 +1779,9 @@ pub fn decompile(
         if k.starts_with('a') && k[1..].chars().all(|c| c.is_ascii_digit()) && !k[1..].is_empty() {
             continue;
         }
-        let is_reg = reg_by_name(k).is_some() || GPR.contains(&k.as_str()) || (k.starts_with("xmm") && k[3..].chars().all(|c| c.is_ascii_digit()));
+        let is_reg = reg_by_name(k).is_some() || GPR.contains(&k.as_str())
+            || (k.starts_with("xmm") && k[3..].chars().all(|c| c.is_ascii_digit()))
+            || (k.starts_with('v') && k[1..].chars().all(|c| c.is_ascii_digit()));
         let is_tmp = (k.starts_with('v') || k.starts_with('t')) && k.len() > 1 && k[1..].chars().all(|c| c.is_ascii_digit());
         if is_reg || is_tmp {
             used.insert(k.clone());
@@ -1794,23 +1800,77 @@ pub fn decompile(
     }
     // results of calls to functions with a known prototype get the declared return type
     let mut assigned: HashMap<String, (usize, Option<String>)> = HashMap::new();
+    let mut known_types: HashMap<String, String> = HashMap::new();
     for o in &outs {
         for (_, st) in &o.stmts {
             if let Stmt::Assign(Ex::Var(t), rhs) = st {
                 let ty = match rhs {
                     Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                    Ex::Var(v) => known_types.get(v).cloned(),
                     _ => None,
                 };
                 let e = assigned.entry(t.clone()).or_insert((0, ty.clone()));
                 e.0 += 1;
                 if e.1 != ty { e.1 = None; }
+                if let Some(ty) = ty {
+                    known_types.insert(t.clone(), ty);
+                } else {
+                    known_types.remove(t);
+                }
             }
         }
     }
     let mut typed: Vec<(String, String)> = vec![];
-    decl_regs.retain(|d| match assigned.get(d) {
+    decl_regs.retain(|d| {
+        let source = assigned.get(d).or_else(|| rename.iter().find(|(_, shown)| *shown == d).and_then(|(original, _)| assigned.get(original)));
+        match source {
         Some((1, Some(ty))) => { typed.push((ty.clone(), d.clone())); false }
         _ => true,
+        }
+    });
+    typed.sort();
+    // XMM temporaries used to be emitted as integer declarations even when the
+    // instruction stream clearly identified scalar float/double or vector data.
+    // Recover the narrow type from the SSE mnemonic family for readable output.
+    let mut sse_types: HashMap<String, String> = HashMap::new();
+    for block in &f.blocks {
+        for addr in &block.insns {
+            let Some((ins, _)) = decode_at(bin, *addr) else { continue };
+            let ty = match ins.mnemonic() {
+                Mnemonic::Addss | Mnemonic::Subss | Mnemonic::Mulss | Mnemonic::Divss
+                | Mnemonic::Movss | Mnemonic::Cvtsi2ss | Mnemonic::Cvtss2sd => "float",
+                Mnemonic::Addsd | Mnemonic::Subsd | Mnemonic::Mulsd | Mnemonic::Divsd
+                | Mnemonic::Movsd | Mnemonic::Cvtsi2sd | Mnemonic::Cvtsd2ss => "double",
+                Mnemonic::Addps | Mnemonic::Subps | Mnemonic::Mulps | Mnemonic::Divps
+                | Mnemonic::Movaps | Mnemonic::Movups | Mnemonic::Paddd | Mnemonic::Psubd => "__m128",
+                Mnemonic::Vaddps | Mnemonic::Vsubps | Mnemonic::Vmulps | Mnemonic::Vdivps
+                | Mnemonic::Vmovaps | Mnemonic::Vmovups | Mnemonic::Vmovdqa | Mnemonic::Vmovdqu => "__m256",
+                Mnemonic::Addpd | Mnemonic::Subpd | Mnemonic::Mulpd | Mnemonic::Divpd
+                | Mnemonic::Movapd | Mnemonic::Movupd | Mnemonic::Xorpd | Mnemonic::Andpd => "__m128d",
+                Mnemonic::Vaddpd | Mnemonic::Vsubpd | Mnemonic::Vmulpd | Mnemonic::Vdivpd
+                | Mnemonic::Vmovapd | Mnemonic::Vmovupd => "__m256d",
+                _ => continue,
+            };
+            for operand in 0..ins.op_count() {
+                if ins.op_kind(operand) == OpKind::Register && (ins.op_register(operand).is_xmm() || ins.op_register(operand).is_ymm() || ins.op_register(operand).is_zmm()) {
+                    let r = ins.op_register(operand);
+                    let actual = match (ty, r.is_xmm(), r.is_ymm(), r.is_zmm()) {
+                        ("__m256", true, _, _) => "__m128",
+                        ("__m256", _, _, true) => "__m512",
+                        ("__m256d", true, _, _) => "__m128d",
+                        ("__m256d", _, _, true) => "__m512d",
+                        _ => ty,
+                    };
+                    sse_types.insert(reg_name(reg_index(r).unwrap()), actual.into());
+                }
+            }
+        }
+    }
+    decl_regs.retain(|name| {
+        if let Some(ty) = sse_types.get(name) {
+            typed.push((ty.clone(), name.clone()));
+            false
+        } else { true }
     });
     typed.sort();
     for (ty, n) in &typed {
@@ -1846,4 +1906,49 @@ pub fn render_text(d: &Decompiled) -> String {
         s.push('\n');
     }
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::{analyze, Settings};
+    use crate::loader::{raw_binary, Arch, RawSpec};
+    use std::sync::{atomic::AtomicU32, Arc};
+
+    #[test]
+    fn simple_return_has_stable_pseudocode_golden() {
+        let bin = raw_binary(&RawSpec {
+            path: "golden".into(), name: "golden".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xB8, 42, 0, 0, 0, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let d = decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, "");
+        let text = render_text(&d);
+        assert!(text.contains("return 0x2A;"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn scalar_sse_registers_get_float_declarations() {
+        let bin = raw_binary(&RawSpec {
+            path: "sse".into(), name: "sse".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xF3, 0x0F, 0x58, 0xC1, 0xF3, 0x0F, 0x11, 0x05, 0, 0, 0, 0, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("float xmm0;") || text.contains("float xmm1;"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn packed_sse_registers_get_vector_declarations() {
+        let bin = raw_binary(&RawSpec {
+            path: "sse2".into(), name: "sse2".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x0F, 0x58, 0xC1, 0x0F, 0x29, 0x05, 0, 0, 0, 0, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("__m128 xmm0;") || text.contains("__m128 xmm1;"), "unexpected pseudocode:\n{text}");
+    }
 }

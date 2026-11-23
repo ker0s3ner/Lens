@@ -123,6 +123,8 @@ fn cli(args: &[String]) -> bool {
             strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
             out_xrefs,
+            pointer_tables: an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
+            vtables: an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             applied_types: ann.applied.iter().cloned().collect(),
             types: ann.structs.clone(),
         };

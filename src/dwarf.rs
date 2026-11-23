@@ -2,7 +2,7 @@
 //! function names and C prototypes with real types and parameter names.
 
 use crate::loader::Binary;
-use gimli::{AttributeValue, Reader};
+use gimli::AttributeValue;
 use object::{Object, ObjectSection};
 use std::borrow::Cow;
 use std::collections::HashMap;

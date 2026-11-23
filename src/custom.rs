@@ -121,6 +121,7 @@ pub const BINDINGS: &[(&str, &str, &str)] = &[
     ("make_func", "Make function", "P"),
     ("mark", "Bookmark", "M"),
     ("data", "Define data (byte, word, dword, qword)", "D"),
+    ("pointer", "Define pointer", "O"),
     ("ascii", "Define string", "A"),
     ("undef", "Undefine", "U"),
     ("breakpoint", "Toggle breakpoint", "F2"),

@@ -606,7 +606,7 @@ impl LensApp {
             Status::Available(_) => !self.update_hidden,
             _ => true,
         };
-        let alpha = ctx.animate_bool_with_time(egui::Id::new("update_card_vis"), visible, 0.25);
+        let alpha = ctx.animate_bool_with_time(egui::Id::unique("update_card_vis"), visible, 0.25);
         if alpha <= 0.0 {
             return;
         }
@@ -617,7 +617,7 @@ impl LensApp {
         let ok = p.edge_taken;
         let mut acts: Vec<Action> = vec![];
         let mut hide = false;
-        egui::Area::new(egui::Id::new("update_card"))
+        egui::Area::new(egui::Id::unique("update_card"))
             .anchor(egui::Align2::RIGHT_BOTTOM, vec2(-16.0, -44.0 + (1.0 - alpha) * 12.0))
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {

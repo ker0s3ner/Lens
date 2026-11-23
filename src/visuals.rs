@@ -127,7 +127,7 @@ fn section_map(ui: &mut egui::Ui, p: &Palette, bin: &Binary, acts: &mut Vec<Acti
             painter.with_clip_rect(r).text(r.left_top() + vec2(5.0, 4.0), Align2::LEFT_TOP, name, FontId::monospace(11.0), Color32::WHITE);
             painter.with_clip_rect(r).text(r.left_bottom() + vec2(5.0, -4.0), Align2::LEFT_BOTTOM, human(s.size), FontId::proportional(10.5), Color32::WHITE);
         }
-        let id = ui.id().with(("seg", i));
+        let id = ui.scope_id().with(("seg", i));
         let resp = ui.interact(r, id, Sense::click());
         if resp.hovered() {
             painter.rect_stroke(r, 4.0, Stroke::new(2.0, p.text), StrokeKind::Inside);

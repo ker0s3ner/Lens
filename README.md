@@ -16,20 +16,34 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 ### Analyze and navigate
 
 - Decode x86 16/32/64-bit, ARM, Thumb, ARM64, RISC-V 32/64, MIPS 32/64, PowerPC 32/64 and Motorola 68000. Decoder-backed analysis depth varies by architecture.
-- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86 and ARM64 patterns and bounded Thumb TBB/TBH tables.
+- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86, ARM32, ARM64, RISC-V, MIPS, PowerPC and bounded Thumb TBB/TBH patterns; switch-case xrefs are labeled separately from direct jumps.
+- Discovered pointer tables can be promoted to persistent native-pointer data from the context menu or command palette.
+- Contiguous matching data elements can be promoted to a persistent inferred array from the same workflow.
+- Control-flow analysis recognizes additional C++, Rust and Swift panic/trap entry points as non-returning.
+- Prototype parsing preserves named function-pointer parameters and emits valid callback signatures.
+- Known prototype return types now propagate through simple temporary-to-temporary assignments in pseudocode declarations.
+- Identify direct one-instruction forwarding thunks and show their destination in function lists.
+- Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code; the analysis summary reports the discovered table count.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview.
-- Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`.
+- Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
+- Browse persisted inferred arrays from the Lists window and jump to their first element.
+- Lists tabs can also be selected in automation with `LENS_TAB=arrays`, `pointer_tables`, or `vtables`.
+- Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`. Data rows can be explicitly marked as native-width pointers with the `O` action.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.
-- Define bytes and strings, apply simple C-like structs, unions, enums, typedefs and integer bitfields, import supported DWARF layouts, inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
+- Define bytes and strings, apply C-like structs, unions, enums, scalar and function-pointer typedefs, function-pointer fields and integer bitfields, import supported DWARF layouts, inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
 - Identify common cryptographic constants and use built-in or learned function signatures to recognize library code.
 
 ### Decompile and edit
 
-- Produce approximate C-like pseudocode and render it as C, Rust, Python, Go or JavaScript.
-- The x86/x64 lifter has the broadest coverage. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use an integer-focused lifter; unsupported operations remain visible as intrinsic-style calls.
+- Produce approximate C-like pseudocode and render it as C, Rust, Python, Go or JavaScript; scalar SSE and common AVX operations retain float/double or vector declarations and binary expressions.
+- The x86/x64 lifter has the broadest coverage. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use integer-focused lifters; ARM64 NEON vector registers are tracked as 128-bit values, common `fadd`/`fsub`/`fmul`/`fdiv`/`fmla` plus `fneg`/`fabs`/`fsqrt` operations become readable expressions, and other unsupported vector operations remain visible as intrinsic-style calls.
 - Patch bytes, NOP instructions, invert supported branches, or force supported conditional branches. Save a patched copy separately from the original; Mach-O output is ad-hoc signed when possible.
 - Run Rhai scripts against a read-only analysis snapshot (including types, segments, imports/exports, and incoming/outgoing xrefs), then apply queued actions such as renames, notes, bookmarks, patches, navigation, and defining/applying types. `.rhai` plugins may define an `on_open` hook.
+- Rhai snapshots expose `pointer_tables()` and `vtables()` for scripted inspection, and scripts can promote entries with `define_pointer_table(addr)` or `define_array(addr)`.
 - Compare two program versions by function shape and name.
+- Import exported Lens JSON databases with annotations, data definitions and applied-type references restored.
+- Exported/imported JSON databases also preserve user-authored prototypes used by the decompiler.
+- Lens JSON exports carry schema version 2 and preserve names, types, prototypes, data definitions, tables, xrefs and annotations.
 
 ### Debug and exchange data
 
@@ -86,7 +100,7 @@ Lens uses stable Rust and Cargo. Build locally with `cargo build --release`. The
 ## Current limitations
 
 - Analysis completeness and pseudocode quality vary substantially by architecture and compiler. The pseudocode is a best-effort lift, not source recovery or a correctness proof.
-- Switch recovery is currently focused on x86 and ARM64. Advanced RTTI/vtable recovery, Objective-C/Swift metadata, and broad data-versus-code typing are not implemented. Relocatable ELF inputs apply common static relocations but do not synthesize linker GOT/PLT entries or resolve every architecture's compound relocations.
+- Switch recovery covers x86, ARM32, ARM64, Thumb TBB/TBH, RISC-V, MIPS and PowerPC patterns, but remains conservative. Advanced RTTI/vtable recovery, Objective-C/Swift metadata, and broad data-versus-code typing are not implemented. Relocatable ELF inputs apply common static relocations but do not synthesize linker GOT/PLT entries or resolve every architecture's compound relocations.
 - The type parser is intentionally limited. It supports simple integer bitfields and function-pointer typedef aliases, but not full function-pointer declarations or compiler-specific bitfield ABI layouts. DWARF types containing bitfields or unsupported member-location expressions are skipped instead of assigned guessed offsets.
 - Debugging depends on LLDB; Lens does not yet have its own native debug engine. Hardware breakpoints depend on target support. Instruction tracing uses repeated single-step operations, so it is slower than processor trace facilities and stops at the selected instruction limit. Process attach and GDB remote connection are available through LLDB.
 - Files are read fully into memory, then loading and analysis run on a background thread. Incremental analysis/listing, explicit memory limits and measured performance on very large files remain future work.

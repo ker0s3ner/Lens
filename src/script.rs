@@ -21,6 +21,8 @@ pub struct Snap {
     pub strings: Vec<(u64, String)>,
     pub xrefs: HashMap<u64, Vec<u64>>,
     pub out_xrefs: HashMap<u64, Vec<u64>>,
+    pub pointer_tables: Vec<(u64, Vec<u64>)>,
+    pub vtables: Vec<(u64, Vec<u64>)>,
     pub applied_types: HashMap<u64, String>,
     pub types: Vec<crate::types::StructDef>,
 }
@@ -36,6 +38,8 @@ pub enum Cmd {
     MakeFunction(u64),
     AddType(String),
     ApplyType(u64, String),
+    DefinePointerTable(u64),
+    DefineArray(u64),
 }
 
 pub struct Output {
@@ -133,6 +137,24 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     e.register_fn("xrefs_to", move |a: INT| -> Array { arr_u64(s.xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
     let s = snap.clone();
     e.register_fn("xrefs_from", move |a: INT| -> Array { arr_u64(s.out_xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
+    let s = snap.clone();
+    e.register_fn("pointer_tables", move || -> Array {
+        s.pointer_tables.iter().map(|(a, entries)| {
+            let mut m = Map::new();
+            m.insert("addr".into(), Dynamic::from(*a as INT));
+            m.insert("entries".into(), Dynamic::from(arr_u64(entries)));
+            Dynamic::from_map(m)
+        }).collect()
+    });
+    let s = snap.clone();
+    e.register_fn("vtables", move || -> Array {
+        s.vtables.iter().map(|(a, entries)| {
+            let mut m = Map::new();
+            m.insert("addr".into(), Dynamic::from(*a as INT));
+            m.insert("entries".into(), Dynamic::from(arr_u64(entries)));
+            Dynamic::from_map(m)
+        }).collect()
+    });
     let s = snap.clone();
     e.register_fn("type_at", move |a: INT| -> String { s.applied_types.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
@@ -238,6 +260,10 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let c = cmds.clone();
     e.register_fn("apply_type", move |a: INT, name: &str| c.borrow_mut().push(Cmd::ApplyType(a as u64, name.to_string())));
     let c = cmds.clone();
+    e.register_fn("define_pointer_table", move |a: INT| c.borrow_mut().push(Cmd::DefinePointerTable(a as u64)));
+    let c = cmds.clone();
+    e.register_fn("define_array", move |a: INT| c.borrow_mut().push(Cmd::DefineArray(a as u64)));
+    let c = cmds.clone();
     e.register_fn("patch", move |a: INT, b: Blob| c.borrow_mut().push(Cmd::Patch(a as u64, b)));
     let c = cmds.clone();
     e.register_fn("patch", move |a: INT, b: Array| {
@@ -317,6 +343,8 @@ impl LensApp {
             strings: l.an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
             out_xrefs,
+            pointer_tables: l.an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
+            vtables: l.an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             applied_types: l.ann.applied.iter().cloned().collect(),
             types: l.ann.structs.clone(),
         })
@@ -380,6 +408,8 @@ impl LensApp {
                         }
                     }
                 }
+                Cmd::DefinePointerTable(a) => self.actions.push(Action::DefinePointerTable(a)),
+                Cmd::DefineArray(a) => self.actions.push(Action::DefineArray(a)),
             }
         }
         if changed {
@@ -469,7 +499,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API: functions() strings() types() type_at(a) segments() imports() exports() name_at(a) find(name) xrefs_to(a) xrefs_from(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type log").small().color(p.muted));
+            ui.label(RichText::new("API: functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) xrefs_to(a) xrefs_from(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();
@@ -477,5 +507,32 @@ impl LensApp {
             self.tools2.script.out = out;
         }
         self.tools2.script.open = open;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::{analyze, Settings};
+    use crate::loader::{raw_binary, Arch, RawSpec};
+    use std::sync::{atomic::AtomicU32, Arc};
+
+    #[test]
+    fn table_snapshot_apis_are_callable() {
+        let bin = raw_binary(&RawSpec {
+            path: "script-test".into(), name: "script-test".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let snap = Snap {
+            bin: Arc::new(bin), funcs: vec![], names: HashMap::new(), strings: vec![],
+            xrefs: HashMap::new(), out_xrefs: HashMap::new(), pointer_tables: vec![], vtables: vec![],
+            applied_types: HashMap::new(), types: vec![],
+        };
+        let out = run("print(pointer_tables().len); print(vtables().len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        assert!(out.error.is_none(), "script failed: {:?}", out.error);
+        assert!(out.text.contains("0\n0"), "unexpected output: {}", out.text);
+        assert_eq!(out.cmds.len(), 2);
+        let _ = an;
     }
 }

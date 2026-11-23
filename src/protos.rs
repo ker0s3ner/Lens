@@ -16,7 +16,12 @@ pub struct Proto {
 
 impl Proto {
     pub fn signature(&self) -> String {
-        let mut ps: Vec<String> = self.params.iter().map(|(t, n)| if n.is_empty() { t.clone() } else if t.ends_with('*') { format!("{t}{n}") } else { format!("{t} {n}") }).collect();
+    let mut ps: Vec<String> = self.params.iter().map(|(t, n)| {
+        if n.is_empty() { t.clone() }
+        else if t.contains("(*)") { t.replace("(*)", &format!("(*{n})")) }
+        else if t.ends_with('*') { format!("{t}{n}") }
+        else { format!("{t} {n}") }
+    }).collect();
         if self.variadic { ps.push("...".into()); }
         format!("{} {}({})", self.ret, self.name, if ps.is_empty() { "void".into() } else { ps.join(", ") })
     }
@@ -67,7 +72,19 @@ fn split_top(s: &str) -> Vec<String> {
 fn split_param(p: &str, i: usize) -> (String, String) {
     let p = p.trim();
     if p.contains('(') {
-        // function pointer: keep the whole thing as the type
+        // Normalize `int (*cmp)(int)` into type `int (*)(int)` plus name `cmp`.
+        // Keeping the name separate makes signatures and call metadata useful.
+        if let Some(start) = p.find("(*") {
+            if let Some(end) = p[start + 2..].find(')') {
+                let end = start + 2 + end;
+                let name = p[start + 2..end].trim();
+                if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    let mut ty = p.to_string();
+                    ty.replace_range(start + 1..end, "*");
+                    return (ty, name.to_string());
+                }
+            }
+        }
         return (p.to_string(), format!("a{}", i + 1));
     }
     let spaced = p.replace('*', " * ");
@@ -278,6 +295,14 @@ mod tests {
         assert!(p[0].variadic);
         assert!(p[1].noreturn);
         assert_eq!(p[2].params[0].0.replace(' ', ""), "constchar*");
+    }
+
+    #[test]
+    fn preserves_named_function_pointer_parameters() {
+        let (p, e) = parse("void register_cb(int (*callback)(int, void *));");
+        assert!(e.is_empty(), "{e:?}");
+        assert_eq!(p[0].params[0].1, "callback");
+        assert_eq!(p[0].signature(), "void register_cb(int (*callback)(int, void *))");
     }
 
     #[test]

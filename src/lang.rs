@@ -379,7 +379,7 @@ pub fn render(d: &Decompiled, lang: Lang) -> Vec<DLine> {
         idx += 1;
         let t = l.text.trim_end();
         let ind = l.indent;
-        let mut push = |out: &mut Vec<DLine>, pending: &mut Option<usize>, indent: usize, text: String| {
+        let push = |out: &mut Vec<DLine>, pending: &mut Option<usize>, indent: usize, text: String| {
             if let Some(oi) = *pending {
                 if indent <= oi && lang == Lang::Python {
                     out.push(DLine { text: "pass".into(), addr: l.addr, indent: oi + 1 });

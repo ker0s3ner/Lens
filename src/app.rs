@@ -61,6 +61,7 @@ impl Side {
 pub enum DataDef {
     Cycle,
     Str,
+    Pointer,
     Undefine,
 }
 
@@ -76,6 +77,8 @@ pub enum Action {
     Xrefs(u64),
     MakeFunction(u64),
     DefineData(u64, DataDef),
+    DefinePointerTable(u64),
+    DefineArray(u64),
     SetView(View),
     ToggleGraph,
     SetSide(Side),
@@ -316,7 +319,7 @@ impl LensApp {
                 "settings" => { app.tools.settings_open = true; app.sui.tab = std::env::var("LENS_TAB").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
                 "assistant" => app.ai.open = true,
                 "protos" => { app.protos.open = true; app.protos.text = "int check_license(const char *key, int len);\nvoid fatal(const char *msg) noreturn;".into(); }
-                "lists" => { app.lists.open = true; app.lists.tab = match std::env::var("LENS_TAB").as_deref() { Ok("imports") => crate::ida::ListTab::Imports, Ok("names") => crate::ida::ListTab::Names, _ => crate::ida::ListTab::Functions }; }
+                "lists" => { app.lists.open = true; app.lists.tab = match std::env::var("LENS_TAB").as_deref() { Ok("imports") => crate::ida::ListTab::Imports, Ok("names") => crate::ida::ListTab::Names, Ok("arrays") => crate::ida::ListTab::Arrays, Ok("pointer_tables") => crate::ida::ListTab::PointerTables, Ok("vtables") => crate::ida::ListTab::Vtables, _ => crate::ida::ListTab::Functions }; }
                 "patch" => app.tools2.patch.open = true,
                 "structs" => { app.tools2.types.open = true; app.tools2.types.def = "struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};".into(); }
                 "script" => app.tools2.script.open = true,
@@ -616,6 +619,8 @@ impl LensApp {
                 Action::Xrefs(x) => self.modal = Some(Modal::Xrefs { addr: x }),
                 Action::MakeFunction(x) => self.make_function(x),
                 Action::DefineData(x, d) => self.define_data(x, d),
+                Action::DefinePointerTable(x) => self.define_pointer_table(x),
+                Action::DefineArray(x) => self.define_array(x),
                 Action::ToggleGraph => {
                     let v = if self.nav.view == View::Graph { View::Text } else { View::Graph };
                     self.set_view(v);
@@ -812,6 +817,7 @@ impl LensApp {
         let cur = l.ann.data_defs.get(&addr).copied().or_else(|| l.an.data_size.get(&addr).copied());
         let (code, what) = match d {
             DataDef::Str => (analysis::DEF_STRING, "a string".to_string()),
+            DataDef::Pointer => (ptr | 0x80, "a pointer".to_string()),
             DataDef::Undefine => (analysis::DEF_UNDEFINE, "undefined".to_string()),
             DataDef::Cycle => {
                 let n = if l.an.string_at.contains_key(&addr) { 0 } else { cur.map(|c| c & 0x7f).unwrap_or(0) };
@@ -829,6 +835,71 @@ impl LensApp {
         );
         l.refresh();
         self.logm(format!("{addr:X} is now {what}."));
+        self.goto(addr, false);
+    }
+
+    /// Promote an auto-discovered pointer run into persistent native pointer data.
+    fn define_pointer_table(&mut self, addr: u64) {
+        let min = self.prefs.min_string_len;
+        let State::Ready(l) = &mut self.state else { return };
+        let Some(entries) = l.an.pointer_tables.get(&addr).cloned() else {
+            self.logm(format!("{addr:X} is not a discovered pointer table."));
+            return;
+        };
+        if entries.is_empty() { return; }
+        let width = (l.bin.bitness() / 8) as u64;
+        let code = width as u8 | 0x80;
+        for index in 0..entries.len() {
+            let slot = addr.saturating_add(index as u64 * width);
+            if l.bin.is_mapped(slot) && !l.an.insns.contains_key(&slot) {
+                l.ann.data_defs.insert(slot, code);
+            }
+        }
+        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+        l.an = analysis::analyze(
+            &l.bin,
+            &analysis::Settings { min_string_len: min, extra_functions: l.ann.functions.clone(), data_defs: l.ann.data_defs.clone() },
+            Arc::new(AtomicU32::new(0)),
+        );
+        l.refresh();
+        self.logm(format!("Defined {} native pointers at {addr:X}.", entries.len()));
+        self.goto(addr, false);
+    }
+
+    /// Persist a contiguous run of same-sized data elements as an array.
+    fn define_array(&mut self, addr: u64) {
+        let min = self.prefs.min_string_len;
+        let State::Ready(l) = &mut self.state else { return };
+        if l.an.insns.contains_key(&addr) || !l.bin.is_mapped(addr) { return; }
+        let Some(&seed) = l.ann.data_defs.get(&addr).or_else(|| l.an.data_size.get(&addr)) else {
+            self.logm(format!("{addr:X} has no inferred data element to extend."));
+            return;
+        };
+        let width = (seed & 0x7f) as u64;
+        if width == 0 || width > 8 { return; }
+        let mut count = 0usize;
+        let mut slot = addr;
+        while count < 256 && l.bin.is_mapped(slot) && !l.an.insns.contains_key(&slot) {
+            let same = l.ann.data_defs.get(&slot).copied().or_else(|| l.an.data_size.get(&slot).copied()).map(|v| v == seed).unwrap_or(false);
+            if !same { break; }
+            count += 1;
+            slot = slot.saturating_add(width);
+        }
+        if count < 2 {
+            self.logm(format!("No contiguous array found at {addr:X}."));
+            return;
+        }
+        for index in 0..count {
+            l.ann.data_defs.insert(addr + index as u64 * width, seed);
+        }
+        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+        l.an = analysis::analyze(
+            &l.bin,
+            &analysis::Settings { min_string_len: min, extra_functions: l.ann.functions.clone(), data_defs: l.ann.data_defs.clone() },
+            Arc::new(AtomicU32::new(0)),
+        );
+        l.refresh();
+        self.logm(format!("Defined {count}-element array at {addr:X}."));
         self.goto(addr, false);
     }
 
@@ -994,6 +1065,9 @@ impl LensApp {
             if hit("xrefs") { acts.push(Action::Xrefs(cur)); }
             if hit("make_func") { acts.push(Action::MakeFunction(cur)); }
             if hit("data") { acts.push(Action::DefineData(cur, DataDef::Cycle)); }
+            if hit("pointer") { acts.push(Action::DefineData(cur, DataDef::Pointer)); }
+            if hit("table") { acts.push(Action::DefinePointerTable(cur)); }
+            if hit("array") { acts.push(Action::DefineArray(cur)); }
             if hit("ascii") { acts.push(Action::DefineData(cur, DataDef::Str)); }
             if hit("undef") { acts.push(Action::DefineData(cur, DataDef::Undefine)); }
             if hit("back") { acts.push(Action::Back); }
