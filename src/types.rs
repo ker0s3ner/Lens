@@ -286,6 +286,9 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         }
         let s = s.trim_end_matches(|c: char| matches!(c, 'u' | 'U' | 'l' | 'L'));
         if let Some(value) = names.get(s) { return Some(*value); }
+        if let Some(ch) = s.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')).filter(|v| v.chars().count() == 1) {
+            return ch.chars().next().map(|c| c as i64);
+        }
         let (neg, s) = s.strip_prefix('-').map(|v| (true, v)).unwrap_or((false, s));
         let (radix, digits) = if let Some(v) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
             (16, v)
@@ -301,6 +304,9 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
     }
     fn eval(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         let s = s.trim();
+        if let Some(rest) = s.strip_prefix('~') {
+            return Some(!eval(rest, names)?);
+        }
         for op in ["|", "^", "&", "<<", ">>", "+", "-"] {
             let mut depth = 0i32;
             for (i, c) in s.char_indices().rev() {
@@ -498,9 +504,9 @@ mod tests {
 
     #[test]
     fn parses_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write, All = ~0u, Letter = 'A' }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
-        assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3)]);
+        assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3), ("All", -1), ("Letter", 65)]);
     }
 
     #[test]
