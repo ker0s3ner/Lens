@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AVX2 packed widening, narrowing, saturation, and mask-extraction move families now remain visible as named pseudocode intrinsics.",
+    "Sign/zero-extension lane conversions preserve their operand groups in decompiler output.",
     "AArch64 NEON floating/integer conversion and rounding families now remain visible as named pseudocode intrinsics.",
     "Common lane-width conversion and rounding operations no longer fall through to opaque generic handling.",
     "AVX2 integer permute and gather families now remain visible as named pseudocode intrinsics.",

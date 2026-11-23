@@ -1085,6 +1085,16 @@ impl<'a> Dc<'a> {
                     let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
                 }
+                Mnemonic::Vpmovdb | Mnemonic::Vpmovdw | Mnemonic::Vpmovqb | Mnemonic::Vpmovqd | Mnemonic::Vpmovqw
+                | Mnemonic::Vpmovsdb | Mnemonic::Vpmovsdw | Mnemonic::Vpmovsqb | Mnemonic::Vpmovsqd | Mnemonic::Vpmovsqw | Mnemonic::Vpmovswb
+                | Mnemonic::Vpmovusdb | Mnemonic::Vpmovusdw | Mnemonic::Vpmovusqb | Mnemonic::Vpmovusqd | Mnemonic::Vpmovusqw | Mnemonic::Vpmovuswb
+                | Mnemonic::Vpmovsxbd | Mnemonic::Vpmovsxbq | Mnemonic::Vpmovsxbw | Mnemonic::Vpmovsxdq | Mnemonic::Vpmovsxwd | Mnemonic::Vpmovsxwq
+                | Mnemonic::Vpmovzxbd | Mnemonic::Vpmovzxbq | Mnemonic::Vpmovzxbw | Mnemonic::Vpmovzxdq | Mnemonic::Vpmovzxwd | Mnemonic::Vpmovzxwq
+                | Mnemonic::Vpmovmskb
+                if ins.op_count() >= 2 => {
+                    let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
+                }
                 Mnemonic::Lea => {
                     let sz = 1;
                     let (a, _) = self.mem_operand(&mut st, ins, sz);

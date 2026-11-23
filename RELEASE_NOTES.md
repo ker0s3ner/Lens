@@ -1,6 +1,9 @@
-# Lens 0.6.72 — Fourier
+# Lens 0.6.73 — Fourier
 
 ## What's new
+
+- AVX2 packed widening, narrowing, saturation, and mask-extraction move families now remain visible as named pseudocode intrinsics.
+- Sign/zero-extension lane conversions preserve their operand groups in decompiler output.
 
 - AArch64 NEON floating/integer conversion and rounding families now remain visible as named pseudocode intrinsics.
 - Common lane-width conversion and rounding operations no longer fall through to opaque generic handling.
