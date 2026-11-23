@@ -1,6 +1,9 @@
-# Lens 0.6.69 — Fourier
+# Lens 0.6.70 — Fourier
 
 ## What's new
+
+- Common x86/x64 packed integer and floating-point comparison families now remain visible as named pseudocode intrinsics.
+- AVX comparison masks preserve their operand groups instead of falling through to opaque generic handling.
 
 - Common x86/x64 packed integer add/subtract, bitwise, and multiply families now remain visible as named pseudocode intrinsics.
 - AVX2 integer vector operations preserve their operand groups instead of falling through to opaque generic handling.
