@@ -26,6 +26,7 @@ pub enum Ex {
     Un(&'static str, Box<Ex>),
     Deref(Box<Ex>, u8),
     Cast(&'static str, Box<Ex>),
+    CastOwned(String, Box<Ex>),
     Call(Box<Ex>, Vec<Ex>),
     Tern(Box<Ex>, Box<Ex>, Box<Ex>),
     Raw(String),
@@ -126,8 +127,9 @@ impl Fmt<'_> {
             Ex::Num(n) => Self::num(*n),
             Ex::Var(v) => self.rename.get(v).cloned().unwrap_or_else(|| v.clone()),
             Ex::Raw(s) => s.clone(),
-            Ex::Un(op, a) => format!("{op}{}", self.at(a, 3)),
+        Ex::Un(op, a) => format!("{op}{}", self.at(a, 3)),
             Ex::Cast(t, a) => format!("({t}){}", self.at(a, 3)),
+            Ex::CastOwned(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::Deref(a, sz) => format!("*({}*){}", int_type(*sz), self.at(a, 3)),
             Ex::Call(f, args) => {
                 let callee = match &**f {
@@ -800,6 +802,20 @@ impl<'a> Dc<'a> {
                 if let Ex::Num(v) = a {
                     if let Some(sym) = crate::consts::symbolize(os, fname, k, *v) {
                         *a = Ex::Var(sym);
+                    }
+                }
+            }
+        }
+        // Preserve an explicit pointer prototype when a constant is passed.
+        // This is deliberately limited to constants: casting arbitrary
+        // inferred variables would make uncertain recovery look authoritative.
+        if let Some(p) = &proto {
+            for (k, a) in args.iter_mut().enumerate() {
+                let Some(ty) = p.params.get(k).map(|(t, _)| t.as_str()) else { continue };
+                if ty.ends_with('*') {
+                    if let Ex::Num(_) = a {
+                        let old = std::mem::replace(a, Ex::Num(0));
+                        *a = Ex::CastOwned(ty.to_string(), Box::new(old));
                     }
                 }
             }
