@@ -130,6 +130,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Chat with AI inside the app (Claude Code, Codex or any command), with conversation history.
 - Function map: scroll to zoom, drag to pan, zoom buttons.
 - Import names and notes from Lens JSON, IDA .idc or Ghidra .py scripts.
+- Lens JSON import restores exported import-slot and recovered-vtable names alongside functions, exports, comments, types, and prototypes.
 - Lists window also covers strings (with use counts) and sections.
 - Switch / jump-table recovery on x86 (position-independent and absolute tables): cases become real graph edges and a `switch` in pseudocode.
 - Function starts from Mach-O LC_FUNCTION_STARTS, ELF .eh_frame and PE .pdata, so stripped programs get far fewer missed functions.

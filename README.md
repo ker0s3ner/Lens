@@ -59,7 +59,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 
 - Drive LLDB from the debugger window: launch or attach to a local PID, step, continue, pause, inspect registers, stack, backtrace and 128-byte memory windows, set conditional or requested hardware breakpoints, evaluate watches, and use the command console. Restart a target after exit. Trace 100 or 1,000 instructions by single-stepping and recording each executed PC; traces are capped at 5,000 addresses.
 - Connect to a GDB remote server with `gdb-remote` for supported targets.
-- Import names and notes from Lens JSON, IDA `.idc` or Ghidra `.py` scripts. Export IDC, Ghidra Python, JSON annotations, assembly listing, Graphviz call graph and map files.
+- Import names and notes from Lens JSON, IDA `.idc` or Ghidra `.py` scripts; Lens JSON restores import-slot and recovered-vtable names as well as functions, exports, comments, types, and prototypes. Export IDC, Ghidra Python, JSON annotations, assembly listing, Graphviz call graph and map files.
 
 ## Keyboard shortcuts
 

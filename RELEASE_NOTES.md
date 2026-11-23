@@ -1,6 +1,9 @@
-# Lens 0.6.66 — Fourier
+# Lens 0.6.67 — Fourier
 
 ## What's new
+
+- Lens JSON import now restores exported import-slot and recovered-vtable names.
+- Richer database round-trips preserve more of the analysis names shown by Lists and JSON export.
 
 - AVX/FMA3 negated fused multiply-add/subtract families now remain visible as named pseudocode intrinsics.
 - `vfnmadd*` and `vfnmsub*` operand groups are preserved in decompiler output.
