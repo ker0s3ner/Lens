@@ -22,7 +22,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Control-flow analysis recognizes additional C++, Rust and Swift panic/trap entry points as non-returning.
 - Prototype parsing preserves named function-pointer parameters and emits valid callback signatures.
 - Known prototype return types now propagate through simple temporary-to-temporary assignments in pseudocode declarations.
-- Identify direct and imported-slot one-instruction forwarding thunks and show their destination in function lists.
+- Identify direct and imported-slot forwarding thunks, including common `nop`/`endbr`-decorated stubs, and show their destination in function lists.
 - Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; the analysis summary reports the discovered table count.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.

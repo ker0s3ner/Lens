@@ -1330,17 +1330,20 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     let function_starts: HashSet<u64> = functions.keys().copied().collect();
     let import_starts: HashSet<u64> = functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
     for f in functions.values_mut() {
-        if f.insn_count == 1 {
-            if let Some(&addr) = f.blocks.first().and_then(|b| b.insns.first()) {
-                if let Some(i) = insns.get(&addr) {
-                    if i.flow == Flow::Jump
-                        && i.target != f.start
-                        && (function_starts.contains(&i.target) || sym_at.contains_key(&i.target) || import_starts.contains(&i.target))
-                    { f.thunk_target = Some(i.target); }
-                    else if i.flow == Flow::IndirectJump && import_slot.contains_key(&i.mem)
-                    { f.thunk_target = Some(i.mem); }
-                }
-            }
+        let ordered: Vec<u64> = f.blocks.iter().flat_map(|b| b.insns.iter().copied()).collect();
+        let Some(&last_addr) = ordered.last() else { continue };
+        let Some(last) = insns.get(&last_addr) else { continue };
+        let padding = |addr: u64| {
+            let Some((decoded, _)) = decode_at(bin, addr) else { return false };
+            matches!(decoded.mnemonic(), Mnemonic::Nop | Mnemonic::Endbr32 | Mnemonic::Endbr64)
+        };
+        if ordered[..ordered.len().saturating_sub(1)].iter().all(|a| padding(*a)) {
+            if last.flow == Flow::Jump
+                && last.target != f.start
+                && (function_starts.contains(&last.target) || sym_at.contains_key(&last.target) || import_starts.contains(&last.target))
+            { f.thunk_target = Some(last.target); }
+            else if last.flow == Flow::IndirectJump && import_slot.contains_key(&last.mem)
+            { f.thunk_target = Some(last.mem); }
         }
     }
 
