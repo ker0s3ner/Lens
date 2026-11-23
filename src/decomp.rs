@@ -1872,6 +1872,14 @@ pub fn decompile(
             false
         } else { true }
     });
+    if bin.arch == crate::loader::Arch::Arm64 {
+        decl_regs.retain(|name| {
+            if name.starts_with('v') && name[1..].chars().all(|c| c.is_ascii_digit()) {
+                typed.push(("uint8x16_t".into(), name.clone()));
+                false
+            } else { true }
+        });
+    }
     typed.sort();
     for (ty, n) in &typed {
         lines.push(DLine { text: if ty.ends_with('*') { format!("{ty}{n};") } else { format!("{ty} {n};") }, addr: f.start, indent: 1 });
