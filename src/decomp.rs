@@ -1910,27 +1910,60 @@ fn decompile_inner(
         }
         decl_regs.push(disp);
     }
-    // results of calls to functions with a known prototype get the declared return type
+    // Results of calls to functions with a known prototype get the declared return type.
+    // Keep that information through copy/cast chains so a temporary introduced by the
+    // lifter does not erase useful pointer or scalar type information.
     let mut assigned: HashMap<String, (usize, Option<String>)> = HashMap::new();
     let mut known_types: HashMap<String, String> = HashMap::new();
+    let mut assignments = Vec::new();
     for o in &outs {
         for (_, st) in &o.stmts {
             if let Stmt::Assign(Ex::Var(t), rhs) = st {
-                let ty = match rhs {
-                    Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
-                    Ex::Var(v) => known_types.get(v).cloned(),
-                    _ => None,
-                };
-                let e = assigned.entry(t.clone()).or_insert((0, ty.clone()));
-                e.0 += 1;
-                if e.1 != ty { e.1 = None; }
-                if let Some(ty) = ty {
-                    known_types.insert(t.clone(), ty);
-                } else {
-                    known_types.remove(t);
-                }
+                assignments.push((t.clone(), rhs.clone()));
+                assigned.entry(t.clone()).or_insert((0, None)).0 += 1;
             }
         }
+    }
+    // A block can be emitted before the block containing the source assignment. A
+    // small fixed-point pass handles those ordering differences without pretending
+    // that arithmetic expressions have a reliable type.
+    for _ in 0..assignments.len().max(1) {
+        let mut changed = false;
+        for (t, rhs) in &assignments {
+            let ty = match rhs {
+                Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                Ex::CastOwned(ty, _) => Some(ty.clone()),
+                Ex::Var(v) => known_types.get(v).cloned(),
+                _ => None,
+            };
+            let old = known_types.get(t).cloned();
+            if let Some(ty) = ty { known_types.insert(t.clone(), ty); }
+            else { known_types.remove(t); }
+            if old != known_types.get(t).cloned() { changed = true; }
+        }
+        if !changed { break; }
+    }
+    let mut type_candidates: HashMap<String, String> = HashMap::new();
+    let mut type_conflicts = HashSet::new();
+    for (t, rhs) in &assignments {
+        let ty = match rhs {
+            Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+            Ex::CastOwned(ty, _) => Some(ty.clone()),
+            Ex::Var(v) => known_types.get(v).cloned(),
+            _ => None,
+        };
+        if let Some(ty) = ty {
+            if let Some(old) = type_candidates.get(t) {
+                if old != &ty { type_conflicts.insert(t.clone()); }
+            } else {
+                type_candidates.insert(t.clone(), ty);
+            }
+        } else {
+            type_conflicts.insert(t.clone());
+        }
+    }
+    for (t, e) in &mut assigned {
+        if !type_conflicts.contains(t) { e.1 = type_candidates.get(t).cloned(); }
     }
     let mut typed: Vec<(String, String)> = vec![];
     decl_regs.retain(|d| {

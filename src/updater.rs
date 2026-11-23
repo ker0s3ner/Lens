@@ -31,6 +31,8 @@ pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Mach-O LC_DATA_IN_CODE ranges are excluded from executable discovery.",
     "Analysis notes record recognized embedded-data ranges in Mach-O files.",
+    "Decompiler types survive unambiguous call-result copy chains and explicit casts.",
+    "Conflicting or unknown repeated assignments remain conservatively untyped.",
 ];
 
 pub fn current_release_title() -> String {
