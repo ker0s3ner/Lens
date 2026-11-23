@@ -29,10 +29,9 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "Rhai scripts can retrieve typed C-like pseudocode with decompile(addr).",
-    "Incoming and outgoing xrefs are available to scripts with relationship kinds preserved.",
-    "The Rhai API exposes script_api_version() and includes a versioned example plugin.",
-    "C declarations using __attribute__((packed)) now compute byte-aligned field layouts.",
+    "ARM64 bitfield, extract, rotate, and conditional-integer idioms now render as readable pseudocode.",
+    "Recovered switch-case destinations now appear as call-graph edges.",
+    "Scripts can inspect comments, bookmarks, and persisted data definitions.",
 ];
 
 pub fn current_release_title() -> String {
