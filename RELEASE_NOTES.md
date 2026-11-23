@@ -1,4 +1,4 @@
-# Lens 0.6.11 — Fourier
+# Lens 0.6.12 — Fourier
 
 ## What's new
 
@@ -10,6 +10,7 @@
 - The macOS release job now uses an explicit Apple Silicon runner and verbose bundle-build diagnostics.
 - Decompiler type propagation now recognizes both internal and owned cast expressions.
 - Dereferences of known pointer-returning calls and explicit pointer casts now render their pointee types.
+- Copied pointer temporaries retain inferred pointee types in subsequent memory reads.
 
 ## Release cadence
 

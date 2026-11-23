@@ -105,6 +105,7 @@ fn int_type(size: u8) -> &'static str {
 
 struct Fmt<'a> {
     rename: &'a HashMap<String, String>,
+    types: &'a HashMap<String, String>,
 }
 
 impl Fmt<'_> {
@@ -122,7 +123,7 @@ impl Fmt<'_> {
         self.at(e, 99)
     }
 
-    fn pointee_type(e: &Ex, size: u8) -> String {
+    fn pointee_type(&self, e: &Ex, size: u8) -> String {
         let ty = match e {
             Ex::Cast(t, _) => Some((*t).to_string()),
             Ex::CastOwned(t, _) => Some(t.clone()),
@@ -132,6 +133,10 @@ impl Fmt<'_> {
             },
             _ => None,
         };
+        let ty = ty.or_else(|| match e {
+            Ex::Var(v) => self.types.get(v).cloned(),
+            _ => None,
+        });
         ty.and_then(|t| t.trim().strip_suffix('*').map(str::trim).filter(|t| !t.is_empty()).map(str::to_string))
             .unwrap_or_else(|| int_type(size).to_string())
     }
@@ -149,7 +154,7 @@ impl Fmt<'_> {
                     Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.at(inner, 3),
                     _ => self.at(a, 3),
                 };
-                format!("*({}*){}", Self::pointee_type(a, *sz), address)
+                format!("*({}*){}", self.pointee_type(a, *sz), address)
             }
             Ex::Call(f, args) => {
                 let callee = match &**f {
@@ -1821,12 +1826,13 @@ fn decompile_inner(
 
     // emit (twice: the first run finds which blocks are jump targets, the second prints their labels)
     let rename_ref = rename.clone();
+    let render_types = infer_render_types(&outs);
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
         mat,
         idx: idx.clone(),
-        fmt: Fmt { rename: &rename_ref },
+        fmt: Fmt { rename: &rename_ref, types: &render_types },
         lines: vec![],
         labels,
         suppress: HashSet::new(),
@@ -2083,6 +2089,41 @@ pub fn render_text(d: &Decompiled) -> String {
     s
 }
 
+fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
+    let mut types = HashMap::new();
+    let mut assignments = Vec::new();
+    for out in outs {
+        for (_, stmt) in &out.stmts {
+            if let Stmt::Assign(Ex::Var(name), rhs) = stmt {
+                assignments.push((name.clone(), rhs.clone()));
+            }
+        }
+    }
+    for _ in 0..assignments.len().max(1) {
+        let mut changed = false;
+        for (name, rhs) in &assignments {
+            let ty = match rhs {
+                Ex::Call(c, _) => match &**c {
+                    Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"),
+                    _ => None,
+                },
+                Ex::Cast(t, _) => Some((*t).to_string()),
+                Ex::CastOwned(t, _) => Some(t.clone()),
+                Ex::Var(source) => types.get(source).cloned(),
+                _ => None,
+            };
+            if let Some(ty) = ty {
+                if types.get(name) != Some(&ty) {
+                    types.insert(name.clone(), ty);
+                    changed = true;
+                }
+            }
+        }
+        if !changed { break; }
+    }
+    types
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2092,11 +2133,16 @@ mod tests {
 
     #[test]
     fn dereference_formatter_preserves_pointer_pointees() {
-        let fmt = Fmt { rename: &HashMap::new() };
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty };
         let call = Ex::Deref(Box::new(Ex::Call(Box::new(var("strdup")), vec![])), 1);
         assert_eq!(fmt.show(&call), "*(char*)strdup()");
         let cast = Ex::Deref(Box::new(Ex::CastOwned("uint32_t *".into(), Box::new(var("p")))), 4);
         assert_eq!(fmt.show(&cast), "*(uint32_t*)p");
+        let types = HashMap::from([(String::from("p"), String::from("char *"))]);
+        let copied = Fmt { rename: &empty, types: &types };
+        let read = Ex::Deref(Box::new(var("p")), 1);
+        assert_eq!(copied.show(&read), "*(char*)p");
     }
 
     #[test]
