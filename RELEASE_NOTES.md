@@ -1,6 +1,9 @@
-# Lens 0.6.52 — Fourier
+# Lens 0.6.53 — Fourier
 
 ## What's new
+
+- AArch64 `abs`, `sabd`, and `uabd` now preserve absolute and signed/unsigned absolute-difference semantics.
+- AArch64 DSP-style difference operations remain readable in pseudocode.
 
 - AArch64 signed and unsigned min/max operations now decompile as readable conditional selections.
 - AArch64 bounds and comparison idioms preserve signedness in pseudocode.

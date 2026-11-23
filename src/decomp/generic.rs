@@ -1210,6 +1210,16 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let choose_a = if matches!(base_mn, "smin" | "umin") { if unsigned { "<u" } else { "<" } } else if unsigned { ">u" } else { ">" };
             set(dc, st, 0, Ex::Tern(Box::new(bin(choose_a, a.clone(), b.clone())), Box::new(a), Box::new(b)));
         }
+        (Fam::A64, "sabd" | "uabd") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let helper = if base_mn == "uabd" { "uabs_diff" } else { "abs_diff" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
+        }
+        (Fam::A64, "abs") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("abs")), vec![value]));
+        }
         (Fam::A64, "aese" | "aesd" | "aesmc" | "aesimc" | "pmull" | "pmull2") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             let key = ops.get(2).map(|_| dc.g_val(st, o(2), None));
