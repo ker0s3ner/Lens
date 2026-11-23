@@ -1061,6 +1061,15 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             st.env.insert(MIPS_LO, Ex::Call(Box::new(var("__wide_low")), vec![wide.clone()]));
             st.env.insert(MIPS_HI, Ex::Call(Box::new(var("__wide_high")), vec![wide]));
         }
+        (Fam::Mips, "div" | "divu" | "ddiv" | "ddivu") if ops.len() >= 2 => {
+            let a = dc.g_val(st, o(0), None);
+            let b = dc.g_val(st, o(1), None);
+            let signed = !base_mn.ends_with('u');
+            let q = Ex::Call(Box::new(var(if signed { "__mips_div" } else { "__mips_divu" })), vec![a.clone(), b.clone()]);
+            let r = Ex::Call(Box::new(var(if signed { "__mips_rem" } else { "__mips_remu" })), vec![a, b]);
+            st.env.insert(MIPS_LO, q);
+            st.env.insert(MIPS_HI, r);
+        }
         (Fam::Mips, "mflo" | "mfhi") if !ops.is_empty() => {
             let v = st.env.get(if base_mn == "mflo" { &MIPS_LO } else { &MIPS_HI }).cloned()
                 .unwrap_or_else(|| Ex::Call(Box::new(var(if base_mn == "mflo" { "__mips_lo" } else { "__mips_hi" })), vec![]));

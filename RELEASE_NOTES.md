@@ -1,6 +1,9 @@
-# Lens 0.6.27 — Fourier
+# Lens 0.6.28 — Fourier
 
 ## What's new
+
+- MIPS signed and unsigned division now preserve quotient in LO and remainder in HI for `mflo`/`mfhi` consumers.
+- MIPS division and multiply share explicit HI/LO data flow in pseudocode.
 
 - MIPS `mult`, `multu`, `dmult`, and `dmultu` now preserve implicit HI/LO results through `mfhi` and `mflo`.
 - MIPS wide multiply pseudocode no longer drops the architecture's hidden result pair.
