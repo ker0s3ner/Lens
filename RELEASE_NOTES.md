@@ -1,6 +1,9 @@
-# Lens 0.6.53 — Fourier
+# Lens 0.6.54 — Fourier
 
 ## What's new
+
+- RISC-V `clmul`, `clmulh`, and `clmulr` now preserve carry-less multiplication semantics.
+- RISC-V cryptographic bitmanip operations remain named and readable in pseudocode.
 
 - AArch64 `abs`, `sabd`, and `uabd` now preserve absolute and signed/unsigned absolute-difference semantics.
 - AArch64 DSP-style difference operations remain readable in pseudocode.

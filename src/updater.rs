@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V clmul, clmulh, and clmulr now preserve carry-less multiplication semantics.",
+    "RISC-V cryptographic bitmanip operations remain named and readable in pseudocode.",
     "AArch64 abs, sabd, and uabd now preserve absolute and signed/unsigned absolute-difference semantics.",
     "AArch64 DSP-style difference operations remain readable in pseudocode.",
     "AArch64 signed and unsigned min/max operations now decompile as readable conditional selections.",
