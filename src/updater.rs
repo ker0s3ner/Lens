@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC cntlzw and cntlzd now decompile as named count-leading-zero operations.",
+    "PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.",
     "RISC-V andn, orn, and xnor now decompile as explicit complement-and-combine expressions.",
     "RISC-V bit-manipulation extension semantics remain visible in pseudocode.",
     "RISC-V clz, ctz, and cpop now decompile as named bit-count operations, including word forms.",

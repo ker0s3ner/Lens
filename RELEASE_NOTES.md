@@ -1,6 +1,9 @@
-# Lens 0.6.39 — Fourier
+# Lens 0.6.40 — Fourier
 
 ## What's new
+
+- PowerPC `cntlzw` and `cntlzd` now decompile as named count-leading-zero operations.
+- PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.
 
 - RISC-V `andn`, `orn`, and `xnor` now decompile as explicit complement-and-combine expressions.
 - RISC-V bit-manipulation extension semantics remain visible in pseudocode.

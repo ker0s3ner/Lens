@@ -1058,6 +1058,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let cond = Ex::Raw(ops[3].clone());
             set(dc, st, 0, Ex::Call(Box::new(var("__ppc_isel")), vec![yes, no, cond]));
         }
+        (Fam::Ppc, "cntlzw" | "cntlzd") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("clz")), vec![value]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);
