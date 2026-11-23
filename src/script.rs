@@ -635,13 +635,13 @@ mod tests {
         });
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
-            bin: Arc::new(bin), funcs: vec![], names: HashMap::new(), strings: vec![],
-            comments: HashMap::new(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
+            bin: Arc::new(bin), funcs: vec![], names: [(0x1000, "needle_name".into())].into_iter().collect(), strings: vec![(0x2000, "needle string".into())],
+            comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
-        let out = run("print(script_api_version()); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
-        assert!(out.text.contains("1\n\n0\n0\n0\n0"), "unexpected output: {}", out.text);
+        assert!(out.text.contains("1\n\n0\n0\n0\n4\n0\n0"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
         let _ = an;
     }
