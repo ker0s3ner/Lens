@@ -46,6 +46,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - `xrefs_from_details(addr)` exposes outgoing xrefs as `{to, kind}` records with the same relationship labels.
 - `decompile(addr)` returns the typed C-like pseudocode for a recovered function, using the same decompiler path as the UI.
 - `script_api_version()` returns the current compatible Rhai API version (`1`); plugins can check it before using newer functions or record fields.
+- `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
 - Compare two program versions by function shape and name.
 - Import exported Lens JSON databases with annotations, data definitions and applied-type references restored.
 - Exported/imported JSON databases also preserve user-authored prototypes used by the decompiler.

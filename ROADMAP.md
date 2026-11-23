@@ -154,6 +154,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Recovered switch-case xrefs now feed the call graph as outgoing control-flow edges, keeping graph navigation aligned with the listing.
 - Rhai scripts can retrieve typed C-like pseudocode with `decompile(addr)` for automated audits and reports.
 - The Rhai API exposes a compatibility version through `script_api_version()`, allowing plugins to guard newer capabilities.
+- Rhai scripts can read saved analyst notes with `comment_at(addr)` and bookmark addresses with `bookmarks()`.
 - Common packed C declarations using `__attribute__((packed))` now use byte alignment when computing applied field offsets.
 - Anonymous C typedef forms such as `typedef struct { ... } Name;` and `typedef enum { ... } Name;` now preserve the alias name and layout.
 - Thunk classification now tolerates straight-line `nop`/`endbr32`/`endbr64` prefixes before a known direct or imported-slot jump.

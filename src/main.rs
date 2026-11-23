@@ -126,6 +126,8 @@ fn cli(args: &[String]) -> bool {
             bin: std::sync::Arc::new(bin.clone()),
             funcs: an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| (f.start, names.get(&f.start).map(|n| n.0.clone()).unwrap_or_default(), f.end - f.start, f.blocks.len())).collect(),
             names: names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
+            comments: ann.comments.clone(),
+            bookmarks: ann.marks.clone(),
             strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
             xref_details: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| (x.from, x.kind.label().to_string())).collect())).collect(),
