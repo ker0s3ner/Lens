@@ -313,6 +313,27 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
 /// unsigned byte/halfword scaled by two and based from the instruction's PC.
 fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
+    let raw_ops = raw.ops.to_ascii_lowercase();
+    if raw.mnemonic == "add" && raw_ops.starts_with("pc, pc,") && raw_ops.contains("lsl #2") {
+        let mut bound = None;
+        for (&addr, _) in insns.range(..at).rev().take(20) {
+            let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+            if prev.mnemonic == "cmp" {
+                let n = prev.ops.rsplit(',').next().and_then(|s| s.trim().trim_start_matches('#').parse::<u64>().ok());
+                bound = n.map(|v| v.saturating_add(1));
+                break;
+            }
+        }
+        let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
+        let base = (at + 4) & !3;
+        let mut out = Vec::new();
+        for k in 0..count {
+            let target = base.saturating_add((k * 4) as u64);
+            if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
+            out.push(target);
+        }
+        return if out.iter().collect::<HashSet<_>>().len() >= 2 { out } else { vec![] };
+    }
     let width = match raw.mnemonic.as_str() { "tbb" => 1usize, "tbh" => 2, _ => return vec![] };
     let table_base = if raw.ops.to_ascii_lowercase().contains("pc") { (at + 4) & !3 } else { return vec![] };
     let parse = |s: &str| -> Option<u64> {
@@ -346,10 +367,29 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
 /// `cmp rN, #bound; ...; ldr pc, [pc, rN, lsl #2]`.
 fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
+    let ops = raw.ops.to_ascii_lowercase();
+    if raw.mnemonic == "add" && ops.starts_with("pc, pc,") && ops.contains("lsl #2") {
+        let mut bound = None;
+        for (&addr, _) in insns.range(..at).rev().take(24) {
+            let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+            if prev.mnemonic == "cmp" {
+                let n = prev.ops.rsplit(',').next().unwrap_or("").trim().trim_start_matches('#');
+                bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).map(|v| v + 1);
+                break;
+            }
+        }
+        let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
+        let mut out = Vec::new();
+        for k in 0..count {
+            let target = at.saturating_add(8).saturating_add((k * 4) as u64);
+            if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
+            out.push(target);
+        }
+        return if out.iter().collect::<HashSet<_>>().len() >= 2 { out } else { vec![] };
+    }
     if !raw.mnemonic.starts_with("ldr") || !raw.ops.to_ascii_lowercase().starts_with("pc,") {
         return vec![];
     }
-    let ops = raw.ops.to_ascii_lowercase();
     if !ops.contains("[pc,") || !ops.contains("lsl #2") { return vec![]; }
     let mut bound = None;
     for (&addr, _) in insns.range(..at).rev().take(24) {
