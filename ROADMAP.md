@@ -1,6 +1,6 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Status checked against the repository on 2026-11-23. A weighted capability estimate puts Lens at about **30% of IDA Pro's breadth** (plausible range: **26–34%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-23. A weighted capability estimate puts Lens at about **31% of IDA Pro's breadth** (plausible range: **27–35%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
@@ -9,9 +9,9 @@ Status checked against the repository on 2026-11-23. A weighted capability estim
 | Decompiler and type recovery | 20% | 20% | 4.0% |
 | Type system and debug information | 10% | 23% | 2.3% |
 | Debugging and tracing | 10% | 35% | 3.5% |
-| Workflow, scripting and interchange | 10% | 40% | 4.0% |
+| Workflow, scripting and interchange | 10% | 45% | 4.5% |
 | Reliability, performance and scale | 10% | 20% | 2.0% |
-| **Total** | **100%** |  | **30.4%** |
+| **Total** | **100%** |  | **30.9%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging and export, so a 10–15% estimate understated its implemented breadth. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
