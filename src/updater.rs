@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "x86/x64 BMI1 blsi, blsr, and blsmsk now preserve named low-bit isolation and mask semantics.",
+    "Common x86/x64 bit-manipulation idioms remain readable in pseudocode.",
     "MIPS rotr and rotrv now preserve rotate-right semantics and operands.",
     "MIPS rotate idioms remain readable in pseudocode.",
     "RISC-V clmul, clmulh, and clmulr now preserve carry-less multiplication semantics.",

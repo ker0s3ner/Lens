@@ -1,6 +1,9 @@
-# Lens 0.6.55 — Fourier
+# Lens 0.6.56 — Fourier
 
 ## What's new
+
+- x86/x64 BMI1 `blsi`, `blsr`, and `blsmsk` now preserve named low-bit isolation and mask semantics.
+- Common x86/x64 bit-manipulation idioms remain readable in pseudocode.
 
 - MIPS `rotr` and `rotrv` now preserve rotate-right semantics and operands.
 - MIPS rotate idioms remain readable in pseudocode.
