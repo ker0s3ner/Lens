@@ -1178,6 +1178,15 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let a = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Bin("!=", Box::new(a), Box::new(Ex::Num(0))));
         }
+        (Fam::Rv, "clz" | "clzw" | "ctz" | "ctzw" | "cpop" | "cpopw") if ops.len() >= 2 => {
+            let a = dc.g_val(st, o(1), None);
+            let helper = match base_mn {
+                "ctz" | "ctzw" => "ctz",
+                "cpop" | "cpopw" => "popcount",
+                _ => "clz",
+            };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a]));
+        }
         (Fam::Rv, "min" | "max" | "minu" | "maxu") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);

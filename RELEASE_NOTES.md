@@ -1,6 +1,9 @@
-# Lens 0.6.37 — Fourier
+# Lens 0.6.38 — Fourier
 
 ## What's new
+
+- RISC-V `clz`, `ctz`, and `cpop` now decompile as named bit-count operations, including word forms.
+- RISC-V bit-manipulation idioms remain readable instead of falling through to opaque instructions.
 
 - RISC-V `min`, `max`, `minu`, and `maxu` now decompile as signed or unsigned conditional selections.
 - Common RISC-V bounds and comparison idioms remain readable in pseudocode.

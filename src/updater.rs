@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V clz, ctz, and cpop now decompile as named bit-count operations, including word forms.",
+    "RISC-V bit-manipulation idioms remain readable instead of falling through to opaque instructions.",
     "RISC-V min, max, minu, and maxu now decompile as signed or unsigned conditional selections.",
     "Common RISC-V bounds and comparison idioms remain readable in pseudocode.",
     "ARM/Thumb usat and ssat now preserve saturating arithmetic semantics with explicit value and limit operands.",
