@@ -1076,6 +1076,19 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("byteswap16")), vec![value]));
         }
+        (Fam::Mips, "ext") if ops.len() >= 4 => {
+            let value = dc.g_val(st, o(1), None);
+            let pos = dc.g_val(st, o(2), None);
+            let width = dc.g_val(st, o(3), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("bit_extract")), vec![value, pos, width]));
+        }
+        (Fam::Mips, "ins") if ops.len() >= 4 => {
+            let dst = dc.g_val(st, o(0), None);
+            let value = dc.g_val(st, o(1), None);
+            let pos = dc.g_val(st, o(2), None);
+            let width = dc.g_val(st, o(3), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("bit_insert")), vec![dst, value, pos, width]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);

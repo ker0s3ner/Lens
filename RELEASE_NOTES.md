@@ -1,6 +1,9 @@
-# Lens 0.6.48 — Fourier
+# Lens 0.6.49 — Fourier
 
 ## What's new
+
+- MIPS `ext` and `ins` now preserve explicit bitfield extraction and insertion operands.
+- MIPS bitfield operations remain readable in pseudocode instead of opaque intrinsics.
 
 - MIPS `seb`, `seh`, and `wsbh` now preserve sign-extension and byte-shuffle semantics.
 - Common MIPS endian and narrow-integer idioms remain readable in pseudocode.

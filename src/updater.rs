@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS ext and ins now preserve explicit bitfield extraction and insertion operands.",
+    "MIPS bitfield operations remain readable in pseudocode instead of opaque intrinsics.",
     "MIPS seb, seh, and wsbh now preserve sign-extension and byte-shuffle semantics.",
     "Common MIPS endian and narrow-integer idioms remain readable in pseudocode.",
     "MIPS clz and clo now decompile as named count-leading-zero and count-leading-one operations.",
