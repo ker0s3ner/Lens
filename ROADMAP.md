@@ -170,6 +170,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Anonymous C typedef forms such as `typedef struct { ... } Name;` and `typedef enum { ... } Name;` now preserve the alias name and layout.
 - Thunk classification now tolerates straight-line `nop`/`endbr32`/`endbr64` prefixes before a known direct or imported-slot jump.
 - Release notes now have a shared source: the current codename and What's New list are shown in-app, attached to GitHub releases, and archived on the GitHub Pages version-history page.
+- Release builds now allow up to 30 minutes for the Apple Silicon cross-target build, avoiding premature cancellation on cold runners.
 - SIMD declaration width is inferred from the actual XMM/YMM/ZMM operand, avoiding blanket `__m256` labels for 128-bit VEX instructions.
 - Rename variables in pseudocode (double-click), remembered per function and undoable.
 - First unit tests (regression suite is still to be built out).
