@@ -27,13 +27,14 @@ pub fn apply(bin: &mut Binary, patches: &[Patch]) {
 
 pub fn nop_bytes(arch: Arch, big: bool, len: usize) -> Option<Vec<u8>> {
     let unit: Vec<u8> = match arch {
-        Arch::X86 | Arch::X64 => return Some(vec![0x90; len]),
+        Arch::X16 | Arch::X86 | Arch::X64 => return Some(vec![0x90; len]),
         Arch::Arm64 => vec![0x1F, 0x20, 0x03, 0xD5],
         Arch::Arm32 => if big { vec![0xE3, 0x20, 0xF0, 0x00] } else { vec![0x00, 0xF0, 0x20, 0xE3] },
         Arch::Thumb => if big { vec![0xBF, 0x00] } else { vec![0x00, 0xBF] },
         Arch::RiscV32 | Arch::RiscV64 => if len % 4 == 0 { vec![0x13, 0x00, 0x00, 0x00] } else { vec![0x01, 0x00] },
         Arch::Mips32 | Arch::Mips64 => vec![0, 0, 0, 0],
         Arch::Ppc32 | Arch::Ppc64 => if big { vec![0x60, 0, 0, 0] } else { vec![0, 0, 0, 0x60] },
+        Arch::M68k => vec![0x4E, 0x71],
         Arch::Other => return None,
     };
     if len % unit.len() != 0 {
@@ -53,7 +54,7 @@ fn put32(v: u32, big: bool) -> Vec<u8> {
 /// The same instruction with its condition reversed (je <-> jne, cbz <-> cbnz, beq <-> bne …).
 pub fn invert_branch(arch: Arch, big: bool, b: &[u8]) -> Option<Vec<u8>> {
     match arch {
-        Arch::X86 | Arch::X64 => {
+        Arch::X16 | Arch::X86 | Arch::X64 => {
             let mut v = b.to_vec();
             if (0x70..=0x7F).contains(b.first()?) {
                 v[0] ^= 1;
@@ -98,7 +99,7 @@ pub fn invert_branch(arch: Arch, big: bool, b: &[u8]) -> Option<Vec<u8>> {
 /// Turn a conditional branch into an unconditional one. `ip` is the branch's address.
 pub fn force_jump(arch: Arch, big: bool, b: &[u8]) -> Option<Vec<u8>> {
     match arch {
-        Arch::X86 | Arch::X64 => {
+        Arch::X16 | Arch::X86 | Arch::X64 => {
             if (0x70..=0x7F).contains(b.first()?) {
                 let mut v = b.to_vec();
                 v[0] = 0xEB;

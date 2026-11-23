@@ -9,6 +9,11 @@ pub struct Field {
     pub name: String,
     pub ty: String,
     pub size: u32,
+    /// Bit position within the storage unit for a C bitfield (LSB-first layout).
+    #[serde(default)]
+    pub bit_offset: Option<u8>,
+    #[serde(default)]
+    pub bit_width: Option<u8>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -33,6 +38,18 @@ pub struct StructDef {
 pub struct EnumValue {
     pub name: String,
     pub value: i64,
+}
+
+pub fn is_pointer_type(ty: &str, structs: &[StructDef]) -> bool {
+    let mut current = ty.trim();
+    for _ in 0..=structs.len() {
+        if current.ends_with('*') { return true; }
+        let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+        let Some(def) = structs.iter().find(|d| d.name == name) else { return false };
+        let Some(alias) = &def.alias_of else { return false };
+        current = alias.trim();
+    }
+    false
 }
 
 fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
@@ -89,6 +106,13 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
     let Some(open) = clean.find('{') else {
         let decl = clean.trim().trim_end_matches(';').trim();
         let decl = decl.strip_prefix("typedef").ok_or("Expected a struct, union, enum or typedef declaration")?.trim();
+        if let Some((_, tail)) = decl.split_once("(*") {
+            if let Some((alias, signature)) = tail.split_once(')') {
+                if signature.trim_start().starts_with('(') && valid_ident(alias.trim()) {
+                    return Ok(StructDef { name: alias.trim().to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some("void *".into()) });
+                }
+            }
+        }
         let words: Vec<&str> = decl.split_whitespace().collect();
         if words.len() < 2 { return Err("A typedef needs a type and an alias name".into()); }
         let alias_name = words.last().unwrap().trim_matches('*');
@@ -131,10 +155,21 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
     let mut fields = vec![];
     let mut off = 0u32;
     let mut max_align = 1u32;
+    let mut bit_unit: Option<(u32, u32, u32, String)> = None; // address, bytes, used bits, type
     for decl in clean[open + 1..close].split(';') {
         let d = decl.trim();
         if d.is_empty() {
             continue;
+        }
+        let (d, bit_width) = match d.rsplit_once(':') {
+            Some((left, right)) => {
+                let width = right.trim().parse::<u8>().ok().filter(|n| *n > 0).ok_or(format!("Unsupported bitfield width in `{decl}`"))?;
+                (left.trim(), Some(width))
+            }
+            None => (d, None),
+        };
+        if bit_width.is_some() && d.contains(['[', ']']) {
+            return Err(format!("Bitfield arrays are unsupported in `{decl}`"));
         }
         let (d, count) = match (d.find('['), d.rfind(']')) {
             (Some(a), Some(b)) if b > a => (format!("{}{}", &d[..a], &d[b + 1..]), d[a + 1..b].trim().parse::<u32>().ok().or_else(|| u32::from_str_radix(d[a + 1..b].trim().trim_start_matches("0x"), 16).ok()).ok_or(format!("Unsupported array size in `{decl}`"))?),
@@ -151,6 +186,31 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             ty.push('*');
         }
         let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
+        if let Some(width) = bit_width {
+            if stars != 0 || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) || width as u32 > sz * 8 {
+                return Err(format!("Bitfield `{}` must fit an integer storage type of at most 64 bits", fname));
+            }
+            let share = bit_unit.as_ref().filter(|(_, unit_size, used, unit_ty)| *unit_size == sz && *unit_ty == ty && *used + width as u32 <= sz * 8).cloned();
+            let (unit_addr, bit_off, used) = if is_union {
+                (0, 0, 0)
+            } else if let Some((unit_addr, _, used, _)) = share {
+                (unit_addr, used, used)
+            } else {
+                bit_unit = None;
+                off = off.div_ceil(al) * al;
+                let addr = off;
+                off = off.checked_add(sz).ok_or("Struct size overflows")?;
+                max_align = max_align.max(al.min(8));
+                (addr, 0, 0)
+            };
+            fields.push(Field { off: unit_addr, name: fname, ty, size: sz, bit_offset: Some(bit_off as u8), bit_width: Some(width) });
+            if !is_union {
+                let next_used = used + width as u32;
+                bit_unit = if next_used < sz * 8 { Some((unit_addr, sz, next_used, fields.last().unwrap().ty.clone())) } else { None };
+            }
+            continue;
+        }
+        bit_unit = None;
         if !is_union {
             off = off.div_ceil(al) * al;
         }
@@ -159,7 +219,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         let total = sz.checked_mul(count).ok_or(format!("Field size overflows in `{decl}`"))?;
         if fields.iter().any(|field: &Field| field.name == fname) { return Err(format!("Duplicate field name `{fname}`")); }
         let shown_ty = if count > 1 { format!("{ty}[{count}]") } else { ty };
-        fields.push(Field { off: if is_union { 0 } else { off }, name: fname, ty: shown_ty, size: total });
+        fields.push(Field { off: if is_union { 0 } else { off }, name: fname, ty: shown_ty, size: total, bit_offset: None, bit_width: None });
         if is_union {
             off = off.max(total);
         } else {
@@ -176,6 +236,14 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
 fn valid_ident(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric())
         && !name.chars().next().is_some_and(|c| c.is_ascii_digit())
+}
+
+fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
+    let t = ty.trim().trim_start_matches("const ").trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
+    matches!(t, "char" | "short" | "int" | "long" | "long long" | "_Bool" | "bool"
+        | "int8_t" | "uint8_t" | "int16_t" | "uint16_t" | "int32_t" | "uint32_t" | "int64_t" | "uint64_t"
+        | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "BYTE" | "WORD" | "DWORD" | "QWORD")
+        || known.iter().any(|d| d.is_enum && d.name == t)
 }
 
 fn parse_enum_int(s: &str) -> Option<i64> {
@@ -195,26 +263,56 @@ pub fn field_names(structs: &[StructDef], applied: &[(u64, String)]) -> Vec<(u64
     for (addr, sname) in applied {
         if let Some(s) = structs.iter().find(|s| &s.name == sname) {
             if s.is_enum { continue; }
-            append_field_names(structs, *addr, s, &s.name, 0, &mut vec![], &mut out);
+            out.extend(flatten_fields(structs, s).into_iter().map(|f| (addr.saturating_add(f.off as u64), format!("{}.{}", s.name, f.name))));
         }
     }
     out
 }
 
-fn append_field_names(
-    structs: &[StructDef], base: u64, def: &StructDef, prefix: &str, depth: usize,
-    stack: &mut Vec<String>, out: &mut Vec<(u64, String)>,
+/// Flattens an applied record into displayable fields while preserving offsets from its base.
+/// Embedded records and fixed arrays are expanded; scalar pointers and cyclic layouts stay opaque.
+pub fn flatten_fields(structs: &[StructDef], def: &StructDef) -> Vec<Field> {
+    let mut out = vec![];
+    append_fields(structs, def, 0, "", 0, &mut vec![], &mut out);
+    out
+}
+
+fn append_fields(
+    structs: &[StructDef], def: &StructDef, base: u32, prefix: &str, depth: usize,
+    stack: &mut Vec<String>, out: &mut Vec<Field>,
 ) {
     if depth >= 8 || stack.contains(&def.name) { return; }
     stack.push(def.name.clone());
     for field in &def.fields {
-        let Some(address) = base.checked_add(field.off as u64) else { continue };
-        let path = format!("{prefix}.{}", field.name);
-        out.push((address, path.clone()));
-        if field.ty.contains('*') { continue; }
+        let Some(offset) = base.checked_add(field.off) else { continue };
+        let path = if prefix.is_empty() { field.name.clone() } else { format!("{prefix}.{}", field.name) };
+        let mut flat = field.clone();
+        flat.off = offset;
+        flat.name = path.clone();
+        out.push(flat);
         let (type_name, count, is_array) = if let Some((ty, n)) = field.ty.split_once('[') {
             (ty.trim(), n.trim_end_matches(']').parse::<usize>().unwrap_or(0).min(256), true)
         } else { (field.ty.trim(), 1, false) };
+        let enum_type = type_name.trim_start_matches("enum ").trim();
+        let primitive = scalar(type_name, 8).is_some() || is_pointer_type(type_name, structs)
+            || structs.iter().any(|d| d.is_enum && d.name == enum_type);
+        let primitive_array = is_array && count > 1 && type_name != "char" && primitive;
+        if primitive_array {
+            out.pop(); // replace the opaque aggregate row with navigable elements
+            let Some((element_size, _)) = size_align(type_name, 8, structs) else { continue };
+            for index in 0..count {
+                let Some(delta) = element_size.checked_mul(index as u32) else { continue };
+                let Some(element) = offset.checked_add(delta) else { continue };
+                let mut item = field.clone();
+                item.off = element;
+                item.name = format!("{path}[{index}]");
+                item.ty = type_name.to_string();
+                item.size = element_size;
+                out.push(item);
+            }
+            continue;
+        }
+        if type_name.contains('*') { continue; }
         let type_name = type_name.trim_start_matches("const ").trim_start_matches("struct ").trim_start_matches("union ").trim();
         let Some(mut nested) = structs.iter().find(|s| s.name == type_name) else { continue };
         if nested.is_enum { continue; }
@@ -225,11 +323,12 @@ fn append_field_names(
             nested = target;
         }
         if nested.alias_of.is_some() { continue; }
-        let stride = if is_array { nested.size as u64 } else { 0 };
+        let stride = if is_array { nested.size } else { 0 };
         for index in 0..count {
-            let Some(element) = address.checked_add(stride.saturating_mul(index as u64)) else { continue };
+            let Some(element_delta) = stride.checked_mul(index as u32) else { continue };
+            let Some(element) = offset.checked_add(element_delta) else { continue };
             let element_path = if is_array { format!("{path}[{index}]") } else { path.clone() };
-            append_field_names(structs, element, nested, &element_path, depth + 1, stack, out);
+            append_fields(structs, nested, element, &element_path, depth + 1, stack, out);
         }
     }
     stack.pop();
@@ -271,6 +370,13 @@ pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
             return format!("\"{}\"", crate::code::escape_str(&String::from_utf8_lossy(&bytes[..end]), 60));
         }
         return crate::code::hex_bytes(&bytes[..bytes.len().min(16)]);
+    }
+    if let (Some(bit_offset), Some(bit_width)) = (f.bit_offset, f.bit_width) {
+        let raw = int(bytes);
+        let shift = if be { f.size.saturating_mul(8).saturating_sub(bit_offset as u32 + bit_width as u32) } else { bit_offset as u32 };
+        let mask = if bit_width == 64 { u64::MAX } else { (1u64 << bit_width) - 1 };
+        let extracted = (raw >> shift) & mask;
+        return format!("{extracted} (bits {bit_offset}..{})", bit_offset as u32 + bit_width as u32 - 1);
     }
     match f.size {
         1 | 2 | 4 | 8 => {

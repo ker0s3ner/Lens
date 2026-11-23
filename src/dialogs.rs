@@ -202,7 +202,8 @@ impl LensApp {
                                     XrefKind::Jump => ("jump", p.edge_always),
                                     XrefKind::Read => ("read", p.data_name),
                                     XrefKind::Write => ("write", p.edge_not),
-                                    _ => ("address", p.muted),
+                                    XrefKind::Offset => ("address taken", p.muted),
+                                    XrefKind::Data => ("data pointer", p.func_name),
                                 };
                                 ui.label(RichText::new(format!("{tag:<7}")).monospace().color(col));
                                 let b = egui::Button::new(RichText::new(format!("{:X}   {}", x.from, l.loc(x.from))).monospace()).frame(false);

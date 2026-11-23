@@ -6,7 +6,7 @@
 use crate::app::{Action, LensApp, State};
 use eframe::egui::{self, FontId, RichText, ScrollArea, TextEdit};
 use std::collections::{HashMap, VecDeque};
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::fs::File;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::process::CommandExt;
@@ -29,8 +29,10 @@ enum Kind {
     Launch,
     Slide,
     Resume,
+    TraceStep,
     Regs,
     Stack,
+    Memory,
     Bt,
     Pc,
     Bp(u64),
@@ -56,13 +58,20 @@ pub struct Dbg {
     pub pc: Option<u64>,
     pub regs: Vec<(String, String)>,
     pub stack: Vec<String>,
+    pub memory: Vec<String>,
     pub bt: Vec<String>,
     pub watch_values: HashMap<String, String>,
+    /// Program counters observed at debugger stops while stop tracing is enabled.
+    pub trace: Vec<u64>,
+    pub trace_enabled: bool,
+    trace_active: bool,
+    trace_remaining: usize,
     watch_exprs: Vec<String>,
     pub console: Vec<String>,
     bp_ids: HashMap<u64, u32>,
     bp_conditions: HashMap<u64, String>,
     pending_bps: Vec<u64>,
+    hardware_breakpoints: bool,
 }
 
 #[derive(Default)]
@@ -70,6 +79,10 @@ pub struct DbgUi {
     pub open: bool,
     pub args: String,
     pub remote: String,
+    pub attach_pid: String,
+    pub memory_address: String,
+    pub hardware_breakpoints: bool,
+    pub trace: bool,
     pub confirm: bool,
     pub input: String,
     pub follow: bool,
@@ -98,7 +111,18 @@ fn parse_hex_after(s: &str, key: &str) -> Option<u64> {
 }
 
 impl Dbg {
-    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, bps: &[u64], conditions: &HashMap<u64, String>) -> Result<Dbg, String> {
+    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>) -> Result<Dbg, String> {
+        let attach_pid = attach_pid.trim();
+        if !attach_pid.is_empty() && !attach_pid.chars().all(|c| c.is_ascii_digit()) {
+            return Err("Process ID must contain digits only.".into());
+        }
+        let remote = remote.trim();
+        if !remote.is_empty() && !attach_pid.is_empty() {
+            return Err("Choose either a remote target or a local process ID.".into());
+        }
+        if !remote.is_empty() && (!remote.chars().all(|c| c.is_ascii_alphanumeric() || ".:-_[]".contains(c)) || !remote.contains(':')) {
+            return Err("Remote target must be a host:port address.".into());
+        }
         // lldb needs a terminal: without one it buffers its output and stalls while the program runs
         let (mut master, mut slave) = (0i32, 0i32);
         if unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) } != 0 {
@@ -173,22 +197,30 @@ impl Dbg {
             pc: None,
             regs: vec![],
             stack: vec![],
+            memory: vec![],
             bt: vec![],
             watch_values: HashMap::new(),
+            trace: Vec::new(),
+            trace_enabled: false,
+            trace_active: false,
+            trace_remaining: 0,
             watch_exprs: vec![],
             console: vec![],
             bp_ids: HashMap::new(),
             bp_conditions: conditions.clone(),
             pending_bps: bps.to_vec(),
+            hardware_breakpoints,
         };
         d.push(Kind::Plain, "settings set auto-confirm true");
         d.push(Kind::Plain, "settings set stop-line-count-before 0");
         let a = arch_flag.map(|a| format!("-a {a} ")).unwrap_or_default();
         d.push(Kind::Plain, &format!("target create {a}\"{path}\""));
-        if remote.trim().is_empty() {
-            d.push(Kind::Launch, &format!("process launch --stop-at-entry --stdin /dev/null -- {args}"));
+        if !remote.is_empty() {
+            d.push(Kind::Launch, &format!("gdb-remote {remote}"));
+        } else if !attach_pid.is_empty() {
+            d.push(Kind::Launch, &format!("process attach --pid {attach_pid}"));
         } else {
-            d.push(Kind::Launch, &format!("gdb-remote {}", remote.trim()));
+            d.push(Kind::Launch, &format!("process launch --stop-at-entry --stdin /dev/null -- {args}"));
         }
         d.push(Kind::Slide, "target modules list -o -f");
         Ok(d)
@@ -221,12 +253,33 @@ impl Dbg {
         }
     }
 
+    /// Steps one instruction at a time and records each resulting PC, up to the requested limit.
+    pub fn trace_instructions(&mut self, count: usize) -> Result<(), String> {
+        if self.state != RunState::Stopped || !self.queue_idle() {
+            return Err("Instruction tracing starts when the target is stopped and the debugger is idle.".into());
+        }
+        let count = count.clamp(1, 5000);
+        let pc = self.pc.ok_or("The current instruction address is unavailable.")?;
+        self.trace.push(pc);
+        if self.trace.len() > 5000 { self.trace.remove(0); }
+        self.trace_active = true;
+        self.trace_remaining = count;
+        self.push(Kind::TraceStep, "thread step-inst");
+        Ok(())
+    }
+
+    pub fn stop_trace(&mut self) {
+        self.trace_active = false;
+        self.trace_remaining = 0;
+    }
+
     pub fn set_bp(&mut self, addr: u64, on: bool) {
         if on {
             if self.slide == 0 && self.state == RunState::Starting {
                 self.pending_bps.push(addr);
             } else {
-                self.push(Kind::Bp(addr), &format!("breakpoint set -a 0x{:x}", addr + self.slide));
+                let hw = if self.hardware_breakpoints { " -H" } else { "" };
+                self.push(Kind::Bp(addr), &format!("breakpoint set{hw} -a 0x{:x}", addr + self.slide));
             }
         } else {
             self.bp_conditions.remove(&addr);
@@ -267,7 +320,7 @@ impl Dbg {
             self.console.push("lldb stopped responding.".into());
             return;
         }
-        if matches!(r.kind, Kind::Resume | Kind::Launch) {
+        if matches!(r.kind, Kind::Resume | Kind::TraceStep | Kind::Launch) {
             self.state = RunState::Running;
         }
         self.ready = false;
@@ -298,6 +351,17 @@ impl Dbg {
                 self.push(Kind::Watch(expression.clone()), &format!("expression -- {expression}"));
             }
         }
+    }
+
+    pub fn read_memory(&mut self, address: &str) -> Result<(), String> {
+        if self.state != RunState::Stopped { return Err("Pause the target before reading memory.".into()); }
+        let a = address.trim().trim_start_matches("0x").trim_start_matches("0X");
+        if a.is_empty() || a.len() > 16 || !a.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err("Enter a hexadecimal memory address.".into());
+        }
+        let address = u64::from_str_radix(a, 16).map_err(|_| "Invalid memory address.")?;
+        self.push(Kind::Memory, &format!("memory read -f x -s 1 -c 128 0x{address:x}"));
+        Ok(())
     }
 
     /// Reads lldb's output. Returns the new program counter (static address) when the program stopped somewhere new.
@@ -344,7 +408,7 @@ impl Dbg {
                 self.console.extend(lines);
                 self.after_stop();
             }
-            Kind::Launch | Kind::Resume => {
+            Kind::Launch | Kind::Resume | Kind::TraceStep => {
                 self.console.extend(lines.iter().cloned());
                 if joined.contains("exited with status") || (joined.contains("Process") && joined.contains("exited")) {
                     self.state = RunState::Exited;
@@ -353,7 +417,9 @@ impl Dbg {
                     self.state = RunState::Exited;
                 } else {
                     self.state = RunState::Stopped;
-                    if kind == Kind::Resume {
+                    if kind == Kind::TraceStep && self.trace_active {
+                        self.push(Kind::Pc, "register read pc");
+                    } else if kind == Kind::Resume || kind == Kind::TraceStep {
                         self.after_stop();
                     }
                 }
@@ -361,6 +427,28 @@ impl Dbg {
             Kind::Pc => {
                 if let Some(pc) = lines.iter().find_map(|l| parse_hex_after(l, "= ")) {
                     self.pc = Some(pc.wrapping_sub(self.slide));
+                    if self.trace_enabled && !self.trace_active {
+                        let pc = pc.wrapping_sub(self.slide);
+                        if self.trace.last() != Some(&pc) { self.trace.push(pc); }
+                        if self.trace.len() > 5000 { self.trace.remove(0); }
+                    }
+                    if self.trace_active {
+                        let pc = pc.wrapping_sub(self.slide);
+                        self.trace_remaining = self.trace_remaining.saturating_sub(1);
+                        if self.trace_remaining > 0 {
+                            self.trace.push(pc);
+                            if self.trace.len() > 5000 { self.trace.remove(0); }
+                            self.push(Kind::TraceStep, "thread step-inst");
+                        } else {
+                            self.trace_active = false;
+                            self.push(Kind::Regs, "register read");
+                            self.push(Kind::Stack, "memory read -s8 -fx -c24 $sp");
+                            self.push(Kind::Bt, "thread backtrace -c 16");
+                            for expression in self.watch_exprs.clone() {
+                                self.push(Kind::Watch(expression.clone()), &format!("expression -- {expression}"));
+                            }
+                        }
+                    }
                     return self.pc;
                 }
             }
@@ -376,6 +464,7 @@ impl Dbg {
                     .collect();
             }
             Kind::Stack => self.stack = lines,
+            Kind::Memory => self.memory = lines,
             Kind::Bt => self.bt = lines,
             Kind::Watch(expression) => {
                 let value = lines.iter().filter(|line| !line.trim().is_empty()).cloned().collect::<Vec<_>>().join(" ");
@@ -421,8 +510,8 @@ impl LensApp {
         };
         let bps = l.ann.breakpoints.clone();
         let conditions = l.ann.bp_conditions.clone();
-        let (args, remote) = (self.tools2.dbg.args.clone(), self.tools2.dbg.remote.clone());
-        match Dbg::start(&path, arch, &args, &remote, &bps, &conditions) {
+        let (args, remote, pid, hardware) = (self.tools2.dbg.args.clone(), self.tools2.dbg.remote.clone(), self.tools2.dbg.attach_pid.clone(), self.tools2.dbg.hardware_breakpoints);
+        match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions) {
             Ok(d) => {
                 self.dbg = Some(d);
                 self.logm(format!("Debugging {path} with lldb"));
@@ -469,6 +558,9 @@ impl LensApp {
         let mut bp: Option<u64> = None;
         let mut remove_watch: Option<usize> = None;
         let mut add_watch = false;
+        let mut read_memory = false;
+        let mut trace_instructions: Option<usize> = None;
+        let mut stop_instruction_trace = false;
         let mut set_condition: Option<(u64, String)> = None;
         let bps = self.loaded().map(|l| l.ann.breakpoints.clone()).unwrap_or_default();
         let bp_conditions = self.loaded().map(|l| l.ann.bp_conditions.clone()).unwrap_or_default();
@@ -492,7 +584,7 @@ impl LensApp {
             }
             match &mut self.dbg {
                 None => {
-                    ui.label(RichText::new("Starting the debugger runs this program on your Mac. Only debug programs you trust.").color(p.muted));
+                    ui.label(RichText::new("Start a local program, attach to its PID, or connect to a GDB remote target. Only debug targets you are authorized to inspect.").color(p.muted));
                     ui.checkbox(&mut ui_state.confirm, "I understand, run it");
                     ui.horizontal(|ui| {
                         ui.label("Arguments");
@@ -502,6 +594,11 @@ impl LensApp {
                         ui.label("or connect to");
                         ui.add(TextEdit::singleline(&mut ui_state.remote).desired_width(220.0).hint_text("localhost:1234 (gdb server)").font(FontId::monospace(13.0)));
                     });
+                    ui.horizontal(|ui| {
+                        ui.label("or attach PID");
+                        ui.add(TextEdit::singleline(&mut ui_state.attach_pid).desired_width(140.0).hint_text("process ID").font(FontId::monospace(13.0)));
+                    });
+                    ui.checkbox(&mut ui_state.hardware_breakpoints, "Require hardware breakpoints").on_hover_text("Uses LLDB's hardware breakpoint request; target hardware and debugger permissions still apply.");
                     if ui.add_enabled(ui_state.confirm, egui::Button::new("Start").fill(p.accent_soft)).clicked() {
                         start = true;
                     }
@@ -518,12 +615,28 @@ impl LensApp {
                         if ui.add_enabled(stopped, egui::Button::new("Step out")).clicked() { resume = Some("thread step-out"); }
                         if ui.add_enabled(d.state == RunState::Running, egui::Button::new("Pause")).clicked() { d.interrupt(); }
                         if ui.button("Stop").clicked() { stop = true; }
+                        if d.state == RunState::Exited && ui.button("Reconnect / restart").clicked() { start = true; }
                         ui.checkbox(&mut ui_state.follow, "follow").on_hover_text("Move the listing to the current instruction");
                     });
                     ui.horizontal(|ui| {
                         if ui.button("Breakpoint at cursor (F2)").clicked() { bp = Some(cursor); }
+                        ui.checkbox(&mut ui_state.hardware_breakpoints, "hardware").on_hover_text("Request a processor debug-register breakpoint when adding breakpoints.");
                         if let Some(pc) = d.pc { if ui.button(format!("Go to {pc:X}")).clicked() { goto = Some(pc); } }
                         ui.label(RichText::new(format!("{} breakpoints", bps.len())).small().color(p.muted));
+                    });
+                    d.trace_enabled = ui_state.trace;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut ui_state.trace, "Record stop trace").on_hover_text("Records up to 5,000 program-counter locations observed at stops.");
+                        if ui.add_enabled(d.state == RunState::Stopped && d.queue_idle(), egui::Button::new("Trace 100 instructions")).clicked() { trace_instructions = Some(100); }
+                        if ui.add_enabled(d.state == RunState::Stopped && d.queue_idle(), egui::Button::new("Trace 1,000")).clicked() { trace_instructions = Some(1000); }
+                        if ui.add_enabled(d.trace_active, egui::Button::new("Stop trace")).clicked() { stop_instruction_trace = true; }
+                        if ui.small_button("Clear trace").clicked() { d.trace.clear(); }
+                        ui.label(RichText::new(format!("{} instructions", d.trace.len())).small().color(p.muted));
+                    });
+                    ScrollArea::vertical().id_salt("dbg_trace").max_height(90.0).show(ui, |ui| {
+                        for address in d.trace.iter().rev().take(16) {
+                            if ui.small_button(format!("{address:016X}")).clicked() { goto = Some(*address); }
+                        }
                     });
                     ui.separator();
                     ui.columns(2, |cols| {
@@ -548,6 +661,14 @@ impl LensApp {
                     ui.label(RichText::new("STACK").small().color(p.faint));
                     ScrollArea::vertical().id_salt("stk").max_height(90.0).show(ui, |ui| {
                         for l in &d.stack { ui.label(RichText::new(l).monospace().small()); }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("MEMORY").small().color(p.faint));
+                        ui.add(TextEdit::singleline(&mut ui_state.memory_address).desired_width(160.0).font(FontId::monospace(13.0)).hint_text("hex address"));
+                        if ui.add_enabled(d.state == RunState::Stopped, egui::Button::new("Read 128 bytes")).clicked() { read_memory = true; }
+                    });
+                    ScrollArea::vertical().id_salt("dbg_mem").max_height(100.0).show(ui, |ui| {
+                        for line in &d.memory { ui.label(RichText::new(line).monospace().small()); }
                     });
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("WATCHES").small().color(p.faint));
@@ -585,6 +706,20 @@ impl LensApp {
             self.logm("Debugger stopped.");
         }
         if let Some(d) = &mut self.dbg {
+            d.hardware_breakpoints = self.tools2.dbg.hardware_breakpoints;
+            d.trace_enabled = self.tools2.dbg.trace;
+            if stop_instruction_trace {
+                d.stop_trace();
+                if d.state == RunState::Running { d.interrupt(); }
+            }
+            if let Some(count) = trace_instructions {
+                if let Err(error) = d.trace_instructions(count) { d.console.push(error); }
+            }
+            if read_memory {
+                if let Err(error) = d.read_memory(&self.tools2.dbg.memory_address) {
+                    d.console.push(error);
+                }
+            }
             if let Some(i) = remove_watch { if i < self.tools2.dbg.watches.len() { self.tools2.dbg.watches.remove(i); } }
             if add_watch {
                 let expression = self.tools2.dbg.new_watch.trim().to_string();

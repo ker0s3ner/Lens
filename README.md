@@ -6,21 +6,21 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 
 ### Load and identify programs
 
-- Open ELF, PE and Mach-O files, including universal Mach-O binaries, macOS app bundles and other folders containing a program.
+- Open ELF executables, shared libraries and relocatable ELF/Mach-O object files, PE and Mach-O files, including universal Mach-O binaries, macOS app bundles and other folders containing a program. ELF ET_REL applies common static relocations, including x86/x64 PC-relative and AArch64 call/jump forms. Mach-O MH_OBJECT applies common x86-64 unsigned/PC-relative and ARM64 unsigned/branch relocations. GOT/PLT-dependent, paired, and architecture-specific compound relocations remain unresolved.
 - Open raw binaries with a selected CPU, byte order, load address and entry point.
 - Translate pasted hex, C byte arrays, `\\x` escapes, Intel HEX and S-record data into disassembly.
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
 - Detect Electron `app.asar` archives and extract their JavaScript resources as source files.
-- Read function-start hints from ELF `.eh_frame`, PE `.pdata`, and Mach-O `LC_FUNCTION_STARTS` and `__unwind_info`. DWARF information can supply function names and prototypes when present.
+- Read function-start hints from ELF `.eh_frame`, PE `.pdata`, and Mach-O `LC_FUNCTION_STARTS` and `__unwind_info`. DWARF can supply function names and prototypes; named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
 
 ### Analyze and navigate
 
-- Decode x86, x86-64, ARM, Thumb, ARM64, RISC-V 32/64, MIPS 32/64 and PowerPC 32/64.
-- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86 and ARM64 patterns.
+- Decode x86 16/32/64-bit, ARM, Thumb, ARM64, RISC-V 32/64, MIPS 32/64, PowerPC 32/64 and Motorola 68000. Decoder-backed analysis depth varies by architecture.
+- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86 and ARM64 patterns and bounded Thumb TBB/TBH tables.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview.
 - Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.
-- Define bytes and strings, apply simple C-like structs, unions, enums and typedefs, and see embedded nested field names in the listing.
+- Define bytes and strings, apply simple C-like structs, unions, enums, typedefs and integer bitfields, import supported DWARF layouts, inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
 - Identify common cryptographic constants and use built-in or learned function signatures to recognize library code.
 
 ### Decompile and edit
@@ -28,12 +28,12 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Produce approximate C-like pseudocode and render it as C, Rust, Python, Go or JavaScript.
 - The x86/x64 lifter has the broadest coverage. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use an integer-focused lifter; unsupported operations remain visible as intrinsic-style calls.
 - Patch bytes, NOP instructions, invert supported branches, or force supported conditional branches. Save a patched copy separately from the original; Mach-O output is ad-hoc signed when possible.
-- Run Rhai scripts against a read-only analysis snapshot, then apply queued actions such as renames, notes, bookmarks, patches and navigation. `.rhai` plugins may define an `on_open` hook.
+- Run Rhai scripts against a read-only analysis snapshot (including types, segments, imports/exports, and incoming/outgoing xrefs), then apply queued actions such as renames, notes, bookmarks, patches, navigation, and defining/applying types. `.rhai` plugins may define an `on_open` hook.
 - Compare two program versions by function shape and name.
 
 ### Debug and exchange data
 
-- Drive LLDB from the debugger window: launch a program, step, continue, pause, inspect registers, stack and backtrace, set conditional breakpoints, evaluate watches, and use the command console.
+- Drive LLDB from the debugger window: launch or attach to a local PID, step, continue, pause, inspect registers, stack, backtrace and 128-byte memory windows, set conditional or requested hardware breakpoints, evaluate watches, and use the command console. Restart a target after exit. Trace 100 or 1,000 instructions by single-stepping and recording each executed PC; traces are capped at 5,000 addresses.
 - Connect to a GDB remote server with `gdb-remote` for supported targets.
 - Import names and notes from Lens JSON, IDA `.idc` or Ghidra `.py` scripts. Export IDC, Ghidra Python, JSON annotations, assembly listing, Graphviz call graph and map files.
 
@@ -86,9 +86,9 @@ Lens uses stable Rust and Cargo. Build locally with `cargo build --release`. The
 ## Current limitations
 
 - Analysis completeness and pseudocode quality vary substantially by architecture and compiler. The pseudocode is a best-effort lift, not source recovery or a correctness proof.
-- Switch recovery is currently focused on x86 and ARM64. Advanced RTTI/vtable recovery, Objective-C/Swift metadata, and broad data-versus-code typing are not implemented.
-- The type parser is intentionally limited. It does not yet provide full C declarations, bitfields, function-pointer layouts or a complete type-library workflow.
-- Debugging depends on LLDB. Lens does not have its own native debug engine, process attach, hardware breakpoints or trace system.
+- Switch recovery is currently focused on x86 and ARM64. Advanced RTTI/vtable recovery, Objective-C/Swift metadata, and broad data-versus-code typing are not implemented. Relocatable ELF inputs apply common static relocations but do not synthesize linker GOT/PLT entries or resolve every architecture's compound relocations.
+- The type parser is intentionally limited. It supports simple integer bitfields and function-pointer typedef aliases, but not full function-pointer declarations or compiler-specific bitfield ABI layouts. DWARF types containing bitfields or unsupported member-location expressions are skipped instead of assigned guessed offsets.
+- Debugging depends on LLDB; Lens does not yet have its own native debug engine. Hardware breakpoints depend on target support. Instruction tracing uses repeated single-step operations, so it is slower than processor trace facilities and stops at the selected instruction limit. Process attach and GDB remote connection are available through LLDB.
 - Files are read fully into memory, then loading and analysis run on a background thread. Incremental analysis/listing, explicit memory limits and measured performance on very large files remain future work.
 - Java, .NET, DEX/APK, WebAssembly, firmware and the additional processor families listed in the roadmap are not supported as native analysis targets yet.
 

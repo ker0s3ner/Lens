@@ -21,6 +21,7 @@ fn build(arch: Arch, big: bool) -> Option<Capstone> {
     use capstone::arch::*;
     let endian = if big { capstone::Endian::Big } else { capstone::Endian::Little };
     let r = match arch {
+        Arch::X16 => Capstone::new().x86().mode(x86::ArchMode::Mode16).syntax(x86::ArchSyntax::Intel).build(),
         Arch::X86 => Capstone::new().x86().mode(x86::ArchMode::Mode32).syntax(x86::ArchSyntax::Intel).build(),
         Arch::X64 => Capstone::new().x86().mode(x86::ArchMode::Mode64).syntax(x86::ArchSyntax::Intel).build(),
         Arch::Arm64 => Capstone::new().arm64().mode(arm64::ArchMode::Arm).build(),
@@ -32,6 +33,7 @@ fn build(arch: Arch, big: bool) -> Option<Capstone> {
         Arch::Mips64 => Capstone::new().mips().mode(mips::ArchMode::Mips64).endian(endian).build(),
         Arch::Ppc32 => Capstone::new().ppc().mode(ppc::ArchMode::Mode32).endian(endian).build(),
         Arch::Ppc64 => Capstone::new().ppc().mode(ppc::ArchMode::Mode64).endian(endian).build(),
+        Arch::M68k => Capstone::new().m68k().mode(m68k::ArchMode::M68k000).build(),
         Arch::Other => return None,
     };
     r.ok()
@@ -110,6 +112,7 @@ fn classify(arch: Arch, mn: &str, ops: &str) -> (Flow, u64) {
             _ => (Flow::Normal, 0),
         },
         Arch::Arm32 | Arch::Thumb => {
+            if mn == "tbb" || mn == "tbh" { return (Flow::IndirectJump, 0); }
             if mn == "bx" && ops.trim() == "lr" {
                 return (Flow::Ret, 0);
             }
@@ -167,6 +170,14 @@ fn classify(arch: Arch, mn: &str, ops: &str) -> (Flow, u64) {
             "b" | "ba" => pick(Flow::Jump, Flow::IndirectJump),
             "trap" | "tw" | "td" => (Flow::Stop, 0),
             _ if mn.starts_with('b') && !mn.ends_with("ctr") && direct && matches!(mn.trim_end_matches(['+', '-']), "beq" | "bne" | "blt" | "bgt" | "ble" | "bge" | "bdnz" | "bdz" | "bso" | "bns" | "bc" | "bdnzt" | "bdnzf" | "bdzt" | "bdzf" | "bnl" | "bng" | "bun" | "bnu") => (Flow::CondJump, tgt),
+            _ => (Flow::Normal, 0),
+        },
+        Arch::M68k => match mn.split('.').next().unwrap_or(mn) {
+            "rts" | "rte" | "rtr" => (Flow::Ret, 0),
+            "jsr" | "bsr" => pick(Flow::Call, Flow::IndirectCall),
+            "jmp" => pick(Flow::Jump, Flow::IndirectJump),
+            "bra" => pick(Flow::Jump, Flow::IndirectJump),
+            "bcc" | "bcs" | "beq" | "bge" | "bgt" | "bhi" | "bhs" | "blo" | "ble" | "bls" | "blt" | "bmi" | "bne" | "bpl" | "bvc" | "bvs" | "bt" | "bf" => pick(Flow::CondJump, Flow::Normal),
             _ => (Flow::Normal, 0),
         },
         _ => (Flow::Normal, 0),
@@ -278,6 +289,7 @@ fn is_reg(arch: Arch, t: &str) -> bool {
         Arch::RiscV32 | Arch::RiscV64 => matches!(t, "zero" | "ra" | "sp" | "gp" | "tp") || (b.len() >= 2 && matches!(b[0], b'a' | b't' | b's' | b'x' | b'f') && t[1..].chars().all(|c| c.is_ascii_digit())) || (t.len() == 3 && t.starts_with("fa") || t.starts_with("ft") || t.starts_with("fs")),
         Arch::Mips32 | Arch::Mips64 => b[0] == b'$',
         Arch::Ppc32 | Arch::Ppc64 => (b.len() >= 2 && matches!(b[0], b'r' | b'f' | b'v' | b'c') && t[1..].chars().all(|c| c.is_ascii_digit())) || t.starts_with("cr"),
+        Arch::M68k => matches!(t, "sp" | "pc" | "sr" | "ccr") || (b.len() == 2 && matches!(b[0], b'd' | b'a') && b[1].is_ascii_digit()),
         _ => false,
     }
 }

@@ -40,6 +40,19 @@ pub struct Annotations {
     pub sig_names: HashMap<u64, String>,
 }
 
+/// Versioned per-binary analysis database. Older releases wrote `Annotations`
+/// directly; the loader below continues to accept that format and upgrades it
+/// when the file is next saved.
+#[derive(Serialize, Deserialize)]
+struct ProjectDb {
+    schema_version: u32,
+    binary_path: String,
+    binary_size: u64,
+    annotations: Annotations,
+}
+
+const PROJECT_DB_VERSION: u32 = 1;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Prefs {
     #[serde(default)]
@@ -153,14 +166,24 @@ fn ann_path(path: &str, size: u64) -> PathBuf {
 }
 
 pub fn load_annotations(path: &str, size: u64) -> Annotations {
-    std::fs::read_to_string(ann_path(path, size))
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let Some(text) = std::fs::read_to_string(ann_path(path, size)).ok() else { return Annotations::default() };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else { return Annotations::default() };
+    if value.get("schema_version").is_some() {
+        return serde_json::from_value::<ProjectDb>(value).ok()
+            .filter(|db| db.schema_version <= PROJECT_DB_VERSION && db.binary_path == path && db.binary_size == size)
+            .map(|db| db.annotations).unwrap_or_default();
+    }
+    // Backward compatibility with pre-project-database annotation files.
+    serde_json::from_str::<Annotations>(&text).unwrap_or_default()
 }
 
 pub fn save_annotations(path: &str, size: u64, a: &Annotations) {
-    if let Ok(s) = serde_json::to_string_pretty(a) {
-        let _ = std::fs::write(ann_path(path, size), s);
+    let db = ProjectDb { schema_version: PROJECT_DB_VERSION, binary_path: path.to_string(), binary_size: size, annotations: a.clone() };
+    if let Ok(s) = serde_json::to_string_pretty(&db) {
+        let dest = ann_path(path, size);
+        let tmp = dest.with_extension(format!("json.{}.tmp", std::process::id()));
+        if std::fs::write(&tmp, s).is_ok() {
+            if std::fs::rename(&tmp, &dest).is_err() { let _ = std::fs::remove_file(tmp); }
+        }
     }
 }

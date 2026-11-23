@@ -290,9 +290,45 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     if uniq.len() < 2 { vec![] } else { out }
 }
 
+/// Recover Thumb TBB/TBH tables. Those instructions encode each case as an
+/// unsigned byte/halfword scaled by two and based from the instruction's PC.
+fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
+    let width = match raw.mnemonic.as_str() { "tbb" => 1usize, "tbh" => 2, _ => return vec![] };
+    let table_base = if raw.ops.to_ascii_lowercase().contains("pc") { (at + 4) & !3 } else { return vec![] };
+    let parse = |s: &str| -> Option<u64> {
+        let s = s.trim().trim_start_matches('#');
+        s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| s.parse().ok())
+    };
+    let mut bound = None;
+    for (&addr, _) in insns.range(..at).rev().take(20) {
+        let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+        if prev.mnemonic == "cmp" {
+            bound = prev.ops.rsplit(',').next().and_then(parse).map(|v| v.saturating_add(1));
+        }
+        if matches!(prev.mnemonic.as_str(), "bhi" | "bhs" | "bcs" | "bgt" | "bge") && bound.is_some() { break; }
+    }
+    let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
+    let mut targets = Vec::new();
+    for index in 0..count {
+        let addr = table_base.saturating_add((index * width) as u64);
+        let bytes = bin.read(addr, width);
+        if bytes.len() != width { break; }
+        let value = if width == 1 { bytes[0] as u64 } else if bin.big_endian { u16::from_be_bytes([bytes[0], bytes[1]]) as u64 } else { u16::from_le_bytes([bytes[0], bytes[1]]) as u64 };
+        let target = at.saturating_add(4).saturating_add(value.saturating_mul(2));
+        if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
+        targets.push(target);
+    }
+    let unique: HashSet<&u64> = targets.iter().collect();
+    if unique.len() < 2 { vec![] } else { targets }
+}
+
 fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     if bin.arch == Arch::Arm64 {
         return arm64_switch_targets(bin, insns, at, fstart);
+    }
+    if matches!(bin.arch, Arch::Arm32 | Arch::Thumb) {
+        return arm_thumb_switch_targets(bin, insns, at, fstart);
     }
     use iced_x86::Register;
     let Some((jmp, _)) = decode_at(bin, at) else { return vec![] };
@@ -678,7 +714,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         Flow::Normal => a = next,
                         Flow::Ret | Flow::Stop => break,
                         Flow::IndirectJump => {
-                            if (bin.arch.is_x86() || bin.arch == Arch::Arm64) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
+                            if (bin.arch.is_x86() || matches!(bin.arch, Arch::Arm64 | Arch::Arm32 | Arch::Thumb)) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
                                 let ts = switch_targets(bin, &insns, a, fstart);
                                 for t in &ts {
                                     work.push(*t);
@@ -925,15 +961,15 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             xrefs_to.entry(i.imm).or_default().push(Xref { from: a, kind: XrefKind::Offset });
         }
     }
-    // Pointers stored in data that point at functions or strings.
+    // Pointers stored in data that point into mapped program data/code. This catches
+    // references to globals and vtables as well as the common function/string cases.
     let w = (bin.bitness() / 8) as usize;
     for s in bin.segments.iter().filter(|s| !s.exec && s.file_offset.is_some()) {
         let mut off = 0usize;
         while off + w <= s.data.len() {
-            let c = &s.data[off..off + w];
-            let v = if w == 8 { u64::from_le_bytes(c.try_into().unwrap()) } else { u32::from_le_bytes(c.try_into().unwrap()) as u64 };
-            if v != 0 && (functions.contains_key(&v) || string_at.contains_key(&v)) {
-                let from = s.start + off as u64;
+            let from = s.start + off as u64;
+            let v = bin.read_ptr(from).unwrap_or(0);
+            if v != 0 && bin.is_mapped(v) {
                 xrefs_to.entry(v).or_default().push(Xref { from, kind: XrefKind::Data });
                 data_size.entry(from).or_insert(w as u8 | 0x80);
             }
@@ -953,7 +989,11 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     }
     for v in xrefs_to.values_mut() {
         v.sort_by_key(|x| x.from);
-        v.dedup_by_key(|x| x.from);
+        // A single instruction can refer to the same address in more than one
+        // way (for example, an address-taking LEA that also has an immediate
+        // operand). Keep the distinct relationship kinds while removing only
+        // truly duplicated edges.
+        v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
     }
 
     // ---- names ----

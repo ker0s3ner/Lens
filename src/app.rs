@@ -1101,6 +1101,25 @@ fn pick_start(l: &Loaded, entry: Option<u64>) -> Option<u64> {
 impl Loaded {
     pub fn refresh(&mut self) {
         crate::protos::set_user(&format!("{}\n{}", self.bin.debug_protos, self.ann.protos));
+        // Applied pointer members provide precise data-reference edges, including
+        // packed or otherwise unaligned fields that the conservative segment scan may miss.
+        let mut typed_edges = Vec::new();
+        for (base, type_name) in &self.ann.applied {
+            let Some(def) = self.ann.structs.iter().find(|d| d.name == *type_name) else { continue };
+            if def.is_enum { continue; }
+            for field in crate::types::flatten_fields(&self.ann.structs, def) {
+                if !crate::types::is_pointer_type(&field.ty, &self.ann.structs) { continue; }
+                let slot = base.saturating_add(field.off as u64);
+                if let Some(target) = self.bin.read_ptr(slot).filter(|target| *target != 0 && self.bin.is_mapped(*target)) {
+                    typed_edges.push((target, analysis::Xref { from: slot, kind: analysis::XrefKind::Data }));
+                }
+            }
+        }
+        for (target, edge) in typed_edges {
+            let refs = self.an.xrefs_to.entry(target).or_default();
+            if !refs.iter().any(|old| old.from == edge.from && old.kind == edge.kind) { refs.push(edge); }
+            refs.sort_by_key(|xref| xref.from);
+        }
         let m = build_names(&self.an, &self.ann, &self.det, &self.bin);
         self.names = Arc::new(m);
         self.fmt = CodeFormatter::new(self.names.clone());

@@ -20,6 +20,9 @@ pub struct Snap {
     pub names: HashMap<u64, String>,
     pub strings: Vec<(u64, String)>,
     pub xrefs: HashMap<u64, Vec<u64>>,
+    pub out_xrefs: HashMap<u64, Vec<u64>>,
+    pub applied_types: HashMap<u64, String>,
+    pub types: Vec<crate::types::StructDef>,
 }
 
 #[derive(Debug)]
@@ -31,6 +34,8 @@ pub enum Cmd {
     Log(String),
     Patch(u64, Vec<u8>),
     MakeFunction(u64),
+    AddType(String),
+    ApplyType(u64, String),
 }
 
 pub struct Output {
@@ -126,6 +131,70 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     });
     let s = snap.clone();
     e.register_fn("xrefs_to", move |a: INT| -> Array { arr_u64(s.xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
+    let s = snap.clone();
+    e.register_fn("xrefs_from", move |a: INT| -> Array { arr_u64(s.out_xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
+    let s = snap.clone();
+    e.register_fn("type_at", move |a: INT| -> String { s.applied_types.get(&(a as u64)).cloned().unwrap_or_default() });
+    let s = snap.clone();
+    e.register_fn("types", move || -> Array {
+        s.types.iter().map(|t| {
+            let mut m = Map::new();
+            m.insert("name".into(), Dynamic::from(t.name.clone()));
+            m.insert("size".into(), Dynamic::from(t.size as INT));
+            m.insert("union".into(), Dynamic::from(t.is_union));
+            m.insert("enum".into(), Dynamic::from(t.is_enum));
+            let fields: Array = t.fields.iter().map(|f| {
+                let mut field = Map::new();
+                field.insert("offset".into(), Dynamic::from(f.off as INT));
+                field.insert("name".into(), Dynamic::from(f.name.clone()));
+                field.insert("type".into(), Dynamic::from(f.ty.clone()));
+                field.insert("size".into(), Dynamic::from(f.size as INT));
+                field.insert("bit_offset".into(), Dynamic::from(f.bit_offset.unwrap_or(0) as INT));
+                field.insert("bit_width".into(), Dynamic::from(f.bit_width.unwrap_or(0) as INT));
+                Dynamic::from_map(field)
+            }).collect();
+            m.insert("fields".into(), Dynamic::from(fields));
+            let values: Array = t.enum_values.iter().map(|v| {
+                let mut value = Map::new();
+                value.insert("name".into(), Dynamic::from(v.name.clone()));
+                value.insert("value".into(), Dynamic::from(v.value as INT));
+                Dynamic::from_map(value)
+            }).collect();
+            m.insert("values".into(), Dynamic::from(values));
+            Dynamic::from_map(m)
+        }).collect()
+    });
+    let s = snap.clone();
+    e.register_fn("segments", move || -> Array {
+        s.bin.segments.iter().map(|seg| {
+            let mut m = Map::new();
+            m.insert("name".into(), Dynamic::from(seg.name.clone()));
+            m.insert("start".into(), Dynamic::from(seg.start as INT));
+            m.insert("size".into(), Dynamic::from(seg.size as INT));
+            m.insert("executable".into(), Dynamic::from(seg.exec));
+            m.insert("writable".into(), Dynamic::from(seg.write));
+            Dynamic::from_map(m)
+        }).collect()
+    });
+    let s = snap.clone();
+    e.register_fn("imports", move || -> Array {
+        s.bin.imports.iter().map(|item| {
+            let mut m = Map::new();
+            m.insert("slot".into(), Dynamic::from(item.slot as INT));
+            m.insert("name".into(), Dynamic::from(item.name.clone()));
+            m.insert("library".into(), Dynamic::from(item.library.clone()));
+            Dynamic::from_map(m)
+        }).collect()
+    });
+    let s = snap.clone();
+    e.register_fn("exports", move || -> Array {
+        s.bin.exports.iter().map(|item| {
+            let mut m = Map::new();
+            m.insert("addr".into(), Dynamic::from(item.addr as INT));
+            m.insert("name".into(), Dynamic::from(item.name.clone()));
+            Dynamic::from_map(m)
+        }).collect()
+    });
     for (name, n) in [("read_u8", 1usize), ("read_u16", 2), ("read_u32", 4), ("read_u64", 8)] {
         let s = snap.clone();
         e.register_fn(name, move |a: INT| -> INT {
@@ -164,6 +233,10 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     e.register_fn("log", move |t: &str| c.borrow_mut().push(Cmd::Log(t.to_string())));
     let c = cmds.clone();
     e.register_fn("make_function", move |a: INT| c.borrow_mut().push(Cmd::MakeFunction(a as u64)));
+    let c = cmds.clone();
+    e.register_fn("add_type", move |decl: &str| c.borrow_mut().push(Cmd::AddType(decl.to_string())));
+    let c = cmds.clone();
+    e.register_fn("apply_type", move |a: INT, name: &str| c.borrow_mut().push(Cmd::ApplyType(a as u64, name.to_string())));
     let c = cmds.clone();
     e.register_fn("patch", move |a: INT, b: Blob| c.borrow_mut().push(Cmd::Patch(a as u64, b)));
     let c = cmds.clone();
@@ -232,12 +305,20 @@ impl LensApp {
             .filter(|f| f.kind != FuncKind::Import)
             .map(|f| (f.start, l.name(f.start).unwrap_or("").to_string(), f.end.saturating_sub(f.start), f.blocks.len()))
             .collect();
+        let xrefs: HashMap<u64, Vec<u64>> = l.an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect();
+        let mut out_xrefs: HashMap<u64, Vec<u64>> = HashMap::new();
+        for (target, sources) in &xrefs {
+            for source in sources { out_xrefs.entry(*source).or_default().push(*target); }
+        }
         Some(Snap {
             bin: l.bin.clone(),
             funcs,
             names: l.names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
             strings: l.an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
-            xrefs: l.an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect(),
+            xrefs,
+            out_xrefs,
+            applied_types: l.ann.applied.iter().cloned().collect(),
+            types: l.ann.structs.clone(),
         })
     }
 
@@ -274,6 +355,29 @@ impl LensApp {
                             l.ann.marks.push(a);
                         }
                         changed = true;
+                    }
+                }
+                Cmd::AddType(decl) => {
+                    if let State::Ready(l) = &mut self.state {
+                        match crate::types::parse_c(&decl, l.bin.bitness() / 8, &l.ann.structs) {
+                            Ok(def) => {
+                                l.ann.structs.retain(|old| old.name != def.name);
+                                l.ann.structs.push(def);
+                                changed = true;
+                            }
+                            Err(e) => text.push_str(&format!("\nadd_type failed: {e}")),
+                        }
+                    }
+                }
+                Cmd::ApplyType(addr, name) => {
+                    if let State::Ready(l) = &mut self.state {
+                        if l.bin.is_mapped(addr) && l.ann.structs.iter().any(|t| t.name == name) {
+                            l.ann.applied.retain(|(old_addr, _)| *old_addr != addr);
+                            l.ann.applied.push((addr, name));
+                            changed = true;
+                        } else {
+                            text.push_str("\napply_type failed: address or type is not available");
+                        }
                     }
                 }
             }
@@ -365,7 +469,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API: functions() strings() name_at(a) find(name) xrefs_to(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function log").small().color(p.muted));
+            ui.label(RichText::new("API: functions() strings() types() type_at(a) segments() imports() exports() name_at(a) find(name) xrefs_to(a) xrefs_from(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();

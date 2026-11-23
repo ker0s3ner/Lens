@@ -14,6 +14,8 @@ pub struct DebugInfo {
     pub protos: String,
     /// struct / union / enum definitions found, as C text
     pub types: String,
+    /// Structs, unions and enums with member offsets taken directly from DWARF.
+    pub parsed_types: Vec<crate::types::StructDef>,
 }
 
 type R<'a> = gimli::EndianSlice<'a, gimli::RunTimeEndian>;
@@ -34,6 +36,22 @@ struct Ctx<'a> {
 fn attr_string<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, v: AttributeValue<R<'a>>) -> Option<String> {
     let s = c.dwarf.attr_string(unit, v).ok()?;
     Some(s.to_string_lossy().to_string())
+}
+
+fn array_count(unit: &gimli::Unit<R<'_>>, off: gimli::UnitOffset) -> Option<u64> {
+    let mut tree = unit.entries_at_offset(off).ok()?;
+    tree.next_dfs().ok()??;
+    while let Some((depth, child)) = tree.next_dfs().ok()? {
+        if depth < 1 { break; }
+        if depth != 1 || child.tag() != gimli::DW_TAG_subrange_type { continue; }
+        if let Some(count) = child.attr_value(gimli::DW_AT_count).ok().flatten().and_then(|v| v.udata_value()) {
+            return Some(count);
+        }
+        let upper = child.attr_value(gimli::DW_AT_upper_bound).ok().flatten().and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok())))?;
+        let lower = child.attr_value(gimli::DW_AT_lower_bound).ok().flatten().and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok()))).unwrap_or(0);
+        return upper.checked_sub(lower)?.checked_add(1);
+    }
+    None
 }
 
 fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::UnitOffset>, depth: u32) -> String {
@@ -63,10 +81,27 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
         gimli::DW_TAG_enumeration_type => format!("enum {}", name.unwrap_or_else(|| "anon".into())),
         gimli::DW_TAG_array_type => {
             let t = type_name(c, unit, inner(), depth + 1);
-            format!("{t} *")
+            let count = array_count(unit, e.offset()).map(|n| n.to_string()).unwrap_or_default();
+            format!("{t}[{count}]")
         }
         gimli::DW_TAG_subroutine_type => "void *".into(),
         _ => "void".into(),
+    }
+}
+
+fn type_size<'a>(unit: &gimli::Unit<R<'a>>, off: Option<gimli::UnitOffset>, depth: u32) -> Option<u32> {
+    if depth > 12 { return None; }
+    let off = off?;
+    let e = unit.entry(off).ok()?;
+    let number = |attr| e.attr_value(attr).ok().flatten().and_then(|v| v.udata_value().or_else(|| v.sdata_value().map(|n| n as u64)));
+    if let Some(n) = number(gimli::DW_AT_byte_size) { return u32::try_from(n).ok(); }
+    match e.tag() {
+        gimli::DW_TAG_pointer_type | gimli::DW_TAG_reference_type | gimli::DW_TAG_rvalue_reference_type => Some(unit.header.address_size() as u32),
+        gimli::DW_TAG_typedef | gimli::DW_TAG_const_type | gimli::DW_TAG_volatile_type | gimli::DW_TAG_restrict_type | gimli::DW_TAG_atomic_type => {
+            let inner = match e.attr_value(gimli::DW_AT_type).ok().flatten()? { AttributeValue::UnitRef(o) => Some(o), _ => None };
+            type_size(unit, inner, depth + 1)
+        }
+        _ => None,
     }
 }
 
@@ -79,7 +114,7 @@ fn tidy(t: &str) -> String {
 }
 
 /// Full C text for struct / union / enum definitions.
-fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>) -> gimli::Result<()> {
+fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, parsed: &mut Vec<crate::types::StructDef>) -> gimli::Result<()> {
     let mut entries = unit.entries();
     while let Some((_, e)) = entries.next_dfs()? {
         let tag = e.tag();
@@ -91,6 +126,9 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>) 
         let mut tree = unit.entries_at_offset(off)?;
         tree.next_dfs()?;
         let mut body = vec![];
+        let mut fields = vec![];
+        let mut enum_values = vec![];
+        let mut layout_ok = true;
         let mut depth = 0isize;
         while let Some((d, child)) = tree.next_dfs()? {
             depth += d;
@@ -103,16 +141,26 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>) 
             match child.tag() {
                 gimli::DW_TAG_member => {
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();
-                    let t = match child.attr_value(gimli::DW_AT_type)? {
-                        Some(AttributeValue::UnitRef(o)) => type_name(c, unit, Some(o), 0),
-                        _ => "void".into(),
-                    };
+                    let type_off = match child.attr_value(gimli::DW_AT_type)? { Some(AttributeValue::UnitRef(o)) => Some(o), _ => None };
+                    let t = type_name(c, unit, type_off, 0);
                     body.push(format!("  {} {};", tidy(&t), n).replace("* ", "*"));
+                    if child.attr_value(gimli::DW_AT_bit_size)?.is_some() || child.attr_value(gimli::DW_AT_data_bit_offset)?.is_some() {
+                        layout_ok = false;
+                        continue;
+                    }
+                    let member_offset = if tag == gimli::DW_TAG_union_type { Some(0) } else {
+                        child.attr_value(gimli::DW_AT_data_member_location)?.and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok())))
+                    };
+                    let Some(off) = member_offset.and_then(|n| u32::try_from(n).ok()) else { layout_ok = false; continue };
+                    let Some(size) = type_size(unit, type_off, 0) else { layout_ok = false; continue };
+                    if n.is_empty() { layout_ok = false; continue; }
+                    fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: None, bit_width: None });
                 }
                 gimli::DW_TAG_enumerator => {
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();
                     let v = child.attr_value(gimli::DW_AT_const_value)?.and_then(|v| v.sdata_value().or_else(|| v.udata_value().map(|x| x as i64))).unwrap_or(0);
                     body.push(format!("  {n} = {v},"));
+                    if !n.is_empty() { enum_values.push(crate::types::EnumValue { name: n, value: v }); }
                 }
                 _ => {}
             }
@@ -122,6 +170,19 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>) 
         }
         let kw = match tag { gimli::DW_TAG_structure_type => "struct", gimli::DW_TAG_union_type => "union", _ => "enum" };
         out.push(format!("{kw} {name} {{\n{}\n}};", body.join("\n")));
+        if tag == gimli::DW_TAG_enumeration_type {
+            let size = e.attr_value(gimli::DW_AT_byte_size)?.and_then(|v| v.udata_value()).and_then(|n| u32::try_from(n).ok()).unwrap_or(4);
+            if !enum_values.is_empty() && (1..=8).contains(&size) {
+                parsed.push(crate::types::StructDef { name, fields: vec![], size, is_union: false, is_enum: true, enum_values, alias_of: None });
+            }
+        } else {
+            let size = e.attr_value(gimli::DW_AT_byte_size)?.and_then(|v| v.udata_value()).and_then(|n| u32::try_from(n).ok());
+            if layout_ok && !fields.is_empty() {
+                if let Some(size) = size {
+                    parsed.push(crate::types::StructDef { name, fields, size, is_union: tag == gimli::DW_TAG_union_type, is_enum: false, enum_values: vec![], alias_of: None });
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -158,10 +219,11 @@ pub fn extract(bytes: &[u8]) -> Option<DebugInfo> {
     let mut functions = vec![];
     let mut protos = vec![];
     let mut types = vec![];
+    let mut parsed_types = vec![];
     let mut units = dwarf.units();
     while let Ok(Some(header)) = units.next() {
         let Ok(unit) = dwarf.unit(header) else { continue };
-        let _ = type_defs(&c, &unit, &mut types);
+        let _ = type_defs(&c, &unit, &mut types, &mut parsed_types);
         let mut entries = unit.entries();
         let mut cur: Option<(u64, String, String, Vec<(String, String)>, bool)> = None;
         let mut depth = 0isize;
@@ -222,12 +284,14 @@ pub fn extract(bytes: &[u8]) -> Option<DebugInfo> {
         }
     }
     let _ = c.dwarf.units().next();
-    if functions.is_empty() {
+    if functions.is_empty() && types.is_empty() {
         return None;
     }
     types.sort();
     types.dedup();
-    Some(DebugInfo { functions, protos: protos.join("\n"), types: types.join("\n") })
+    parsed_types.sort_by(|a, b| a.name.cmp(&b.name));
+    parsed_types.dedup_by(|a, b| a.name == b.name);
+    Some(DebugInfo { functions, protos: protos.join("\n"), types: types.join("\n"), parsed_types })
 }
 
 /// Looks for DWARF in the program itself, then in a .dSYM bundle next to it.
@@ -270,9 +334,10 @@ pub fn apply(bin: &mut Binary) {
                 n += 1;
             }
         }
-        bin.notes.push(format!("Debug info (DWARF): {} functions with types ({} named from it).", d.functions.len(), n));
+        bin.notes.push(format!("Debug info (DWARF): {} functions, {} recoverable type layouts ({} functions named from it).", d.functions.len(), d.parsed_types.len(), n));
         bin.debug_protos = d.protos;
         bin.debug_types = d.types;
+        bin.debug_structs = d.parsed_types;
     }
 }
 

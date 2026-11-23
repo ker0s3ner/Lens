@@ -251,18 +251,24 @@ impl LensApp {
         let p = self.p;
         let mut open = true;
         let cursor = self.nav.cursor;
-        let data = self.loaded().map(|l| (l.ann.structs.clone(), l.ann.applied.clone(), l.bin.arch.bits() / 8));
+        let data = self.loaded().map(|l| (l.ann.structs.clone(), l.ann.applied.clone(), l.bin.arch.bits() / 8, l.bin.debug_structs.clone()));
         let mut add_def: Option<types::StructDef> = None;
+        let mut import_debug = false;
         let mut remove: Option<usize> = None;
         let mut apply: Option<(u64, String)> = None;
         let mut unapply: Option<usize> = None;
+        let mut pointer_goto: Option<u64> = None;
+        let mut field_goto: Option<u64> = None;
         let mut msg = std::mem::take(&mut self.tools2.types.msg);
         egui::Window::new("Types").open(&mut open).default_size([560.0, 560.0]).show(ctx, |ui| {
-            let Some((structs, applied, ptr)) = &data else {
+            let Some((structs, applied, ptr, debug_structs)) = &data else {
                 ui.label(RichText::new("Open a program to define structs, unions and enums.").color(p.muted));
                 return;
             };
             ui.label(RichText::new("Paste a C struct, union or enum. Apply it to data to see field names or resolve an enum value.").color(p.muted));
+            if !debug_structs.is_empty() && ui.button(format!("Import {} DWARF layouts", debug_structs.len())).on_hover_text("Copies compiler-recovered struct, union and enum offsets into this file's type database").clicked() {
+                import_debug = true;
+            }
             ui.add(TextEdit::multiline(&mut self.tools2.types.def).code_editor().desired_rows(5).desired_width(f32::INFINITY).hint_text("struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};\n\nunion Value { uint32_t integer; float real; };\n\nenum State { IDLE, BUSY = 4, DONE };\n\ntypedef uint32_t HeaderSize;"));
             ui.horizontal(|ui| {
                 if ui.button("Add type").clicked() {
@@ -293,9 +299,10 @@ impl LensApp {
                     });
                 }
                 egui::Grid::new("fields").num_columns(3).spacing([14.0, 2.0]).show(ui, |ui| {
-                    for f in &s.fields {
+                    for f in types::flatten_fields(structs, s) {
                         ui.label(RichText::new(format!("+{:X}", f.off)).monospace().color(p.func_name));
-                        ui.label(RichText::new(&f.ty).monospace().color(p.keyword));
+                        let field_type = f.bit_width.map(|w| format!("{} :{}", f.ty, w)).unwrap_or_else(|| f.ty.clone());
+                        ui.label(RichText::new(field_type).monospace().color(p.keyword));
                         ui.label(RichText::new(&f.name).monospace());
                         ui.end_row();
                     }
@@ -322,10 +329,29 @@ impl LensApp {
                             ui.label(RichText::new(l.and_then(|l| types::enum_value(&l.bin, *a, s)).unwrap_or_else(|| "?".into())).monospace().color(p.keyword));
                         }
                         egui::Grid::new(("vals", i)).num_columns(3).spacing([14.0, 2.0]).show(ui, |ui| {
-                            for f in &s.fields {
-                                ui.label(RichText::new(&f.name).monospace());
-                                ui.label(RichText::new(&f.ty).monospace().color(p.keyword));
-                                ui.label(RichText::new(l.map(|l| types::value(&l.bin, *a, f)).unwrap_or_default()).monospace());
+                            for f in types::flatten_fields(structs, s) {
+                                let field_addr = a.saturating_add(f.off as u64);
+                                if ui.small_button(RichText::new(&f.name).monospace()).on_hover_text(format!("Select field at {field_addr:X}")).clicked() {
+                                    field_goto = Some(field_addr);
+                                }
+                                let field_type = f.bit_width.map(|w| format!("{} :{}", f.ty, w)).unwrap_or_else(|| f.ty.clone());
+                                ui.label(RichText::new(field_type).monospace().color(p.keyword));
+                                let enum_name = f.ty.split('[').next().unwrap_or(&f.ty).trim().trim_start_matches("enum ");
+                                let value = l.and_then(|l| {
+                                    let en = structs.iter().find(|d| d.is_enum && d.name == enum_name);
+                                    en.and_then(|d| types::enum_value(&l.bin, field_addr, d)).or_else(|| Some(types::value(&l.bin, *a, &f)))
+                                }).unwrap_or_default();
+                                let pointer_target = if types::is_pointer_type(&f.ty, structs) {
+                                    l.and_then(|loaded| loaded.bin.read_ptr(field_addr))
+                                        .filter(|target| *target != 0 && l.map(|loaded| loaded.bin.is_mapped(*target)).unwrap_or(false))
+                                } else { None };
+                                if let Some(target) = pointer_target {
+                                    if ui.small_button(RichText::new(value).monospace().color(p.accent)).on_hover_text(format!("Follow pointer to {target:X}")).clicked() {
+                                        pointer_goto = Some(target);
+                                    }
+                                } else {
+                                    ui.label(RichText::new(value).monospace());
+                                }
                                 ui.end_row();
                             }
                         });
@@ -333,9 +359,20 @@ impl LensApp {
                 }
             });
         });
-        self.tools2.types.msg = msg;
+        if let Some(target) = pointer_goto { self.actions.push(Action::Goto(target)); }
+        if let Some(target) = field_goto { self.actions.push(Action::Goto(target)); }
         let mut changed = false;
         if let State::Ready(l) = &mut self.state {
+            if import_debug {
+                let mut imported = 0usize;
+                let mut skipped = 0usize;
+                for def in &l.bin.debug_structs {
+                    if l.ann.structs.iter().any(|existing| existing.name == def.name) { skipped += 1; }
+                    else { l.ann.structs.push(def.clone()); imported += 1; }
+                }
+                msg = format!("Imported {imported} DWARF layouts; skipped {skipped} existing names.");
+                changed |= imported > 0;
+            }
             if let Some(s) = add_def {
                 l.ann.structs.retain(|x| x.name != s.name);
                 l.ann.structs.push(s);
@@ -359,6 +396,7 @@ impl LensApp {
                 l.refresh();
             }
         }
+        self.tools2.types.msg = msg;
         self.tools2.types.open = open;
         let _ = (vec2(0.0, 0.0), Sense::hover());
     }

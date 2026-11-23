@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Arch {
+    X16,
     X86,
     X64,
     Arm64,
@@ -16,21 +17,24 @@ pub enum Arch {
     Mips64,
     Ppc32,
     Ppc64,
+    M68k,
     Other,
 }
 
 impl Arch {
     pub fn is_x86(self) -> bool {
-        matches!(self, Arch::X86 | Arch::X64)
+        matches!(self, Arch::X16 | Arch::X86 | Arch::X64)
     }
     pub fn bits(self) -> u32 {
         match self {
-            Arch::X86 | Arch::Arm32 | Arch::Thumb | Arch::RiscV32 | Arch::Mips32 | Arch::Ppc32 => 32,
+            Arch::X16 => 16,
+            Arch::X86 | Arch::Arm32 | Arch::Thumb | Arch::RiscV32 | Arch::Mips32 | Arch::Ppc32 | Arch::M68k => 32,
             _ => 64,
         }
     }
     pub fn name(self) -> &'static str {
         match self {
+            Arch::X16 => "x86 (16-bit)",
             Arch::X86 => "x86 (32-bit)",
             Arch::X64 => "x86-64",
             Arch::Arm64 => "ARM64",
@@ -42,11 +46,12 @@ impl Arch {
             Arch::Mips64 => "MIPS64",
             Arch::Ppc32 => "PowerPC",
             Arch::Ppc64 => "PowerPC 64",
+            Arch::M68k => "Motorola 68000",
             Arch::Other => "unknown",
         }
     }
-    pub fn all() -> [Arch; 11] {
-        [Arch::X64, Arch::X86, Arch::Arm64, Arch::Arm32, Arch::Thumb, Arch::RiscV64, Arch::RiscV32, Arch::Mips32, Arch::Mips64, Arch::Ppc32, Arch::Ppc64]
+    pub fn all() -> [Arch; 13] {
+        [Arch::X64, Arch::X86, Arch::X16, Arch::Arm64, Arch::Arm32, Arch::Thumb, Arch::RiscV64, Arch::RiscV32, Arch::Mips32, Arch::Mips64, Arch::Ppc32, Arch::Ppc64, Arch::M68k]
     }
     /// Fixed instruction size, when the architecture has one.
     pub fn fixed_width(self) -> Option<u64> {
@@ -123,6 +128,8 @@ pub struct Binary {
     pub debug_protos: String,
     /// struct / union / enum definitions from DWARF, as C text.
     pub debug_types: String,
+    /// Struct/union/enum layouts reconstructed from DWARF member offsets.
+    pub debug_structs: Vec<crate::types::StructDef>,
 }
 
 impl Binary {
@@ -286,6 +293,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         func_hints: vec![],
         debug_protos: String::new(),
         debug_types: String::new(),
+        debug_structs: vec![],
     };
     match Object::parse(&bytes) {
         Ok(Object::Elf(elf)) => {
@@ -338,6 +346,7 @@ fn load_raw(bin: &mut Binary, bytes: &[u8]) {
 fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
     use goblin::elf::header::*;
     use goblin::elf::section_header::*;
+    let relocatable = elf.header.e_type == ET_REL;
     bin.format = format!(
         "ELF{} {}",
         if elf.is_64 { "64" } else { "32" },
@@ -364,6 +373,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         EM_MIPS => bin.arch = if elf.is_64 { Arch::Mips64 } else { Arch::Mips32 },
         EM_PPC => bin.arch = Arch::Ppc32,
         EM_PPC64 => bin.arch = Arch::Ppc64,
+        goblin::elf::header::EM_68K => { bin.arch = Arch::M68k; bin.arch_name = "Motorola 68000".into(); },
         _ => {}
     }
     bin.big_endian = !elf.little_endian;
@@ -375,11 +385,20 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         };
     }
     bin.entry = if elf.entry != 0 { Some(elf.entry) } else { None };
-    for sh in &elf.section_headers {
-        if sh.sh_flags as u32 & SHF_ALLOC == 0 || sh.sh_size == 0 || sh.sh_addr == 0 {
+    let mut section_bases = vec![None; elf.section_headers.len()];
+    let mut next_object_addr = 0x1000_0000u64;
+    for (section_index, sh) in elf.section_headers.iter().enumerate() {
+        if sh.sh_flags as u32 & SHF_ALLOC == 0 || sh.sh_size == 0 || (!relocatable && sh.sh_addr == 0) {
             continue;
         }
         let name = elf.shdr_strtab.get_at(sh.sh_name).unwrap_or("").to_string();
+        let start_addr = if relocatable {
+            let alignment = sh.sh_addralign.max(1).checked_next_power_of_two().unwrap_or(1 << 20).min(1 << 20);
+            let start = next_object_addr.saturating_add(alignment - 1) & !(alignment - 1);
+            section_bases[section_index] = Some(start);
+            next_object_addr = start.saturating_add(sh.sh_size).saturating_add(0x1000);
+            start
+        } else { sh.sh_addr };
         let (data, foff) = if sh.sh_type == SHT_NOBITS {
             (vec![0u8; sh.sh_size.min(MAX_ZERO_FILL) as usize], None)
         } else {
@@ -389,7 +408,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         };
         bin.segments.push(Segment {
             name,
-            start: sh.sh_addr,
+            start: start_addr,
             size: sh.sh_size,
             data,
             exec: sh.sh_flags as u32 & SHF_EXECINSTR != 0,
@@ -418,10 +437,20 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             });
         }
     }
+    if relocatable {
+        bin.entry = bin.segments.iter().find(|s| s.exec).map(|s| s.start);
+        let (applied, skipped) = apply_elf_object_relocations(bin, elf, &section_bases);
+        bin.notes.push(format!("Relocatable ELF object: alloc sections are mapped at synthetic addresses; applied {applied} supported relocations and skipped {skipped} unresolved or unsupported relocations."));
+    }
     for sym in elf.syms.iter().chain(elf.dynsyms.iter()) {
-        if sym.st_value == 0 || sym.st_shndx == 0 {
+        if sym.st_shndx == 0 {
             continue;
         }
+        let sym_addr = if relocatable {
+            section_bases.get(sym.st_shndx as usize).and_then(|base| *base).map(|base| base.saturating_add(sym.st_value))
+        } else { Some(sym.st_value) };
+        let Some(sym_addr) = sym_addr else { continue };
+        if sym_addr == 0 { continue; }
         let name = elf
             .strtab
             .get_at(sym.st_name)
@@ -431,9 +460,9 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             continue;
         }
         if sym.is_function() {
-            bin.symbols.push((sym.st_value, clean_symbol(name)));
+            bin.symbols.push((sym_addr, clean_symbol(name)));
         } else if sym.st_type() == goblin::elf::sym::STT_OBJECT {
-            bin.data_symbols.push((sym.st_value, clean_symbol(name)));
+            bin.data_symbols.push((sym_addr, clean_symbol(name)));
         }
     }
     for sym in elf.dynsyms.iter() {
@@ -465,6 +494,112 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
     }
     bin.imports.sort_by_key(|i| i.slot);
     bin.imports.dedup_by_key(|i| i.slot);
+}
+
+fn read_elf_word(bin: &Binary, addr: u64, width: usize) -> Option<i64> {
+    let b = bin.read(addr, width);
+    if b.len() != width { return None; }
+    Some(match (width, bin.big_endian) {
+        (1, _) => b[0] as i8 as i64,
+        (2, false) => i16::from_le_bytes(b.try_into().ok()?) as i64,
+        (2, true) => i16::from_be_bytes(b.try_into().ok()?) as i64,
+        (4, false) => i32::from_le_bytes(b.try_into().ok()?) as i64,
+        (4, true) => i32::from_be_bytes(b.try_into().ok()?) as i64,
+        (8, false) => i64::from_le_bytes(b.try_into().ok()?),
+        (8, true) => i64::from_be_bytes(b.try_into().ok()?),
+        _ => return None,
+    })
+}
+
+fn write_elf_word(bin: &mut Binary, addr: u64, width: usize, value: i64) -> bool {
+    let Some(seg) = bin.segments.iter_mut().find(|s| s.contains(addr)) else { return false };
+    let off = (addr - seg.start) as usize;
+    if off.checked_add(width).is_none_or(|end| end > seg.data.len()) { return false; }
+    let bytes = match (width, bin.big_endian) {
+        (1, _) => vec![value as u8],
+        (2, false) => (value as i16).to_le_bytes().to_vec(),
+        (2, true) => (value as i16).to_be_bytes().to_vec(),
+        (4, false) => (value as i32).to_le_bytes().to_vec(),
+        (4, true) => (value as i32).to_be_bytes().to_vec(),
+        (8, false) => value.to_le_bytes().to_vec(),
+        (8, true) => value.to_be_bytes().to_vec(),
+        _ => return false,
+    };
+    seg.data[off..off + width].copy_from_slice(&bytes);
+    true
+}
+
+fn object_symbol_addr(sym: &goblin::elf::sym::Sym, bases: &[Option<u64>]) -> Option<u64> {
+    if sym.st_shndx == goblin::elf::section_header::SHN_ABS as usize {
+        Some(sym.st_value)
+    } else {
+        bases.get(sym.st_shndx as usize).and_then(|base| *base).map(|base| base.saturating_add(sym.st_value))
+    }
+}
+
+/// Applies common static relocations to the synthetic memory image for ET_REL objects.
+/// Relocations that need a linker-created GOT/PLT or paired instruction sequence are left intact.
+fn apply_elf_object_relocations(bin: &mut Binary, elf: &goblin::elf::Elf, bases: &[Option<u64>]) -> (usize, usize) {
+    use goblin::elf::header::*;
+    use goblin::elf::reloc::*;
+    let mut applied = 0usize;
+    let mut skipped = 0usize;
+    for (relsec_index, relocs) in &elf.shdr_relocs {
+        let Some(relsec) = elf.section_headers.get(*relsec_index) else { continue };
+        let target_index = relsec.sh_info as usize;
+        let Some(target_base) = bases.get(target_index).and_then(|b| *b) else { skipped += relocs.len(); continue };
+        let symtab_name = elf.section_headers.get(relsec.sh_link as usize)
+            .and_then(|sh| elf.shdr_strtab.get_at(sh.sh_name)).unwrap_or("");
+        let symtab = match symtab_name { ".symtab" => &elf.syms, ".dynsym" => &elf.dynsyms, _ => { skipped += relocs.len(); continue } };
+        for rel in relocs.iter() {
+            let Some(sym) = symtab.get(rel.r_sym) else { skipped += 1; continue };
+            let Some(s) = object_symbol_addr(&sym, bases) else { skipped += 1; continue };
+            let place = target_base.saturating_add(rel.r_offset);
+            let (width, formula) = match (elf.header.e_machine, rel.r_type) {
+                (EM_X86_64, R_X86_64_64) => (8, 0),
+                (EM_X86_64, R_X86_64_PC32 | R_X86_64_PLT32) => (4, 1),
+                (EM_X86_64, R_X86_64_32 | R_X86_64_32S) => (4, 0),
+                (EM_386, R_386_32) => (4, 0),
+                (EM_386, R_386_PC32) => (4, 1),
+                (EM_AARCH64, R_AARCH64_ABS64) => (8, 0),
+                (EM_AARCH64, R_AARCH64_ABS32) => (4, 0),
+                (EM_AARCH64, R_AARCH64_PREL32) => (4, 1),
+                (EM_AARCH64, R_AARCH64_ABS16) => (2, 0),
+                (EM_AARCH64, R_AARCH64_PREL16) => (2, 1),
+                (EM_AARCH64, R_AARCH64_CALL26 | R_AARCH64_JUMP26) if rel.r_addend.is_some() => (4, 2),
+                (EM_ARM, R_ARM_ABS32) => (4, 0),
+                (EM_ARM, R_ARM_REL32) => (4, 1),
+                (EM_68K, 1) => (4, 0), // R_68K_32
+                (EM_68K, 2) => (2, 0), // R_68K_16
+                (EM_68K, 3) => (1, 0), // R_68K_8
+                (EM_68K, 4) => (4, 1), // R_68K_PC32
+                (EM_68K, 5) => (2, 1), // R_68K_PC16
+                (EM_68K, 6) => (1, 1), // R_68K_PC8
+                (EM_RISCV, R_RISCV_32) => (4, 0),
+                (EM_RISCV, R_RISCV_64) => (8, 0),
+                _ => { skipped += 1; continue; }
+            };
+            let addend = if formula == 2 { rel.r_addend.unwrap_or(0) }
+                else { rel.r_addend.or_else(|| read_elf_word(bin, place, width)).unwrap_or(0) };
+            let value = if formula == 0 || formula == 2 { (s as i128) + (addend as i128) }
+                else { (s as i128) + (addend as i128) - (place as i128) };
+            let ok = if formula == 2 {
+                let aligned = value % 4 == 0;
+                let in_range = (-(1i128 << 27)..(1i128 << 27)).contains(&value);
+                if aligned && in_range {
+                    if let Some(old) = read_elf_word(bin, place, 4) {
+                        let instruction = old as u32;
+                        let patched = (instruction & 0xfc00_0000) | (((value >> 2) as u32) & 0x03ff_ffff);
+                        write_elf_word(bin, place, 4, patched as i32 as i64)
+                    } else { false }
+                } else { false }
+            } else {
+                write_elf_word(bin, place, width, value as i64)
+            };
+            if ok { applied += 1; } else { skipped += 1; }
+        }
+    }
+    (applied, skipped)
 }
 
 fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
@@ -590,6 +725,8 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
 
 fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     use goblin::mach::constants::cputype::*;
+    let object_file = m.header.filetype == goblin::mach::header::MH_OBJECT;
+    bin.big_endian = !m.little_endian;
     bin.format = format!(
         "Mach-O {}",
         match m.header.filetype {
@@ -617,9 +754,27 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
             bin.arch = Arch::Arm32;
             bin.arch_name = "ARM (32-bit)".into()
         }
+        6 => { // CPU_TYPE_MC680x0
+            bin.arch = Arch::M68k;
+            bin.arch_name = "Motorola 68000".into();
+            bin.big_endian = true;
+        }
+        18 => { // CPU_TYPE_POWERPC
+            bin.arch = Arch::Ppc32;
+            bin.arch_name = "PowerPC".into();
+            bin.big_endian = true;
+        }
+        0x0100_0012 => { // CPU_TYPE_POWERPC64
+            bin.arch = Arch::Ppc64;
+            bin.arch_name = "PowerPC 64".into();
+            bin.big_endian = true;
+        }
         c => bin.arch_name = get_arch_name_from_types(c, m.header.cpusubtype).unwrap_or("unknown").to_string(),
     }
     let mut text_base = 0u64;
+    let mut section_bases = vec![None; 1];
+    let mut section_ordinal = 0usize;
+    let mut next_object_addr = 0x1000_0000u64;
     for seg in m.segments.iter() {
         let segname = seg.name().unwrap_or("").to_string();
         if segname == "__TEXT" {
@@ -630,17 +785,26 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
         }
         if let Ok(sections) = seg.sections() {
             for (sec, data) in sections {
+                section_ordinal += 1;
+                if section_bases.len() <= section_ordinal { section_bases.resize(section_ordinal + 1, None); }
                 if sec.size == 0 {
                     continue;
                 }
                 let sname = sec.name().unwrap_or("").to_string();
+                let start_addr = if object_file {
+                    let align = 1u64.checked_shl(sec.align).unwrap_or(1).min(1 << 20);
+                    let start = next_object_addr.saturating_add(align - 1) & !(align - 1);
+                    section_bases[section_ordinal] = Some(start);
+                    next_object_addr = start.saturating_add(sec.size).saturating_add(0x1000);
+                    start
+                } else { sec.addr };
                 let zerofill = matches!(sec.flags & 0xff, 0x1 | 0xc | 0x12);
                 let mut d = if zerofill { vec![] } else { data.to_vec() };
                 d.resize(sec.size.min(MAX_ZERO_FILL) as usize, 0);
                 let exec = sec.flags & 0x8000_0000 != 0 || sec.flags & 0x400 != 0;
                 bin.segments.push(Segment {
                     name: format!("{segname},{sname}"),
-                    start: sec.addr,
+                    start: start_addr,
                     size: sec.size,
                     data: d,
                     exec,
@@ -667,13 +831,20 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     if m.entry != 0 {
         // goblin already turns LC_MAIN's file offset into a virtual address.
         bin.entry = Some(m.entry);
+    } else if object_file {
+        bin.entry = bin.segments.iter().find(|s| s.exec).map(|s| s.start);
+        let (applied, skipped) = apply_macho_object_relocations(bin, m, &section_bases);
+        bin.notes.push(format!("Relocatable Mach-O object: sections and defined symbols are mapped at synthetic addresses; applied {applied} supported x86-64/ARM64 relocations and skipped {skipped} others."));
     }
     if let Some(syms) = &m.symbols {
         for (name, nl) in syms.iter().flatten() {
-            if nl.is_stab() || nl.is_undefined() || nl.n_value == 0 || name.is_empty() {
+            if nl.is_stab() || nl.is_undefined() || (!object_file && nl.n_value == 0) || name.is_empty() {
                 continue;
             }
-            let a = nl.n_value;
+            let a = if object_file {
+                section_bases.get(nl.n_sect).and_then(|base| *base).map(|base| base.saturating_add(nl.n_value))
+            } else { Some(nl.n_value) };
+            let Some(a) = a else { continue };
             if bin.segments.iter().any(|s| s.exec && s.contains(a)) {
                 bin.symbols.push((a, name.to_string()));
             } else {
@@ -701,6 +872,71 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     bin.libraries = m.libs.iter().filter(|l| **l != "self").map(|s| s.to_string()).collect();
     bin.imports.sort_by_key(|i| i.slot);
     bin.imports.dedup_by_key(|i| i.slot);
+}
+
+fn apply_macho_object_relocations(
+    bin: &mut Binary,
+    macho: &goblin::mach::MachO<'_>,
+    section_bases: &[Option<u64>],
+) -> (usize, usize) {
+    use goblin::mach::relocation::*;
+    let Ok(relocation_sections) = macho.relocations() else { return (0, 0) };
+    let mut applied = 0usize;
+    let mut skipped = 0usize;
+    for (_, relocs, section) in relocation_sections {
+        let seg_name = section.segname().unwrap_or("");
+        let sec_name = section.name().unwrap_or("");
+        let source_name = format!("{seg_name},{sec_name}");
+        let Some(source_base) = bin.segments.iter().find(|s| s.name == source_name).map(|s| s.start) else {
+            skipped += section.nreloc as usize;
+            continue;
+        };
+        for item in relocs {
+            let Ok(reloc) = item else { skipped += 1; continue };
+            if reloc.r_address < 0 { skipped += 1; continue; }
+            let place = source_base.saturating_add(reloc.r_address as u64);
+            let target = if reloc.is_extern() {
+                let Some(symbols) = &macho.symbols else { skipped += 1; continue };
+                let Ok((_, symbol)) = symbols.get(reloc.r_symbolnum()) else { skipped += 1; continue };
+                if symbol.is_undefined() { skipped += 1; continue; }
+                if symbol.n_sect == 0 { Some(symbol.n_value) }
+                else { section_bases.get(symbol.n_sect).and_then(|base| *base).map(|base| base.saturating_add(symbol.n_value)) }
+            } else {
+                section_bases.get(reloc.r_symbolnum()).and_then(|base| *base)
+            };
+            let Some(target) = target else { skipped += 1; continue };
+            let width = 1usize << reloc.r_length();
+            let (formula, branch26) = match (macho.header.cputype, reloc.r_type()) {
+                (0x0100_0007, X86_64_RELOC_UNSIGNED) if matches!(width, 4 | 8) => (0, false),
+                (0x0100_0007, X86_64_RELOC_SIGNED | X86_64_RELOC_BRANCH) if width == 4 => (1, false),
+                (0x0100_000c, ARM64_RELOC_UNSIGNED) if matches!(width, 4 | 8) => (0, false),
+                (0x0100_000c, ARM64_RELOC_BRANCH26) if width == 4 => (1, true),
+                _ => { skipped += 1; continue; }
+            };
+            let addend = if branch26 {
+                let Some(raw) = read_elf_word(bin, place, 4) else { skipped += 1; continue };
+                let imm = (raw as u32 & 0x03ff_ffff) as i32;
+                ((imm << 6) >> 4) as i64
+            } else {
+                let Some(a) = read_elf_word(bin, place, width) else { skipped += 1; continue };
+                a
+            };
+            let value = if formula == 0 { (target as i128) + (addend as i128) }
+                else { (target as i128) + (addend as i128) - (place as i128) };
+            let ok = if branch26 {
+                if value % 4 != 0 || !(-(1i128 << 27)..(1i128 << 27)).contains(&value) { false }
+                else if let Some(old) = read_elf_word(bin, place, 4) {
+                    let insn = old as u32;
+                    let patched = (insn & 0xfc00_0000) | (((value >> 2) as u32) & 0x03ff_ffff);
+                    write_elf_word(bin, place, 4, patched as i32 as i64)
+                } else { false }
+            } else {
+                write_elf_word(bin, place, width, value as i64)
+            };
+            if ok { applied += 1; } else { skipped += 1; }
+        }
+    }
+    (applied, skipped)
 }
 
 /// Imports from `LC_DYLD_CHAINED_FIXUPS` (what current arm64 Mach-O files use instead of bind opcodes).
@@ -819,6 +1055,7 @@ pub fn raw_binary(spec: &RawSpec) -> Binary {
         func_hints: vec![],
         debug_protos: String::new(),
         debug_types: String::new(),
+        debug_structs: vec![],
     };
     for (i, (start, data)) in spec.segs.iter().enumerate() {
         bin.segments.push(Segment {

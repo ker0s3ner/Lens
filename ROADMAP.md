@@ -1,51 +1,64 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Honest status: Lens is roughly 10-15% of IDA Pro overall. This is the ordered plan to close the gap.
-Each phase should be validated against real binaries as well as targeted regression fixtures. Status below reflects the implementation in this repository; planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-23. A weighted capability estimate puts Lens at about **27% of IDA Pro's breadth** (plausible range: **22–30%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+
+| Capability area | Weight | Lens coverage estimate | Weighted contribution |
+| --- | ---: | ---: | ---: |
+| File formats and processor breadth | 20% | 25% | 5.0% |
+| Static analysis and navigation | 20% | 40% | 8.0% |
+| Decompiler and type recovery | 20% | 15% | 3.0% |
+| Type system and debug information | 10% | 20% | 2.0% |
+| Debugging and tracing | 10% | 35% | 3.5% |
+| Workflow, scripting and interchange | 10% | 35% | 3.5% |
+| Reliability, performance and scale | 10% | 20% | 2.0% |
+| **Total** | **100%** |  | **27.0%** |
+
+These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging and export, so a 10–15% estimate understated its implemented breadth. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
 ## Phase 1 - Reliability (first, everything else depends on it)
-- Run Lens over a large corpus (system binaries, dylibs, ELF, PE, stripped, Go/Rust/Swift) and fix every crash and bad decode.
+- Expand the existing 200-program system-binary run into a repeatable corpus covering ELF, PE, Mach-O, stripped files, dylibs, and Go/Rust/Swift; fix crashes and incorrect results found by it.
 - Performance on 100 MB+ files: background analysis, incremental listing, memory limits.
-- Regression test suite with golden outputs for disassembly and pseudocode.
+- Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
-- Extend switch/jump-table recovery beyond the current x86 and ARM64 support to ARM/Thumb, RISC-V, MIPS and PowerPC.
+- Extend switch/jump-table recovery beyond x86, ARM64 and basic Thumb TBB/TBH tables to ARM/Thumb patterns, RISC-V, MIPS and PowerPC.
 - Vtable, RTTI and Objective-C / Swift metadata recovery.
-- Extend function-boundary recovery beyond the current ELF `.eh_frame`, PE `.pdata` and Mach-O `LC_FUNCTION_STARTS` / `__unwind_info` sources; add more robust malformed-table handling.
-- Constant propagation, no-return detection, tail-call detection, thunks.
+- Extend function-boundary recovery beyond ELF `.eh_frame`, PE `.pdata` and Mach-O `LC_FUNCTION_STARTS` / `__unwind_info`; add more robust malformed-table handling and additional format-specific tables.
+- Improve constant propagation and broaden no-return, tail-call and thunk detection beyond the current known names/prototypes and direct-target cases.
 - Better data-vs-code discrimination and string / array / pointer-table typing.
-- Debug info: DWARF, PDB, dSYM; symbol demangling (C++, Rust, Swift).
+- Debug info: DWARF names, prototypes and supported type layouts are available, with adjacent dSYM lookup; PDB and broader C++/Rust/Swift debug-type support remain.
 
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls; struct and array access reconstruction.
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, calling-convention inference.
 - Thumb/Thumb-2 in the main loader, MIPS delay slots, PPC extras.
-- Interactive: retype variables, rename locals, jump between pseudocode and disassembly.
+- Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
 
 ## Phase 4 - Type system and libraries
-- Expand the C-like type parser: unions and basic enums are supported; typedef resolution, nested declarations, function pointers and bitfields remain.
-- Type libraries for libc, POSIX, Win32, macOS frameworks; apply to imports and calls.
-- Signature library built from system libraries (libSystem, libc, MSVC CRT) and shipped with releases.
+- Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays and simple packed integer bitfields are supported; full function-pointer declarations and compiler-specific bitfield ABI/layout rules remain.
+- Extend the built-in/user prototype library (about 190 signatures) and improve type propagation from prototypes into variables, memory accesses, and pseudocode.
+- Generate and ship broader versioned signature/type libraries from system libraries (libSystem, libc, MSVC CRT and platform frameworks); the current built-in prototype set is not a complete type library.
 
 ## Phase 5 - Debugger
-- Own debug engine (ptrace / Mach / Windows debug API) instead of driving lldb.
-- Registers, memory and stack views, watches, conditional breakpoints, hardware breakpoints, tracing.
-- Remote debugging (gdbserver, lldb-server) and attach to process.
+- Replace the LLDB-driven backend with native platform backends (ptrace / Mach / Windows debug API), or document a deliberate LLDB dependency.
+- Improve target/session management, platform coverage, reconnect/error recovery, and debugger UI synchronization.
+- Decode hardware processor trace streams (such as Intel PT) and connect them to static analysis; the current instruction trace is bounded LLDB single-stepping, not hardware trace decoding.
 
 ## Phase 6 - Scripting and plugins
-- Full scripting API (read/write database, types, decompiler output, UI hooks).
-- Plugin loading with a stable ABI or embedded script runtime, package/manager, example plugins.
+- Expand and document the existing Rhai script API to cover annotations, types, xrefs, decompiler output, and safe UI actions.
+- Improve the existing `.rhai` plugin workflow with examples, discovery/management, error reporting, and a compatibility/versioning story. A basic embedded runtime and load/on-open hooks already exist; there is no stable native plugin ABI or package manager.
 
 ## Phase 7 - Formats and CPUs
 - Firmware, raw flash dumps, kernels, Android DEX / APK, Java class, .NET IL, WebAssembly, Mach-O fileset.
-- More processors: AVR, 6502, Z80, SuperH, SPARC, s390x, TriCore, 68k, eBPF.
+- More processors: AVR, 6502, Z80, SuperH, SPARC, s390x, TriCore, eBPF. Basic Motorola 68000 decode support is implemented via Capstone; semantic analysis and decompilation need more work.
 - Proper per-CPU semantics for each, not just text classification.
 
 ## Phase 8 - Workflow and UI
-- Persistent project database, undo/redo, multiple views, bookmarks, graph overview.
-- Binary diffing, cross-references everywhere, structure/enum windows, local and global search upgrades.
-- Collaboration / export (IDC-like scripts, JSON, Ghidra/IDA database import).
+- Promote the new versioned per-file annotation container into a user-managed project database with project naming, migration, and multi-file sessions. Per-file annotations, undo/redo for supported edits, bookmarks, multiple views, and a function graph already exist.
+- Extend xrefs consistently across pseudocode, graph and all data references; xref lists, listing comments, segment pointer scans, and pointer members in applied types already produce xrefs.
+- Add top-level array/pointer-table declarations and a dedicated synchronized structure/data pane; fixed arrays inside applied types expand into individually navigable elements and pointer-array entries produce xrefs, but there is no standalone table definition or persistent side-by-side browser. Improve local/global search.
+- Improve collaboration and interchange; IDC/Ghidra script and JSON/map exports and partial IDC/Ghidra import already exist, but richer database import remains.
 
 ## Done so far (toward parity)
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
@@ -54,7 +67,17 @@ Each phase should be validated against real binaries as well as targeted regress
 - Applied enum values are shown in data cross-reference comments as `EnumName::MemberName`.
 - Debugger expression watches are evaluated by lldb and refreshed whenever the process stops.
 - Breakpoint conditions can be set per address, persist with annotations and are applied by lldb both to existing breakpoints and when a debug session starts.
-- Embedded struct/union member names propagate into the listing as dotted paths, including bounded fixed arrays of nested records; pointer fields are not followed.
+- Debugger can attach to a local PID, connect to a GDB remote host:port, request hardware breakpoints, inspect 128-byte memory windows, and record instruction PCs in capped 100- or 1,000-step traces.
+- ELF relocatable object files load alloc sections and defined function/data symbols at synthetic addresses; common x86/x64, AArch64 absolute and call/jump, ARM/RISC-V absolute data, and 68k absolute/PC-relative relocations are applied. GOT/PLT and paired instruction relocations remain.
+- Mach-O relocatable object files map sections and defined symbols at synthetic addresses and apply common x86-64 unsigned/PC-relative and ARM64 unsigned/branch relocations. GOT, paired, and other architecture-specific relocation forms remain.
+- Mach-O loader recognizes Motorola 68000 and PowerPC 32/64 CPU types, in addition to the existing x86 and ARM families.
+- Raw binaries can use an x86 16-bit decoder mode in addition to x86 32/64-bit.
+- Motorola 68000 instructions decode through Capstone, with basic call, branch and return flow classification.
+- Data pointers from non-executable segments now produce cross-references to any mapped address and use binary endianness when read.
+- Applied pointer fields in the Types window can be followed directly to their mapped targets; xref deduplication now preserves different relationship kinds from the same instruction.
+- Simple integer bitfields (1–64 bits) are parsed into shared storage units and displayed/extracted with target byte order; compiler-specific bitfield ABI variants still need validation.
+- The Types window supports user-defined struct/union/enum/alias declarations, application to addresses, nested field values, enum resolution, and import of supported DWARF layouts with compiler-provided offsets. Nested member names propagate into the listing; bitfields and full C declaration coverage are not supported.
+- Embedded struct/union member names propagate into the listing as dotted paths; bounded fixed arrays of nested records, primitive values and pointer slots expand into indexed fields.
 - Known direct tail jumps now appear as call-graph edges and are counted among the destination function's callers.
 - Calls and jumps through imported function slots are classified as call/jump xrefs, so import caller views and cross-reference lists include them.
 - Undo / redo for names, notes, bookmarks, structs and functions (Cmd+Z, Cmd+Shift+Z).
@@ -72,6 +95,11 @@ Each phase should be validated against real binaries as well as targeted regress
 - Corpus run: 200 system programs decompiled end to end with no crashes or timeouts (found and fixed a runaway-memory bug on stack offsets).
 - Export the listing as text and the call graph as Graphviz.
 - Function prototypes (type library): ~190 built-in libc / POSIX / sockets / threads / Win32 / macOS signatures plus your own. Calls get the exact argument count, noreturn functions end paths, call results get real types (`char *v5`), and a function with a prototype is printed with its types and parameter names.
+- Rhai scripts can read a snapshot of functions, names, strings, segments, imports/exports, types, xrefs, bytes and disassembly, and queue changes such as renames, comments, marks, patches, navigation, function creation, and type definitions/application. `.rhai` plugins can run manually or on file open.
+- Scripts can query outgoing as well as incoming xrefs; command-line and GUI script snapshots expose the same additions.
+- Thumb TBB/TBH indirect branches recover bounded case targets when a nearby compare supplies a usable bound.
+- Per-file annotation storage now wraps data in a versioned project-database envelope, writes via a temporary file, and still reads legacy annotation JSON.
+- The debugger can restart the current launch/attach/remote configuration after the target exits.
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.
 - FindCrypt-style detection of AES, SHA, MD5, CRC, Blowfish, ChaCha, Base64 and other constants (Lists > Crypto, overview).
@@ -81,13 +109,13 @@ Each phase should be validated against real binaries as well as targeted regress
 - IDA-style stack slots in the listing for frame-pointer functions: `[rbp+var_8]`, `[rbp+arg_0]`; pseudocode variable renames show up in the listing too.
 
 ## Next implementation queue
-1. **Type application:** add enum names to pseudocode, show nested field values in the structure view, and add bitfields with target-aware layout validation. Enum values now appear by name in the listing and cross-reference comments when applied to data.
-2. **Analysis quality:** improve tail-call and thunk classification beyond known direct targets; add ARM/Thumb switch recovery; add vtable and RTTI discovery with explicit confidence and source locations.
-3. **Data views:** add array and pointer-table definitions, data xrefs inside those ranges, and a synchronized structure view that follows selected fields.
+1. **Types:** validate bitfield layouts across compiler ABIs; expand function-pointer declarations and enum constant propagation in pseudocode.
+2. **Analysis quality:** improve tail-call and thunk classification; expand ARM/Thumb switch recovery beyond TBB/TBH; discover vtables and RTTI with confidence and source locations.
+3. **Data views and xrefs:** add top-level array/pointer-table definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
-5. **Debugging:** add process attach and remote target management to the existing lldb-backed debugger. Conditional breakpoints and expression watches are implemented.
-6. **Projects and scale:** move annotations into a versioned project database, support large binaries with incremental analysis/listing, and add repeatable corpus fixtures for supported formats/architectures.
-7. **Interchange:** import IDA/Ghidra names, comments and data/type definitions more completely; add a stable documented script API and plugin examples.
+5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.
+6. **Projects and scale:** add user-managed multi-file projects, support large binaries with incremental analysis/listing, and expand repeatable corpus fixtures across formats and architectures.
+7. **Scripting and interchange:** document the expanded Rhai API, add plugin examples and compatibility management, and improve IDA/Ghidra database import for comments, data and types.
 
 ## Current boundaries
 - Lens is an analysis and disassembly workbench, not yet a replacement for IDA's mature debugger, decompiler, type system, processor modules or database ecosystem.

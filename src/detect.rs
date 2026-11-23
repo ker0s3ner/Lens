@@ -1009,6 +1009,7 @@ fn native_conv(arch: Arch, is_pe: bool) -> Option<&'static str> {
         Arch::RiscV32 | Arch::RiscV64 => "RISC-V psABI (a0–a7)",
         Arch::Mips32 | Arch::Mips64 => "MIPS o32/n64 ($a0–$a3)",
         Arch::Ppc32 | Arch::Ppc64 => "PowerPC ABI (r3–r10)",
+        Arch::M68k => "Motorola 68000 ABI (d0/d1 results, stack arguments)",
         _ => return None,
     })
 }

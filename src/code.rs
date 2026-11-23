@@ -118,7 +118,7 @@ pub struct CodeFormatter {
 
 /// True when the function at `start` begins with `push rbp; mov rbp, rsp` (optionally after `endbr64`).
 pub fn has_frame_pointer(bin: &Binary, start: u64) -> bool {
-    if !bin.arch.is_x86() {
+    if !bin.arch.is_x86() || bin.bitness() < 32 {
         return false;
     }
     let b = bin.read(start, 8);

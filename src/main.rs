@@ -93,7 +93,7 @@ fn cli(args: &[String]) -> bool {
     }
     if args.iter().any(|a| a == "--dbg-test") {
         let main_addr = det.main.as_ref().map(|m| m.0).unwrap_or(0);
-        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", &[main_addr], &std::collections::HashMap::new()) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
+        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", "", false, &[main_addr], &std::collections::HashMap::new()) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
         let t0 = std::time::Instant::now();
         let mut step = 0;
         while t0.elapsed().as_secs() < 25 {
@@ -111,14 +111,20 @@ fn cli(args: &[String]) -> bool {
     }
     if let Some(sp) = &script {
         let src = std::fs::read_to_string(sp).unwrap_or_default();
-        let ann = store::Annotations::default();
+        let ann = store::load_annotations(&bin.path, bin.file_size);
         let names = app::build_names(&an, &ann, &det, &bin);
+        let xrefs: std::collections::HashMap<u64, Vec<u64>> = an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect();
+        let mut out_xrefs: std::collections::HashMap<u64, Vec<u64>> = std::collections::HashMap::new();
+        for (target, sources) in &xrefs { for source in sources { out_xrefs.entry(*source).or_default().push(*target); } }
         let snap = script::Snap {
             bin: std::sync::Arc::new(bin.clone()),
             funcs: an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| (f.start, names.get(&f.start).map(|n| n.0.clone()).unwrap_or_default(), f.end - f.start, f.blocks.len())).collect(),
             names: names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
             strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
-            xrefs: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect(),
+            xrefs,
+            out_xrefs,
+            applied_types: ann.applied.iter().cloned().collect(),
+            types: ann.structs.clone(),
         };
         let r = script::run(&src, snap, None);
         print!("{}", r.text);
