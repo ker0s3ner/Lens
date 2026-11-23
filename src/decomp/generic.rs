@@ -1029,6 +1029,16 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, bin("-", Ex::Num(0), v));
         }
         (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") => arith(dc, st, "*", false),
+        (Fam::Rv, "mulh" | "mulhu" | "mulhsu") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let helper = match base_mn {
+                "mulhu" => "__riscv_mulhu",
+                "mulhsu" => "__riscv_mulhsu",
+                _ => "__riscv_mulh",
+            };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);

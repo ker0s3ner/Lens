@@ -1,6 +1,9 @@
-# Lens 0.6.28 — Fourier
+# Lens 0.6.29 — Fourier
 
 ## What's new
+
+- RISC-V `mulh`, `mulhu`, and `mulhsu` now preserve signed and unsigned high-half product semantics in pseudocode.
+- High-half multiplication is represented with named semantic helpers instead of an opaque unsupported instruction.
 
 - MIPS signed and unsigned division now preserve quotient in LO and remainder in HI for `mflo`/`mfhi` consumers.
 - MIPS division and multiply share explicit HI/LO data flow in pseudocode.
