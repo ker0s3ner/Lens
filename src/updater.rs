@@ -39,6 +39,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Copied pointer temporaries retain inferred pointee types in subsequent memory reads.",
     "Versioned .lensproj manifests group multiple binaries and open the selected active file.",
     "File > Save Project creates or updates a .lensproj manifest from the current session.",
+    "File > Add File to Project appends binaries with duplicate detection and persistence.",
 ];
 
 pub fn current_release_title() -> String {

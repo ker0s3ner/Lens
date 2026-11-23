@@ -47,7 +47,7 @@ mod imp {
 
             let file = Submenu::new("File", true);
             add(&file, &[
-                ("open", "Open..."), ("save_project", "Save Project..."), ("hex_tool", "Hex to Code..."), ("", ""),
+                ("open", "Open..."), ("save_project", "Save Project..."), ("add_project_file", "Add File to Project..."), ("hex_tool", "Hex to Code..."), ("", ""),
                 ("export_notes", "Export Names and Notes..."), ("export_c", "Export Pseudocode..."),
                 ("import", "Import Names and Notes..."), ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("export_asm", "Export Listing (.asm)..."), ("export_dot", "Export Call Graph (.dot)..."), ("", ""),
                 ("reveal", "Show in Finder"), ("hash", "Copy SHA-256"), ("close", "Close Program"),
@@ -175,6 +175,7 @@ impl LensApp {
                 "update" => Action::CheckUpdate,
                 "open" => Action::OpenDialog,
                 "save_project" => Action::SaveProject,
+                "add_project_file" => Action::AddProjectFile,
                 "hex_tool" => Action::HexTool,
                 "export_notes" => Action::ExportNotes,
                 "export_c" => Action::ExportC,

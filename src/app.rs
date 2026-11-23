@@ -9,7 +9,7 @@ use crate::store::{self, Annotations, Prefs};
 use crate::theme::{self, Palette};
 use eframe::egui::{self, Key};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
@@ -73,6 +73,7 @@ pub enum Action {
     Open(String),
     OpenDialog,
     SaveProject,
+    AddProjectFile,
     Close,
     Rename(u64),
     Comment(u64),
@@ -235,6 +236,7 @@ pub struct LensApp {
     pub last_raw: Option<crate::loader::RawSpec>,
     /// The open workspace manifest, when the current binary belongs to a project.
     pub project: Option<store::ProjectManifest>,
+    pub project_path: Option<PathBuf>,
 }
 
 #[derive(Default)]
@@ -305,6 +307,7 @@ impl LensApp {
             pending_goto: None,
             last_raw: None,
             project: None,
+            project_path: None,
             sui: Default::default(),
             ai: Default::default(),
             menu: None,
@@ -390,12 +393,14 @@ impl LensApp {
                     let Some(selected) = selected else { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: "The Lens project has no files.".into() }); return };
                     self.logm(format!("Opening project {} ({} files) …", project.name, project.files.len()));
                     self.project = Some(project);
+                    self.project_path = Some(PathBuf::from(&path));
                     binary_path = selected;
                 }
                 Err(e) => { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: e }); return; }
             }
         } else {
             self.project = None;
+            self.project_path = None;
         }
         self.last_raw = None;
         let progress = Arc::new(AtomicU32::new(0));
@@ -587,9 +592,32 @@ impl LensApp {
         match store::save_project(&path, &name, &files, Some(&binary)) {
             Ok(()) => {
                 self.project = Some(store::ProjectManifest { schema_version: 1, name, files, active_file: Some(binary) });
+                self.project_path = Some(path.clone());
                 self.logm(format!("Saved project to {}", path.display()));
             }
             Err(e) => self.modal = Some(Modal::Message { title: "Couldn't save project".into(), text: e }),
+        }
+    }
+
+    fn add_project_file(&mut self) {
+        let (Some(project), Some(project_path)) = (self.project.clone(), self.project_path.clone()) else {
+            self.logm("Save a project before adding files to it.");
+            return;
+        };
+        let Some(file) = rfd::FileDialog::new().set_title("Add a binary to the Lens project").pick_file() else { return };
+        let file = file.to_string_lossy().to_string();
+        if project.files.iter().any(|f| f == &file) {
+            self.logm("That file is already in the project.");
+            return;
+        }
+        let mut files = project.files;
+        files.push(file.clone());
+        match store::save_project(&project_path, &project.name, &files, project.active_file.as_deref()) {
+            Ok(()) => {
+                self.project = Some(store::ProjectManifest { schema_version: 1, name: project.name, files, active_file: project.active_file });
+                self.logm(format!("Added {file} to the project."));
+            }
+            Err(e) => self.modal = Some(Modal::Message { title: "Couldn't update project".into(), text: e }),
         }
     }
 
@@ -643,6 +671,7 @@ impl LensApp {
                     }
                 }
                 Action::SaveProject => self.save_project(),
+                Action::AddProjectFile => self.add_project_file(),
                 Action::Close => {
                     self.state = State::Empty;
                     self.logm("Closed the file.");

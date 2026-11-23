@@ -1,4 +1,4 @@
-# Lens 0.6.14 — Fourier
+# Lens 0.6.15 — Fourier
 
 ## What's new
 
@@ -13,6 +13,7 @@
 - Copied pointer temporaries retain inferred pointee types in subsequent memory reads.
 - Versioned `.lensproj` manifests can group multiple binaries and open the selected active file while keeping per-file annotations separate.
 - File > Save Project creates or updates a `.lensproj` manifest from the current analysis session.
+- File > Add File to Project appends another binary with duplicate detection and manifest persistence.
 
 ## Release cadence
 
