@@ -97,6 +97,8 @@ lens program --report --extract ./asar-source
 
 Lens uses stable Rust and Cargo. Build locally with `cargo build --release`. The checked-in release workflow currently packages **macOS Apple Silicon** builds; it does not publish Intel Mac or Windows installers.
 
+Release versions use `x.y.z`: `x` is a themed major release, `y` is a monthly feature release, and `z` is a fixes/QoL release. Mathematical codenames are recorded in `RELEASE_NOTES.md`, shown in Lens under Help > What's New, included in GitHub releases, and archived on the [public version history](https://ker0s3ner.github.io/Lens/releases.html). The planned first full release is `1.0.0 — Stokes`.
+
 ## Current limitations
 
 - Analysis completeness and pseudocode quality vary substantially by architecture and compiler. The pseudocode is a best-effort lift, not source recovery or a correctness proof.

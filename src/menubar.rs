@@ -97,7 +97,7 @@ mod imp {
             win.set_as_windows_menu_for_nsapp();
 
             let help = Submenu::new("Help", true);
-            add(&help, &[("docs", "Lens Documentation"), ("releases", "Release Notes"), ("roadmap", "Roadmap"), ("issues", "Report a Problem")]);
+            add(&help, &[("notes", "What's New"), ("docs", "Lens Documentation"), ("releases", "All Releases on GitHub"), ("history", "Version History"), ("roadmap", "Roadmap"), ("issues", "Report a Problem")]);
             let _ = menu.append(&help);
             help.set_as_help_menu_for_nsapp();
 
@@ -228,7 +228,9 @@ impl LensApp {
                 "reanalyze" => Action::Reanalyze,
                 "assistant" => Action::Assistant,
                 "docs" => Action::OpenUrl("https://ker0s3ner.github.io/Lens/docs.html".into()),
+                "notes" => Action::ReleaseNotes,
                 "releases" => Action::OpenUrl("https://github.com/ker0s3ner/Lens/releases".into()),
+                "history" => Action::OpenUrl("https://ker0s3ner.github.io/Lens/releases.html".into()),
                 "roadmap" => Action::OpenUrl("https://github.com/ker0s3ner/Lens/blob/main/ROADMAP.md".into()),
                 "issues" => Action::OpenUrl("https://github.com/ker0s3ner/Lens/issues".into()),
                 s if s.starts_with("ai:") => match s[3..].parse::<usize>() {

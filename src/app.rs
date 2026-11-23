@@ -117,6 +117,7 @@ pub enum Action {
     RunPlugin(String),
     Assistant,
     AskAi(usize),
+    ReleaseNotes,
     OpenUrl(String),
     Undo,
     Redo,
@@ -694,6 +695,10 @@ impl LensApp {
                 Action::Debugger => self.tools2.dbg.open = true,
                 Action::Script => self.tools2.script.open = true,
                 Action::Assistant => { self.ai.open = true; self.ai.focus = true; }
+                Action::ReleaseNotes => {
+                    let notes = crate::updater::CURRENT_WHATS_NEW.iter().map(|s| format!("• {s}")).collect::<Vec<_>>().join("\n");
+                    self.modal = Some(Modal::Message { title: crate::updater::current_release_title(), text: format!("What's new\n\n{notes}\n\nRelease cadence: x.y.z — major theme release, monthly minor feature release, and patch/QoL release.") });
+                }
                 Action::Undo => self.do_undo(false),
                 Action::Redo => self.do_undo(true),
                 Action::Lists => self.lists.open = true,
