@@ -1232,6 +1232,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             if let Some(k) = key { args.push(k); }
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
+        (Fam::A64, "sha1c" | "sha1p" | "sha1m" | "sha1h" | "sha1su0" | "sha1su1" | "sha256h" | "sha256h2" | "sha256su0" | "sha256su1") if ops.len() >= 2 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {

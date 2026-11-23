@@ -1,6 +1,9 @@
-# Lens 0.6.57 — Fourier
+# Lens 0.6.58 — Fourier
 
 ## What's new
+
+- AArch64 SHA-1 and SHA-256 round/schedule instructions now preserve named cryptographic semantics and operands.
+- Common AArch64 hashing instructions remain visible in pseudocode.
 
 - x86/x64 BMI1 `bextr` now preserves named bit-field extraction semantics and control operands.
 - Common x86/x64 bit-field operations remain readable in pseudocode.

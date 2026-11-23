@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 SHA-1 and SHA-256 round/schedule instructions now preserve named cryptographic semantics and operands.",
+    "Common AArch64 hashing instructions remain visible in pseudocode.",
     "x86/x64 BMI1 bextr now preserves named bit-field extraction semantics and control operands.",
     "Common x86/x64 bit-field operations remain readable in pseudocode.",
     "x86/x64 BMI1 blsi, blsr, and blsmsk now preserve named low-bit isolation and mask semantics.",
