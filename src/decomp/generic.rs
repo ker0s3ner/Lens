@@ -915,6 +915,29 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 st.stmts.push((addr, Stmt::Comment(format!("{mn} {}", ops.join(", ")))));
             }
         }
+        (Fam::A64, "extr") if ops.len() >= 4 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let shift = parse_imm(o(3)).unwrap_or(0).clamp(0, 63) as u32;
+            let width = reg(0).map(|r| if r.w <= 4 { 32 } else { 64 }).unwrap_or(64);
+            if shift == 0 {
+                set(dc, st, 0, right);
+            } else if shift < width {
+                set(dc, st, 0, bin("|", bin("<<", left, Ex::Num((width - shift) as i64)), bin(">>", right, Ex::Num(shift as i64))));
+            } else {
+                st.stmts.push((addr, Stmt::Comment(format!("{mn} {}", ops.join(", ")))));
+            }
+        }
+        (Fam::A64, "ror") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let shift = parse_imm(o(2)).unwrap_or(0).clamp(0, 63) as u32;
+            let width = reg(0).map(|r| if r.w <= 4 { 32 } else { 64 }).unwrap_or(64);
+            if shift == 0 || shift >= width {
+                set(dc, st, 0, value);
+            } else {
+                set(dc, st, 0, bin("|", bin(">>", value.clone(), Ex::Num(shift as i64)), bin("<<", value, Ex::Num((width - shift) as i64))));
+            }
+        }
         (Fam::A64, "fmla" | "fmls") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
