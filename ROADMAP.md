@@ -82,6 +82,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - x86/x64 `adcx` and `adox` preserve multi-precision carry-chain operations.
 - RISC-V rotate and byte-reverse instructions preserve named bitmanip semantics.
 - RISC-V bit extract/deposit instructions preserve named `bext`/`bdep` family semantics.
+- x86/x64 BMI2 variable shifts preserve `shlx`, `shrx`, and `sarx` semantics.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.

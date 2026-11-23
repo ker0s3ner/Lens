@@ -1179,6 +1179,12 @@ impl<'a> Dc<'a> {
                     let helper = if m == Mnemonic::Adcx { "adcx" } else { "adox" };
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(helper)), vec![acc, value]));
                 }
+                Mnemonic::Shlx | Mnemonic::Shrx | Mnemonic::Sarx if ins.op_count() >= 3 => {
+                    let value = self.read_op(&mut st, ins, 1);
+                    let amount = self.read_op(&mut st, ins, 2);
+                    let helper = match m { Mnemonic::Shlx => "shlx", Mnemonic::Shrx => "shrx", _ => "sarx" };
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(helper)), vec![value, amount]));
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = Ex::Call(Box::new(var("__wide_dividend")), vec![
                         self.rd_reg(&mut st, Register::RDX),

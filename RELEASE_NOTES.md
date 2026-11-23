@@ -1,6 +1,9 @@
-# Lens 0.6.43 — Fourier
+# Lens 0.6.44 — Fourier
 
 ## What's new
+
+- x86/x64 BMI2 `shlx`, `shrx`, and `sarx` now preserve variable-shift semantics in pseudocode.
+- Signed and unsigned variable right shifts remain distinguishable in decompilation.
 
 - RISC-V `bext`, `bdep`, `bcompress`, and `bdecompress` now preserve named bit extract/deposit semantics.
 - RISC-V bitmanip data flow remains visible in pseudocode.
