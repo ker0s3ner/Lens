@@ -394,7 +394,12 @@ impl LensApp {
                     self.logm(format!("Opening project {} ({} files) …", project.name, project.files.len()));
                     self.project = Some(project);
                     self.project_path = Some(PathBuf::from(&path));
-                    binary_path = selected;
+                    let selected_path = Path::new(&selected);
+                    binary_path = if selected_path.is_absolute() {
+                        selected
+                    } else {
+                        Path::new(&path).parent().unwrap_or_else(|| Path::new(".")).join(selected_path).to_string_lossy().to_string()
+                    };
                 }
                 Err(e) => { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: e }); return; }
             }

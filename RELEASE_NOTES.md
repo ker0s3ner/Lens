@@ -1,4 +1,4 @@
-# Lens 0.6.16 — Fourier
+# Lens 0.6.17 — Fourier
 
 ## What's new
 
@@ -15,6 +15,7 @@
 - File > Save Project creates or updates a `.lensproj` manifest from the current analysis session.
 - File > Add File to Project appends another binary with duplicate detection and manifest persistence.
 - Opening a project member keeps the workspace active and records that binary as the manifest’s active file.
+- Relative project members now resolve from the `.lensproj` directory, making project files portable.
 
 ## Release cadence
 
