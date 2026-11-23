@@ -132,6 +132,10 @@ pub struct Binary {
     pub debug_structs: Vec<crate::types::StructDef>,
 }
 
+fn is_elf_function_type(ty: u8) -> bool {
+    ty == goblin::elf::sym::STT_FUNC || ty == goblin::elf::sym::STT_GNU_IFUNC
+}
+
 impl Binary {
     pub fn segment_of(&self, a: u64) -> Option<&Segment> {
         self.segments.iter().find(|s| s.contains(a))
@@ -459,7 +463,9 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         if name.is_empty() || name.starts_with('$') {
             continue;
         }
-        if sym.is_function() {
+        // GNU IFUNC symbols resolve to executable implementations at runtime and
+        // should seed the same function discovery path as ordinary STT_FUNC symbols.
+        if is_elf_function_type(sym.st_type()) {
             bin.symbols.push((sym_addr, clean_symbol(name)));
         } else if sym.st_type() == goblin::elf::sym::STT_OBJECT {
             bin.data_symbols.push((sym_addr, clean_symbol(name)));
@@ -1165,5 +1171,11 @@ mod raw_tests {
     fn ihex() {
         let r = parse_ihex(":0300300002337A1E\n:00000001FF\n").unwrap();
         assert_eq!(r, vec![(0x30, vec![0x02, 0x33, 0x7a])]);
+    }
+    #[test]
+    fn ifunc_symbols_are_function_like() {
+        assert!(is_elf_function_type(goblin::elf::sym::STT_FUNC));
+        assert!(is_elf_function_type(goblin::elf::sym::STT_GNU_IFUNC));
+        assert!(!is_elf_function_type(goblin::elf::sym::STT_OBJECT));
     }
 }

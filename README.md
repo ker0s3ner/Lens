@@ -6,7 +6,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 
 ### Load and identify programs
 
-- Open ELF executables, shared libraries and relocatable ELF/Mach-O object files, PE and Mach-O files, including universal Mach-O binaries, macOS app bundles and other folders containing a program. ELF ET_REL applies common static relocations, including x86/x64 PC-relative and AArch64 call/jump forms. Mach-O MH_OBJECT applies common x86-64 unsigned/PC-relative and ARM64 unsigned/branch relocations. GOT/PLT-dependent, paired, and architecture-specific compound relocations remain unresolved.
+- Open ELF executables, shared libraries and relocatable ELF/Mach-O object files, PE and Mach-O files, including universal Mach-O binaries, macOS app bundles and other folders containing a program. ELF function discovery includes ordinary and GNU IFUNC symbols. ELF ET_REL applies common static relocations, including x86/x64 PC-relative and AArch64 call/jump forms. Mach-O MH_OBJECT applies common x86-64 unsigned/PC-relative and ARM64 unsigned/branch relocations. GOT/PLT-dependent, paired, and architecture-specific compound relocations remain unresolved.
 - Open raw binaries with a selected CPU, byte order, load address and entry point.
 - Translate pasted hex, C byte arrays, `\\x` escapes, Intel HEX and S-record data into disassembly.
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
