@@ -464,7 +464,14 @@ pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
         let shift = if be { f.size.saturating_mul(8).saturating_sub(bit_offset as u32 + bit_width as u32) } else { bit_offset as u32 };
         let mask = if bit_width == 64 { u64::MAX } else { (1u64 << bit_width) - 1 };
         let extracted = (raw >> shift) & mask;
-        return format!("{extracted} (bits {bit_offset}..{})", bit_offset as u32 + bit_width as u32 - 1);
+        let ty = f.ty.trim().trim_start_matches("const ");
+        let unsigned = ty.starts_with("unsigned ") || ty.starts_with("uint") || ty.starts_with('u');
+        let shown = if !unsigned && bit_width < 64 && extracted & (1u64 << (bit_width - 1)) != 0 {
+            (extracted | (!0u64 << bit_width)) as i64
+        } else {
+            extracted as i64
+        };
+        return format!("{shown} (bits {bit_offset}..{})", bit_offset as u32 + bit_width as u32 - 1);
     }
     match f.size {
         1 | 2 | 4 | 8 => {
@@ -556,5 +563,16 @@ mod tests {
         let bits = parse_c("struct Bits { char first:1; int :0; int second:1; };", 8, &[]).unwrap();
         assert_eq!(bits.fields[0].off, 0);
         assert_eq!(bits.fields[1].off, 4);
+    }
+
+    #[test]
+    fn signed_bitfields_are_sign_extended_in_values() {
+        let bits = parse_c("struct Bits { int value:3; unsigned int raw:3; };", 8, &[]).unwrap();
+        let bin = crate::loader::raw_binary(&crate::loader::RawSpec {
+            path: "bits".into(), name: "bits".into(), arch: crate::loader::Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x05, 0, 0, 0, 0x02, 0, 0, 0])], entry: None, format: "test".into(),
+        });
+        assert!(value(&bin, 0x1000, &bits.fields[0]).starts_with("-3"));
+        assert!(value(&bin, 0x1000, &bits.fields[1]).starts_with("2"));
     }
 }
