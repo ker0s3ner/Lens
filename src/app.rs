@@ -72,6 +72,7 @@ pub enum Action {
     Select(u64, usize),
     Open(String),
     OpenDialog,
+    SaveProject,
     Close,
     Rename(u64),
     Comment(u64),
@@ -572,6 +573,26 @@ impl LensApp {
         }
     }
 
+    fn save_project(&mut self) {
+        let Some(binary) = self.loaded().map(|l| l.bin.path.clone()) else {
+            self.logm("Open a program before saving a project.");
+            return;
+        };
+        let (name, files) = match &self.project {
+            Some(project) => (project.name.clone(), project.files.clone()),
+            None => (Path::new(&binary).file_stem().and_then(|s| s.to_str()).unwrap_or("Lens project").to_string(), vec![binary.clone()]),
+        };
+        let default = format!("{}.lensproj", name.replace(['/', '\\'], "_"));
+        let Some(path) = rfd::FileDialog::new().set_title("Save Lens project").set_file_name(&default).save_file() else { return };
+        match store::save_project(&path, &name, &files, Some(&binary)) {
+            Ok(()) => {
+                self.project = Some(store::ProjectManifest { schema_version: 1, name, files, active_file: Some(binary) });
+                self.logm(format!("Saved project to {}", path.display()));
+            }
+            Err(e) => self.modal = Some(Modal::Message { title: "Couldn't save project".into(), text: e }),
+        }
+    }
+
     pub fn goto(&mut self, addr: u64, push: bool) {
         let Some(l) = self.loaded() else { return };
         if !l.bin.is_mapped(addr) {
@@ -621,6 +642,7 @@ impl LensApp {
                         self.open(f.to_string_lossy().to_string());
                     }
                 }
+                Action::SaveProject => self.save_project(),
                 Action::Close => {
                     self.state = State::Empty;
                     self.logm("Closed the file.");
