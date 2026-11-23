@@ -6,14 +6,14 @@ Status checked against the repository on 2026-11-23. A weighted capability estim
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 25% | 5.0% |
 | Static analysis and navigation | 20% | 48% | 9.6% |
-| Decompiler and type recovery | 20% | 20% | 4.0% |
-| Type system and debug information | 10% | 23% | 2.3% |
+| Decompiler and type recovery | 20% | 22% | 4.4% |
+| Type system and debug information | 10% | 25% | 2.5% |
 | Debugging and tracing | 10% | 35% | 3.5% |
-| Workflow, scripting and interchange | 10% | 45% | 4.5% |
+| Workflow, scripting and interchange | 10% | 50% | 5.0% |
 | Reliability, performance and scale | 10% | 20% | 2.0% |
-| **Total** | **100%** |  | **30.9%** |
+| **Total** | **100%** |  | **32.0%** |
 
-These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging and export, so a 10–15% estimate understated its implemented breadth. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
+These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
 ## Phase 1 - Reliability (first, everything else depends on it)
 - Expand the existing 200-program system-binary run into a repeatable corpus covering ELF, PE, Mach-O, stripped files, dylibs, and Go/Rust/Swift; fix crashes and incorrect results found by it.
