@@ -142,6 +142,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM and Thumb switch recovery now also recognizes bounded PC-indexed inline jump tables formed by `add pc, pc, rN, lsl #2`.
 - One-instruction jumps through imported function slots are now classified as forwarding thunks alongside direct known-target jumps.
 - ARM64 `fmov`, `fcmp`/`fcmpe` and `fcsel` now preserve floating-point values and comparison conditions in generic pseudocode.
+- ARM64 `ubfm`/`sbfm`/`bfm` and common `ubfx`/`sbfx`/`bfi`/`bfxil` aliases now render ordinary bitfield extraction and insertion as readable mask/shift expressions.
 - ARM64 NEON registers in pseudocode declarations now use the 128-bit `uint8x16_t` type instead of falling back to the architecture-wide integer type.
 - Known pointer-typed prototypes now preserve casts for constant call arguments in pseudocode without forcing casts onto uncertain inferred variables.
 - C-like type parsing now preserves nested function-pointer depth, including pointer-to-callback fields and typedef aliases.

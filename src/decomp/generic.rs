@@ -880,6 +880,41 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let no = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(yes), Box::new(no)));
         }
+        // AArch64 bitfield aliases are common in compiler-generated masking,
+        // packed-struct access, and sign-extension sequences.  Render the
+        // ordinary non-wrapping forms as C-like shifts and masks instead of
+        // hiding them behind an intrinsic call.
+        (Fam::A64, "ubfx" | "sbfx" | "ubfm" | "sbfm") if ops.len() >= 4 => {
+            let src = dc.g_val(st, o(1), None);
+            let lsb = parse_imm(o(2)).unwrap_or(0).clamp(0, 63) as u32;
+            let end = parse_imm(o(3)).unwrap_or(63).clamp(0, 63) as u32;
+            let width = if matches!(base_mn, "ubfx" | "sbfx") { end.min(64) } else if end >= lsb { end - lsb + 1 } else { 0 };
+            if width > 0 && lsb + width <= 64 {
+                let mask = if width == 64 { u64::MAX } else { (1u64 << width) - 1 };
+                let mut v = bin("&", bin(">>", src, Ex::Num(lsb as i64)), Ex::Num(mask as i64));
+                if matches!(base_mn, "sbfx" | "sbfm") && width < 64 {
+                    let shift = 64 - width;
+                    v = bin(">>", bin("<<", v, Ex::Num(shift as i64)), Ex::Num(shift as i64));
+                }
+                set(dc, st, 0, v);
+            } else {
+                st.stmts.push((addr, Stmt::Comment(format!("{mn} {}", ops.join(", ")))));
+            }
+        }
+        (Fam::A64, "bfi" | "bfxil" | "bfm") if ops.len() >= 4 => {
+            let dst = dc.g_val(st, o(0), None);
+            let src = dc.g_val(st, o(1), None);
+            let lsb = parse_imm(o(2)).unwrap_or(0).clamp(0, 63) as u32;
+            let width = parse_imm(o(3)).unwrap_or(0).clamp(0, 64) as u32;
+            if width > 0 && lsb + width <= 64 {
+                let mask = if width == 64 { u64::MAX } else { ((1u64 << width) - 1) << lsb };
+                let low_mask = if width == 64 { u64::MAX } else { (1u64 << width) - 1 };
+                let inserted = bin("<<", bin("&", src, Ex::Num(low_mask as i64)), Ex::Num(lsb as i64));
+                set(dc, st, 0, bin("|", bin("&", dst, Ex::Num(!(mask) as i64)), bin("&", inserted, Ex::Num(mask as i64))));
+            } else {
+                st.stmts.push((addr, Stmt::Comment(format!("{mn} {}", ops.join(", ")))));
+            }
+        }
         (Fam::A64, "fmla" | "fmls") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
