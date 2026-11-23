@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS seb, seh, and wsbh now preserve sign-extension and byte-shuffle semantics.",
+    "Common MIPS endian and narrow-integer idioms remain readable in pseudocode.",
     "MIPS clz and clo now decompile as named count-leading-zero and count-leading-one operations.",
     "MIPS bit-count idioms remain readable in pseudocode.",
     "AArch64 CRC32 and CRC32C instructions now preserve named checksum semantics and operands.",

@@ -1,6 +1,9 @@
-# Lens 0.6.47 — Fourier
+# Lens 0.6.48 — Fourier
 
 ## What's new
+
+- MIPS `seb`, `seh`, and `wsbh` now preserve sign-extension and byte-shuffle semantics.
+- Common MIPS endian and narrow-integer idioms remain readable in pseudocode.
 
 - MIPS `clz` and `clo` now decompile as named count-leading-zero and count-leading-one operations.
 - MIPS bit-count idioms remain readable in pseudocode.

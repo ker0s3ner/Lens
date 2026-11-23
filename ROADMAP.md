@@ -86,6 +86,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 count, bit-reverse, and byte-reversal idioms preserve named semantics.
 - AArch64 CRC32 and CRC32C instructions preserve named checksum semantics.
 - MIPS count-leading-zero and count-leading-one instructions preserve named semantics.
+- MIPS sign-extension and byte-shuffle instructions preserve named semantics.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.
