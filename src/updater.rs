@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC isel now preserves conditional selection operands in pseudocode.",
+    "PowerPC conditional data flow remains visible through an explicit semantic helper.",
     "ARM/Thumb clz, rev, rev16, and revsh now decompile as named count-leading-zero and byte-reversal operations.",
     "Common ARM bit/byte idioms remain visible and readable instead of opaque intrinsic calls.",
     "MIPS movz and movn now decompile as conditional selections instead of opaque operations.",

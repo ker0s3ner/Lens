@@ -1,6 +1,9 @@
-# Lens 0.6.33 — Fourier
+# Lens 0.6.34 — Fourier
 
 ## What's new
+
+- PowerPC `isel` now preserves conditional selection operands in pseudocode.
+- PowerPC conditional data flow remains visible through an explicit semantic helper.
 
 - ARM/Thumb `clz`, `rev`, `rev16`, and `revsh` now decompile as named count-leading-zero and byte-reversal operations.
 - Common ARM bit/byte idioms remain visible and readable instead of opaque intrinsic calls.

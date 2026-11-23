@@ -1052,6 +1052,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let helper = if base_mn.ends_with('u') { "__ppc_mulhiu" } else { "__ppc_mulhi" };
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
         }
+        (Fam::Ppc, "isel") if ops.len() >= 4 => {
+            let yes = dc.g_val(st, o(1), None);
+            let no = dc.g_val(st, o(2), None);
+            let cond = Ex::Raw(ops[3].clone());
+            set(dc, st, 0, Ex::Call(Box::new(var("__ppc_isel")), vec![yes, no, cond]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);
