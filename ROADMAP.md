@@ -91,6 +91,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON table lookup, zip/unzip, and transpose instructions remain visible as named intrinsics.
 - AArch64 NEON pairwise/reduction and saturating add/subtract instructions remain visible as named intrinsics.
 - AArch64 NEON integer and floating-point comparison families remain visible as named intrinsics.
+- AArch64 NEON widening, narrowing, and high-half vector operations remain visible as named intrinsics.
 - AArch64 absolute and absolute-difference operations preserve signedness.
 - RISC-V carry-less multiply instructions preserve named cryptographic semantics.
 - MIPS immediate and register-count rotate-right instructions preserve named semantics.

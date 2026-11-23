@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 NEON widening, narrowing, and high-half vector operations now remain visible as named pseudocode intrinsics.",
+    "Common lane-width conversion and rounded narrowing operations no longer disappear in generic lifting.",
     "AArch64 NEON integer and floating-point comparison families now remain visible as named pseudocode intrinsics.",
     "Vector comparison operations no longer disappear in generic lifting.",
     "AArch64 NEON pairwise/reduction instructions now remain visible as named pseudocode intrinsics.",

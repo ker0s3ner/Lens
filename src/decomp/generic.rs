@@ -1248,6 +1248,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
+        (Fam::A64, "xtn" | "xtn2" | "sqxtn" | "sqxtun" | "uqxtn" | "shll" | "shll2" | "saddl" | "saddl2" | "uaddl" | "uaddl2" | "ssubl" | "ssubl2" | "usubl" | "usubl2" | "addhn" | "addhn2" | "subhn" | "subhn2" | "raddhn" | "raddhn2" | "rsubhn" | "rsubhn2") if ops.len() >= 2 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {
