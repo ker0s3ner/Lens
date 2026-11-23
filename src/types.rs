@@ -108,10 +108,12 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         let decl = decl.strip_prefix("typedef").ok_or("Expected a struct, union, enum or typedef declaration")?.trim();
         if let Some((ret, tail)) = decl.split_once("(*") {
             if let Some((alias, signature)) = tail.split_once(')') {
-                if signature.trim_start().starts_with('(') && valid_ident(alias.trim()) {
+                let stars = 1 + alias.chars().take_while(|c| *c == '*').count();
+                let alias = alias.trim_start_matches('*').trim();
+                if signature.trim_start().starts_with('(') && valid_ident(alias) {
                     let params = signature.trim().trim_start_matches('(').trim_end_matches(')').trim();
-                    let target = format!("fn({params}) -> {} *", ret.trim());
-                    return Ok(StructDef { name: alias.trim().to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(target) });
+                    let target = format!("fn({params}) -> {} {}", ret.trim(), "*".repeat(stars));
+                    return Ok(StructDef { name: alias.to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(target) });
                 }
             }
         }
@@ -180,11 +182,13 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         let (fname, ty, stars) = if let Some((ret, tail)) = d.split_once("(*") {
             // Common C function-pointer field: `int (*callback)(int, void *)`.
             let (name, params) = tail.split_once(')').ok_or(format!("Can't read the function-pointer field `{}`", decl.trim()))?;
-            if !params.trim_start().starts_with('(') || !valid_ident(name.trim()) {
+            let stars = 1 + name.chars().take_while(|c| *c == '*').count();
+            let name = name.trim_start_matches('*').trim();
+            if !params.trim_start().starts_with('(') || !valid_ident(name) {
                 return Err(format!("Can't read the function-pointer field `{}`", decl.trim()));
             }
             let signature = params.trim().trim_start_matches('(').trim_end_matches(')').trim();
-            (name.trim().to_string(), format!("fn({signature}) -> {} *", ret.trim()), 1usize)
+            (name.to_string(), format!("fn({signature}) -> {} {}", ret.trim(), "*".repeat(stars)), stars)
         } else {
             let stars = d.matches('*').count();
             let words: Vec<&str> = d.split(|c: char| c.is_whitespace() || c == '*').filter(|w| !w.is_empty()).collect();
@@ -422,5 +426,10 @@ mod tests {
         let alias = parse_c("typedef int (*callback_t)(int, void *);", 8, &[]).unwrap();
         assert_eq!(alias.alias_of.as_deref(), Some("fn(int, void *) -> int *"));
         assert!(is_pointer_type("callback_t", &[alias]));
+        let nested = parse_c("struct Nested { int (**callback)(int); }", 8, &[]).unwrap();
+        assert_eq!(nested.fields[0].ty, "fn(int) -> int **");
+        assert_eq!(nested.fields[0].size, 8);
+        let nested_alias = parse_c("typedef int (**callback_ptr_t)(int);", 8, &[]).unwrap();
+        assert_eq!(nested_alias.alias_of.as_deref(), Some("fn(int) -> int **"));
     }
 }
