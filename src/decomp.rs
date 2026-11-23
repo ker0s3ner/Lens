@@ -122,6 +122,20 @@ impl Fmt<'_> {
         self.at(e, 99)
     }
 
+    fn pointee_type(e: &Ex, size: u8) -> String {
+        let ty = match e {
+            Ex::Cast(t, _) => Some((*t).to_string()),
+            Ex::CastOwned(t, _) => Some(t.clone()),
+            Ex::Call(f, _) => match &**f {
+                Ex::Var(n) => crate::protos::find(n).map(|p| p.ret),
+                _ => None,
+            },
+            _ => None,
+        };
+        ty.and_then(|t| t.trim().strip_suffix('*').map(str::trim).filter(|t| !t.is_empty()).map(str::to_string))
+            .unwrap_or_else(|| int_type(size).to_string())
+    }
+
     fn at(&self, e: &Ex, ctx: u8) -> String {
         let s = match e {
             Ex::Num(n) => Self::num(*n),
@@ -130,7 +144,13 @@ impl Fmt<'_> {
         Ex::Un(op, a) => format!("{op}{}", self.at(a, 3)),
             Ex::Cast(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::CastOwned(t, a) => format!("({t}){}", self.at(a, 3)),
-            Ex::Deref(a, sz) => format!("*({}*){}", int_type(*sz), self.at(a, 3)),
+            Ex::Deref(a, sz) => {
+                let address = match &**a {
+                    Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.at(inner, 3),
+                    _ => self.at(a, 3),
+                };
+                format!("*({}*){}", Self::pointee_type(a, *sz), address)
+            }
             Ex::Call(f, args) => {
                 let callee = match &**f {
                     Ex::Var(_) => self.at(f, 0),
@@ -2069,6 +2089,15 @@ mod tests {
     use crate::analysis::{analyze, Settings};
     use crate::loader::{raw_binary, Arch, RawSpec};
     use std::sync::{atomic::AtomicU32, Arc};
+
+    #[test]
+    fn dereference_formatter_preserves_pointer_pointees() {
+        let fmt = Fmt { rename: &HashMap::new() };
+        let call = Ex::Deref(Box::new(Ex::Call(Box::new(var("strdup")), vec![])), 1);
+        assert_eq!(fmt.show(&call), "*(char*)strdup()");
+        let cast = Ex::Deref(Box::new(Ex::CastOwned("uint32_t *".into(), Box::new(var("p")))), 4);
+        assert_eq!(fmt.show(&cast), "*(uint32_t*)p");
+    }
 
     #[test]
     fn simple_return_has_stable_pseudocode_golden() {

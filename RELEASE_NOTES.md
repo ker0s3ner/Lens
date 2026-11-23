@@ -1,4 +1,4 @@
-# Lens 0.6.10 — Fourier
+# Lens 0.6.11 — Fourier
 
 ## What's new
 
@@ -9,6 +9,7 @@
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 - The macOS release job now uses an explicit Apple Silicon runner and verbose bundle-build diagnostics.
 - Decompiler type propagation now recognizes both internal and owned cast expressions.
+- Dereferences of known pointer-returning calls and explicit pointer casts now render their pointee types.
 
 ## Release cadence
 

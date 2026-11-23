@@ -35,6 +35,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Conflicting or unknown repeated assignments remain conservatively untyped.",
     "The macOS release build now uses an explicit Apple Silicon runner with verbose diagnostics.",
     "Decompiler type propagation recognizes both internal and owned cast expressions.",
+    "Dereferences of known pointer-returning calls and explicit pointer casts render their pointee types.",
 ];
 
 pub fn current_release_title() -> String {
