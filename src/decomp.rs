@@ -1124,6 +1124,11 @@ impl<'a> Dc<'a> {
                     };
                     self.write_op(&mut st, ins, 0, value);
                 }
+                Mnemonic::Pext | Mnemonic::Pdep | Mnemonic::Bzhi if ins.op_count() >= 3 => {
+                    let name = match m { Mnemonic::Pext => "pext", Mnemonic::Pdep => "pdep", _ => "bzhi" };
+                    let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(name)), args));
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = self.rd_reg(&mut st, Register::RAX);
                     let b = self.read_op(&mut st, ins, 0);
