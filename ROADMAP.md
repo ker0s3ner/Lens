@@ -77,6 +77,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM/Thumb saturating arithmetic preserves `usat`/`ssat` value and limit semantics.
 - RISC-V signed and unsigned min/max instructions preserve conditional value semantics.
 - RISC-V count-leading-zero, count-trailing-zero, and population-count instructions preserve named semantics.
+- RISC-V complementing bitwise operations preserve `andn`, `orn`, and `xnor` semantics.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.

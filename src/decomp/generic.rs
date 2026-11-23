@@ -1187,6 +1187,16 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             };
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a]));
         }
+        (Fam::Rv, "andn" | "orn" | "xnor") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let v = match base_mn {
+                "andn" => bin("&", a, Ex::Un("~", Box::new(b))),
+                "orn" => bin("|", a, Ex::Un("~", Box::new(b))),
+                _ => Ex::Un("~", Box::new(bin("^", a, b))),
+            };
+            set(dc, st, 0, v);
+        }
         (Fam::Rv, "min" | "max" | "minu" | "maxu") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);

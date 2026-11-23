@@ -1,6 +1,9 @@
-# Lens 0.6.38 — Fourier
+# Lens 0.6.39 — Fourier
 
 ## What's new
+
+- RISC-V `andn`, `orn`, and `xnor` now decompile as explicit complement-and-combine expressions.
+- RISC-V bit-manipulation extension semantics remain visible in pseudocode.
 
 - RISC-V `clz`, `ctz`, and `cpop` now decompile as named bit-count operations, including word forms.
 - RISC-V bit-manipulation idioms remain readable instead of falling through to opaque instructions.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V andn, orn, and xnor now decompile as explicit complement-and-combine expressions.",
+    "RISC-V bit-manipulation extension semantics remain visible in pseudocode.",
     "RISC-V clz, ctz, and cpop now decompile as named bit-count operations, including word forms.",
     "RISC-V bit-manipulation idioms remain readable instead of falling through to opaque instructions.",
     "RISC-V min, max, minu, and maxu now decompile as signed or unsigned conditional selections.",
