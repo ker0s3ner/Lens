@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb long multiply and accumulate instructions now preserve both low and high result registers in pseudocode.",
+    "Long arithmetic is represented with explicit wide-value helpers instead of silently dropping the upper half.",
     "Stripped functions ending in an architectural stop/trap instruction are now conservatively inferred as no-return.",
     "Trap-terminated x86-64 functions now have regression coverage.",
     "ARM64 scaled switch-table offsets and halfword entries now honor big-endian binaries.",

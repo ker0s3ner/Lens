@@ -1026,6 +1026,22 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, bin("-", Ex::Num(0), v));
         }
         (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") => arith(dc, st, "*", false),
+        (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
+            let a = dc.g_val(st, o(2), None);
+            let b = dc.g_val(st, o(3), None);
+            let wide = Ex::Call(Box::new(var(if base_mn.starts_with('s') { "__smull" } else { "__umull" })), vec![a, b]);
+            let low = Ex::Call(Box::new(var("__wide_low")), vec![wide.clone()]);
+            let high = Ex::Call(Box::new(var("__wide_high")), vec![wide]);
+            if matches!(base_mn, "umlal" | "smlal") {
+                let old_low = dc.g_val(st, o(0), None);
+                let old_high = dc.g_val(st, o(1), None);
+                set(dc, st, 0, bin("+", old_low, low));
+                set(dc, st, 1, bin("+", old_high, high));
+            } else {
+                set(dc, st, 0, low);
+                set(dc, st, 1, high);
+            }
+        }
         (Fam::A64, "madd") => {
             let (a, b, c) = (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None), dc.g_val(st, o(3), None));
             set(dc, st, 0, bin("+", bin("*", a, b), c));
