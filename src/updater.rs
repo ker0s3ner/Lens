@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V min, max, minu, and maxu now decompile as signed or unsigned conditional selections.",
+    "Common RISC-V bounds and comparison idioms remain readable in pseudocode.",
     "ARM/Thumb usat and ssat now preserve saturating arithmetic semantics with explicit value and limit operands.",
     "ARM/Thumb DSP-style saturation instructions no longer become opaque intrinsic calls.",
     "x86/x64 BMI2 mulx now preserves both low and high products from implicit RDX input.",

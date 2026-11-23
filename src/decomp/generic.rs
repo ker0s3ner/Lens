@@ -1178,6 +1178,14 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let a = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Bin("!=", Box::new(a), Box::new(Ex::Num(0))));
         }
+        (Fam::Rv, "min" | "max" | "minu" | "maxu") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let unsigned = base_mn.ends_with('u');
+            let less = if unsigned { "<u" } else { "<" };
+            let choose_a = if matches!(base_mn, "min" | "minu") { less } else if unsigned { ">u" } else { ">" };
+            set(dc, st, 0, Ex::Tern(Box::new(bin(choose_a, a.clone(), b.clone())), Box::new(a), Box::new(b)));
+        }
         // ---------------------------------------------------------- flags
         (Fam::A64 | Fam::A32, "cmp") => {
             let (a, b) = (dc.g_val(st, o(0), None), shifted(dc, st, 1));

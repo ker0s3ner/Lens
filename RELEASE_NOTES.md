@@ -1,6 +1,9 @@
-# Lens 0.6.36 — Fourier
+# Lens 0.6.37 — Fourier
 
 ## What's new
+
+- RISC-V `min`, `max`, `minu`, and `maxu` now decompile as signed or unsigned conditional selections.
+- Common RISC-V bounds and comparison idioms remain readable in pseudocode.
 
 - ARM/Thumb `usat` and `ssat` now preserve saturating arithmetic semantics with explicit value and limit operands.
 - ARM/Thumb DSP-style saturation instructions no longer become opaque intrinsic calls.

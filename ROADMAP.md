@@ -75,6 +75,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PowerPC conditional selection preserves both candidate values and the condition operand.
 - x86/x64 BMI2 `mulx` and flag-independent `rorx` preserve their wide arithmetic semantics.
 - ARM/Thumb saturating arithmetic preserves `usat`/`ssat` value and limit semantics.
+- RISC-V signed and unsigned min/max instructions preserve conditional value semantics.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.
