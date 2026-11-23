@@ -1139,6 +1139,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("clz")), vec![v]));
         }
+        (Fam::A32, "usat" | "ssat") if ops.len() >= 3 => {
+            let limit = dc.g_val(st, o(1), None);
+            let value = dc.g_val(st, o(2), None);
+            let helper = if base_mn == "usat" { "usat" } else { "ssat" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![value, limit]));
+        }
         (Fam::A32, "rev" | "rev16" | "revsh") if ops.len() >= 2 => {
             let v = dc.g_val(st, o(1), None);
             let name = match base_mn { "rev16" => "byteswap16", "revsh" => "byteswap16_sign_extend", _ => "byteswap32" };

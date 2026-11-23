@@ -1,6 +1,9 @@
-# Lens 0.6.35 — Fourier
+# Lens 0.6.36 — Fourier
 
 ## What's new
+
+- ARM/Thumb `usat` and `ssat` now preserve saturating arithmetic semantics with explicit value and limit operands.
+- ARM/Thumb DSP-style saturation instructions no longer become opaque intrinsic calls.
 
 - x86/x64 BMI2 `mulx` now preserves both low and high products from implicit RDX input.
 - x86/x64 `rorx` now decompiles as a flag-independent rotate operation.
