@@ -404,7 +404,14 @@ impl LensApp {
                 Err(e) => { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: e }); return; }
             }
         } else {
-            let in_project = self.project.as_ref().is_some_and(|project| project.files.iter().any(|file| file == &path));
+            let in_project = self.project.as_ref().is_some_and(|project| project.files.iter().any(|file| {
+                if file == &path { return true; }
+                let Some(project_path) = self.project_path.as_ref() else { return false; };
+                let candidate = Path::new(file);
+                let resolved = if candidate.is_absolute() { candidate.to_path_buf() }
+                    else { project_path.parent().unwrap_or_else(|| Path::new(".")).join(candidate) };
+                resolved.to_string_lossy() == path
+            }));
             if in_project {
                 if let (Some(mut project), Some(project_path)) = (self.project.clone(), self.project_path.clone()) {
                     project.active_file = Some(path.clone());
