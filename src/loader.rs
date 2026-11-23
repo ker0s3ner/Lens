@@ -106,6 +106,8 @@ pub struct Binary {
     pub arch_name: String,
     pub entry: Option<u64>,
     pub segments: Vec<Segment>,
+    /// Ranges inside executable sections that Mach-O marks as embedded data.
+    pub data_ranges: Vec<(u64, u64)>,
     /// Function-like symbols (address, name).
     pub symbols: Vec<(u64, String)>,
     /// Data symbols (address, name).
@@ -158,6 +160,7 @@ impl Binary {
     }
     pub fn is_exec(&self, a: u64) -> bool {
         self.segment_of(a).map(|s| s.exec).unwrap_or(false)
+            && !self.data_ranges.iter().any(|(start, end)| a >= *start && a < *end)
     }
     pub fn read_ptr(&self, a: u64) -> Option<u64> {
         let w = (self.arch.bits() / 8) as usize;
@@ -283,6 +286,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         arch_name: String::new(),
         entry: None,
         segments: vec![],
+        data_ranges: vec![],
         symbols: vec![],
         data_symbols: vec![],
         imports: vec![],
@@ -892,6 +896,36 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
             }
         }
     }
+    if !object_file {
+        for lc in &m.load_commands {
+            let goblin::mach::load_command::CommandVariant::DataInCode(c) = &lc.command else { continue };
+            let start = c.dataoff as usize;
+            let end = start.saturating_add(c.datasize as usize).min(slice.len());
+            let mut off = start;
+            while off.saturating_add(8) <= end {
+                let u32_at = |p: usize| -> u32 {
+                    let b = &slice[p..p + 4];
+                    if m.little_endian { u32::from_le_bytes(b.try_into().unwrap()) } else { u32::from_be_bytes(b.try_into().unwrap()) }
+                };
+                let u16_at = |p: usize| -> u16 {
+                    let b = &slice[p..p + 2];
+                    if m.little_endian { u16::from_le_bytes(b.try_into().unwrap()) } else { u16::from_be_bytes(b.try_into().unwrap()) }
+                };
+                let file_offset = u32_at(off) as u64;
+                let length = u16_at(off + 4) as u64;
+                if length != 0 {
+                    if let Some(seg) = m.segments.iter().find(|seg| file_offset >= seg.fileoff && file_offset < seg.fileoff.saturating_add(seg.filesize)) {
+                        let addr = seg.vmaddr.saturating_add(file_offset - seg.fileoff);
+                        bin.data_ranges.push((addr, addr.saturating_add(length)));
+                    }
+                }
+                off += 8;
+            }
+        }
+        if !bin.data_ranges.is_empty() {
+            bin.notes.push(format!("Mach-O LC_DATA_IN_CODE: {} embedded-data range(s) excluded from code discovery.", bin.data_ranges.len()));
+        }
+    }
     for lc in &m.load_commands {
         if let goblin::mach::load_command::CommandVariant::FunctionStarts(c) = &lc.command {
             let (o, n) = (c.dataoff as usize, c.datasize as usize);
@@ -1119,6 +1153,7 @@ pub fn raw_binary(spec: &RawSpec) -> Binary {
         arch_name: spec.arch.name().to_string(),
         entry: spec.entry.or_else(|| spec.segs.first().map(|s| s.0)),
         segments: vec![],
+        data_ranges: vec![],
         symbols: vec![],
         data_symbols: vec![],
         imports: vec![],
