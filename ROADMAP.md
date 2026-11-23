@@ -146,6 +146,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM64 `extr` and immediate `ror` idioms now render as composed shifts and ors for common 32/64-bit forms.
 - ARM64 integer `csel`, `cset`, `csetm`, `csinc`, `csinv` and `csneg` now preserve conditional value semantics in pseudocode.
 - x86/x64 immediate `rol` and `ror` instructions now render as composed shifts and ors instead of opaque intrinsics.
+- x86/x64 register-count `rol` and `ror` instructions now preserve variable rotate semantics in pseudocode.
 - ARM64 NEON registers in pseudocode declarations now use the 128-bit `uint8x16_t` type instead of falling back to the architecture-wide integer type.
 - Known pointer-typed prototypes now preserve casts for constant call arguments in pseudocode without forcing casts onto uncertain inferred variables.
 - C-like type parsing now preserves nested function-pointer depth, including pointer-to-callback fields and typedef aliases.
