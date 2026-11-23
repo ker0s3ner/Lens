@@ -1039,6 +1039,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             };
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
         }
+        (Fam::Ppc, "mulhw" | "mulhwu" | "mulhd" | "mulhdu") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let helper = if base_mn.ends_with('u') { "__ppc_mulhiu" } else { "__ppc_mulhi" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);

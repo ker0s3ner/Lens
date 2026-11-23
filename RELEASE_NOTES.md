@@ -1,6 +1,9 @@
-# Lens 0.6.29 — Fourier
+# Lens 0.6.30 — Fourier
 
 ## What's new
+
+- PowerPC `mulhw`, `mulhwu`, `mulhd`, and `mulhdu` now preserve signed and unsigned high-half products in pseudocode.
+- PowerPC wide multiplication is represented with explicit semantic helpers instead of an opaque instruction.
 
 - RISC-V `mulh`, `mulhu`, and `mulhsu` now preserve signed and unsigned high-half product semantics in pseudocode.
 - High-half multiplication is represented with named semantic helpers instead of an opaque unsupported instruction.
