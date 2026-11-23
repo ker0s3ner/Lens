@@ -275,14 +275,47 @@ fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
 }
 
 fn parse_enum_int(s: &str) -> Option<i64> {
-    let s = s.trim().trim_end_matches(|c: char| matches!(c, 'u' | 'U' | 'l' | 'L'));
-    if let Some(hex) = s.strip_prefix("-0x") {
-        i64::from_str_radix(hex, 16).ok().map(i64::wrapping_neg)
-    } else if let Some(hex) = s.strip_prefix("0x") {
-        i64::from_str_radix(hex, 16).ok()
-    } else {
-        s.parse().ok()
+    fn atom(raw: &str) -> Option<i64> {
+        let mut s = raw.trim();
+        while s.starts_with('(') && s.ends_with(')') {
+            let inner = &s[1..s.len() - 1];
+            if inner.trim().is_empty() { break; }
+            s = inner.trim();
+        }
+        let s = s.trim_end_matches(|c: char| matches!(c, 'u' | 'U' | 'l' | 'L'));
+        let (neg, s) = s.strip_prefix('-').map(|v| (true, v)).unwrap_or((false, s));
+        let (radix, digits) = if let Some(v) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+            (16, v)
+        } else if let Some(v) = s.strip_prefix("0b").or_else(|| s.strip_prefix("0B")) {
+            (2, v)
+        } else if s.len() > 1 && s.starts_with('0') {
+            (8, &s[1..])
+        } else {
+            (10, s)
+        };
+        let v = i64::from_str_radix(digits, radix).ok()?;
+        Some(if neg { v.wrapping_neg() } else { v })
     }
+    fn eval(s: &str) -> Option<i64> {
+        let s = s.trim();
+        for op in ["|", "^", "&", "<<", ">>", "+", "-"] {
+            let mut depth = 0i32;
+            for (i, c) in s.char_indices().rev() {
+                match c { ')' => depth += 1, '(' => depth -= 1, _ => {} }
+                if depth == 0 && s[i..].starts_with(op) && (op != "-" || i > 0) {
+                    let a = eval(&s[..i])?;
+                    let b = eval(&s[i + op.len()..])?;
+                    return Some(match op {
+                        "|" => a | b, "^" => a ^ b, "&" => a & b,
+                        "<<" => a.wrapping_shl(b as u32), ">>" => a.wrapping_shr(b as u32),
+                        "+" => a.wrapping_add(b), "-" => a.wrapping_sub(b), _ => unreachable!(),
+                    });
+                }
+            }
+        }
+        atom(s)
+    }
+    eval(s)
 }
 
 /// Names for the fields of every applied struct.
@@ -458,6 +491,13 @@ mod tests {
         let color = parse_c("enum Color { Red = 1, Blue = 4 }", 8, &[]).unwrap();
         let constants = enum_constants(&[color]);
         assert_eq!(constants["Color"][&4], "Blue");
+    }
+
+    #[test]
+    fn parses_enum_constant_expressions() {
+        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = 1 | 2 }", 8, &[]).unwrap();
+        let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
+        assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3)]);
     }
 
     #[test]
