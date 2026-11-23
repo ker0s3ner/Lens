@@ -23,6 +23,7 @@ pub struct Snap {
     pub names: HashMap<u64, String>,
     pub comments: HashMap<u64, String>,
     pub bookmarks: Vec<u64>,
+    pub data_defs: HashMap<u64, u8>,
     pub strings: Vec<(u64, String)>,
     pub xrefs: HashMap<u64, Vec<u64>>,
     pub xref_details: HashMap<u64, Vec<(u64, String)>>,
@@ -135,6 +136,19 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     e.register_fn("comment_at", move |a: INT| -> String { s.comments.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
     e.register_fn("bookmarks", move || -> Array { arr_u64(&s.bookmarks) });
+    let s = snap.clone();
+    e.register_fn("data_at", move |a: INT| -> INT { s.data_defs.get(&(a as u64)).copied().unwrap_or(0) as INT });
+    let s = snap.clone();
+    e.register_fn("data_definitions", move || -> Array {
+        let mut defs: Vec<_> = s.data_defs.iter().collect();
+        defs.sort_by_key(|(a, _)| **a);
+        defs.into_iter().map(|(a, code)| {
+            let mut m = Map::new();
+            m.insert("addr".into(), Dynamic::from(*a as INT));
+            m.insert("code".into(), Dynamic::from(*code as INT));
+            Dynamic::from_map(m)
+        }).collect()
+    });
     let s = snap.clone();
     e.register_fn("strings", move || -> Array {
         s.strings
@@ -388,6 +402,7 @@ impl LensApp {
             names: l.names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
             comments: l.ann.comments.clone(),
             bookmarks: l.ann.marks.clone(),
+            data_defs: l.ann.data_defs.clone(),
             strings: l.an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
             xref_details,
@@ -551,7 +566,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API v1: script_api_version() functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) comment_at(a) bookmarks() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
+            ui.label(RichText::new("API v1: script_api_version() functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();
@@ -578,12 +593,12 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: HashMap::new(), strings: vec![],
-            comments: HashMap::new(), bookmarks: vec![], xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
+            comments: HashMap::new(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
-        let out = run("print(script_api_version()); print(comment_at(0x1000)); print(bookmarks().len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
-        assert!(out.text.contains("1\n\n0\n0\n0"), "unexpected output: {}", out.text);
+        assert!(out.text.contains("1\n\n0\n0\n0\n0"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
         let _ = an;
     }

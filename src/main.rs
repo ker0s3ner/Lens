@@ -128,6 +128,7 @@ fn cli(args: &[String]) -> bool {
             names: names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
             comments: ann.comments.clone(),
             bookmarks: ann.marks.clone(),
+            data_defs: ann.data_defs.clone(),
             strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
             xref_details: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| (x.from, x.kind.label().to_string())).collect())).collect(),
