@@ -674,6 +674,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             library: imp.dll.to_string(),
         });
     }
+    add_pe_delay_imports(bin, pe, base);
     bin.libraries = pe.libraries.iter().map(|s| s.to_string()).collect();
     for e in &pe.exports {
         if let Some(n) = e.name {
@@ -681,6 +682,56 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             bin.symbols.push((base + e.rva as u64, n.to_string()));
         }
     }
+}
+
+fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
+    let Some(opt) = pe.header.optional_header.as_ref() else { return };
+    let Some(dir) = opt.data_directories.get_delay_import_descriptor() else { return };
+    let descriptor_base = base.saturating_add(dir.virtual_address as u64);
+    let ptr_size = (bin.bitness() / 8) as u64;
+    let is_rva = |attrs: u32, raw: u64| if attrs & 1 != 0 { base.saturating_add(raw) } else { raw };
+    let read_u32 = |addr: u64| -> Option<u32> {
+        let b = bin.read(addr, 4);
+        if b.len() == 4 { Some(u32::from_le_bytes(b.try_into().ok()?)) } else { None }
+    };
+    let read_string = |addr: u64| -> Option<String> {
+        let b = bin.read(addr, 512);
+        let end = b.iter().position(|c| *c == 0).unwrap_or(b.len());
+        (!b[..end].is_empty()).then(|| String::from_utf8_lossy(&b[..end]).into_owned())
+    };
+    let mut discovered = Vec::new();
+    for index in 0..1024u64 {
+        let d = descriptor_base.saturating_add(index * 32);
+        let attrs = match read_u32(d) { Some(v) => v, None => break };
+        let fields = [
+            read_u32(d + 4).unwrap_or(0) as u64,
+            read_u32(d + 8).unwrap_or(0) as u64,
+            read_u32(d + 12).unwrap_or(0) as u64,
+            read_u32(d + 16).unwrap_or(0) as u64,
+            read_u32(d + 20).unwrap_or(0) as u64,
+        ];
+        if attrs == 0 && fields.iter().all(|v| *v == 0) { break; }
+        let name_addr = is_rva(attrs, fields[0]);
+        let library = read_string(name_addr).unwrap_or_else(|| "delay-import".into());
+        let int_addr = is_rva(attrs, fields[3]);
+        let iat_addr = is_rva(attrs, fields[2]);
+        if int_addr == 0 || iat_addr == 0 { continue; }
+        for slot in 0..65536u64 {
+            let entry_addr = int_addr.saturating_add(slot * ptr_size);
+            let Some(raw) = bin.read_ptr(entry_addr) else { break };
+            if raw == 0 { break; }
+            let ordinal_mask = if ptr_size == 8 { 1u64 << 63 } else { 1u64 << 31 };
+            let name = if raw & ordinal_mask != 0 {
+                format!("ordinal_{}", raw & 0xffff)
+            } else {
+                read_string(base.saturating_add(raw & 0x7fff_ffff).saturating_add(2)).unwrap_or_else(|| "<unnamed>".into())
+            };
+            discovered.push(Import { slot: iat_addr.saturating_add(slot * ptr_size), name, library: library.clone() });
+        }
+    }
+    bin.imports.extend(discovered);
+    bin.imports.sort_by_key(|i| i.slot);
+    bin.imports.dedup_by_key(|i| i.slot);
 }
 
 fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result<(), String> {
