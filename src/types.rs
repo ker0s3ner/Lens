@@ -136,7 +136,12 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
     let head = clean[..open].replace("typedef", "");
     let is_union = head.split_whitespace().any(|w| w == "union");
     let is_enum = head.split_whitespace().any(|w| w == "enum");
-    let name = head.split_whitespace().filter(|w| *w != "struct").last().ok_or("The struct needs a name")?.to_string();
+    let mut name = head.split_whitespace().filter(|w| !matches!(*w, "struct" | "union" | "enum" | "typedef")).last().unwrap_or("").to_string();
+    if name.is_empty() {
+        let trailer = clean[close + 1..].trim().trim_end_matches(';').trim();
+        if valid_ident(trailer) { name = trailer.to_string(); }
+    }
+    if name.is_empty() { return Err("The struct needs a name".into()); }
     if is_enum {
         let mut values = Vec::new();
         let mut next = 0i64;
@@ -446,5 +451,15 @@ mod tests {
         let color = parse_c("enum Color { Red = 1, Blue = 4 }", 8, &[]).unwrap();
         let constants = enum_constants(&[color]);
         assert_eq!(constants["Color"][&4], "Blue");
+    }
+
+    #[test]
+    fn parses_anonymous_typedef_records_and_enums() {
+        let record = parse_c("typedef struct { int value; } Value;", 8, &[]).unwrap();
+        assert_eq!(record.name, "Value");
+        assert_eq!(record.fields[0].name, "value");
+        let en = parse_c("typedef enum { Zero, One = 1 } Count;", 8, &[]).unwrap();
+        assert_eq!(en.name, "Count");
+        assert_eq!(en.enum_values[1].name, "One");
     }
 }
