@@ -95,6 +95,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON variable, rounded, and narrowing shift operations remain visible as named intrinsics.
 - AArch64 NEON floating/integer conversion and rounding families remain visible as named intrinsics.
 - x86/x64 AVX2 packed widening, narrowing, saturation, and mask-extraction moves remain visible as named intrinsics.
+- AArch64 NEON floating/integer conversion and rounding families remain visible as named intrinsics.
 - x86/x64 AVX/FMA3 packed and scalar fused multiply-add/subtract instructions remain visible as named intrinsics.
 - x86/x64 AVX/FMA3 negated fused multiply-add/subtract instructions remain visible as named intrinsics.
 - x86/x64 AVX/SSE blend, shuffle, permute, and lane-reordering instructions remain visible as named intrinsics.
