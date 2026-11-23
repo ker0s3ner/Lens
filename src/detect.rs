@@ -92,6 +92,8 @@ pub struct Detection {
     pub unsupported_note: Option<String>,
     /// Electron apps: the archive holding the real JavaScript.
     pub asar: Option<crate::source::AsarInfo>,
+    /// Cryptographic constants found in the bytes: (address, constant, algorithm).
+    pub crypto: Vec<(u64, String, String)>,
 }
 
 impl Detection {
@@ -785,7 +787,14 @@ pub fn detect(bin: &Binary, an: &Analysis) -> Detection {
         .chain(bin.symbols.iter().map(|s| s.1.as_str()).filter(|n| !n.starts_with("_Z") && !n.starts_with("__Z") && !n.starts_with("_R") && !n.starts_with("__R") && !n.starts_with("$s") && !n.starts_with("_$s")))
         .chain(sym_names.iter().filter_map(|n| n.strip_prefix("_OBJC_CLASS_$_")))
         .collect();
-    let capabilities = capabilities(&cap_names);
+    let mut capabilities = capabilities(&cap_names);
+    let crypto = crate::findcrypt::scan(bin);
+    if !crypto.is_empty() {
+        let mut algos: Vec<String> = crypto.iter().map(|c| c.2.clone()).collect();
+        algos.sort();
+        algos.dedup();
+        capabilities.push(Capability { name: "Crypto constants", apis: algos });
+    }
     let unsupported_note = if raw.clr {
         Some("This is a .NET program: it holds intermediate language, not machine code. Open it in ILSpy or dnSpy for real C#. Lens shows the native shell only.".to_string())
     } else if bin.arch == Arch::Other {
@@ -836,6 +845,7 @@ pub fn detect(bin: &Binary, an: &Analysis) -> Detection {
         timestamp: raw.timestamp.filter(|t| *t > 100_000 && *t < 4_000_000_000),
         main: None,
         unsupported_note,
+        crypto,
         asar: crate::source::find_asar(&bin.path).and_then(|p| crate::source::asar_info(&p)),
     };
     det.main = find_main(bin, an, &det);

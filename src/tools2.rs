@@ -63,7 +63,7 @@ impl LensApp {
                 if bin.arch == crate::loader::Arch::Other {
                     return Err("That CPU isn't supported".to_string());
                 }
-                let an = crate::analysis::analyze(&bin, &crate::analysis::Settings { min_string_len: 5, extra_functions: vec![] }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+                let an = crate::analysis::analyze(&bin, &crate::analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
                 let sf = crate::sigs::learn(&bin, &an);
                 if sf.entries.is_empty() {
                     return Err(format!("{} has no named functions with enough code to learn from", bin.file_name));
@@ -125,6 +125,7 @@ impl LensApp {
         let State::Ready(l) = &mut self.state else { return };
         let on = if let Some(p) = l.ann.breakpoints.iter().position(|b| *b == addr) {
             l.ann.breakpoints.remove(p);
+            l.ann.bp_conditions.remove(&addr);
             false
         } else {
             l.ann.breakpoints.push(addr);
@@ -256,15 +257,15 @@ impl LensApp {
         let mut apply: Option<(u64, String)> = None;
         let mut unapply: Option<usize> = None;
         let mut msg = std::mem::take(&mut self.tools2.types.msg);
-        egui::Window::new("Structs").open(&mut open).default_size([560.0, 560.0]).show(ctx, |ui| {
+        egui::Window::new("Types").open(&mut open).default_size([560.0, 560.0]).show(ctx, |ui| {
             let Some((structs, applied, ptr)) = &data else {
-                ui.label(RichText::new("Open a program to define structs for it.").color(p.muted));
+                ui.label(RichText::new("Open a program to define structs, unions and enums.").color(p.muted));
                 return;
             };
-            ui.label(RichText::new("Paste a C struct, add it, then lay it over data at an address. The fields show up as names in the listing and the pseudocode.").color(p.muted));
-            ui.add(TextEdit::multiline(&mut self.tools2.types.def).code_editor().desired_rows(5).desired_width(f32::INFINITY).hint_text("struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};"));
+            ui.label(RichText::new("Paste a C struct, union or enum. Apply it to data to see field names or resolve an enum value.").color(p.muted));
+            ui.add(TextEdit::multiline(&mut self.tools2.types.def).code_editor().desired_rows(5).desired_width(f32::INFINITY).hint_text("struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};\n\nunion Value { uint32_t integer; float real; };\n\nenum State { IDLE, BUSY = 4, DONE };\n\ntypedef uint32_t HeaderSize;"));
             ui.horizontal(|ui| {
-                if ui.button("Add struct").clicked() {
+                if ui.button("Add type").clicked() {
                     match types::parse_c(&self.tools2.types.def, *ptr, structs) {
                         Ok(s) => { add_def = Some(s); self.tools2.types.def.clear(); msg.clear(); }
                         Err(e) => msg = e,
@@ -273,14 +274,24 @@ impl LensApp {
                 if !msg.is_empty() { ui.label(RichText::new(&msg).color(p.accent)); }
             });
             ui.separator();
-            ui.label(RichText::new(format!("STRUCTS · {}", structs.len())).small().color(p.faint));
+            ui.label(RichText::new(format!("TYPES · {}", structs.len())).small().color(p.faint));
             for (i, s) in structs.iter().enumerate() {
                 ui.horizontal(|ui| {
-                    if ui.selectable_label(self.tools2.types.sel == i, format!("{}  ({} bytes)", s.name, s.size)).clicked() { self.tools2.types.sel = i; }
+                    let kind = if s.is_enum { "enum" } else if s.is_union { "union" } else { "struct" };
+                    if ui.selectable_label(self.tools2.types.sel == i, format!("{} {}  ({} bytes)", kind, s.name, s.size)).clicked() { self.tools2.types.sel = i; }
                     if ui.small_button("Remove").clicked() { remove = Some(i); }
                 });
             }
             if let Some(s) = structs.get(self.tools2.types.sel) {
+                if s.is_enum {
+                    egui::Grid::new("enum_values").num_columns(2).spacing([14.0, 2.0]).show(ui, |ui| {
+                        for v in &s.enum_values {
+                            ui.label(RichText::new(&v.name).monospace());
+                            ui.label(RichText::new(v.value.to_string()).monospace().color(p.keyword));
+                            ui.end_row();
+                        }
+                    });
+                }
                 egui::Grid::new("fields").num_columns(3).spacing([14.0, 2.0]).show(ui, |ui| {
                     for f in &s.fields {
                         ui.label(RichText::new(format!("+{:X}", f.off)).monospace().color(p.func_name));
@@ -307,6 +318,9 @@ impl LensApp {
                     egui::CollapsingHeader::new(RichText::new(format!("{n} at {a:X}")).monospace()).id_salt(("ap", i)).show(ui, |ui| {
                         if ui.small_button("Remove from this address").clicked() { unapply = Some(i); }
                         let l = self.loaded();
+                        if s.is_enum {
+                            ui.label(RichText::new(l.and_then(|l| types::enum_value(&l.bin, *a, s)).unwrap_or_else(|| "?".into())).monospace().color(p.keyword));
+                        }
                         egui::Grid::new(("vals", i)).num_columns(3).spacing([14.0, 2.0]).show(ui, |ui| {
                             for f in &s.fields {
                                 ui.label(RichText::new(&f.name).monospace());

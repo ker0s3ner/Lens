@@ -117,6 +117,12 @@ pub struct Binary {
     pub slice: String,
     /// Where this program starts inside its file (non-zero for one part of a universal Mach-O).
     pub file_base: u64,
+    /// Function starts found in unwind / function-start tables (no names).
+    pub func_hints: Vec<u64>,
+    /// C prototypes taken from DWARF debug info (one per line).
+    pub debug_protos: String,
+    /// struct / union / enum definitions from DWARF, as C text.
+    pub debug_types: String,
 }
 
 impl Binary {
@@ -277,13 +283,25 @@ pub fn load(path: &str) -> Result<Binary, String> {
         big_endian: false,
         slice: String::new(),
         file_base: 0,
+        func_hints: vec![],
+        debug_protos: String::new(),
+        debug_types: String::new(),
     };
     match Object::parse(&bytes) {
-        Ok(Object::Elf(elf)) => load_elf(&mut bin, &elf, &bytes),
-        Ok(Object::PE(pe)) => load_pe(&mut bin, &pe, &bytes),
+        Ok(Object::Elf(elf)) => {
+            load_elf(&mut bin, &elf, &bytes);
+            bin.func_hints = crate::hints::eh_frame(&bin);
+        }
+        Ok(Object::PE(pe)) => {
+            load_pe(&mut bin, &pe, &bytes);
+            if bin.arch == Arch::X64 {
+                bin.func_hints = crate::hints::pe_pdata(&bin, pe.image_base as u64);
+            }
+        }
         Ok(Object::Mach(mach)) => load_mach(&mut bin, mach, &bytes)?,
         _ => load_raw(&mut bin, &bytes),
     }
+    crate::dwarf::apply(&mut bin);
     bin.symbols.sort();
     bin.symbols.dedup_by_key(|s| s.0);
     bin.segments.sort_by_key(|s| s.start);
@@ -516,7 +534,7 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
     use goblin::mach::{Mach, SingleArch};
     match mach {
         Mach::Binary(m) => {
-            load_macho(bin, &m);
+            load_macho(bin, &m, bytes);
             Ok(())
         }
         Mach::Fat(fat) => {
@@ -560,7 +578,8 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
             let _ = bytes;
             match fat.get(idx).map_err(|e| e.to_string())? {
                 SingleArch::MachO(m) => {
-                    load_macho(bin, &m);
+                    let fb = bin.file_base as usize;
+                    load_macho(bin, &m, bytes.get(fb..).unwrap_or(&[]));
                     Ok(())
                 }
                 SingleArch::Archive(_) => Err("This universal file holds a static library archive.".into()),
@@ -569,7 +588,7 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
     }
 }
 
-fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO) {
+fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     use goblin::mach::constants::cputype::*;
     bin.format = format!(
         "Mach-O {}",
@@ -630,6 +649,20 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO) {
                 });
             }
         }
+    }
+    for lc in &m.load_commands {
+        if let goblin::mach::load_command::CommandVariant::FunctionStarts(c) = &lc.command {
+            let (o, n) = (c.dataoff as usize, c.datasize as usize);
+            if let Some(blob) = slice.get(o..o + n) {
+                bin.func_hints = crate::hints::macho_starts(blob, text_base);
+            }
+        }
+    }
+    if let Some(unwind) = bin.segments.iter().find(|s| s.name.ends_with(",__unwind_info")) {
+        let mut starts = crate::hints::macho_unwind_info(&unwind.data, text_base, bin);
+        bin.func_hints.append(&mut starts);
+        bin.func_hints.sort_unstable();
+        bin.func_hints.dedup();
     }
     if m.entry != 0 {
         // goblin already turns LC_MAIN's file offset into a virtual address.
@@ -783,6 +816,9 @@ pub fn raw_binary(spec: &RawSpec) -> Binary {
         big_endian: spec.big,
         slice: String::new(),
         file_base: 0,
+        func_hints: vec![],
+        debug_protos: String::new(),
+        debug_types: String::new(),
     };
     for (i, (start, data)) in spec.segs.iter().enumerate() {
         bin.segments.push(Segment {

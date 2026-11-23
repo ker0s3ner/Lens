@@ -14,6 +14,9 @@ pub struct Annotations {
     pub functions: Vec<u64>,
     #[serde(default)]
     pub marks: Vec<u64>,
+    /// Data the person defined by hand (D, A, U): address -> size code, see `analysis::DEF_*`.
+    #[serde(default)]
+    pub data_defs: HashMap<u64, u8>,
     #[serde(default)]
     pub patches: Vec<crate::patch::Patch>,
     #[serde(default)]
@@ -23,6 +26,15 @@ pub struct Annotations {
     pub applied: Vec<(u64, String)>,
     #[serde(default)]
     pub breakpoints: Vec<u64>,
+    /// LLDB condition expressions keyed by static breakpoint address.
+    #[serde(default)]
+    pub bp_conditions: HashMap<u64, String>,
+    /// The person's own function prototypes (C declarations, one per line).
+    #[serde(default)]
+    pub protos: String,
+    /// Names the person gave to variables in pseudocode: "func_addr_hex:old" -> new.
+    #[serde(default)]
+    pub vars: HashMap<String, String>,
     /// Names found by signature matching (not saved; recomputed on every open).
     #[serde(skip)]
     pub sig_names: HashMap<u64, String>,

@@ -36,8 +36,11 @@ fn fingerprint(a: &Annotations) -> u64 {
     for f in &a.functions { x ^= h(&(3u8, f)); }
     for m in &a.marks { x ^= h(&(4u8, m)); }
     for b in &a.breakpoints { x ^= h(&(5u8, b)); }
+    for (addr, condition) in &a.bp_conditions { x ^= h(&(10u8, addr, condition)); }
     for (k, v) in &a.applied { x ^= h(&(6u8, k, v)); }
     x ^= h(&(7u8, a.structs.len()));
+    x ^= h(&(8u8, &a.protos));
+    for (k, v) in &a.vars { x ^= h(&(9u8, k, v)); }
     x
 }
 
@@ -86,8 +89,11 @@ impl LensApp {
         l.ann.functions = target.functions.clone();
         l.ann.marks = target.marks.clone();
         l.ann.breakpoints = target.breakpoints.clone();
+        l.ann.bp_conditions = target.bp_conditions.clone();
         l.ann.applied = target.applied.clone();
         l.ann.structs = target.structs.clone();
+        l.ann.protos = target.protos.clone();
+        l.ann.vars = target.vars.clone();
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.refresh();
         self.undo.print = fingerprint(&l.ann);
@@ -111,11 +117,12 @@ pub enum ListTab {
     Entries,
     Strings,
     Sections,
+    Findings,
     Bookmarks,
 }
 
 impl ListTab {
-    const ALL: [ListTab; 8] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Bookmarks];
+    const ALL: [ListTab; 9] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Findings, ListTab::Bookmarks];
     fn label(self) -> &'static str {
         match self {
             ListTab::Functions => "Functions",
@@ -125,6 +132,7 @@ impl ListTab {
             ListTab::Entries => "Entry points",
             ListTab::Strings => "Strings",
             ListTab::Sections => "Sections",
+            ListTab::Findings => "Crypto",
             ListTab::Bookmarks => "Bookmarks",
         }
     }
@@ -203,6 +211,12 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             .iter()
             .map(|g| Row { addr: g.start, name: g.name.clone(), detail: format!("{} bytes · {}{}", g.size, if g.exec { "code " } else { "" }, if g.write { "writable" } else { "read-only" }), num: g.size })
             .collect(),
+        ListTab::Findings => l
+            .det
+            .crypto
+            .iter()
+            .map(|(a, n, algo)| Row { addr: *a, name: n.clone(), detail: algo.clone(), num: 0 })
+            .collect(),
         ListTab::Bookmarks => l
             .ann
             .marks
@@ -275,6 +289,68 @@ impl LensApp {
         });
         if let Some(a) = goto { self.actions.push(Action::Goto(a)); }
         if !open { self.lists.open = false; }
+    }
+}
+
+// ------------------------------------------------------------------ prototypes
+
+#[derive(Default)]
+pub struct ProtoState {
+    pub open: bool,
+    pub text: String,
+    pub filter: String,
+    pub msg: String,
+}
+
+impl LensApp {
+    pub fn protos_window(&mut self, ctx: &egui::Context) {
+        let p = self.p;
+        let mut open = true;
+        let mut apply = false;
+        let mut msg = std::mem::take(&mut self.protos.msg);
+        egui::Window::new("Function prototypes").open(&mut open).default_size([620.0, 560.0]).show(ctx, |ui| {
+            if self.loaded().is_none() {
+                ui.label(RichText::new("Open a program first.").color(p.muted));
+                return;
+            }
+            ui.label(RichText::new("Tell Lens what a function takes and returns, in C. Calls get the right number of arguments, functions marked noreturn end the code path, and a function's own signature uses your types and parameter names.").color(p.muted));
+            ui.add_space(4.0);
+            ui.add(TextEdit::multiline(&mut self.protos.text).code_editor().desired_rows(8).desired_width(f32::INFINITY).hint_text("int check_license(const char *key, int len);\nvoid fatal(const char *msg) noreturn;\nint sub_401120(void *ctx, size_t n);"));
+            ui.horizontal(|ui| {
+                if ui.button("Apply").clicked() { apply = true; }
+                ui.label(RichText::new(format!("{} built-in prototypes", crate::protos::builtin_count())).small().color(p.faint));
+            });
+            if !msg.is_empty() { ui.label(RichText::new(&msg).color(p.accent)); }
+            ui.separator();
+            ui.add(TextEdit::singleline(&mut self.protos.filter).desired_width(f32::INFINITY).hint_text("Search the built-in library (click one to copy it into the box above)…"));
+            let q = self.protos.filter.to_lowercase();
+            let names: Vec<String> = crate::protos::count_builtin_names().into_iter().filter(|n| q.is_empty() || n.to_lowercase().contains(&q)).collect();
+            let mut pick: Option<String> = None;
+            ScrollArea::vertical().auto_shrink([false, false]).show_rows(ui, 20.0, names.len(), |ui, range| {
+                for n in &names[range] {
+                    if let Some(pr) = crate::protos::find(n) {
+                        if ui.add(egui::Label::new(RichText::new(pr.signature()).monospace().small()).sense(egui::Sense::click())).clicked() { pick = Some(format!("{};", pr.signature())); }
+                    }
+                }
+            });
+            if let Some(t) = pick {
+                if !self.protos.text.is_empty() && !self.protos.text.ends_with('\n') { self.protos.text.push('\n'); }
+                self.protos.text.push_str(&t);
+                self.protos.text.push('\n');
+            }
+        });
+        if apply {
+            let (ps, errs) = crate::protos::parse(&self.protos.text);
+            msg = if errs.is_empty() { format!("Applied {} prototypes.", ps.len()) } else { errs.join("\n") };
+            let text = self.protos.text.clone();
+            if let State::Ready(l) = &mut self.state {
+                l.ann.protos = text;
+                store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                l.refresh();
+            }
+        }
+        self.protos.msg = msg;
+        if !open { self.protos.open = false; }
     }
 }
 
@@ -433,9 +509,9 @@ impl LensApp {
         let p2 = path.to_string_lossy().to_string();
         let p3 = p2.clone();
         std::thread::spawn(move || {
-            let aa = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, Arc::new(AtomicU32::new(0)));
+            let aa = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
             let r = crate::loader::load(&p3).map(|other| {
-                let ab = analysis::analyze(&other, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, pr);
+                let ab = analysis::analyze(&other, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, pr);
                 DiffOut { other: other.file_name.clone(), rows: diff_binaries(&bin, &aa, &other, &ab, &names) }
             });
             let _ = tx.send(r);
@@ -515,6 +591,8 @@ pub enum ExportKind {
     Json,
     Map,
     Ghidra,
+    Asm,
+    Dot,
 }
 
 fn esc(s: &str) -> String {
@@ -549,6 +627,34 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
             }
             for (a, c) in &comments { s += &format!("setEOLComment(addr(0x{a:X}), \"{}\")\n", esc(c)); }
             (s, "py")
+        }
+        ExportKind::Asm => {
+            let mut f = crate::code::CodeFormatter::new(l.names.clone());
+            let mut s = format!("; Lens listing of {} ({}, {})\n", l.bin.file_name, l.bin.format, l.bin.arch_name);
+            for func in l.an.functions.values() {
+                let nm = l.names.get(&func.start).map(|n| display_symbol(&n.0)).unwrap_or_default();
+                s += &format!("\n; ---------------------------------------------------------------\n; {nm}  ({:X}, {} bytes)\n", func.start, func.size());
+                for b in &func.blocks {
+                    for a in &b.insns {
+                        let t = f.format(&l.bin, *a).map(|(_, t)| t.iter().map(|x| x.text.as_str()).collect::<String>()).unwrap_or_default();
+                        let c = l.ann.comments.get(a).map(|c| format!("   ; {}", c.replace('\n', " "))).unwrap_or_default();
+                        s += &format!("{a:016X}  {t}{c}\n");
+                    }
+                }
+            }
+            (s, "asm")
+        }
+        ExportKind::Dot => {
+            let mut s = String::from("digraph calls {\n  rankdir=LR;\n  node [shape=box, fontname=Menlo, fontsize=10];\n");
+            for func in l.an.functions.values().filter(|f| f.kind == analysis::FuncKind::Normal) {
+                let nm = l.names.get(&func.start).map(|n| display_symbol(&n.0)).unwrap_or_default();
+                s += &format!("  \"{:X}\" [label=\"{}\"];\n", func.start, esc(&nm));
+                for c in &func.calls {
+                    s += &format!("  \"{:X}\" -> \"{c:X}\";\n", func.start);
+                }
+            }
+            s += "}\n";
+            (s, "dot")
         }
         ExportKind::Map => {
             let mut s = format!("Lens map of {}\n{} · {}\n\nSections\n", l.bin.file_name, l.bin.format, l.bin.arch_name);

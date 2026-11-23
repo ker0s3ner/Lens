@@ -15,7 +15,7 @@
 <aside>
 <h5>Start</h5><a href="#install">Install</a><a href="#open">Open a program</a><a href="#updates">Updates</a>
 <h5>Reading code</h5><a href="#views">Views</a><a href="#navigate">Navigate and annotate</a><a href="#search">Search</a><a href="#shortcuts">Keyboard shortcuts</a>
-<h5>Tools</h5><a href="#hex">Hex to code</a><a href="#patch">Patching</a><a href="#types">Structs</a><a href="#sigs">Signatures</a><a href="#debug">Debugger</a><a href="#script">Scripting and plugins</a>
+<h5>Tools</h5><a href="#hex">Hex to code</a><a href="#patch">Patching</a><a href="#types">Structs</a><a href="#protos">Prototypes and constants</a><a href="#analysis">Analysis extras</a><a href="#sigs">Signatures</a><a href="#debug">Debugger</a><a href="#script">Scripting and plugins</a>
 <h5>Customise</h5><a href="#custom">Fonts, keys, assistants</a><a href="#menus">Menu bar</a>
 <h5>Reference</h5><a href="#formats">Supported formats</a><a href="#cli">Command line</a><a href="#settings">Settings and data</a><a href="#limits">Limitations</a><a href="#build">Building and releasing</a>
 </aside>
@@ -79,6 +79,13 @@
 
 <h2 id="types">Structs</h2>
 <p><strong>Tools &gt; Structs</strong> takes plain C declarations (<code>struct Header { uint32_t magic; char name[16]; void *next; };</code>), computes offsets and lets you lay a struct over data at an address. Field names then show up as names in the listing.</p>
+
+<h2 id="protos">Prototypes and constants</h2>
+<p><strong>Analysis &gt; Function Prototypes</strong> holds about 190 built-in C signatures (libc, POSIX, sockets, threads, parts of Win32 and macOS) and lets you add your own, such as <code>int check_license(const char *key, int len);</code>. The pseudocode uses them in four ways: a call gets exactly the right number of arguments, a function marked <code>noreturn</code> ends its code path, the result of a call gets its declared type (<code>char *v5;</code>), and a function that has a prototype is printed with your types and parameter names.</p>
+<p>Magic numbers in arguments are also named for the program's operating system: <code>open(path, 0x602)</code> reads <code>open(path, O_RDWR | O_CREAT | O_TRUNC)</code>, and short strings such as <code>"r"</code> are shown where a <code>char *</code> is expected. Constant names exist for open, mmap, lseek, socket, signals and the main Win32 memory and file calls.</p>
+
+<h2 id="analysis">Analysis extras</h2>
+<p><strong>Rename variables</strong> by double-clicking one in the pseudocode; the name is remembered for that function. <strong>Switch tables</strong> are recovered on x86 and ARM64: each case becomes an edge in the graph and a <code>case N:</code> line in a <code>switch</code> in the pseudocode. <strong>Function starts</strong> are read from Mach-O function-start tables, ELF <code>.eh_frame</code> and PE <code>.pdata</code>, so stripped programs lose fewer functions. <strong>Crypto constants</strong> (AES, SHA-1/256/512, MD5, CRC-32, Blowfish, ChaCha, Base64 and others) are found in the bytes and listed under <em>Lists &gt; Crypto</em> and in the overview. <strong>Lists</strong> shows functions, names, imports, exports, entry points, strings, sections, crypto findings and bookmarks. <strong>Compare programs</strong> diffs two versions by function. <strong>Import</strong> reads names and notes from Lens JSON, IDA <code>.idc</code> or Ghidra <code>.py</code> scripts, and <strong>Export</strong> writes IDC, Ghidra, JSON, map, listing (<code>.asm</code>) and Graphviz call-graph files. Edit &gt; Undo and Redo (Cmd+Z, Cmd+Shift+Z) cover names, notes, bookmarks, structs, functions and prototypes.</p>
 
 <h2 id="sigs">Signatures</h2>
 <p><strong>Learn signatures from a file</strong> asks you to pick an unstripped program or library, then records the first instructions of every named function in it (addresses are masked out, so relocated copies still match) and saves them to your signature folder. <strong>Recognise library functions</strong> then names matching functions in any other program, which is how stripped binaries get their library calls back. Ambiguous matches are dropped rather than guessed.</p>

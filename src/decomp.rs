@@ -170,8 +170,8 @@ fn is_narrow(e: &Ex) -> bool {
         Ex::Bin("==" | "!=" | "<" | ">=" | ">" | "<=", ..) => true,
         Ex::Cast("uint8_t" | "uint16_t", _) => true,
         Ex::Num(n) => (0..256).contains(n),
-        Ex::Bin("&" | "|" | "^", a, b) => is_narrow(a) && is_narrow(b),
         Ex::Bin("&", a, b) => is_narrow(a) || is_narrow(b),
+        Ex::Bin("|" | "^", a, b) => is_narrow(a) && is_narrow(b),
         Ex::Tern(_, a, b) => is_narrow(a) && is_narrow(b),
         Ex::Un("!", _) => true,
         _ => false,
@@ -532,7 +532,7 @@ impl<'a> Dc<'a> {
 
     fn frame_slot(&mut self, off: i64, size: u8, bp: Option<i64>) -> Ex {
         let w = self.word;
-        if off >= w {
+        if off >= w && off < 0x400 {
             // arguments
             match self.conv {
                 CallConv::Win64 if off < 8 + 32 => {
@@ -753,6 +753,13 @@ impl<'a> Dc<'a> {
                 n_regs = k + 1;
             }
         }
+        // a known prototype tells us exactly how many arguments the call takes
+        let proto = if let Ex::Var(n) = &callee { crate::protos::find(n) } else { None };
+        if let Some(p) = &proto {
+            let np = p.params.len().min(regs.len());
+            n_regs = if p.variadic { n_regs.max(np) } else { np };
+        }
+        let noret = noret || proto.as_ref().map(|p| p.noreturn).unwrap_or(false);
         let mut args: Vec<Ex> = vec![];
         for r in regs.iter().take(n_regs) {
             let i = idx(r);
@@ -763,6 +770,39 @@ impl<'a> Dc<'a> {
                     Ex::Var(GPR[i as usize].to_string())
                 }
             });
+        }
+        // short strings ("r", "w+") are below the string-detection length, but a char* parameter tells us what they are
+        if let Some(p) = &proto {
+            for (k, a) in args.iter_mut().enumerate() {
+                let is_cstr = p.params.get(k).map(|(t, _)| t.contains("char") && t.contains('*')).unwrap_or(false);
+                if !is_cstr { continue; }
+                let addr = match a {
+                    Ex::Un("&", inner) => match &**inner {
+                        Ex::Var(v) => v.strip_prefix("unk_").and_then(|h| u64::from_str_radix(h, 16).ok()),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(ad) = addr {
+                    let b = self.bin.read(ad, 8);
+                    if let Some(end) = b.iter().position(|c| *c == 0) {
+                        if end >= 1 && b[..end].iter().all(|c| (0x20..0x7f).contains(c)) {
+                            *a = Ex::Raw(format!("\"{}\"", crate::code::escape_str(&String::from_utf8_lossy(&b[..end]), 8)));
+                        }
+                    }
+                }
+            }
+        }
+        // magic numbers in arguments become the constant names they stand for
+        if let Ex::Var(fname) = &callee {
+            let os = crate::consts::os_of(&self.bin.format);
+            for (k, a) in args.iter_mut().enumerate() {
+                if let Ex::Num(v) = a {
+                    if let Some(sym) = crate::consts::symbolize(os, fname, k, *v) {
+                        *a = Ex::Var(sym);
+                    }
+                }
+            }
         }
         let mut pend = std::mem::take(&mut st.pending);
         pend.reverse();
@@ -1166,6 +1206,7 @@ struct Emit<'a> {
     open: HashSet<usize>,
     loops: HashMap<usize, Vec<usize>>,
     done: HashSet<usize>,
+    switches: &'a HashMap<u64, Vec<u64>>,
 }
 
 impl Emit<'_> {
@@ -1339,7 +1380,16 @@ impl Emit<'_> {
             }
             Term::Stop => i + 1,
             Term::Indirect(e) => {
-                self.line(ind, ta, format!("goto *{}; // indirect jump (switch table?)", self.fmt.at(&e, 3)));
+                if let Some(ts) = self.switches.get(&ta).cloned() {
+                    self.line(ind, ta, format!("switch ({}) {{ // jump table, {} targets", self.fmt.at(&e, 3), ts.len()));
+                    for (k, t) in ts.iter().enumerate() {
+                        self.labels.insert(*t);
+                        self.line(ind + 1, ta, format!("case {k}: goto L_{t:X};"));
+                    }
+                    self.line(ind, ta, "}".into());
+                } else {
+                    self.line(ind, ta, format!("goto *{}; // indirect jump (switch table?)", self.fmt.at(&e, 3)));
+                }
                 i + 1
             }
             Term::Fall(t) => {
@@ -1544,7 +1594,7 @@ pub fn decompile(
         rename.insert(r.to_string(), format!("a{}", k + 1));
     }
     let stack_max = dc.stack_args.iter().max().copied().unwrap_or(0);
-    let total_params = nparams.max(stack_max);
+    let total_params = nparams.max(stack_max).min(48);
     if word == 4 && x86 {
         for (i, g) in GPR.iter().enumerate().take(8) {
             if !rename.contains_key(*g) {
@@ -1647,6 +1697,7 @@ pub fn decompile(
         open: HashSet::new(),
         loops: loops.clone(),
         done: HashSet::new(),
+        switches: &an.switches,
     };
     let mut first = make(HashSet::new(), mat.clone());
     first.emit(0, n, 1, None);
@@ -1664,8 +1715,24 @@ pub fn decompile(
     if !comp_note.is_empty() {
         lines.push(DLine { text: format!("// {comp_note}"), addr: f.start, indent: 0 });
     }
+    // the function's own prototype (built in or typed by the person) gives it real types and parameter names
+    let own = crate::protos::find(&name);
+    let mut param_names: Vec<(String, String)> = vec![];
+    let (ret_ty, params) = match &own {
+        Some(p) => {
+            let mut ps: Vec<String> = vec![];
+            for (k, (t, n)) in p.params.iter().enumerate() {
+                let n = if n.is_empty() { format!("a{}", k + 1) } else { n.clone() };
+                param_names.push((format!("a{}", k + 1), n.clone()));
+                ps.push(if t.ends_with('*') { format!("{t}{n}") } else { format!("{t} {n}") });
+            }
+            if p.variadic { ps.push("...".into()); }
+            (p.ret.clone(), ps)
+        }
+        None => ((if returns_value { ptype } else { "void" }).to_string(), params),
+    };
     lines.push(DLine {
-        text: format!("{} {}({})", if returns_value { ptype } else { "void" }, name, if params.is_empty() { "void".to_string() } else { params.join(", ") }),
+        text: format!("{} {}({})", ret_ty, name, if params.is_empty() { "void".to_string() } else { params.join(", ") }),
         addr: f.start,
         indent: 0,
     });
@@ -1725,6 +1792,30 @@ pub fn decompile(
         }
         decl_regs.push(disp);
     }
+    // results of calls to functions with a known prototype get the declared return type
+    let mut assigned: HashMap<String, (usize, Option<String>)> = HashMap::new();
+    for o in &outs {
+        for (_, st) in &o.stmts {
+            if let Stmt::Assign(Ex::Var(t), rhs) = st {
+                let ty = match rhs {
+                    Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                    _ => None,
+                };
+                let e = assigned.entry(t.clone()).or_insert((0, ty.clone()));
+                e.0 += 1;
+                if e.1 != ty { e.1 = None; }
+            }
+        }
+    }
+    let mut typed: Vec<(String, String)> = vec![];
+    decl_regs.retain(|d| match assigned.get(d) {
+        Some((1, Some(ty))) => { typed.push((ty.clone(), d.clone())); false }
+        _ => true,
+    });
+    typed.sort();
+    for (ty, n) in &typed {
+        lines.push(DLine { text: if ty.ends_with('*') { format!("{ty}{n};") } else { format!("{ty} {n};") }, addr: f.start, indent: 1 });
+    }
     if !decl_regs.is_empty() {
         for chunk in decl_regs.chunks(8) {
             lines.push(DLine { text: format!("{ptype} {};", chunk.join(", ")), addr: f.start, indent: 1 });
@@ -1737,6 +1828,13 @@ pub fn decompile(
     let _ = labels;
     lines.extend(body);
     lines.push(DLine { text: "}".into(), addr: f.end, indent: 0 });
+    for (from, to) in &param_names {
+        if from != to {
+            for l in lines.iter_mut().skip(1) {
+                l.text = crate::protos::replace_word(&l.text, from, to);
+            }
+        }
+    }
     Decompiled { lines }
 }
 

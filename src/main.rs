@@ -1,9 +1,14 @@
 mod analysis;
 mod app;
 mod code;
+mod consts;
 mod custom;
+mod findcrypt;
+mod hints;
 mod ida;
+mod protos;
 mod detect;
+mod dwarf;
 mod debugger;
 mod decomp;
 mod dialogs;
@@ -47,7 +52,7 @@ fn cli(args: &[String]) -> bool {
     let arg_of = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     if let Some(sf) = arg_of("--learn-sigs") {
         let bin = match loader::load(&sf) { Ok(b) => b, Err(e) => { eprintln!("{e}"); return true } };
-        let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+        let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
         let sig = sigs::learn(&bin, &an);
         println!("learned {} signatures -> {:?}", sig.entries.len(), sigs::save(&sig));
         return true;
@@ -67,7 +72,7 @@ fn cli(args: &[String]) -> bool {
             return true;
         }
     };
-    let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![] }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+    let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
     let det = detect::detect(&bin, &an);
     if sig_apply {
         let m = sigs::apply(&bin, &an);
@@ -88,7 +93,7 @@ fn cli(args: &[String]) -> bool {
     }
     if args.iter().any(|a| a == "--dbg-test") {
         let main_addr = det.main.as_ref().map(|m| m.0).unwrap_or(0);
-        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", &[main_addr]) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
+        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", &[main_addr], &std::collections::HashMap::new()) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
         let t0 = std::time::Instant::now();
         let mut step = 0;
         while t0.elapsed().as_secs() < 25 {

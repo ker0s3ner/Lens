@@ -150,6 +150,9 @@ impl LensApp {
         if self.lists.open {
             self.lists_window(ctx);
         }
+        if self.protos.open {
+            self.protos_window(ctx);
+        }
         if self.diff.open {
             self.diff_window(ctx);
         }

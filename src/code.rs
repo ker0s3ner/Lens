@@ -110,6 +110,20 @@ impl FormatterOutput for Collect<'_> {
 pub struct CodeFormatter {
     fmt: IntelFormatter,
     names: NameTable,
+    /// Functions that keep a frame pointer: (start, end), sorted. Inside them `[rbp-8]` is shown as `[rbp+var_8]`.
+    frames: Arc<Vec<(u64, u64)>>,
+    /// The person's own variable names, "func_hex:var_8" -> name.
+    vars: Arc<HashMap<String, String>>,
+}
+
+/// True when the function at `start` begins with `push rbp; mov rbp, rsp` (optionally after `endbr64`).
+pub fn has_frame_pointer(bin: &Binary, start: u64) -> bool {
+    if !bin.arch.is_x86() {
+        return false;
+    }
+    let b = bin.read(start, 8);
+    let b = if b.starts_with(&[0xF3, 0x0F, 0x1E, 0xFA]) { &b[4..] } else { &b[..] };
+    b.starts_with(&[0x55, 0x48, 0x89, 0xE5]) || b.starts_with(&[0x55, 0x89, 0xE5]) || b.starts_with(&[0x55, 0x8B, 0xEC]) || b.starts_with(&[0x55, 0x48, 0x8B, 0xEC])
 }
 
 impl CodeFormatter {
@@ -123,13 +137,20 @@ impl CodeFormatter {
         o.set_first_operand_char_index(8);
         o.set_show_branch_size(true);
         o.set_rip_relative_addresses(false);
-        Self { fmt, names }
+        Self { fmt, names, frames: Arc::new(vec![]), vars: Arc::new(HashMap::new()) }
     }
 
     /// Plain text of the instruction at `addr`.
     pub fn clone_names_text(&self, bin: &Binary, addr: u64) -> String {
         let mut f = CodeFormatter::new(self.names.clone());
+        f.frames = self.frames.clone();
+        f.vars = self.vars.clone();
         f.format(bin, addr).map(|(_, t)| t.iter().map(|x| x.text.as_str()).collect::<String>()).unwrap_or_default()
+    }
+
+    pub fn set_frames(&mut self, frames: Vec<(u64, u64)>, vars: HashMap<String, String>) {
+        self.frames = Arc::new(frames);
+        self.vars = Arc::new(vars);
     }
 
     pub fn names(&self) -> &NameTable {
@@ -160,8 +181,44 @@ impl CodeFormatter {
         if let Some(pos) = toks.iter().position(|t| t.kind == Tok::Mnemonic && t.text.trim() != "") {
             let _ = pos;
         }
+        self.name_stack_slots(bin, addr, &ins, &mut toks);
         merge_spaces(&mut toks);
         Some(((), toks))
+    }
+}
+
+impl CodeFormatter {
+    /// IDA style stack slots: `[rbp-8]` becomes `[rbp+var_8]`, `[rbp+10h]` becomes `[rbp+arg_0]`.
+    fn name_stack_slots(&self, bin: &Binary, addr: u64, ins: &Instruction, toks: &mut Vec<Token>) {
+        use iced_x86::{Register, OpKind};
+        let Some(i) = self.frames.partition_point(|f| f.0 <= addr).checked_sub(1) else { return };
+        let (fstart, fend) = self.frames[i];
+        if addr >= fend {
+            return;
+        }
+        let Some(mi) = (0..ins.op_count()).find(|k| ins.op_kind(*k) == OpKind::Memory) else { return };
+        let _ = mi;
+        let base = ins.memory_base();
+        if !matches!(base, Register::RBP | Register::EBP) || ins.memory_index() != Register::None {
+            return;
+        }
+        let d = if bin.bitness() == 64 { ins.memory_displacement64() as i64 } else { ins.memory_displacement32() as i32 as i64 };
+        let ret = (bin.bitness() / 8) as i64 * 2;
+        let old = if d < 0 {
+            format!("var_{:X}", -d)
+        } else if d >= ret {
+            format!("arg_{:X}", d - ret)
+        } else {
+            return;
+        };
+        let Some(r) = toks.iter().position(|t| t.kind == Tok::Register && (t.text == "rbp" || t.text == "ebp")) else { return };
+        // After the register come a sign and a number, e.g. "-" "8h".
+        if toks.len() < r + 3 || toks[r + 1].kind != Tok::Punct || toks[r + 2].kind != Tok::Number {
+            return;
+        }
+        let name = self.vars.get(&format!("{fstart:X}:{old}")).cloned().unwrap_or(old);
+        toks[r + 1] = Token { text: "+".into(), kind: Tok::Punct, target: None };
+        toks[r + 2] = Token { text: name, kind: Tok::Name(NameKind::Data), target: None };
     }
 }
 

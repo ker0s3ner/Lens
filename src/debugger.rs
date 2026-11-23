@@ -34,6 +34,7 @@ enum Kind {
     Bt,
     Pc,
     Bp(u64),
+    Watch(String),
 }
 
 struct Req {
@@ -56,8 +57,11 @@ pub struct Dbg {
     pub regs: Vec<(String, String)>,
     pub stack: Vec<String>,
     pub bt: Vec<String>,
+    pub watch_values: HashMap<String, String>,
+    watch_exprs: Vec<String>,
     pub console: Vec<String>,
     bp_ids: HashMap<u64, u32>,
+    bp_conditions: HashMap<u64, String>,
     pending_bps: Vec<u64>,
 }
 
@@ -69,6 +73,10 @@ pub struct DbgUi {
     pub confirm: bool,
     pub input: String,
     pub follow: bool,
+    pub watches: Vec<String>,
+    pub new_watch: String,
+    pub condition: String,
+    pub condition_addr: Option<u64>,
 }
 
 impl Drop for Dbg {
@@ -90,7 +98,7 @@ fn parse_hex_after(s: &str, key: &str) -> Option<u64> {
 }
 
 impl Dbg {
-    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, bps: &[u64]) -> Result<Dbg, String> {
+    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, bps: &[u64], conditions: &HashMap<u64, String>) -> Result<Dbg, String> {
         // lldb needs a terminal: without one it buffers its output and stalls while the program runs
         let (mut master, mut slave) = (0i32, 0i32);
         if unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) } != 0 {
@@ -166,8 +174,11 @@ impl Dbg {
             regs: vec![],
             stack: vec![],
             bt: vec![],
+            watch_values: HashMap::new(),
+            watch_exprs: vec![],
             console: vec![],
             bp_ids: HashMap::new(),
+            bp_conditions: conditions.clone(),
             pending_bps: bps.to_vec(),
         };
         d.push(Kind::Plain, "settings set auto-confirm true");
@@ -217,10 +228,32 @@ impl Dbg {
             } else {
                 self.push(Kind::Bp(addr), &format!("breakpoint set -a 0x{:x}", addr + self.slide));
             }
-        } else if let Some(id) = self.bp_ids.remove(&addr) {
-            self.push(Kind::Plain, &format!("breakpoint delete {id}"));
+        } else {
+            self.bp_conditions.remove(&addr);
+            if let Some(id) = self.bp_ids.remove(&addr) {
+                self.push(Kind::Plain, &format!("breakpoint delete {id}"));
+            }
         }
         self.pending_bps.retain(|a| on || *a != addr);
+    }
+
+    pub fn set_condition(&mut self, addr: u64, condition: &str) {
+        let condition = condition.trim();
+        if condition.contains(['\n', '\r']) { return; }
+        if condition.is_empty() {
+            self.bp_conditions.remove(&addr);
+        } else {
+            self.bp_conditions.insert(addr, condition.to_string());
+        }
+        if let Some(id) = self.bp_ids.get(&addr).copied() {
+            let escaped = condition.replace('\\', "\\\\").replace('"', "\\\"");
+            let cmd = if condition.is_empty() {
+                format!("breakpoint modify --condition '' {id}")
+            } else {
+                format!("breakpoint modify --condition \"{escaped}\" {id}")
+            };
+            self.push(Kind::Plain, &cmd);
+        }
     }
 
     fn send_next(&mut self) {
@@ -248,6 +281,23 @@ impl Dbg {
         self.push(Kind::Regs, "register read");
         self.push(Kind::Stack, "memory read -s8 -fx -c24 $sp");
         self.push(Kind::Bt, "thread backtrace -c 16");
+        for expression in self.watch_exprs.clone() {
+            self.push(Kind::Watch(expression.clone()), &format!("expression -- {expression}"));
+        }
+    }
+
+    pub fn set_watches(&mut self, expressions: Vec<String>) {
+        let expressions: Vec<String> = expressions.into_iter().map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && !s.contains(['\n', '\r']))
+            .collect();
+        if expressions == self.watch_exprs { return; }
+        self.watch_exprs = expressions;
+        self.watch_values.retain(|expr, _| self.watch_exprs.contains(expr));
+        if self.state == RunState::Stopped {
+            for expression in self.watch_exprs.clone() {
+                self.push(Kind::Watch(expression.clone()), &format!("expression -- {expression}"));
+            }
+        }
     }
 
     /// Reads lldb's output. Returns the new program counter (static address) when the program stopped somewhere new.
@@ -327,10 +377,19 @@ impl Dbg {
             }
             Kind::Stack => self.stack = lines,
             Kind::Bt => self.bt = lines,
+            Kind::Watch(expression) => {
+                let value = lines.iter().filter(|line| !line.trim().is_empty()).cloned().collect::<Vec<_>>().join(" ");
+                if self.watch_exprs.contains(&expression) {
+                    self.watch_values.insert(expression, if value.is_empty() { "<no value>".into() } else { value });
+                }
+            }
             Kind::Bp(addr) => {
                 // "Breakpoint 3: where = ..."
                 if let Some(id) = joined.strip_prefix("Breakpoint ").and_then(|r| r.split(':').next()).and_then(|n| n.trim().parse::<u32>().ok()) {
                     self.bp_ids.insert(addr, id);
+                    if let Some(condition) = self.bp_conditions.get(&addr).cloned() {
+                        self.set_condition(addr, &condition);
+                    }
                 }
                 self.console.extend(lines);
             }
@@ -361,8 +420,9 @@ impl LensApp {
             _ => None,
         };
         let bps = l.ann.breakpoints.clone();
+        let conditions = l.ann.bp_conditions.clone();
         let (args, remote) = (self.tools2.dbg.args.clone(), self.tools2.dbg.remote.clone());
-        match Dbg::start(&path, arch, &args, &remote, &bps) {
+        match Dbg::start(&path, arch, &args, &remote, &bps, &conditions) {
             Ok(d) => {
                 self.dbg = Some(d);
                 self.logm(format!("Debugging {path} with lldb"));
@@ -407,7 +467,11 @@ impl LensApp {
         let mut resume: Option<&'static str> = None;
         let mut goto: Option<u64> = None;
         let mut bp: Option<u64> = None;
+        let mut remove_watch: Option<usize> = None;
+        let mut add_watch = false;
+        let mut set_condition: Option<(u64, String)> = None;
         let bps = self.loaded().map(|l| l.ann.breakpoints.clone()).unwrap_or_default();
+        let bp_conditions = self.loaded().map(|l| l.ann.bp_conditions.clone()).unwrap_or_default();
         let bin_map = self.loaded().map(|l| (l.bin.clone(), self.dbg.as_ref().map(|d| d.slide).unwrap_or(0)));
         egui::Window::new("Debugger").open(&mut open).default_size([760.0, 560.0]).show(ctx, |ui| {
             if !ready {
@@ -415,6 +479,17 @@ impl LensApp {
                 return;
             }
             let ui_state = &mut self.tools2.dbg;
+            if ui_state.condition_addr != Some(cursor) {
+                ui_state.condition_addr = Some(cursor);
+                ui_state.condition = bp_conditions.get(&cursor).cloned().unwrap_or_default();
+            }
+            if bps.contains(&cursor) {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("Condition at {cursor:X}")).small().color(p.faint));
+                    ui.add(TextEdit::singleline(&mut ui_state.condition).desired_width(260.0).font(FontId::monospace(13.0)).hint_text("e.g. $rax == 0"));
+                    if ui.button("Apply").clicked() { set_condition = Some((cursor, ui_state.condition.clone())); }
+                });
+            }
             match &mut self.dbg {
                 None => {
                     ui.label(RichText::new("Starting the debugger runs this program on your Mac. Only debug programs you trust.").color(p.muted));
@@ -474,6 +549,20 @@ impl LensApp {
                     ScrollArea::vertical().id_salt("stk").max_height(90.0).show(ui, |ui| {
                         for l in &d.stack { ui.label(RichText::new(l).monospace().small()); }
                     });
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("WATCHES").small().color(p.faint));
+                        ui.add(TextEdit::singleline(&mut ui_state.new_watch).desired_width(240.0).font(FontId::monospace(13.0)).hint_text("expression, e.g. $rax"));
+                        if ui.button("Add watch").clicked() || (ui.input(|i| i.key_pressed(egui::Key::Enter)) && ui_state.new_watch.trim() != "") {
+                            add_watch = true;
+                        }
+                    });
+                    for (i, expression) in ui_state.watches.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(expression).monospace().color(p.keyword));
+                            ui.label(RichText::new(d.watch_values.get(expression).map(String::as_str).unwrap_or("(waiting for stop)" )).monospace().small());
+                            if ui.small_button("×").clicked() { remove_watch = Some(i); }
+                        });
+                    }
                     ui.separator();
                     ui.label(RichText::new("CONSOLE (any lldb command)").small().color(p.faint));
                     ScrollArea::vertical().id_salt("con").max_height(120.0).stick_to_bottom(true).show(ui, |ui| {
@@ -496,8 +585,25 @@ impl LensApp {
             self.logm("Debugger stopped.");
         }
         if let Some(d) = &mut self.dbg {
+            if let Some(i) = remove_watch { if i < self.tools2.dbg.watches.len() { self.tools2.dbg.watches.remove(i); } }
+            if add_watch {
+                let expression = self.tools2.dbg.new_watch.trim().to_string();
+                if !expression.is_empty() && !expression.contains(['\n', '\r']) && !self.tools2.dbg.watches.contains(&expression) {
+                    self.tools2.dbg.watches.push(expression);
+                }
+                self.tools2.dbg.new_watch.clear();
+            }
+            d.set_watches(self.tools2.dbg.watches.clone());
+            if let Some((addr, condition)) = &set_condition { d.set_condition(*addr, condition); }
             if let Some(c) = resume { d.resume(c); }
             if let Some(c) = cmd { d.command(&c); }
+        }
+        if let Some((addr, condition)) = set_condition {
+            if let State::Ready(l) = &mut self.state {
+                if condition.trim().is_empty() { l.ann.bp_conditions.remove(&addr); }
+                else if !condition.contains(['\n', '\r']) { l.ann.bp_conditions.insert(addr, condition.trim().to_string()); }
+                crate::store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+            }
         }
         if let Some(a) = bp { self.actions.push(Action::ToggleBreakpoint(a)); }
         if let Some(a) = goto { self.actions.push(Action::Goto(a)); }

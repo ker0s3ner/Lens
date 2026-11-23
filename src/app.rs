@@ -57,6 +57,13 @@ impl Side {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum DataDef {
+    Cycle,
+    Str,
+    Undefine,
+}
+
 #[derive(Clone)]
 pub enum Action {
     Goto(u64),
@@ -68,6 +75,7 @@ pub enum Action {
     Comment(u64),
     Xrefs(u64),
     MakeFunction(u64),
+    DefineData(u64, DataDef),
     SetView(View),
     ToggleGraph,
     SetSide(Side),
@@ -113,6 +121,8 @@ pub enum Action {
     Diff,
     Export(crate::ida::ExportKind),
     Import,
+    Protos,
+    RenameVar(u64, String),
 }
 
 pub enum Modal {
@@ -123,6 +133,7 @@ pub enum Modal {
     Palette { text: String, sel: usize, focus: bool },
     Find { text: String, focus: bool },
     Message { title: String, text: String },
+    RenameVar { func: u64, old: String, text: String, focus: bool },
 }
 
 pub struct Loaded {
@@ -142,6 +153,17 @@ pub struct Loaded {
     pub name_index: HashMap<String, u64>,
     pub pseudo: HashMap<u64, Arc<crate::decomp::Decompiled>>,
     pub dbg_pc: Option<u64>,
+}
+
+/// Runs analysis so that a bug in Lens becomes an error message instead of a frozen "Opening…" screen.
+fn guard<F: FnOnce() -> LoadResult>(f: F) -> LoadResult {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(r) => r,
+        Err(e) => {
+            let msg = e.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| e.downcast_ref::<String>().cloned()).unwrap_or_default();
+            Err(format!("Lens hit an internal error while analysing this file and stopped ({msg}). Please report it at github.com/ker0s3ner/Lens/issues with the file's name."))
+        }
+    }
 }
 
 pub type LoadResult = Result<(Binary, Analysis, Annotations, Detection), String>;
@@ -200,6 +222,7 @@ pub struct LensApp {
     pub undo: crate::ida::UndoStack,
     pub lists: crate::ida::ListState,
     pub diff: crate::ida::DiffState,
+    pub protos: crate::ida::ProtoState,
     pub dbg: Option<crate::debugger::Dbg>,
     pub jobs: crate::tools2::Jobs,
     pub pending_goto: Option<u64>,
@@ -268,6 +291,7 @@ impl LensApp {
             undo: Default::default(),
             lists: Default::default(),
             diff: Default::default(),
+            protos: Default::default(),
             dbg: None,
             jobs: Default::default(),
             pending_goto: None,
@@ -291,6 +315,7 @@ impl LensApp {
                 "search" => { app.tools.search.open = true; app.tools.search.focus = true; app.tools.search.text = std::env::var("LENS_Q").unwrap_or_default(); }
                 "settings" => { app.tools.settings_open = true; app.sui.tab = std::env::var("LENS_TAB").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
                 "assistant" => app.ai.open = true,
+                "protos" => { app.protos.open = true; app.protos.text = "int check_license(const char *key, int len);\nvoid fatal(const char *msg) noreturn;".into(); }
                 "lists" => { app.lists.open = true; app.lists.tab = match std::env::var("LENS_TAB").as_deref() { Ok("imports") => crate::ida::ListTab::Imports, Ok("names") => crate::ida::ListTab::Names, _ => crate::ida::ListTab::Functions }; }
                 "patch" => app.tools2.patch.open = true,
                 "structs" => { app.tools2.types.open = true; app.tools2.types.def = "struct Header {\n  uint32_t magic;\n  char name[16];\n  void *next;\n};".into(); }
@@ -354,18 +379,18 @@ impl LensApp {
         let min = self.prefs.min_string_len;
         let p2 = path.clone();
         std::thread::spawn(move || {
-            let r = loader::load(&p2).map(|mut bin| {
+            let r = guard(move || loader::load(&p2).map(|mut bin| {
                 let mut ann = store::load_annotations(&bin.path, bin.file_size);
                 crate::patch::apply(&mut bin, &ann.patches);
                 let an = analysis::analyze(
                     &bin,
-                    &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone() },
+                    &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone(), data_defs: ann.data_defs.clone() },
                     pr,
                 );
                 let det = detect::detect(&bin, &an);
                 ann.sig_names = crate::sigs::apply(&bin, &an);
                 (bin, an, ann, det)
-            });
+            }));
             let _ = tx.send(r);
         });
         self.logm(format!("Opening {path} …"));
@@ -380,13 +405,16 @@ impl LensApp {
         let min = self.prefs.min_string_len;
         let label = spec.name.clone();
         std::thread::spawn(move || {
+            let r = guard(move || {
             let mut bin = loader::raw_binary(&spec);
             let mut ann = store::load_annotations(&bin.path, bin.file_size);
             crate::patch::apply(&mut bin, &ann.patches);
-            let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone() }, pr);
+            let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: min, extra_functions: ann.functions.clone(), data_defs: ann.data_defs.clone() }, pr);
             let det = detect::detect(&bin, &an);
             ann.sig_names = crate::sigs::apply(&bin, &an);
-            let _ = tx.send(Ok((bin, an, ann, det)));
+            Ok((bin, an, ann, det))
+            });
+            let _ = tx.send(r);
         });
         self.logm(format!("Opening raw code {label} …"));
         self.state = State::Loading { path: label, rx, progress, started: Instant::now() };
@@ -587,6 +615,7 @@ impl LensApp {
                 }
                 Action::Xrefs(x) => self.modal = Some(Modal::Xrefs { addr: x }),
                 Action::MakeFunction(x) => self.make_function(x),
+                Action::DefineData(x, d) => self.define_data(x, d),
                 Action::ToggleGraph => {
                     let v = if self.nav.view == View::Graph { View::Text } else { View::Graph };
                     self.set_view(v);
@@ -666,6 +695,11 @@ impl LensApp {
                 Action::Diff => self.start_diff(),
                 Action::Export(k) => self.export_db(k),
                 Action::Import => self.import_db(),
+                Action::RenameVar(f, old) => {
+                    let cur = self.loaded().and_then(|l| l.ann.vars.get(&format!("{f:X}:{old}")).cloned()).unwrap_or_else(|| old.clone());
+                    self.modal = Some(Modal::RenameVar { func: f, old, text: cur, focus: true });
+                }
+                Action::Protos => { self.protos.open = true; self.protos.text = self.loaded().map(|l| l.ann.protos.clone()).unwrap_or_default(); }
                 Action::AskAi(i) => self.ask_ai(i),
                 Action::OpenUrl(u) => { let _ = std::process::Command::new("open").arg(u).spawn(); }
                 Action::RunPlugin(p) => self.run_plugin(&p),
@@ -763,6 +797,41 @@ impl LensApp {
         }
     }
 
+    /// IDA's D / A / U: change what the bytes at `addr` are shown as, then redo the analysis.
+    fn define_data(&mut self, addr: u64, d: DataDef) {
+        let min = self.prefs.min_string_len;
+        let State::Ready(l) = &mut self.state else { return };
+        if l.an.insns.contains_key(&addr) || l.an.functions.contains_key(&addr) {
+            self.logm(format!("{addr:X} is code. Data keys only work on data."));
+            return;
+        }
+        if !l.bin.is_mapped(addr) {
+            return;
+        }
+        let ptr = (l.bin.bitness() / 8) as u8;
+        let cur = l.ann.data_defs.get(&addr).copied().or_else(|| l.an.data_size.get(&addr).copied());
+        let (code, what) = match d {
+            DataDef::Str => (analysis::DEF_STRING, "a string".to_string()),
+            DataDef::Undefine => (analysis::DEF_UNDEFINE, "undefined".to_string()),
+            DataDef::Cycle => {
+                let n = if l.an.string_at.contains_key(&addr) { 0 } else { cur.map(|c| c & 0x7f).unwrap_or(0) };
+                let next = match n { 1 => 2, 2 => 4, 4 if ptr == 8 => 8, _ => 1 };
+                let name = match next { 1 => "byte", 2 => "word", 4 => "dword", _ => "qword" };
+                (next, name.to_string())
+            }
+        };
+        l.ann.data_defs.insert(addr, code);
+        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+        l.an = analysis::analyze(
+            &l.bin,
+            &analysis::Settings { min_string_len: min, extra_functions: l.ann.functions.clone(), data_defs: l.ann.data_defs.clone() },
+            Arc::new(AtomicU32::new(0)),
+        );
+        l.refresh();
+        self.logm(format!("{addr:X} is now {what}."));
+        self.goto(addr, false);
+    }
+
     fn make_function(&mut self, addr: u64) {
         let min = self.prefs.min_string_len;
         let State::Ready(l) = &mut self.state else { return };
@@ -777,7 +846,7 @@ impl LensApp {
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.an = analysis::analyze(
             &l.bin,
-            &analysis::Settings { min_string_len: min, extra_functions: l.ann.functions.clone() },
+            &analysis::Settings { min_string_len: min, extra_functions: l.ann.functions.clone(), data_defs: l.ann.data_defs.clone() },
             Arc::new(AtomicU32::new(0)),
         );
         l.refresh();
@@ -924,6 +993,9 @@ impl LensApp {
             if hit("comment") { acts.push(Action::Comment(cur)); }
             if hit("xrefs") { acts.push(Action::Xrefs(cur)); }
             if hit("make_func") { acts.push(Action::MakeFunction(cur)); }
+            if hit("data") { acts.push(Action::DefineData(cur, DataDef::Cycle)); }
+            if hit("ascii") { acts.push(Action::DefineData(cur, DataDef::Str)); }
+            if hit("undef") { acts.push(Action::DefineData(cur, DataDef::Undefine)); }
             if hit("back") { acts.push(Action::Back); }
             if hit("forward") { acts.push(Action::Forward); }
             if hit("follow") { acts.push(Action::Follow); }
@@ -1028,9 +1100,12 @@ fn pick_start(l: &Loaded, entry: Option<u64>) -> Option<u64> {
 
 impl Loaded {
     pub fn refresh(&mut self) {
+        crate::protos::set_user(&format!("{}\n{}", self.bin.debug_protos, self.ann.protos));
         let m = build_names(&self.an, &self.ann, &self.det, &self.bin);
         self.names = Arc::new(m);
         self.fmt = CodeFormatter::new(self.names.clone());
+        let frames: Vec<(u64, u64)> = self.an.functions.values().filter(|f| crate::code::has_frame_pointer(&self.bin, f.start)).map(|f| (f.start, f.end)).collect();
+        self.fmt.set_frames(frames, self.ann.vars.clone());
         self.graphs.clear();
         self.version += 1;
         self.side_cache = None;
@@ -1149,6 +1224,11 @@ fn build_nav(l: &Loaded) -> Vec<u8> {
 /// All names shown in the listing: automatic ones, the person's own, and the guessed `main`.
 pub fn build_names(an: &Analysis, ann: &Annotations, det: &Detection, bin: &Binary) -> HashMap<u64, (String, NameKind)> {
     let mut m: HashMap<u64, (String, NameKind)> = an.names.clone();
+    for (a, n, _) in &det.crypto {
+        if !bin.is_exec(*a) && !m.contains_key(a) {
+            m.insert(*a, (n.clone(), NameKind::Data));
+        }
+    }
     if let Some((a, _)) = &det.main {
         let unnamed = m.get(a).map(|n| n.0.starts_with("sub_") || n.0 == "start" || n.0 == "_start").unwrap_or(true);
         if unnamed {
@@ -1163,6 +1243,14 @@ pub fn build_names(an: &Analysis, ann: &Annotations, det: &Detection, bin: &Bina
     }
     for (a, n) in crate::types::field_names(&ann.structs, &ann.applied) {
         m.insert(a, (n, NameKind::Data));
+    }
+    for (a, type_name) in &ann.applied {
+        if let Some(def) = ann.structs.iter().find(|s| s.name == *type_name && s.is_enum) {
+            if let Some(value) = crate::types::enum_value(bin, *a, def) {
+                let member = value.split(" (").next().unwrap_or(&value);
+                m.insert(*a, (format!("{type_name}::{member}"), NameKind::Data));
+            }
+        }
     }
     for (a, n) in &ann.names {
         let k = m.get(a).map(|x| x.1).unwrap_or(if an.functions.contains_key(a) {

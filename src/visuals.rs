@@ -426,7 +426,19 @@ impl LensApp {
         }
         let f = l.an.functions.get(&fs)?.clone();
         let note = format!("{}  ·  {}", l.det.compiler(), l.det.conv.label());
-        let d = Arc::new(decomp::decompile(&l.bin, &l.an, &l.names, &f, l.det.conv, &note));
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| decomp::decompile(&l.bin, &l.an, &l.names, &f, l.det.conv, &note)));
+        let mut dec = r.unwrap_or_else(|_| Decompiled {
+            lines: vec![DLine { text: "// The decompiler failed on this function. The listing and graph still work.".into(), addr: f.start, indent: 0 }],
+        });
+        let prefix = format!("{fs:X}:");
+        for (k, v) in &l.ann.vars {
+            if let Some(old) = k.strip_prefix(&prefix) {
+                for line in dec.lines.iter_mut() {
+                    line.text = crate::protos::replace_word(&line.text, old, v);
+                }
+            }
+        }
+        let d = Arc::new(dec);
         l.pseudo.insert(fs, d.clone());
         Some((fs, d))
     }
@@ -484,7 +496,7 @@ impl LensApp {
         });
         ui.horizontal(|ui| {
             ui.add_space(12.0);
-            ui.label(RichText::new(lang::caveat(lg)).small().color(p.faint));
+            ui.label(RichText::new(format!("{}  Double-click a variable to rename it.", lang::caveat(lg))).small().color(p.faint));
         });
         ui.add(egui::Separator::default().spacing(2.0));
         let font = FontId::monospace(13.5);
@@ -500,6 +512,7 @@ impl LensApp {
         let name_index = &l.name_index;
         let mut select: Option<u64> = None;
         let mut goto: Option<u64> = None;
+        let mut rename_var: Option<String> = None;
         ui.spacing_mut().item_spacing.y = 0.0;
         sa.show_rows(ui, row_h, n, |ui, range| {
             for i in range {
@@ -517,6 +530,7 @@ impl LensApp {
                     painter.text(pos2(rect.left() + 6.0, rect.center().y), Align2::LEFT_CENTER, "", font.clone(), p.faint);
                 }
                 let mut hit_name: Option<(Rect, u64)> = None;
+                let mut hit_var: Option<String> = None;
                 for (tx, kind, text) in tokenize(&ln.text) {
                     let col = match kind {
                         Tok2::Keyword => p.keyword,
@@ -539,6 +553,11 @@ impl LensApp {
                         (col, None)
                     };
                     let r = painter.text(pos, Align2::LEFT_CENTER, &text, font.clone(), col);
+                    if kind == Tok2::Ident && target.is_none() {
+                        if let Some(h) = resp.hover_pos() {
+                            if r.contains(h) { hit_var = Some(text.clone()); }
+                        }
+                    }
                     if let Some(a) = target {
                         if let Some(h) = resp.hover_pos() {
                             if r.contains(h) {
@@ -546,6 +565,9 @@ impl LensApp {
                             }
                         }
                     }
+                }
+                if let Some(v) = hit_var {
+                    if resp.double_clicked() { rename_var = Some(v); }
                 }
                 if let Some((r, a)) = hit_name {
                     painter.line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, p.func_name));
@@ -561,7 +583,9 @@ impl LensApp {
                 }
             }
         });
-        if let Some(a) = goto {
+        if let Some(v) = rename_var {
+            acts.push(Action::RenameVar(fs, v));
+        } else if let Some(a) = goto {
             acts.push(Action::Goto(a));
         } else if let Some(a) = select {
             let line = l.an.line_of(a);
@@ -955,6 +979,7 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
             let i = &l.an.insns[a];
             match i.flow {
                 crate::analysis::Flow::Call if i.target != 0 && l.an.functions.contains_key(&i.target) => v.push(i.target),
+                crate::analysis::Flow::Jump if i.target != f && l.an.functions.contains_key(&i.target) => v.push(i.target),
                 crate::analysis::Flow::IndirectCall if l.an.import_slot.contains_key(&i.mem) => v.push(i.mem),
                 _ => {}
             }
@@ -970,7 +995,7 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
         .an
         .xrefs_to
         .get(&f)
-        .map(|xs| xs.iter().filter(|x| x.kind == crate::analysis::XrefKind::Call).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).collect())
+        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect())
         .unwrap_or_default();
     v.sort();
     v.dedup();

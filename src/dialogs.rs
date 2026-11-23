@@ -130,6 +130,31 @@ impl LensApp {
                         }
                     });
                 }
+                Modal::RenameVar { func, old, text, focus } => {
+                    title(ui, "Rename variable", &format!("Give {old} a name in this function's pseudocode. Leave it empty to restore the automatic name."));
+                    let r = ui.add(TextEdit::singleline(text).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace));
+                    if *focus {
+                        r.request_focus();
+                        *focus = false;
+                    }
+                    let enter = ui.input(|i| i.key_pressed(Key::Enter));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Save").clicked() || enter {
+                            if let Some(l) = l.as_deref_mut() {
+                                let t: String = text.trim().chars().map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' }).collect();
+                                let key = format!("{:X}:{}", func, old);
+                                if t.is_empty() || t == *old { l.ann.vars.remove(&key); } else { l.ann.vars.insert(key, t); }
+                                store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                                l.refresh();
+                            }
+                            keep = false;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            keep = false;
+                        }
+                    });
+                }
                 Modal::Comment { addr, text, focus } => {
                     let a = *addr;
                     title(ui, "Note", &format!("A note for {a:X}, shown beside the code."));
@@ -218,6 +243,7 @@ impl LensApp {
                         ("Search…", "Cmd+F", Action::Search),
                         ("Patch bytes…", "", Action::Patches),
                         ("Structs…", "", Action::Structs),
+                        ("Function prototypes (types for calls)…", "", Action::Protos),
                         ("Undo", "Cmd+Z", Action::Undo),
                         ("Redo", "Cmd+Shift+Z", Action::Redo),
                         ("Lists: names, imports, exports, entry points, bookmarks…", "", Action::Lists),
@@ -226,6 +252,8 @@ impl LensApp {
                         ("Export IDA script (.idc)…", "", Action::Export(crate::ida::ExportKind::Idc)),
                         ("Export Ghidra script (.py)…", "", Action::Export(crate::ida::ExportKind::Ghidra)),
                         ("Export database as JSON…", "", Action::Export(crate::ida::ExportKind::Json)),
+                        ("Export listing as text (.asm)…", "", Action::Export(crate::ida::ExportKind::Asm)),
+                        ("Export call graph (Graphviz .dot)…", "", Action::Export(crate::ida::ExportKind::Dot)),
                         ("Export map file…", "", Action::Export(crate::ida::ExportKind::Map)),
                         ("Debugger…", "", Action::Debugger),
                         ("Toggle breakpoint at cursor", "F2", Action::ToggleBreakpoint(cur)),

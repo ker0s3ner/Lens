@@ -177,12 +177,20 @@ pub struct Analysis {
     pub lines: Vec<Line>,
     pub data_size: HashMap<u64, u8>,
     pub stats: String,
+    /// Recovered jump tables: address of the indirect jump -> its case targets.
+    pub switches: HashMap<u64, Vec<u64>>,
 }
 
 pub struct Settings {
     pub min_string_len: usize,
     pub extra_functions: Vec<u64>,
+    /// The person's own data definitions: address -> byte size (1/2/4/8, `| 0x80` for a pointer),
+    /// `DEF_STRING` for a C string, `DEF_UNDEFINE` to drop whatever was guessed there.
+    pub data_defs: HashMap<u64, u8>,
 }
+
+pub const DEF_STRING: u8 = 0x7E;
+pub const DEF_UNDEFINE: u8 = 0x7F;
 
 /// Names of functions that never return (from IDA's cfg/noret.cfg, leading underscores and dots stripped).
 pub const NORETURN: &[&str] = &[
@@ -202,6 +210,169 @@ pub fn is_noreturn_name(name: &str) -> bool {
 }
 
 /// Arch-neutral summary of the instruction at `addr` (any supported CPU).
+/// Finds the targets of a compiler-generated switch: `cmp idx, N; ja default; lea base,[table]; movsxd; add; jmp reg`
+/// (position independent, 4-byte offsets) or `jmp [table + idx*8]` (absolute pointers).
+/// ARM64 switch: `cmp w, #N; b.hi default; adrp/add table; ldrsw|ldrb|ldrh idx; add/adr base; br x`.
+fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    use std::collections::HashMap as M;
+    let num = |t: &str| -> Option<u64> {
+        let t = t.trim().trim_start_matches('#');
+        if let Some(h) = t.strip_prefix("0x") { u64::from_str_radix(h, 16).ok() } else { t.parse().ok() }
+    };
+    let reg = |t: &str| -> String { t.trim().trim_start_matches(['x', 'w']).to_string() };
+    let mut back: Vec<u64> = insns.range(..at).rev().take(14).map(|(a, _)| *a).collect();
+    back.reverse();
+    let mut val: M<String, u64> = M::new();
+    let mut table: Option<(u64, u8)> = None; // (table address, entry size; 4 = signed offsets from the table)
+    let mut base: Option<u64> = None;
+    let mut bound: Option<u64> = None;
+    let mut shift = 2u32;
+    let mut after_cmp_branch = false;
+    let mut cmp_imm: Option<u64> = None;
+    for a in back {
+        let Some(i) = crate::multiarch::one(bin, a) else { continue };
+        let ops: Vec<&str> = i.ops.split(", ").collect();
+        match i.mnemonic.as_str() {
+            "adrp" | "adr" => { if let Some(v) = ops.get(1).and_then(|o| num(o)) { val.insert(reg(ops[0]), v); } }
+            "add" if ops.len() == 3 && ops[2].starts_with('#') => {
+                if let (Some(b), Some(im)) = (val.get(&reg(ops[1])).copied(), num(ops[2])) { val.insert(reg(ops[0]), b + im); }
+            }
+            "add" if ops.len() == 3 => {
+                // add xD, xBase, xOffset
+                if let Some(b) = val.get(&reg(ops[1])).copied() { base = Some(b); }
+            }
+            "csel" => { if bound.is_none() { bound = cmp_imm; } }
+            "add" if ops.len() >= 4 => {
+                // add xB, xBase, xOff, lsl|sxtb|sxth #2
+                if let Some(sh) = ops[3].rsplit('#').next().and_then(|x| x.trim().parse::<u32>().ok()) { shift = sh; }
+                if let Some(b) = val.get(&reg(ops[1])).copied() { base = Some(b); }
+            }
+            "ldrsw" | "ldrb" | "ldrh" | "ldrsb" | "ldrsh" => {
+                // ldrsw x8, [x9, x8, lsl #2]
+                let m = i.ops.split('[').nth(1).unwrap_or("").trim_end_matches(']');
+                let parts: Vec<&str> = m.split(", ").collect();
+                if let Some(t) = parts.first().and_then(|r| val.get(&reg(r)).copied()) {
+                    let size = match i.mnemonic.as_str() { "ldrsw" => 4, "ldrb" | "ldrsb" => 1, _ => 2 };
+                    table = Some((t, size));
+                }
+            }
+            "cmp" => { cmp_imm = ops.get(1).and_then(|o| num(o)); }
+            m if m.starts_with("b.") && matches!(&m[2..], "hi" | "hs" | "ls" | "lo" | "cs" | "cc") => { after_cmp_branch = true; }
+            _ => {}
+        }
+        if after_cmp_branch && bound.is_none() { bound = cmp_imm; }
+    }
+    let Some((tbl, size)) = table else { return vec![] };
+    if !bin.is_mapped(tbl) { return vec![]; }
+    let count = bound.map(|b| (b + 1) as usize).filter(|c| (2..=1024).contains(c)).unwrap_or(256);
+    let mut out = vec![];
+    for k in 0..count {
+        let t = match size {
+            4 => {
+                let b = bin.read(tbl + 4 * k as u64, 4);
+                if b.len() < 4 { break; }
+                (base.unwrap_or(tbl) as i64 + i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as i64) as u64
+            }
+            1 => {
+                let Some(bs) = bin.byte(tbl + k as u64) else { break };
+                base.unwrap_or(tbl) + ((bs as u64) << shift)
+            }
+            _ => {
+                let b = bin.read(tbl + 2 * k as u64, 2);
+                if b.len() < 2 { break; }
+                base.unwrap_or(tbl) + ((u16::from_le_bytes([b[0], b[1]]) as u64) << shift)
+            }
+        };
+        if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
+        out.push(t);
+    }
+    let uniq: HashSet<&u64> = out.iter().collect();
+    if uniq.len() < 2 { vec![] } else { out }
+}
+
+fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
+    if bin.arch == Arch::Arm64 {
+        return arm64_switch_targets(bin, insns, at, fstart);
+    }
+    use iced_x86::Register;
+    let Some((jmp, _)) = decode_at(bin, at) else { return vec![] };
+    let ptr = (bin.bitness() / 8) as usize;
+    let mut table = 0u64;
+    let mut rel = false;
+    let mut bound: Option<u64> = None;
+    if jmp.op0_kind() == OpKind::Memory {
+        if jmp.memory_index() == Register::None || jmp.memory_base() != Register::None {
+            return vec![];
+        }
+        table = jmp.memory_displacement64();
+    } else {
+        let mut seen_idx_load = false;
+        let mut prev: Vec<u64> = insns.range(..at).rev().take(16).map(|(a, _)| *a).collect();
+        prev.sort_by(|a, b| b.cmp(a));
+        let mut prev_cond = false;
+        for pa in prev {
+            let Some((i, _)) = decode_at(bin, pa) else { continue };
+            match i.mnemonic() {
+                Mnemonic::Lea if i.op1_kind() == OpKind::Memory && i.memory_base() == Register::RIP => {
+                    if table == 0 {
+                        table = i.memory_displacement64();
+                        rel = true;
+                    }
+                }
+                Mnemonic::Movsxd if i.op1_kind() == OpKind::Memory && i.memory_index() != Register::None => {
+                    seen_idx_load = true;
+                    rel = true;
+                }
+                Mnemonic::Mov if i.op1_kind() == OpKind::Memory && i.memory_index() != Register::None && i.memory_index_scale() == 8 && table == 0 => {
+                    if i.memory_base() == Register::None {
+                        table = i.memory_displacement64();
+                        rel = false;
+                    }
+                }
+                Mnemonic::Cmp if bound.is_none() && matches!(i.op1_kind(), OpKind::Immediate8 | OpKind::Immediate32 | OpKind::Immediate8to32 | OpKind::Immediate8to64 | OpKind::Immediate32to64) && prev_cond => {
+                    bound = Some(i.immediate(1));
+                }
+                _ => {}
+            }
+            prev_cond = matches!(i.mnemonic(), Mnemonic::Ja | Mnemonic::Jae | Mnemonic::Jb | Mnemonic::Jbe);
+            if prev_cond {
+                // the bound check sits just before this branch (we are walking backwards, so look at the next one we see)
+            }
+        }
+        let _ = seen_idx_load;
+        if table == 0 {
+            return vec![];
+        }
+    }
+    if !bin.is_mapped(table) {
+        return vec![];
+    }
+    let count = bound.map(|b| (b + 1) as usize).filter(|c| (2..=1024).contains(c)).unwrap_or(256);
+    let mut out: Vec<u64> = vec![];
+    for k in 0..count {
+        let t = if rel {
+            let b = bin.read(table + 4 * k as u64, 4);
+            if b.len() < 4 {
+                break;
+            }
+            (table as i64 + i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as i64) as u64
+        } else {
+            let b = bin.read(table + (ptr * k) as u64, ptr);
+            if b.len() < ptr {
+                break;
+            }
+            if ptr == 8 { u64::from_le_bytes(b.try_into().unwrap()) } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 }
+        };
+        let near = t.abs_diff(fstart) < 0x40_0000;
+        if !bin.is_exec(t) || !near || decode_info(bin, t).is_none() {
+            break;
+        }
+        out.push(t);
+    }
+    let uniq: HashSet<&u64> = out.iter().collect();
+    if uniq.len() < 2 { vec![] } else { out }
+}
+
 pub fn decode_info(bin: &Binary, addr: u64) -> Option<Insn> {
     if !bin.is_exec(addr) {
         return None;
@@ -430,6 +601,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         for e in &bin.exports {
             push(&mut queue, e.addr);
         }
+        for a in &bin.func_hints {
+            push(&mut queue, *a);
+        }
         for a in &settings.extra_functions {
             push(&mut queue, *a);
         }
@@ -462,6 +636,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     let dec_only = |a: u64| decode_info(bin, a);
 
     let mut noret_cache: HashMap<u64, bool> = HashMap::new();
+    let mut switches: HashMap<u64, Vec<u64>> = HashMap::new();
     let mut total = 0usize;
     let max_total = 6_000_000usize;
     let mut round = 0;
@@ -501,7 +676,25 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                     let next = a + info.len as u64;
                     match info.flow {
                         Flow::Normal => a = next,
-                        Flow::Ret | Flow::Stop | Flow::IndirectJump => break,
+                        Flow::Ret | Flow::Stop => break,
+                        Flow::IndirectJump => {
+                            if (bin.arch.is_x86() || bin.arch == Arch::Arm64) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
+                                let ts = switch_targets(bin, &insns, a, fstart);
+                                for t in &ts {
+                                    work.push(*t);
+                                    leaders.insert(*t);
+                                }
+                                if !ts.is_empty() {
+                                    switches.insert(a, ts);
+                                } else if std::env::var("LENS_TRACE3").is_ok() && bin.arch == Arch::Arm64 {
+                                    eprintln!("-- unresolved br at {a:X}");
+                                    for (pa, _) in insns.range(..=a).rev().take(9).collect::<Vec<_>>().into_iter().rev() {
+                                        if let Some(r) = crate::multiarch::one(bin, *pa) { eprintln!("   {pa:X} {} {}", r.mnemonic, r.ops); }
+                                    }
+                                }
+                            }
+                            break;
+                        }
                         Flow::CondJump => {
                             if bin.is_exec(info.target) {
                                 work.push(info.target);
@@ -514,6 +707,11 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                             let t = info.target;
                             let is_func = functions.contains_key(&t) || sym_at.contains_key(&t) && t != fstart;
                             let is_stub = callee_name(t, &dec_only).is_some() && !sym_at.contains_key(&t);
+                            // A jump to another known function has no return to this function:
+                            // preserve it as a call-graph edge as well as a control-flow edge.
+                            if t != fstart && (is_func || is_stub) {
+                                calls.push(t);
+                            }
                             if bin.is_exec(t) && !is_func && !is_stub {
                                 work.push(t);
                                 leaders.insert(t);
@@ -595,7 +793,19 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         blocks.push(done);
                         prev_end = u64::MAX;
                     }
-                    Flow::Ret | Flow::Stop | Flow::IndirectJump => {
+                    Flow::IndirectJump => {
+                        if let Some(ts) = switches.get(&a) {
+                            for t in ts {
+                                if local.contains(t) && !b.succs.iter().any(|x| x.0 == *t) {
+                                    b.succs.push((*t, EdgeKind::Always));
+                                }
+                            }
+                        }
+                        let done = cur.take().unwrap();
+                        blocks.push(done);
+                        prev_end = u64::MAX;
+                    }
+                    Flow::Ret | Flow::Stop => {
                         let done = cur.take().unwrap();
                         blocks.push(done);
                         prev_end = u64::MAX;
@@ -664,6 +874,21 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
 
     // ---- strings ----
     let mut strings = find_strings(bin, settings.min_string_len.max(1));
+    // The person's string / undefine choices come first, so everything after sees them.
+    for (&a, &d) in &settings.data_defs {
+        if d == DEF_UNDEFINE || (d != DEF_STRING) {
+            strings.retain(|s| s.addr != a);
+        }
+        if d == DEF_STRING && !strings.iter().any(|s| s.addr == a) {
+            let raw = bin.read(a, 4096);
+            if let Some(n) = raw.iter().position(|b| *b == 0) {
+                if n > 0 {
+                    let text = String::from_utf8_lossy(&raw[..n]).to_string();
+                    strings.push(StrLit { addr: a, len: (n + 1) as u32, wide: false, text });
+                }
+            }
+        }
+    }
     strings.sort_by_key(|s| s.addr);
     let string_at: HashMap<u64, usize> = strings.iter().enumerate().map(|(i, s)| (s.addr, i)).collect();
 
@@ -679,7 +904,12 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             _ => {}
         }
         if i.mem != 0 {
-            let k = if i.is_lea {
+            let import_flow = import_slot.contains_key(&i.mem);
+            let k = if import_flow && i.flow == Flow::IndirectCall {
+                XrefKind::Call
+            } else if import_flow && i.flow == Flow::IndirectJump {
+                XrefKind::Jump
+            } else if i.is_lea {
                 XrefKind::Offset
             } else if i.is_write {
                 XrefKind::Write
@@ -708,6 +938,17 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 data_size.entry(from).or_insert(w as u8 | 0x80);
             }
             off += w;
+        }
+    }
+    for (&a, &d) in &settings.data_defs {
+        match d {
+            DEF_UNDEFINE => {
+                data_size.remove(&a);
+            }
+            DEF_STRING => {}
+            n => {
+                data_size.insert(a, n);
+            }
         }
     }
     for v in xrefs_to.values_mut() {
@@ -795,6 +1036,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         lines: vec![],
         data_size,
         stats: String::new(),
+        switches,
     };
     a.lines = build_lines(bin, &a);
     a.stats = format!(
@@ -804,6 +1046,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         a.strings.len(),
         bin.imports.len()
     );
+    if !a.switches.is_empty() {
+        a.stats.push_str(&format!(", {} switch tables", a.switches.len()));
+    }
     if total > max_total {
         a.stats.push_str(" — very large program: analysis stopped early, so some code shows as unexplored (press P on it to make a function)");
     }
@@ -978,5 +1223,87 @@ impl Analysis {
             j -= 1;
         }
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::loader::{raw_binary, RawSpec};
+
+    #[test]
+    fn recovers_a_position_independent_switch() {
+        let mut code: Vec<u8> = vec![
+            0x83, 0xFF, 0x02, // cmp edi, 2
+            0x77, 0x24, // ja default
+            0x48, 0x8D, 0x15, 0x20, 0x00, 0x00, 0x00, // lea rdx, [rip+table]
+            0x89, 0xF8, // mov eax, edi
+            0x48, 0x63, 0x04, 0x82, // movsxd rax, [rdx+rax*4]
+            0x48, 0x01, 0xD0, // add rax, rdx
+            0xFF, 0xE0, // jmp rax
+            0xB8, 1, 0, 0, 0, 0xC3, // case 0
+            0xB8, 2, 0, 0, 0, 0xC3, // case 1
+            0xB8, 3, 0, 0, 0, 0xC3, // case 2
+            0x31, 0xC0, 0xC3, // default
+        ];
+        assert_eq!(code.len(), 0x2C);
+        for off in [-21i32, -15, -9] {
+            code.extend_from_slice(&off.to_le_bytes());
+        }
+        let spec = RawSpec { path: "t".into(), name: "t".into(), arch: Arch::X64, big: false, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into() };
+        let bin = raw_binary(&spec);
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let t = an.switches.get(&0x1015).expect("switch found");
+        assert_eq!(t, &vec![0x1017, 0x101D, 0x1023]);
+        let f = &an.functions[&0x1000];
+        assert!(f.blocks.iter().any(|b| b.succs.len() == 3), "switch block has three successors");
+    }
+}
+
+#[cfg(test)]
+mod idea_tests {
+    use super::*;
+    use crate::loader::{raw_binary, RawSpec};
+
+    fn bin_of(code: Vec<u8>, data: Vec<u8>) -> Binary {
+        let spec = RawSpec { path: "t".into(), name: "t".into(), arch: Arch::X64, big: false, segs: vec![(0x1000, code), (0x2000, data)], entry: Some(0x1000), format: "test".into() };
+        raw_binary(&spec)
+    }
+    fn run(bin: &Binary, defs: HashMap<u64, u8>) -> Analysis {
+        analyze(bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: defs }, Arc::new(AtomicU32::new(0)))
+    }
+
+    #[test]
+    fn stack_slots_get_ida_names() {
+        // push rbp; mov rbp,rsp; mov dword [rbp-8],1; mov eax,[rbp+10h]; pop rbp; ret
+        let code = vec![0x55, 0x48, 0x89, 0xE5, 0xC7, 0x45, 0xF8, 1, 0, 0, 0, 0x8B, 0x45, 0x10, 0x5D, 0xC3];
+        let bin = bin_of(code, vec![0; 16]);
+        let an = run(&bin, Default::default());
+        let mut f = crate::code::CodeFormatter::new(Arc::new(HashMap::new()));
+        let frames: Vec<(u64, u64)> = an.functions.values().filter(|f| crate::code::has_frame_pointer(&bin, f.start)).map(|f| (f.start, f.end)).collect();
+        assert_eq!(frames.len(), 1);
+        f.set_frames(frames, HashMap::from([("1000:var_8".to_string(), "counter".to_string())]));
+        assert!(f.clone_names_text(&bin, 0x1004).contains("[rbp+counter]"), "{}", f.clone_names_text(&bin, 0x1004));
+        let mut g = crate::code::CodeFormatter::new(Arc::new(HashMap::new()));
+        g.set_frames(an.functions.values().map(|f| (f.start, f.end)).collect(), HashMap::new());
+        let t = g.format(&bin, 0x1004).unwrap().1.iter().map(|x| x.text.clone()).collect::<String>();
+        assert!(t.contains("[rbp+var_8]"), "{t}");
+        let t = g.format(&bin, 0x100B).unwrap().1.iter().map(|x| x.text.clone()).collect::<String>();
+        assert!(t.contains("[rbp+arg_0]"), "{t}");
+    }
+
+    #[test]
+    fn data_definitions_change_the_listing() {
+        let code = vec![0xC3];
+        let mut data = b"hello world\0".to_vec();
+        data.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let bin = bin_of(code, data);
+        let an = run(&bin, HashMap::from([(0x200C, 4u8)]));
+        assert!(an.lines.iter().any(|l| l.addr == 0x200C && l.kind == LineKind::Data && l.len == 4));
+        // making a string out of non-string-looking bytes, and undefining the auto string
+        let an = run(&bin, HashMap::from([(0x2000, DEF_UNDEFINE), (0x200C, DEF_STRING)]));
+        assert!(!an.string_at.contains_key(&0x2000));
+        let an = run(&bin, HashMap::from([(0x2002, DEF_STRING)]));
+        assert!(an.string_at.contains_key(&0x2002));
     }
 }

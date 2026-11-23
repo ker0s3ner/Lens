@@ -49,7 +49,7 @@ mod imp {
             add(&file, &[
                 ("open", "Open..."), ("hex_tool", "Hex to Code..."), ("", ""),
                 ("export_notes", "Export Names and Notes..."), ("export_c", "Export Pseudocode..."),
-                ("import", "Import Names and Notes..."), ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("", ""),
+                ("import", "Import Names and Notes..."), ("export_idc", "Export IDA Script (.idc)..."), ("export_ghidra", "Export Ghidra Script (.py)..."), ("export_json", "Export Database (JSON)..."), ("export_map", "Export Map File..."), ("export_asm", "Export Listing (.asm)..."), ("export_dot", "Export Call Graph (.dot)..."), ("", ""),
                 ("reveal", "Show in Finder"), ("hash", "Copy SHA-256"), ("close", "Close Program"),
             ]);
             let _ = menu.append(&file);
@@ -72,13 +72,14 @@ mod imp {
                 ("jump", "Go to Address or Name..."), ("back", "Back"), ("forward", "Forward"), ("", ""),
                 ("search", "Search..."), ("palette", "Command Palette..."), ("", ""),
                 ("rename", "Rename"), ("comment", "Add Note"), ("mark", "Bookmark"), ("xrefs", "Who Uses This"), ("make_func", "Make Function"),
+                ("data", "Define Data (D)"), ("ascii", "Define String (A)"), ("undef", "Undefine (U)"),
                 ("", ""), ("side_funcs", "Show Functions"), ("side_strings", "Show Strings"), ("side_imports", "Show Imports"), ("side_segs", "Show Sections"),
             ]);
             let _ = menu.append(&nav);
 
             let tools = Submenu::new("Analysis", true);
             add(&tools, &[
-                ("lists", "Lists (Names, Imports, Exports)..."), ("diff", "Compare With Another Program..."), ("", ""), ("patches", "Patch Bytes..."), ("structs", "Structs..."), ("debugger", "Debugger..."), ("breakpoint", "Toggle Breakpoint"), ("", ""),
+                ("lists", "Lists (Names, Imports, Exports)..."), ("protos", "Function Prototypes..."), ("diff", "Compare With Another Program..."), ("", ""), ("patches", "Patch Bytes..."), ("structs", "Structs..."), ("debugger", "Debugger..."), ("breakpoint", "Toggle Breakpoint"), ("", ""),
                 ("script", "Script..."),
             ]);
             let plug_sub = Submenu::new("Plugins", true);
@@ -198,6 +199,9 @@ impl LensApp {
                 "mark" => Action::Mark(cur),
                 "xrefs" => Action::Xrefs(cur),
                 "make_func" => Action::MakeFunction(cur),
+                "data" => Action::DefineData(cur, crate::app::DataDef::Cycle),
+                "ascii" => Action::DefineData(cur, crate::app::DataDef::Str),
+                "undef" => Action::DefineData(cur, crate::app::DataDef::Undefine),
                 "side_funcs" => Action::SetSide(Side::Functions),
                 "side_strings" => Action::SetSide(Side::Strings),
                 "side_imports" => Action::SetSide(Side::Imports),
@@ -206,10 +210,13 @@ impl LensApp {
                 "undo" => Action::Undo,
                 "redo" => Action::Redo,
                 "lists" => Action::Lists,
+                "protos" => Action::Protos,
                 "diff" => Action::Diff,
                 "export_idc" => Action::Export(crate::ida::ExportKind::Idc),
                 "export_ghidra" => Action::Export(crate::ida::ExportKind::Ghidra),
                 "export_json" => Action::Export(crate::ida::ExportKind::Json),
+                "export_asm" => Action::Export(crate::ida::ExportKind::Asm),
+                "export_dot" => Action::Export(crate::ida::ExportKind::Dot),
                 "export_map" => Action::Export(crate::ida::ExportKind::Map),
                 "patches" => Action::Patches,
                 "structs" => Action::Structs,

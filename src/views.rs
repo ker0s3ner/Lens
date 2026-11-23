@@ -30,22 +30,30 @@ fn paint_parts(painter: &egui::Painter, mut pos: Pos2, parts: &[(String, Color32
 }
 
 pub fn xref_comment(l: &Loaded, addr: u64) -> Option<String> {
-    let xs = l.an.xrefs_to.get(&addr)?;
-    if xs.is_empty() {
-        return None;
+    let mut comments = Vec::new();
+    if let Some(xs) = l.an.xrefs_to.get(&addr).filter(|xs| !xs.is_empty()) {
+        let code = xs.iter().all(|x| x.kind.is_code());
+        let mut s = String::from(if code { "CODE XREF: " } else { "DATA XREF: " });
+        let parts: Vec<String> = xs
+            .iter()
+            .take(SHOW_XREFS)
+            .map(|x| format!("{}{}{}", l.loc(x.from), if x.from < addr { "↑" } else { "↓" }, x.kind.mark()))
+            .collect();
+        s.push_str(&parts.join(", "));
+        if xs.len() > SHOW_XREFS {
+            s.push_str(&format!("  (+{} more, press X)", xs.len() - SHOW_XREFS));
+        }
+        comments.push(s);
     }
-    let code = xs.iter().all(|x| x.kind.is_code());
-    let mut s = String::from(if code { "CODE XREF: " } else { "DATA XREF: " });
-    let parts: Vec<String> = xs
-        .iter()
-        .take(SHOW_XREFS)
-        .map(|x| format!("{}{}{}", l.loc(x.from), if x.from < addr { "↑" } else { "↓" }, x.kind.mark()))
-        .collect();
-    s.push_str(&parts.join(", "));
-    if xs.len() > SHOW_XREFS {
-        s.push_str(&format!("  (+{} more, press X)", xs.len() - SHOW_XREFS));
+    for (base, name) in &l.ann.applied {
+        if *base != addr { continue; }
+        let Some(def) = l.ann.structs.iter().find(|s| s.name == *name && s.is_enum) else { continue };
+        if let Some(value) = crate::types::enum_value(&l.bin, addr, def) {
+            let member = value.split(" (").next().unwrap_or(&value);
+            comments.push(format!("ENUM: {name}::{member}"));
+        }
     }
-    Some(s)
+    if comments.is_empty() { None } else { Some(comments.join(" · ")) }
 }
 
 fn auto_comment(l: &Loaded, addr: u64) -> Option<String> {
@@ -71,11 +79,14 @@ pub fn short_lib(s: &str) -> String {
 }
 
 pub fn row_menu(ui: &mut egui::Ui, addr: u64, acts: &mut Vec<Action>) {
-    let items: [(&str, Action); 5] = [
+    let items: [(&str, Action); 8] = [
         ("Rename…            N", Action::Rename(addr)),
         ("Add a note…        ;", Action::Comment(addr)),
         ("Who uses this      X", Action::Xrefs(addr)),
         ("Make a function    P", Action::MakeFunction(addr)),
+        ("Define data        D", Action::DefineData(addr, crate::app::DataDef::Cycle)),
+        ("Define string      A", Action::DefineData(addr, crate::app::DataDef::Str)),
+        ("Undefine           U", Action::DefineData(addr, crate::app::DataDef::Undefine)),
         ("Show in hex        H", Action::SetView(View::Hex)),
     ];
     for (t, a) in items {
