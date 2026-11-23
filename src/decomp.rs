@@ -1041,6 +1041,12 @@ impl<'a> Dc<'a> {
                 | Mnemonic::Vfmsub132ps | Mnemonic::Vfmsub132pd | Mnemonic::Vfmsub132ss | Mnemonic::Vfmsub132sd
                 | Mnemonic::Vfmsub213ps | Mnemonic::Vfmsub213pd | Mnemonic::Vfmsub213ss | Mnemonic::Vfmsub213sd
                 | Mnemonic::Vfmsub231ps | Mnemonic::Vfmsub231pd | Mnemonic::Vfmsub231ss | Mnemonic::Vfmsub231sd
+                | Mnemonic::Vfnmadd132ps | Mnemonic::Vfnmadd132pd | Mnemonic::Vfnmadd132ss | Mnemonic::Vfnmadd132sd
+                | Mnemonic::Vfnmadd213ps | Mnemonic::Vfnmadd213pd | Mnemonic::Vfnmadd213ss | Mnemonic::Vfnmadd213sd
+                | Mnemonic::Vfnmadd231ps | Mnemonic::Vfnmadd231pd | Mnemonic::Vfnmadd231ss | Mnemonic::Vfnmadd231sd
+                | Mnemonic::Vfnmsub132ps | Mnemonic::Vfnmsub132pd | Mnemonic::Vfnmsub132ss | Mnemonic::Vfnmsub132sd
+                | Mnemonic::Vfnmsub213ps | Mnemonic::Vfnmsub213pd | Mnemonic::Vfnmsub213ss | Mnemonic::Vfnmsub213sd
+                | Mnemonic::Vfnmsub231ps | Mnemonic::Vfnmsub231pd | Mnemonic::Vfnmsub231ss | Mnemonic::Vfnmsub231sd
                 if ins.op_count() >= 3 => {
                     let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));

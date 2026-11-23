@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AVX/FMA3 negated fused multiply-add/subtract families now remain visible as named pseudocode intrinsics.",
+    "vfnmadd* and vfnmsub* operand groups are preserved in decompiler output.",
     "Common AVX/FMA3 packed and scalar fused multiply-add/subtract instructions now remain visible as named pseudocode intrinsics.",
     "FMA operand groups are preserved instead of falling through to opaque generic handling.",
     "Documentation now reports the current 32% weighted breadth estimate and the implemented heuristic metadata coverage accurately.",

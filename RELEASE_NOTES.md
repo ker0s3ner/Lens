@@ -1,6 +1,9 @@
-# Lens 0.6.65 — Fourier
+# Lens 0.6.66 — Fourier
 
 ## What's new
+
+- AVX/FMA3 negated fused multiply-add/subtract families now remain visible as named pseudocode intrinsics.
+- `vfnmadd*` and `vfnmsub*` operand groups are preserved in decompiler output.
 
 - Common AVX/FMA3 packed and scalar fused multiply-add/subtract instructions now remain visible as named pseudocode intrinsics.
 - FMA operand groups are preserved instead of falling through to opaque generic handling.
