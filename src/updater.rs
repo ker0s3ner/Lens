@@ -29,8 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "x86 div and idiv now preserve the implicit wide dividend, quotient, and remainder in pseudocode.",
-    "The Fourier patch line continues to improve native-code navigation and analysis coverage.",
+    "Signed C bitfields now display sign-extended values in the Types view.",
+    "Zero-width C bitfields now force a fresh ABI storage unit using declared integer alignment.",
 ];
 
 pub fn current_release_title() -> String {

@@ -1,9 +1,9 @@
-# Lens 0.6.4 — Fourier
+# Lens 0.6.5 — Fourier
 
 ## What's new
 
-- x86 `div` and `idiv` now preserve the implicit wide dividend, quotient, and remainder in pseudocode.
-- The Fourier patch line continues to improve native-code navigation and analysis coverage.
+- Signed C bitfields now display sign-extended values in the Types view.
+- Zero-width C bitfields now force a fresh ABI storage unit using declared integer alignment.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 
 ## Release cadence
