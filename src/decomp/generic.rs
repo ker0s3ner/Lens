@@ -1167,6 +1167,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             };
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![value]));
         }
+        (Fam::A64, "crc32b" | "crc32h" | "crc32w" | "crc32x" | "crc32cb" | "crc32ch" | "crc32cw" | "crc32cx") if ops.len() >= 3 => {
+            let crc = dc.g_val(st, o(1), None);
+            let value = dc.g_val(st, o(2), None);
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), vec![crc, value]));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {

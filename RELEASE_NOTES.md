@@ -1,6 +1,9 @@
-# Lens 0.6.45 — Fourier
+# Lens 0.6.46 — Fourier
 
 ## What's new
+
+- AArch64 CRC32 and CRC32C instructions now preserve named checksum semantics and operands.
+- Common AArch64 checksum idioms remain readable in pseudocode.
 
 - AArch64 `clz`, `cls`, `rbit`, and byte-reversal instructions now decompile as named operations.
 - AArch64 bit and endian idioms remain readable instead of opaque generic calls.
