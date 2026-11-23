@@ -674,8 +674,12 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             library: imp.dll.to_string(),
         });
     }
-    add_pe_delay_imports(bin, pe, base);
     bin.libraries = pe.libraries.iter().map(|s| s.to_string()).collect();
+    for library in add_pe_delay_imports(bin, pe, base) {
+        if !bin.libraries.iter().any(|known| known.eq_ignore_ascii_case(&library)) {
+            bin.libraries.push(library);
+        }
+    }
     for e in &pe.exports {
         if let Some(n) = e.name {
             bin.exports.push(Export { addr: base + e.rva as u64, name: n.to_string() });
@@ -684,9 +688,9 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
     }
 }
 
-fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
-    let Some(opt) = pe.header.optional_header.as_ref() else { return };
-    let Some(dir) = opt.data_directories.get_delay_import_descriptor() else { return };
+fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) -> Vec<String> {
+    let Some(opt) = pe.header.optional_header.as_ref() else { return Vec::new() };
+    let Some(dir) = opt.data_directories.get_delay_import_descriptor() else { return Vec::new() };
     let descriptor_base = base.saturating_add(dir.virtual_address as u64);
     let ptr_size = (bin.bitness() / 8) as u64;
     let is_rva = |attrs: u32, raw: u64| if attrs & 1 != 0 { base.saturating_add(raw) } else { raw };
@@ -700,6 +704,7 @@ fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
         (!b[..end].is_empty()).then(|| String::from_utf8_lossy(&b[..end]).into_owned())
     };
     let mut discovered = Vec::new();
+    let mut libraries = Vec::new();
     for index in 0..1024u64 {
         let d = descriptor_base.saturating_add(index * 32);
         let attrs = match read_u32(d) { Some(v) => v, None => break };
@@ -713,6 +718,9 @@ fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
         if attrs == 0 && fields.iter().all(|v| *v == 0) { break; }
         let name_addr = is_rva(attrs, fields[0]);
         let library = read_string(name_addr).unwrap_or_else(|| "delay-import".into());
+        if !libraries.iter().any(|known: &String| known.eq_ignore_ascii_case(&library)) {
+            libraries.push(library.clone());
+        }
         let int_addr = is_rva(attrs, fields[3]);
         let iat_addr = is_rva(attrs, fields[2]);
         if int_addr == 0 || iat_addr == 0 { continue; }
@@ -732,6 +740,7 @@ fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
     bin.imports.extend(discovered);
     bin.imports.sort_by_key(|i| i.slot);
     bin.imports.dedup_by_key(|i| i.slot);
+    libraries
 }
 
 fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result<(), String> {
