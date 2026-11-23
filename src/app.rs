@@ -9,6 +9,7 @@ use crate::store::{self, Annotations, Prefs};
 use crate::theme::{self, Palette};
 use eframe::egui::{self, Key};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
@@ -231,6 +232,8 @@ pub struct LensApp {
     pub jobs: crate::tools2::Jobs,
     pub pending_goto: Option<u64>,
     pub last_raw: Option<crate::loader::RawSpec>,
+    /// The open workspace manifest, when the current binary belongs to a project.
+    pub project: Option<store::ProjectManifest>,
 }
 
 #[derive(Default)]
@@ -300,6 +303,7 @@ impl LensApp {
             jobs: Default::default(),
             pending_goto: None,
             last_raw: None,
+            project: None,
             sui: Default::default(),
             ai: Default::default(),
             menu: None,
@@ -376,12 +380,28 @@ impl LensApp {
     }
 
     pub fn open(&mut self, path: String) {
+        let mut binary_path = path.clone();
+        if Path::new(&path).extension().and_then(|x| x.to_str()) == Some("lensproj") {
+            match store::load_project(Path::new(&path)) {
+                Ok(project) => {
+                    let selected = project.active_file.as_deref().filter(|f| project.files.iter().any(|candidate| candidate == *f))
+                        .or_else(|| project.files.first().map(String::as_str)).map(str::to_string);
+                    let Some(selected) = selected else { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: "The Lens project has no files.".into() }); return };
+                    self.logm(format!("Opening project {} ({} files) …", project.name, project.files.len()));
+                    self.project = Some(project);
+                    binary_path = selected;
+                }
+                Err(e) => { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: e }); return; }
+            }
+        } else {
+            self.project = None;
+        }
         self.last_raw = None;
         let progress = Arc::new(AtomicU32::new(0));
         let (tx, rx) = channel();
         let pr = progress.clone();
         let min = self.prefs.min_string_len;
-        let p2 = path.clone();
+        let p2 = binary_path.clone();
         std::thread::spawn(move || {
             let r = guard(move || loader::load(&p2).map(|mut bin| {
                 let mut ann = store::load_annotations(&bin.path, bin.file_size);
@@ -397,8 +417,8 @@ impl LensApp {
             }));
             let _ = tx.send(r);
         });
-        self.logm(format!("Opening {path} …"));
-        self.state = State::Loading { path, rx, progress, started: Instant::now() };
+        self.logm(format!("Opening {binary_path} …"));
+        self.state = State::Loading { path: binary_path, rx, progress, started: Instant::now() };
         self.modal = None;
     }
 

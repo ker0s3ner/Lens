@@ -4,6 +4,43 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+const PROJECT_SCHEMA_VERSION: u32 = 1;
+
+/// A user-managed workspace containing one or more binaries. Per-file annotations
+/// remain in their normal keyed stores; this manifest only defines membership and
+/// which file should be opened first.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ProjectManifest {
+    pub schema_version: u32,
+    pub name: String,
+    #[serde(default)]
+    pub files: Vec<String>,
+    #[serde(default)]
+    pub active_file: Option<String>,
+}
+
+pub fn load_project(path: &std::path::Path) -> Result<ProjectManifest, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("Couldn't read project: {e}"))?;
+    let project: ProjectManifest = serde_json::from_str(&text).map_err(|e| format!("Invalid Lens project: {e}"))?;
+    if project.schema_version > PROJECT_SCHEMA_VERSION { return Err("This Lens project was created by a newer version".into()); }
+    if project.files.is_empty() { return Err("The Lens project has no files".into()); }
+    Ok(project)
+}
+
+pub fn save_project(path: &std::path::Path, name: &str, files: &[String], active_file: Option<&str>) -> Result<(), String> {
+    if files.is_empty() { return Err("A Lens project needs at least one file".into()); }
+    let project = ProjectManifest {
+        schema_version: PROJECT_SCHEMA_VERSION,
+        name: name.trim().to_string(),
+        files: files.to_vec(),
+        active_file: active_file.map(str::to_string),
+    };
+    let text = serde_json::to_string_pretty(&project).map_err(|e| format!("Couldn't encode project: {e}"))?;
+    let tmp = path.with_extension(format!("lensproj.{}.tmp", std::process::id()));
+    std::fs::write(&tmp, text).map_err(|e| format!("Couldn't write project: {e}"))?;
+    std::fs::rename(&tmp, path).map_err(|e| { let _ = std::fs::remove_file(&tmp); format!("Couldn't save project: {e}") })
+}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Annotations {
     #[serde(default)]
@@ -185,5 +222,26 @@ pub fn save_annotations(path: &str, size: u64, a: &Annotations) {
         if std::fs::write(&tmp, s).is_ok() {
             if std::fs::rename(&tmp, &dest).is_err() { let _ = std::fs::remove_file(tmp); }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_manifest_round_trips_and_rejects_empty_projects() {
+        let dir = std::env::temp_dir().join(format!("lens-project-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("sample.lensproj");
+        let files = vec!["/tmp/one.bin".into(), "/tmp/two.bin".into()];
+        save_project(&path, "Sample", &files, Some("/tmp/two.bin")).unwrap();
+        let loaded = load_project(&path).unwrap();
+        assert_eq!(loaded.name, "Sample");
+        assert_eq!(loaded.files, files);
+        assert_eq!(loaded.active_file.as_deref(), Some("/tmp/two.bin"));
+        assert!(save_project(&path, "Empty", &[], None).is_err());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_dir(dir);
     }
 }

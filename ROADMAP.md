@@ -100,6 +100,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Scripts can query outgoing as well as incoming xrefs; command-line and GUI script snapshots expose the same additions.
 - Thumb TBB/TBH indirect branches recover bounded case targets when a nearby compare supplies a usable bound.
 - Per-file annotation storage now wraps data in a versioned project-database envelope, writes via a temporary file, and still reads legacy annotation JSON.
+- Versioned `.lensproj` manifests can group multiple binaries, choose an active file, and open it through the normal analysis pipeline while retaining per-file annotation stores.
 - The debugger can restart the current launch/attach/remote configuration after the target exits.
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.

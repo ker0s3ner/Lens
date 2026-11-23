@@ -1,4 +1,4 @@
-# Lens 0.6.12 — Fourier
+# Lens 0.6.13 — Fourier
 
 ## What's new
 
@@ -11,6 +11,7 @@
 - Decompiler type propagation now recognizes both internal and owned cast expressions.
 - Dereferences of known pointer-returning calls and explicit pointer casts now render their pointee types.
 - Copied pointer temporaries retain inferred pointee types in subsequent memory reads.
+- Versioned `.lensproj` manifests can group multiple binaries and open the selected active file while keeping per-file annotations separate.
 
 ## Release cadence
 

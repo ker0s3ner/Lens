@@ -37,6 +37,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Decompiler type propagation recognizes both internal and owned cast expressions.",
     "Dereferences of known pointer-returning calls and explicit pointer casts render their pointee types.",
     "Copied pointer temporaries retain inferred pointee types in subsequent memory reads.",
+    "Versioned .lensproj manifests group multiple binaries and open the selected active file.",
 ];
 
 pub fn current_release_title() -> String {
