@@ -44,6 +44,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Relative project members resolve from the .lensproj directory for portable projects.",
     "Resolved absolute paths continue to match relative project members when switching files.",
     "Save Project serializes in-project members as relative paths for portability.",
+    "Decompiler branch structuring now preserves loop headers inside forward conditional regions.",
 ];
 
 pub fn current_release_title() -> String {

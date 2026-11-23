@@ -1,4 +1,4 @@
-# Lens 0.6.19 — Fourier
+# Lens 0.6.20 — Fourier
 
 ## What's new
 
@@ -18,6 +18,7 @@
 - Relative project members now resolve from the `.lensproj` directory, making project files portable.
 - Resolved absolute paths continue to match relative project members when switching files.
 - Save Project now serializes members inside the project directory as relative paths while preserving external paths.
+- Decompiler branch structuring now detects loop headers inside forward conditional regions instead of flattening them into simple `if` blocks.
 
 ## Release cadence
 

@@ -1557,8 +1557,11 @@ impl Emit<'_> {
         }
     }
 
-    fn has_back_target(&self, _from: usize, _to: usize) -> bool {
-        false
+    fn has_back_target(&self, from: usize, to: usize) -> bool {
+        // A forward conditional can look like a simple guarded block even when
+        // its body contains a loop header. Keep the generic branch emission in
+        // that case so the back edge is not hidden inside an `if`.
+        self.loops.keys().any(|target| *target >= from && *target < to)
     }
 }
 
