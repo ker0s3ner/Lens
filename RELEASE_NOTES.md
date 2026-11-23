@@ -1,6 +1,9 @@
-# Lens 0.6.56 — Fourier
+# Lens 0.6.57 — Fourier
 
 ## What's new
+
+- x86/x64 BMI1 `bextr` now preserves named bit-field extraction semantics and control operands.
+- Common x86/x64 bit-field operations remain readable in pseudocode.
 
 - x86/x64 BMI1 `blsi`, `blsr`, and `blsmsk` now preserve named low-bit isolation and mask semantics.
 - Common x86/x64 bit-manipulation idioms remain readable in pseudocode.

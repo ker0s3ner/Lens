@@ -1166,6 +1166,11 @@ impl<'a> Dc<'a> {
                     let helper = match m { Mnemonic::Blsi => "blsi", Mnemonic::Blsr => "blsr", _ => "blsmsk" };
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(helper)), vec![value]));
                 }
+                Mnemonic::Bextr if ins.op_count() >= 3 => {
+                    let value = self.read_op(&mut st, ins, 1);
+                    let control = self.read_op(&mut st, ins, 2);
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("bextr")), vec![value, control]));
+                }
                 Mnemonic::Mulx if ins.op_count() >= 3 => {
                     let a = self.rd_reg(&mut st, Register::RDX);
                     let b = self.read_op(&mut st, ins, 2);
