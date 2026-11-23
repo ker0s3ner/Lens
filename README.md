@@ -49,6 +49,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
 - `data_at(addr)` reads a persisted data-definition code, and `data_definitions()` returns sorted `{addr, code}` records.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
+- `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.
 - Import exported Lens JSON databases with annotations, data definitions and applied-type references restored.
 - Exported/imported JSON databases also preserve user-authored prototypes used by the decompiler.

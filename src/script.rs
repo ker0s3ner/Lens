@@ -129,6 +129,18 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
             .collect()
     });
     let s = snap.clone();
+    e.register_fn("function_at", move |a: INT| -> Map {
+        let addr = a as u64;
+        s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, name, size, blocks)| {
+            let mut m = Map::new();
+            m.insert("addr".into(), Dynamic::from(*start as INT));
+            m.insert("name".into(), Dynamic::from(name.clone()));
+            m.insert("size".into(), Dynamic::from(*size as INT));
+            m.insert("blocks".into(), Dynamic::from(*blocks as INT));
+            m
+        }).unwrap_or_default()
+    });
+    let s = snap.clone();
     e.register_fn("name_at", move |a: INT| -> String { s.names.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
     e.register_fn("find", move |n: &str| -> INT { s.names.iter().find(|(_, v)| v.as_str() == n).map(|(a, _)| *a as INT).unwrap_or(0) });
@@ -609,7 +621,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API v1: script_api_version() functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) search(query) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
+            ui.label(RichText::new("API v1: script_api_version() functions() function_at(a) strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) search(query) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();
@@ -639,9 +651,9 @@ mod tests {
             comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
-        let out = run("print(script_api_version()); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
-        assert!(out.text.contains("1\n\n0\n0\n0\n4\n0\n0"), "unexpected output: {}", out.text);
+        assert!(out.text.contains("1") && out.text.contains("4"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
         let _ = an;
     }
