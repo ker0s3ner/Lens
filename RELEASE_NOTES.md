@@ -1,6 +1,9 @@
-# Lens 0.6.24 — Fourier
+# Lens 0.6.25 — Fourier
 
 ## What's new
+
+- Stripped functions ending in an architectural stop/trap instruction are now conservatively inferred as no-return.
+- Added regression coverage for trap-terminated x86-64 functions.
 
 - ARM64 scaled switch-table offsets and halfword entries now honor big-endian binaries.
 - The roadmap now records completed common switch-table support across x86, ARM, RISC-V, MIPS, and PowerPC while identifying remaining idioms for validation.

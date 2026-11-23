@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Stripped functions ending in an architectural stop/trap instruction are now conservatively inferred as no-return.",
+    "Trap-terminated x86-64 functions now have regression coverage.",
     "ARM64 scaled switch-table offsets and halfword entries now honor big-endian binaries.",
     "Common switch-table support now spans x86, ARM, RISC-V, MIPS, and PowerPC, with remaining compiler idioms still tracked.",
     "Thumb indexed ldr pc, [pc, index, lsl #2] jump tables now recover bounded absolute targets.",

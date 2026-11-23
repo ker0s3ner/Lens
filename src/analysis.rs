@@ -1192,7 +1192,12 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 FuncKind::Normal
             };
             let end = addrs.iter().map(|a| a + insns[a].len as u64).max().unwrap_or(fstart);
-            let noreturn = callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n)).unwrap_or(false);
+            // A function whose final decoded instruction is an architectural
+            // stop/trap cannot return to its caller, even when it is stripped
+            // and has no recognizable symbol or prototype.
+            let terminates = addrs.iter().filter_map(|a| insns.get(a).map(|i| (a, i))).max_by_key(|(a, _)| *a)
+                .map(|(_, i)| i.flow == Flow::Stop).unwrap_or(false);
+            let noreturn = terminates || callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n)).unwrap_or(false);
             calls.sort();
             calls.dedup();
             functions.insert(
@@ -1721,6 +1726,16 @@ mod tests {
         assert!(is_noreturn_name("core::panicking::panic_fmt"));
         assert!(is_noreturn_name("__cxa_pure_virtual"));
         assert!(is_noreturn_name("panic"));
+    }
+
+    #[test]
+    fn infers_noreturn_from_a_stop_terminator() {
+        let spec = RawSpec {
+            path: "trap".into(), name: "trap".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x0F, 0x0B])], entry: Some(0x1000), format: "test".into(),
+        };
+        let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions[&0x1000].noreturn);
     }
 
     #[test]
