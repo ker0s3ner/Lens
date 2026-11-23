@@ -29,9 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "Common Swift $s symbols now retain readable module and declaration components.",
-    "C enum parsing accepts named-member expressions and common C integer constants.",
-    "ELF GNU IFUNC symbols and PE TLS callbacks now seed function discovery.",
+    "x86 div and idiv now preserve the implicit wide dividend, quotient, and remainder in pseudocode.",
+    "The Fourier patch line continues to improve native-code navigation and analysis coverage.",
 ];
 
 pub fn current_release_title() -> String {

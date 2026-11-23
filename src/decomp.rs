@@ -1134,7 +1134,10 @@ impl<'a> Dc<'a> {
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("byteswap")), vec![value]));
                 }
                 Mnemonic::Idiv | Mnemonic::Div => {
-                    let a = self.rd_reg(&mut st, Register::RAX);
+                    let a = Ex::Call(Box::new(var("__wide_dividend")), vec![
+                        self.rd_reg(&mut st, Register::RDX),
+                        self.rd_reg(&mut st, Register::RAX),
+                    ]);
                     let b = self.read_op(&mut st, ins, 0);
                     self.wr_reg(&mut st, Register::RDX, Ex::Bin("%", Box::new(a.clone()), Box::new(b.clone())), addr);
                     self.wr_reg(&mut st, Register::RAX, Ex::Bin("/", Box::new(a), Box::new(b)), addr);
@@ -2064,5 +2067,17 @@ mod tests {
         let f = an.functions.get(&0x1000).unwrap();
         let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
         assert!(text.contains("__m128 xmm0;") || text.contains("__m128 xmm1;"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn integer_division_preserves_quotient_and_remainder() {
+        let bin = raw_binary(&RawSpec {
+            path: "div".into(), name: "div".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x48, 0xF7, 0xF9, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("__wide_dividend") && text.contains("/"), "unexpected pseudocode:\n{text}");
     }
 }

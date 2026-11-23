@@ -1,10 +1,9 @@
-# Lens 0.6.3 — Fourier
+# Lens 0.6.4 — Fourier
 
 ## What's new
 
-- Common Swift `$s` symbols now retain readable module and declaration components.
-- C enum parsing accepts named-member expressions, binary/octal literals, shifts, bitwise operators, unary constants, and character constants.
-- ELF GNU IFUNC symbols and PE TLS callbacks now seed function discovery and navigation.
+- x86 `div` and `idiv` now preserve the implicit wide dividend, quotient, and remainder in pseudocode.
+- The Fourier patch line continues to improve native-code navigation and analysis coverage.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 
 ## Release cadence
