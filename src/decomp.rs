@@ -1035,6 +1035,16 @@ impl<'a> Dc<'a> {
                     let value = self.rd_reg(&mut st, Register::RAX);
                     self.wr_reg(&mut st, Register::RDX, Ex::Call(Box::new(var("__sign_extend_high")), vec![value]), addr);
                 }
+                Mnemonic::Vfmadd132ps | Mnemonic::Vfmadd132pd | Mnemonic::Vfmadd132ss | Mnemonic::Vfmadd132sd
+                | Mnemonic::Vfmadd213ps | Mnemonic::Vfmadd213pd | Mnemonic::Vfmadd213ss | Mnemonic::Vfmadd213sd
+                | Mnemonic::Vfmadd231ps | Mnemonic::Vfmadd231pd | Mnemonic::Vfmadd231ss | Mnemonic::Vfmadd231sd
+                | Mnemonic::Vfmsub132ps | Mnemonic::Vfmsub132pd | Mnemonic::Vfmsub132ss | Mnemonic::Vfmsub132sd
+                | Mnemonic::Vfmsub213ps | Mnemonic::Vfmsub213pd | Mnemonic::Vfmsub213ss | Mnemonic::Vfmsub213sd
+                | Mnemonic::Vfmsub231ps | Mnemonic::Vfmsub231pd | Mnemonic::Vfmsub231ss | Mnemonic::Vfmsub231sd
+                if ins.op_count() >= 3 => {
+                    let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
+                }
                 Mnemonic::Lea => {
                     let sz = 1;
                     let (a, _) = self.mem_operand(&mut st, ins, sz);
