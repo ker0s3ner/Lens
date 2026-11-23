@@ -1062,6 +1062,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("clz")), vec![value]));
         }
+        (Fam::Mips, "clz" | "clo") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            let helper = if base_mn == "clo" { "clo" } else { "clz" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![value]));
+        }
         (Fam::A32, "umull" | "smull" | "umlal" | "smlal") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(2), None);
             let b = dc.g_val(st, o(3), None);

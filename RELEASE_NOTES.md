@@ -1,6 +1,9 @@
-# Lens 0.6.46 — Fourier
+# Lens 0.6.47 — Fourier
 
 ## What's new
+
+- MIPS `clz` and `clo` now decompile as named count-leading-zero and count-leading-one operations.
+- MIPS bit-count idioms remain readable in pseudocode.
 
 - AArch64 CRC32 and CRC32C instructions now preserve named checksum semantics and operands.
 - Common AArch64 checksum idioms remain readable in pseudocode.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS clz and clo now decompile as named count-leading-zero and count-leading-one operations.",
+    "MIPS bit-count idioms remain readable in pseudocode.",
     "AArch64 CRC32 and CRC32C instructions now preserve named checksum semantics and operands.",
     "Common AArch64 checksum idioms remain readable in pseudocode.",
     "AArch64 clz, cls, rbit, and byte-reversal instructions now decompile as named operations.",
