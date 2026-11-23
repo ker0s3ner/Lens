@@ -1,9 +1,9 @@
-# Lens 0.6.6 — Fourier
+# Lens 0.6.7 — Fourier
 
 ## What's new
 
-- PE delay-import descriptors now populate delayed API names, IAT slots, and Libraries metadata.
-- Delay-import addressing is validated for both RVA- and VA-based descriptor forms.
+- Mach-O `LC_DATA_IN_CODE` ranges are excluded from executable discovery.
+- Analysis notes record the number of embedded-data ranges recognized in Mach-O files.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 
 ## Release cadence

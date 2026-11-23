@@ -29,8 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "PE delay-import descriptors now populate delayed API names, IAT slots, and Libraries metadata.",
-    "Delay-import addressing is validated for both RVA- and VA-based descriptor forms.",
+    "Mach-O LC_DATA_IN_CODE ranges are excluded from executable discovery.",
+    "Analysis notes record recognized embedded-data ranges in Mach-O files.",
 ];
 
 pub fn current_release_title() -> String {
