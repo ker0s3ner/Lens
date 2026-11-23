@@ -1,6 +1,9 @@
-# Lens 0.6.58 — Fourier
+# Lens 0.6.59 — Fourier
 
 ## What's new
+
+- AArch64 NEON table, zip, unzip, and transpose instructions now remain visible as named pseudocode intrinsics.
+- Vector lane rearrangement operations no longer disappear when the generic lifter encounters them.
 
 - AArch64 SHA-1 and SHA-256 round/schedule instructions now preserve named cryptographic semantics and operands.
 - Common AArch64 hashing instructions remain visible in pseudocode.

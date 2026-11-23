@@ -88,6 +88,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 AES and PMULL instructions preserve named cryptographic semantics.
 - AArch64 signed and unsigned min/max instructions preserve conditional value semantics.
 - AArch64 SHA-1 and SHA-256 instructions preserve named cryptographic semantics.
+- AArch64 NEON table lookup, zip/unzip, and transpose instructions remain visible as named intrinsics.
 - AArch64 absolute and absolute-difference operations preserve signedness.
 - RISC-V carry-less multiply instructions preserve named cryptographic semantics.
 - MIPS immediate and register-count rotate-right instructions preserve named semantics.
