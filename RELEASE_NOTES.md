@@ -1,6 +1,9 @@
-# Lens 0.6.51 — Fourier
+# Lens 0.6.52 — Fourier
 
 ## What's new
+
+- AArch64 signed and unsigned min/max operations now decompile as readable conditional selections.
+- AArch64 bounds and comparison idioms preserve signedness in pseudocode.
 
 - AArch64 AES round, inverse/mix, and PMULL operations now preserve named crypto semantics and operands.
 - Common AArch64 cryptographic instructions remain visible in pseudocode.
