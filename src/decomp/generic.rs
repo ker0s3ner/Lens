@@ -1129,6 +1129,15 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let b = shifted(dc, st, 2);
             set(dc, st, 0, bin("&", a, Ex::Un("~", Box::new(b))));
         }
+        (Fam::A32, "clz") if ops.len() >= 2 => {
+            let v = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("clz")), vec![v]));
+        }
+        (Fam::A32, "rev" | "rev16" | "revsh") if ops.len() >= 2 => {
+            let v = dc.g_val(st, o(1), None);
+            let name = match base_mn { "rev16" => "byteswap16", "revsh" => "byteswap16_sign_extend", _ => "byteswap32" };
+            set(dc, st, 0, Ex::Call(Box::new(var(name)), vec![v]));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {

@@ -71,6 +71,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PowerPC signed and unsigned high-half multiply instructions preserve their semantic result.
 - ARM/Thumb multiply-accumulate and multiply-subtract instructions lift to readable arithmetic.
 - MIPS conditional moves preserve register-dependent selections in pseudocode.
+- ARM/Thumb count-leading-zero and byte-reversal idioms decompile to named operations.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.

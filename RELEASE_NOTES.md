@@ -1,6 +1,9 @@
-# Lens 0.6.32 — Fourier
+# Lens 0.6.33 — Fourier
 
 ## What's new
+
+- ARM/Thumb `clz`, `rev`, `rev16`, and `revsh` now decompile as named count-leading-zero and byte-reversal operations.
+- Common ARM bit/byte idioms remain visible and readable instead of opaque intrinsic calls.
 
 - MIPS `movz` and `movn` now decompile as conditional selections instead of opaque operations.
 - MIPS register-dependent value flow is preserved in readable ternary expressions.
