@@ -1,10 +1,10 @@
-# Lens 0.6.2 — Fourier
+# Lens 0.6.3 — Fourier
 
 ## What's new
 
-- ARM64 bitfield, extract, rotate, and conditional-integer idioms now render as readable pseudocode.
-- Recovered switch-case destinations now appear as call-graph edges.
-- Scripts can inspect comments, bookmarks, and persisted data definitions.
+- Common Swift `$s` symbols now retain readable module and declaration components.
+- C enum parsing accepts named-member expressions, binary/octal literals, shifts, bitwise operators, unary constants, and character constants.
+- ELF GNU IFUNC symbols and PE TLS callbacks now seed function discovery and navigation.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
 
 ## Release cadence

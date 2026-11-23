@@ -29,9 +29,9 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "ARM64 bitfield, extract, rotate, and conditional-integer idioms now render as readable pseudocode.",
-    "Recovered switch-case destinations now appear as call-graph edges.",
-    "Scripts can inspect comments, bookmarks, and persisted data definitions.",
+    "Common Swift $s symbols now retain readable module and declaration components.",
+    "C enum parsing accepts named-member expressions and common C integer constants.",
+    "ELF GNU IFUNC symbols and PE TLS callbacks now seed function discovery.",
 ];
 
 pub fn current_release_title() -> String {
