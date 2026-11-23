@@ -1,6 +1,9 @@
-# Lens 0.6.71 — Fourier
+# Lens 0.6.72 — Fourier
 
 ## What's new
+
+- AArch64 NEON floating/integer conversion and rounding families now remain visible as named pseudocode intrinsics.
+- Common lane-width conversion and rounding operations no longer fall through to opaque generic handling.
 
 - AVX2 integer permute and gather families now remain visible as named pseudocode intrinsics.
 - Vector lane-index and memory-gather operand groups are preserved in decompiler output.

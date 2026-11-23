@@ -93,12 +93,14 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON integer and floating-point comparison families remain visible as named intrinsics.
 - AArch64 NEON widening, narrowing, and high-half vector operations remain visible as named intrinsics.
 - AArch64 NEON variable, rounded, and narrowing shift operations remain visible as named intrinsics.
+- AArch64 NEON floating/integer conversion and rounding families remain visible as named intrinsics.
 - x86/x64 AVX/FMA3 packed and scalar fused multiply-add/subtract instructions remain visible as named intrinsics.
 - x86/x64 AVX/FMA3 negated fused multiply-add/subtract instructions remain visible as named intrinsics.
 - x86/x64 AVX/SSE blend, shuffle, permute, and lane-reordering instructions remain visible as named intrinsics.
 - x86/x64 packed integer AVX2 add/subtract, bitwise, and multiply families remain visible as named intrinsics.
 - x86/x64 packed integer and floating-point comparison families remain visible as named intrinsics.
 - x86/x64 AVX2 integer permute and gather families remain visible as named intrinsics.
+- AArch64 NEON floating/integer conversion and rounding families remain visible as named intrinsics.
 - AArch64 absolute and absolute-difference operations preserve signedness.
 - RISC-V carry-less multiply instructions preserve named cryptographic semantics.
 - MIPS immediate and register-count rotate-right instructions preserve named semantics.
