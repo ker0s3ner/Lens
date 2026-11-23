@@ -69,6 +69,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - MIPS signed and unsigned division preserve quotient/remainder through the same HI/LO flow.
 - RISC-V signed and unsigned high-half multiply instructions preserve their semantic result.
 - PowerPC signed and unsigned high-half multiply instructions preserve their semantic result.
+- ARM/Thumb multiply-accumulate and multiply-subtract instructions lift to readable arithmetic.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.

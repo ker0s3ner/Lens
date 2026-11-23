@@ -1,6 +1,9 @@
-# Lens 0.6.30 — Fourier
+# Lens 0.6.31 — Fourier
 
 ## What's new
+
+- ARM/Thumb `mla` and `mls` now lift to readable multiply-accumulate and multiply-subtract expressions.
+- Common ARM arithmetic idioms no longer fall through to opaque intrinsic calls.
 
 - PowerPC `mulhw`, `mulhwu`, `mulhd`, and `mulhdu` now preserve signed and unsigned high-half products in pseudocode.
 - PowerPC wide multiplication is represented with explicit semantic helpers instead of an opaque instruction.

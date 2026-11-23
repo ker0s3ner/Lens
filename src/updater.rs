@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb mla and mls now lift to readable multiply-accumulate and multiply-subtract expressions.",
+    "Common ARM arithmetic idioms no longer fall through to opaque intrinsic calls.",
     "PowerPC mulhw, mulhwu, mulhd, and mulhdu now preserve signed and unsigned high-half products in pseudocode.",
     "PowerPC wide multiplication is represented with explicit semantic helpers instead of an opaque instruction.",
     "RISC-V mulh, mulhu, and mulhsu now preserve signed and unsigned high-half product semantics in pseudocode.",
