@@ -425,6 +425,7 @@ struct Dc<'a> {
     dem: std::cell::RefCell<HashMap<u64, String>>,
     /// Stack slots that only hold saved registers (non-x86 front-end).
     spills: BTreeSet<i64>,
+    enum_constants: &'a HashMap<String, HashMap<i64, String>>,
 }
 
 #[derive(Clone)]
@@ -791,6 +792,16 @@ impl<'a> Dc<'a> {
                         if end >= 1 && b[..end].iter().all(|c| (0x20..0x7f).contains(c)) {
                             *a = Ex::Raw(format!("\"{}\"", crate::code::escape_str(&String::from_utf8_lossy(&b[..end]), 8)));
                         }
+                    }
+                }
+            }
+        }
+        if let Some(p) = &proto {
+            for (k, a) in args.iter_mut().enumerate() {
+                let Some(ty) = p.params.get(k).map(|(t, _)| t.trim_start_matches("enum ")) else { continue };
+                if let Ex::Num(v) = a {
+                    if let Some(member) = self.enum_constants.get(ty).and_then(|values| values.get(v)) {
+                        *a = Ex::Var(format!("{ty}::{member}"));
                     }
                 }
             }
@@ -1475,10 +1486,36 @@ pub fn decompile(
     conv: CallConv,
     comp_note: &str,
 ) -> Decompiled {
+    let enums = HashMap::new();
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums)
+}
+
+pub fn decompile_with_types(
+    bin: &Binary,
+    an: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    f: &Function,
+    conv: CallConv,
+    comp_note: &str,
+    structs: &[crate::types::StructDef],
+) -> Decompiled {
+    let enums = crate::types::enum_constants(structs);
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums)
+}
+
+fn decompile_inner(
+    bin: &Binary,
+    an: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    f: &Function,
+    conv: CallConv,
+    comp_note: &str,
+    enum_constants: &HashMap<String, HashMap<i64, String>>,
+) -> Decompiled {
     let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
     let x86 = bin.arch.is_x86();
     ABI.with(|a| *a.borrow_mut() = Some(if x86 { Abi { names: vec![], ret: RAX, sp: RSP, args: vec![], caller_saved: vec![], callee_saved: vec![], x86: true } } else { generic::abi_for(bin.arch) }));
-    let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default(), spills: BTreeSet::new() };
+    let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default(), spills: BTreeSet::new(), enum_constants };
     let name = names.get(&f.start).map(|n| display_symbol(&n.0)).unwrap_or_else(|| format!("sub_{:X}", f.start));
     if f.blocks.is_empty() {
         return Decompiled { lines: vec![DLine { text: format!("// {name}: no code to show"), addr: f.start, indent: 0 }] };

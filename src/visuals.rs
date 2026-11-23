@@ -426,7 +426,7 @@ impl LensApp {
         }
         let f = l.an.functions.get(&fs)?.clone();
         let note = format!("{}  ·  {}", l.det.compiler(), l.det.conv.label());
-        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| decomp::decompile(&l.bin, &l.an, &l.names, &f, l.det.conv, &note)));
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| decomp::decompile_with_types(&l.bin, &l.an, &l.names, &f, l.det.conv, &note, &l.ann.structs)));
         let mut dec = r.unwrap_or_else(|_| Decompiled {
             lines: vec![DLine { text: "// The decompiler failed on this function. The listing and graph still work.".into(), addr: f.start, indent: 0 }],
         });
@@ -1137,7 +1137,7 @@ pub fn export_c(l: &Loaded, lg: Lang) -> String {
         if f.kind == FuncKind::Import {
             continue;
         }
-        let d = decomp::decompile(&l.bin, &l.an, &l.names, f, det.conv, "");
+        let d = decomp::decompile_with_types(&l.bin, &l.an, &l.names, f, det.conv, "", &l.ann.structs);
         s.push_str(&format!("{c} {:X}\n", f.start));
         s.push_str(&lang::render_text(&lang::render(&d, lg)));
         s.push('\n');

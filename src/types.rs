@@ -2,6 +2,7 @@
 
 use crate::loader::Binary;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Field {
@@ -366,6 +367,13 @@ pub fn enum_value(bin: &Binary, addr: u64, def: &StructDef) -> Option<String> {
     Some(format!("{name} ({signed})"))
 }
 
+/// Build the enum namespace used by pseudocode constant propagation.
+pub fn enum_constants(structs: &[StructDef]) -> HashMap<String, HashMap<i64, String>> {
+    structs.iter().filter(|s| s.is_enum).map(|s| {
+        (s.name.clone(), s.enum_values.iter().map(|v| (v.value, v.name.clone())).collect())
+    }).collect()
+}
+
 /// A field's value as text, read from the program image.
 pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
     let a = addr + f.off as u64;
@@ -431,5 +439,12 @@ mod tests {
         assert_eq!(nested.fields[0].size, 8);
         let nested_alias = parse_c("typedef int (**callback_ptr_t)(int);", 8, &[]).unwrap();
         assert_eq!(nested_alias.alias_of.as_deref(), Some("fn(int) -> int **"));
+    }
+
+    #[test]
+    fn exports_enum_constants_for_pseudocode() {
+        let color = parse_c("enum Color { Red = 1, Blue = 4 }", 8, &[]).unwrap();
+        let constants = enum_constants(&[color]);
+        assert_eq!(constants["Color"][&4], "Blue");
     }
 }
