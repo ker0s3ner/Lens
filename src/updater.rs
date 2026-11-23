@@ -40,6 +40,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Versioned .lensproj manifests group multiple binaries and open the selected active file.",
     "File > Save Project creates or updates a .lensproj manifest from the current session.",
     "File > Add File to Project appends binaries with duplicate detection and persistence.",
+    "Opening a project member keeps the workspace active and records the active file.",
 ];
 
 pub fn current_release_title() -> String {

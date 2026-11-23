@@ -399,8 +399,17 @@ impl LensApp {
                 Err(e) => { self.modal = Some(Modal::Message { title: "Couldn't open project".into(), text: e }); return; }
             }
         } else {
-            self.project = None;
-            self.project_path = None;
+            let in_project = self.project.as_ref().is_some_and(|project| project.files.iter().any(|file| file == &path));
+            if in_project {
+                if let (Some(mut project), Some(project_path)) = (self.project.clone(), self.project_path.clone()) {
+                    project.active_file = Some(path.clone());
+                    let _ = store::save_project(&project_path, &project.name, &project.files, project.active_file.as_deref());
+                    self.project = Some(project);
+                }
+            } else {
+                self.project = None;
+                self.project_path = None;
+            }
         }
         self.last_raw = None;
         let progress = Arc::new(AtomicU32::new(0));

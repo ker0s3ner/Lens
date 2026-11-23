@@ -103,6 +103,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Versioned `.lensproj` manifests can group multiple binaries, choose an active file, and open it through the normal analysis pipeline while retaining per-file annotation stores.
 - File > Save Project creates or updates a `.lensproj` manifest from the current analysis session.
 - File > Add File to Project appends another binary with duplicate detection and manifest persistence.
+- Opening a project member keeps the workspace active and records that binary as the manifest’s active file.
 - The debugger can restart the current launch/attach/remote configuration after the target exits.
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.
