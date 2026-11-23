@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS rotr and rotrv now preserve rotate-right semantics and operands.",
+    "MIPS rotate idioms remain readable in pseudocode.",
     "RISC-V clmul, clmulh, and clmulr now preserve carry-less multiplication semantics.",
     "RISC-V cryptographic bitmanip operations remain named and readable in pseudocode.",
     "AArch64 abs, sabd, and uabd now preserve absolute and signed/unsigned absolute-difference semantics.",

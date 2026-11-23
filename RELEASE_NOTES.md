@@ -1,6 +1,9 @@
-# Lens 0.6.54 — Fourier
+# Lens 0.6.55 — Fourier
 
 ## What's new
+
+- MIPS `rotr` and `rotrv` now preserve rotate-right semantics and operands.
+- MIPS rotate idioms remain readable in pseudocode.
 
 - RISC-V `clmul`, `clmulh`, and `clmulr` now preserve carry-less multiplication semantics.
 - RISC-V cryptographic bitmanip operations remain named and readable in pseudocode.

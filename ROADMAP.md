@@ -89,6 +89,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 signed and unsigned min/max instructions preserve conditional value semantics.
 - AArch64 absolute and absolute-difference operations preserve signedness.
 - RISC-V carry-less multiply instructions preserve named cryptographic semantics.
+- MIPS immediate and register-count rotate-right instructions preserve named semantics.
 - MIPS count-leading-zero and count-leading-one instructions preserve named semantics.
 - MIPS sign-extension and byte-shuffle instructions preserve named semantics.
 - MIPS `ext`/`ins` bitfield extraction and insertion preserve explicit operand semantics.
