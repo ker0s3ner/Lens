@@ -104,7 +104,11 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             clean.push(c);
         }
     }
-    let packed = clean.contains("__attribute__((packed))") || clean.contains("__attribute__ ((packed))") || clean.contains(" packed ");
+    let pack_align = clean.split("#pragma pack(").nth(1).and_then(|s| s.split(')').next()).and_then(|s| s.trim().parse::<u32>().ok()).filter(|n| *n > 0 && *n <= 16);
+    let packed = clean.contains("__attribute__((packed))") || clean.contains("__attribute__ ((packed))") || clean.contains(" packed ") || pack_align.is_some_and(|n| n == 1);
+    if clean.contains("#pragma pack(") {
+        clean = clean.lines().filter(|line| !line.trim_start().starts_with("#pragma pack(")).collect::<Vec<_>>().join("\n");
+    }
     clean = clean.replace("__attribute__((packed))", "").replace("__attribute__ ((packed))", "");
     let Some(open) = clean.find('{') else {
         let decl = clean.trim().trim_end_matches(';').trim();
@@ -209,7 +213,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             (fname, ty, stars)
         };
         let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
-        let field_align = if packed { 1 } else { al };
+        let field_align = if packed { 1 } else { pack_align.unwrap_or(al).min(al) };
         if let Some(width) = bit_width {
             if stars != 0 || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) || width as u32 > sz * 8 {
                 return Err(format!("Bitfield `{}` must fit an integer storage type of at most 64 bits", fname));
@@ -469,6 +473,13 @@ mod tests {
     #[test]
     fn packed_records_use_byte_alignment() {
         let packed = parse_c("struct Packet __attribute__((packed)) { char tag; int value; };", 8, &[]).unwrap();
+        assert_eq!(packed.fields[1].off, 1);
+        assert_eq!(packed.size, 5);
+    }
+
+    #[test]
+    fn pragma_pack_one_uses_byte_alignment() {
+        let packed = parse_c("#pragma pack(1)\nstruct Packet { char tag; int value; };", 8, &[]).unwrap();
         assert_eq!(packed.fields[1].off, 1);
         assert_eq!(packed.size, 5);
     }
