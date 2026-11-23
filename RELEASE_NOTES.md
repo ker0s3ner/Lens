@@ -1,4 +1,4 @@
-# Lens 0.6.21 — Fourier
+# Lens 0.6.22 — Fourier
 
 ## What's new
 
@@ -20,6 +20,7 @@
 - Save Project now serializes members inside the project directory as relative paths while preserving external paths.
 - Decompiler branch structuring now detects loop headers inside forward conditional regions instead of flattening them into simple `if` blocks.
 - The Overview displays project members and opens them directly, including relative-path resolution.
+- The active project indicator now resolves relative manifest paths correctly.
 
 ## Release cadence
 

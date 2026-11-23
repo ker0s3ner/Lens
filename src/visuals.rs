@@ -283,7 +283,13 @@ impl LensApp {
                     card(ui, &p, &format!("Project · {}", project.name), |ui| {
                         ui.label(RichText::new(format!("{} files", project.files.len())).small().color(p.muted));
                         for file in &project.files {
-                            let active = project.active_file.as_deref() == Some(file.as_str());
+                            let active = project.active_file.as_deref() == Some(file.as_str()) || project.active_file.as_ref().is_some_and(|active| {
+                                let Some(project_path) = &project_path else { return false; };
+                                let candidate = Path::new(file);
+                                let resolved = if candidate.is_absolute() { candidate.to_path_buf() }
+                                    else { project_path.parent().unwrap_or_else(|| Path::new(".")).join(candidate) };
+                                resolved.to_string_lossy() == active.as_str()
+                            });
                             ui.horizontal(|ui| {
                                 ui.label(RichText::new(if active { "●" } else { "○" }).color(if active { p.accent } else { p.faint }));
                                 ui.add(egui::Label::new(RichText::new(file).monospace()).truncate());

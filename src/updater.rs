@@ -46,6 +46,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Save Project serializes in-project members as relative paths for portability.",
     "Decompiler branch structuring now preserves loop headers inside forward conditional regions.",
     "The Overview displays project members and opens them directly.",
+    "The active project indicator resolves relative manifest paths correctly.",
 ];
 
 pub fn current_release_title() -> String {

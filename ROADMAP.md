@@ -109,6 +109,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Save Project serializes in-project members as relative paths for portability.
 - Decompiler branch structuring now detects loop headers inside forward conditional regions.
 - The Overview displays project members and opens them directly, including relative-path resolution.
+- The active project indicator resolves relative manifest paths correctly.
 - The debugger can restart the current launch/attach/remote configuration after the target exits.
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.
