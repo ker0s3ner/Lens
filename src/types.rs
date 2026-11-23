@@ -181,13 +181,24 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         }
         let (d, bit_width) = match d.rsplit_once(':') {
             Some((left, right)) => {
-                let width = right.trim().parse::<u8>().ok().filter(|n| *n > 0).ok_or(format!("Unsupported bitfield width in `{decl}`"))?;
+                let width = right.trim().parse::<u8>().ok().filter(|n| *n <= 64).ok_or(format!("Unsupported bitfield width in `{decl}`"))?;
                 (left.trim(), Some(width))
             }
             None => (d, None),
         };
         if bit_width.is_some() && d.contains(['[', ']']) {
             return Err(format!("Bitfield arrays are unsupported in `{decl}`"));
+        }
+        if bit_width == Some(0) {
+            let ty = d.trim().to_string();
+            let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
+            let field_align = if packed { 1 } else { pack_align.unwrap_or(al).min(al) };
+            if is_union || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) {
+                return Err(format!("Zero-width bitfield must use an integer storage type in `{decl}`"));
+            }
+            off = off.div_ceil(field_align) * field_align;
+            bit_unit = None;
+            continue;
         }
         let (d, count) = match (d.find('['), d.rfind(']')) {
             (Some(a), Some(b)) if b > a => (format!("{}{}", &d[..a], &d[b + 1..]), d[a + 1..b].trim().parse::<u32>().ok().or_else(|| u32::from_str_radix(d[a + 1..b].trim().trim_start_matches("0x"), 16).ok()).ok_or(format!("Unsupported array size in `{decl}`"))?),
@@ -538,5 +549,12 @@ mod tests {
         let packed = parse_c("#pragma pack(push, 1)\nstruct Packet { char tag; int value; };", 8, &[]).unwrap();
         assert_eq!(packed.fields[1].off, 1);
         assert_eq!(packed.size, 5);
+    }
+
+    #[test]
+    fn zero_width_bitfield_starts_a_new_storage_unit() {
+        let bits = parse_c("struct Bits { char first:1; int :0; int second:1; };", 8, &[]).unwrap();
+        assert_eq!(bits.fields[0].off, 0);
+        assert_eq!(bits.fields[1].off, 4);
     }
 }
