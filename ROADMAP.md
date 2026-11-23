@@ -98,6 +98,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - x86/x64 AVX/SSE blend, shuffle, permute, and lane-reordering instructions remain visible as named intrinsics.
 - x86/x64 packed integer AVX2 add/subtract, bitwise, and multiply families remain visible as named intrinsics.
 - x86/x64 packed integer and floating-point comparison families remain visible as named intrinsics.
+- x86/x64 AVX2 integer permute and gather families remain visible as named intrinsics.
 - AArch64 absolute and absolute-difference operations preserve signedness.
 - RISC-V carry-less multiply instructions preserve named cryptographic semantics.
 - MIPS immediate and register-count rotate-right instructions preserve named semantics.

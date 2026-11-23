@@ -1,6 +1,9 @@
-# Lens 0.6.70 — Fourier
+# Lens 0.6.71 — Fourier
 
 ## What's new
+
+- AVX2 integer permute and gather families now remain visible as named pseudocode intrinsics.
+- Vector lane-index and memory-gather operand groups are preserved in decompiler output.
 
 - Common x86/x64 packed integer and floating-point comparison families now remain visible as named pseudocode intrinsics.
 - AVX comparison masks preserve their operand groups instead of falling through to opaque generic handling.
