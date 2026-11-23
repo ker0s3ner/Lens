@@ -835,7 +835,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
     match (fm, base_mn) {
         // ---------------------------------------------------------- moves
         (_, "nop" | "pacibsp" | "paciasp" | "autiasp" | "autibsp" | "bti" | "hint" | "c.nop" | "dmb" | "dsb" | "isb" | "fence" | "sync" | "isync") => {}
-        (Fam::A64, "mov" | "movz") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") => {
+        (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") => {
             let mut v = dc.g_val(st, o(1), None);
             if base_mn == "lis" {
                 v = bin("<<", v, Ex::Num(16));
@@ -867,6 +867,18 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let a = dc.g_val(st, o(1), None);
             let ty = if base_mn == "scvtf" { "double" } else if base_mn == "ucvtf" { "double" } else { "int64_t" };
             set(dc, st, 0, Ex::Cast(ty, Box::new(a)));
+        }
+        (Fam::A64, "fcmp" | "fcmpe") if ops.len() >= 2 => {
+            let a = dc.g_val(st, o(0), None);
+            let b = dc.g_val(st, o(1), None);
+            st.flags = Flags::Cmp(a, b);
+        }
+        (Fam::A64, "fcsel") if ops.len() >= 4 => {
+            let c = ops.last().and_then(|s| cc_of(s)).unwrap_or(CC::e);
+            let cond = cc_expr(c, &st.flags);
+            let yes = dc.g_val(st, o(1), None);
+            let no = dc.g_val(st, o(2), None);
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(yes), Box::new(no)));
         }
         (Fam::A64, "fmla" | "fmls") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);

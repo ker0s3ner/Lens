@@ -36,7 +36,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 ### Decompile and edit
 
 - Produce approximate C-like pseudocode and render it as C, Rust, Python, Go or JavaScript; scalar SSE and common AVX operations retain float/double or vector declarations and binary expressions.
-- The x86/x64 lifter has the broadest coverage. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use integer-focused lifters; ARM64 NEON vector registers are tracked as 128-bit values, common `fadd`/`fsub`/`fmul`/`fdiv`/`fmla` plus `fneg`/`fabs`/`fsqrt` operations become readable expressions, and other unsupported vector operations remain visible as intrinsic-style calls.
+- The x86/x64 lifter has the broadest coverage. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use integer-focused lifters; ARM64 NEON vector registers are tracked as 128-bit values, common floating-point arithmetic, moves, comparisons and conditional selects become readable expressions, and other unsupported vector operations remain visible as intrinsic-style calls.
 - Patch bytes, NOP instructions, invert supported branches, or force supported conditional branches. Save a patched copy separately from the original; Mach-O output is ad-hoc signed when possible.
 - Run Rhai scripts against a read-only analysis snapshot (including types, segments, imports/exports, and incoming/outgoing xrefs), then apply queued actions such as renames, notes, bookmarks, patches, navigation, and defining/applying types. `.rhai` plugins may define an `on_open` hook.
 - Rhai snapshots expose `pointer_tables()` and `vtables()` for scripted inspection, and scripts can promote entries with `define_pointer_table(addr)` or `define_array(addr)`.

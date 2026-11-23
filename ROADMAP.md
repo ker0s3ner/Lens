@@ -141,6 +141,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Itanium C++ vtable discovery now recognizes the two-word offset-to-top/typeinfo header before validating the executable method-pointer run.
 - ARM and Thumb switch recovery now also recognizes bounded PC-indexed inline jump tables formed by `add pc, pc, rN, lsl #2`.
 - One-instruction jumps through imported function slots are now classified as forwarding thunks alongside direct known-target jumps.
+- ARM64 `fmov`, `fcmp`/`fcmpe` and `fcsel` now preserve floating-point values and comparison conditions in generic pseudocode.
 - Release notes now have a shared source: the current codename and What's New list are shown in-app, attached to GitHub releases, and archived on the GitHub Pages version-history page.
 - SIMD declaration width is inferred from the actual XMM/YMM/ZMM operand, avoiding blanket `__m256` labels for 128-bit VEX instructions.
 - Rename variables in pseudocode (double-click), remembered per function and undoable.
