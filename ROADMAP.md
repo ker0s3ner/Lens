@@ -80,6 +80,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - RISC-V complementing bitwise operations preserve `andn`, `orn`, and `xnor` semantics.
 - PowerPC 32-bit and 64-bit count-leading-zero instructions preserve named semantics.
 - x86/x64 `adcx` and `adox` preserve multi-precision carry-chain operations.
+- RISC-V rotate and byte-reverse instructions preserve named bitmanip semantics.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.
