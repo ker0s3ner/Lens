@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS movz and movn now decompile as conditional selections instead of opaque operations.",
+    "MIPS register-dependent value flow is preserved in readable ternary expressions.",
     "ARM/Thumb mla and mls now lift to readable multiply-accumulate and multiply-subtract expressions.",
     "Common ARM arithmetic idioms no longer fall through to opaque intrinsic calls.",
     "PowerPC mulhw, mulhwu, mulhd, and mulhdu now preserve signed and unsigned high-half products in pseudocode.",

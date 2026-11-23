@@ -1,6 +1,9 @@
-# Lens 0.6.31 — Fourier
+# Lens 0.6.32 — Fourier
 
 ## What's new
+
+- MIPS `movz` and `movn` now decompile as conditional selections instead of opaque operations.
+- MIPS register-dependent value flow is preserved in readable ternary expressions.
 
 - ARM/Thumb `mla` and `mls` now lift to readable multiply-accumulate and multiply-subtract expressions.
 - Common ARM arithmetic idioms no longer fall through to opaque intrinsic calls.

@@ -896,6 +896,13 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             };
             set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(yes), Box::new(no)));
         }
+        (Fam::Mips, "movz" | "movn") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let old = dc.g_val(st, o(0), None);
+            let test = dc.g_val(st, o(2), None);
+            let cond = if base_mn == "movz" { bin("==", test, Ex::Num(0)) } else { bin("!=", test, Ex::Num(0)) };
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(value), Box::new(old)));
+        }
         (Fam::A64, "cset" | "csetm") if ops.len() >= 2 => {
             let c = ops.last().and_then(|s| cc_of(s)).unwrap_or(CC::e);
             let cond = cc_expr(c, &st.flags);
