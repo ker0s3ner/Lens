@@ -1,6 +1,9 @@
-# Lens 0.6.62 — Fourier
+# Lens 0.6.63 — Fourier
 
 ## What's new
+
+- AArch64 NEON variable, rounded, and narrowing shift operations now remain visible as named pseudocode intrinsics.
+- Common vector shift and rescale operations no longer disappear in generic lifting.
 
 - AArch64 NEON widening, narrowing, and high-half vector operations now remain visible as named pseudocode intrinsics.
 - Common lane-width conversion and rounded narrowing operations no longer disappear in generic lifting.
