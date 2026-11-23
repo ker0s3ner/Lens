@@ -133,6 +133,40 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let s = snap.clone();
     e.register_fn("find", move |n: &str| -> INT { s.names.iter().find(|(_, v)| v.as_str() == n).map(|(a, _)| *a as INT).unwrap_or(0) });
     let s = snap.clone();
+    e.register_fn("search", move |query: &str| -> Array {
+        let q = query.to_lowercase();
+        let mut out = Vec::new();
+        for (addr, name) in &s.names {
+            if name.to_lowercase().contains(&q) {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*addr as INT));
+                m.insert("kind".into(), Dynamic::from("name"));
+                m.insert("text".into(), Dynamic::from(name.clone()));
+                out.push(Dynamic::from_map(m));
+            }
+        }
+        for (addr, text) in &s.strings {
+            if text.to_lowercase().contains(&q) {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*addr as INT));
+                m.insert("kind".into(), Dynamic::from("string"));
+                m.insert("text".into(), Dynamic::from(text.clone()));
+                out.push(Dynamic::from_map(m));
+            }
+        }
+        for (addr, text) in &s.comments {
+            if text.to_lowercase().contains(&q) {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*addr as INT));
+                m.insert("kind".into(), Dynamic::from("comment"));
+                m.insert("text".into(), Dynamic::from(text.clone()));
+                out.push(Dynamic::from_map(m));
+            }
+        }
+        out.sort_by_key(|v| v.clone_cast::<Map>().get("addr").and_then(|a| a.clone().try_cast::<INT>()).unwrap_or(0));
+        out
+    });
+    let s = snap.clone();
     e.register_fn("comment_at", move |a: INT| -> String { s.comments.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
     e.register_fn("bookmarks", move || -> Array { arr_u64(&s.bookmarks) });
@@ -566,7 +600,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API v1: script_api_version() functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
+            ui.label(RichText::new("API v1: script_api_version() functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) search(query) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();
