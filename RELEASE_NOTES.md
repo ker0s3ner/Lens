@@ -1,6 +1,9 @@
-# Lens 0.6.22 — Fourier
+# Lens 0.6.23 — Fourier
 
 ## What's new
+
+- Thumb indexed `ldr pc, [pc, index, lsl #2]` jump tables now recover bounded absolute targets.
+- Recovered targets are validated against executable mappings and decoded instructions before becoming switch cases.
 
 - Mach-O `LC_DATA_IN_CODE` ranges are excluded from executable discovery.
 - Analysis notes record the number of embedded-data ranges recognized in Mach-O files.

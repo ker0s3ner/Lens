@@ -334,6 +334,28 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
 fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
     let raw_ops = raw.ops.to_ascii_lowercase();
+    if raw.mnemonic.starts_with("ldr") && raw_ops.starts_with("pc,") && raw_ops.contains("[pc,") && raw_ops.contains("lsl #2") {
+        let mut bound = None;
+        for (&addr, _) in insns.range(..at).rev().take(20) {
+            let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+            if prev.mnemonic == "cmp" {
+                let n = prev.ops.rsplit(',').next().and_then(|s| s.trim().trim_start_matches('#').parse::<u64>().ok());
+                bound = n.map(|v| v.saturating_add(1));
+                break;
+            }
+        }
+        let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
+        let table = (at + 4) & !3;
+        let mut out = Vec::new();
+        for k in 0..count {
+            let b = bin.read(table + (k * 4) as u64, 4);
+            if b.len() != 4 { break; }
+            let target = if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 };
+            if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
+            out.push(target);
+        }
+        return if out.iter().collect::<HashSet<_>>().len() >= 2 { out } else { vec![] };
+    }
     if raw.mnemonic == "add" && raw_ops.starts_with("pc, pc,") && raw_ops.contains("lsl #2") {
         let mut bound = None;
         for (&addr, _) in insns.range(..at).rev().take(20) {

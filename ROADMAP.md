@@ -61,6 +61,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Improve collaboration and interchange; IDC/Ghidra script and JSON/map exports and partial IDC/Ghidra import already exist, but richer database import remains.
 
 ## Done so far (toward parity)
+- Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.
