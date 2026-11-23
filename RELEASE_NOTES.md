@@ -1,6 +1,9 @@
-# Lens 0.6.23 — Fourier
+# Lens 0.6.24 — Fourier
 
 ## What's new
+
+- ARM64 scaled switch-table offsets and halfword entries now honor big-endian binaries.
+- The roadmap now records completed common switch-table support across x86, ARM, RISC-V, MIPS, and PowerPC while identifying remaining idioms for validation.
 
 - Thumb indexed `ldr pc, [pc, index, lsl #2]` jump tables now recover bounded absolute targets.
 - Recovered targets are validated against executable mappings and decoded instructions before becoming switch cases.

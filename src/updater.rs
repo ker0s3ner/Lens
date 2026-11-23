@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM64 scaled switch-table offsets and halfword entries now honor big-endian binaries.",
+    "Common switch-table support now spans x86, ARM, RISC-V, MIPS, and PowerPC, with remaining compiler idioms still tracked.",
     "Thumb indexed ldr pc, [pc, index, lsl #2] jump tables now recover bounded absolute targets.",
     "Recovered targets are validated against executable mappings and decoded instructions before becoming switch cases.",
     "Mach-O LC_DATA_IN_CODE ranges are excluded from executable discovery.",

@@ -310,7 +310,8 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
             4 => {
                 let b = bin.read(tbl + 4 * k as u64, 4);
                 if b.len() < 4 { break; }
-                (base.unwrap_or(tbl) as i64 + i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as i64) as u64
+                let raw = if bin.big_endian { i32::from_be_bytes([b[0], b[1], b[2], b[3]]) } else { i32::from_le_bytes([b[0], b[1], b[2], b[3]]) };
+                (base.unwrap_or(tbl) as i64 + raw as i64) as u64
             }
             1 => {
                 let Some(bs) = bin.byte(tbl + k as u64) else { break };
@@ -319,7 +320,8 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
             _ => {
                 let b = bin.read(tbl + 2 * k as u64, 2);
                 if b.len() < 2 { break; }
-                base.unwrap_or(tbl) + ((u16::from_le_bytes([b[0], b[1]]) as u64) << shift)
+                let raw = if bin.big_endian { u16::from_be_bytes([b[0], b[1]]) } else { u16::from_le_bytes([b[0], b[1]]) };
+                base.unwrap_or(tbl) + ((raw as u64) << shift)
             }
         };
         if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }

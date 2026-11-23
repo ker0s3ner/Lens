@@ -21,7 +21,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
-- Extend switch/jump-table recovery beyond x86, ARM64 and basic Thumb TBB/TBH tables to ARM/Thumb patterns, RISC-V, MIPS and PowerPC.
+- Extend switch/jump-table recovery beyond x86, ARM64 and basic Thumb TBB/TBH tables to additional ARM/Thumb patterns, RISC-V, MIPS and PowerPC; common absolute-table forms are implemented, while more compiler idioms and corpus validation remain.
 - Vtable, RTTI and Objective-C / Swift metadata recovery.
 - Extend function-boundary recovery beyond ELF `.eh_frame`, PE `.pdata` and Mach-O `LC_FUNCTION_STARTS` / `__unwind_info`; add more robust malformed-table handling and additional format-specific tables.
 - Improve constant propagation and broaden no-return, tail-call and thunk detection beyond the current known names/prototypes and direct-target cases.
@@ -62,6 +62,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Done so far (toward parity)
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
+- ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - C-like union definitions with overlapping fields, persisted alongside existing struct definitions.
 - Basic C enum definitions with implicit and explicit decimal/hex values; applying an enum to data resolves the stored integer to a named member.
 - Scalar, pointer and previously defined type aliases via `typedef`; aliases are checked against known layouts, and cyclic or unknown alias targets fail clearly. Duplicate fields and zero/overflowing array layouts are rejected.
