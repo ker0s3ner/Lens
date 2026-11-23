@@ -230,6 +230,24 @@ pub fn is_noreturn_name(name: &str) -> bool {
     NORETURN.iter().any(|x| *x == n || *x == short)
 }
 
+fn itanium_type_name(symbol: &str) -> Option<String> {
+    let s = symbol.trim_start_matches('_');
+    let mut rest = s.strip_prefix("ZTI")?;
+    let nested = rest.starts_with('N');
+    if nested { rest = &rest[1..]; }
+    let mut parts = Vec::new();
+    while !rest.is_empty() && (!nested || !rest.starts_with('E')) {
+        let digits = rest.bytes().take_while(|b| b.is_ascii_digit()).count();
+        if digits == 0 { return None; }
+        let len = rest[..digits].parse::<usize>().ok()?;
+        rest = &rest[digits..];
+        if rest.len() < len { return None; }
+        parts.push(rest[..len].to_string());
+        rest = &rest[len..];
+    }
+    (!parts.is_empty()).then(|| parts.join("::"))
+}
+
 /// Arch-neutral summary of the instruction at `addr` (any supported CPU).
 /// Finds the targets of a compiler-generated switch: `cmp idx, N; ja default; lea base,[table]; movsxd; add; jmp reg`
 /// (position independent, 4-byte offsets) or `jmp [table + idx*8]` (absolute pointers).
@@ -1297,7 +1315,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             if funcs.len() >= 2 {
                 vtables.entry(header).or_insert(funcs);
                 if let Some((_, symbol)) = bin.data_symbols.iter().find(|(addr, _)| *addr == typeinfo) {
-                    vtable_names.entry(header).or_insert_with(|| format!("vtable for {}", display_symbol(symbol)));
+                    let type_name = itanium_type_name(symbol).unwrap_or_else(|| display_symbol(symbol));
+                    vtable_names.entry(header).or_insert_with(|| format!("vtable for {type_name}"));
                 }
             }
         }
@@ -1646,6 +1665,13 @@ mod tests {
         assert!(is_noreturn_name("core::panicking::panic_fmt"));
         assert!(is_noreturn_name("__cxa_pure_virtual"));
         assert!(is_noreturn_name("panic"));
+    }
+
+    #[test]
+    fn decodes_simple_itanium_typeinfo_names() {
+        assert_eq!(itanium_type_name("_ZTI3Foo").as_deref(), Some("Foo"));
+        assert_eq!(itanium_type_name("_ZTIN3Foo3BarE").as_deref(), Some("Foo::Bar"));
+        assert!(itanium_type_name("not_rtti").is_none());
     }
 
     #[test]

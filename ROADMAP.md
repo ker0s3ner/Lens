@@ -147,6 +147,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - C-like type parsing now preserves nested function-pointer depth, including pointer-to-callback fields and typedef aliases.
 - Itanium vtables now retain an associated typeinfo symbol when the binary exposes one, and Lists/JSON surface that RTTI-derived name.
 - User-defined enum definitions now propagate into typed pseudocode call arguments as scoped constants when the integer value matches.
+- Simple Itanium RTTI names such as `_ZTI3Foo` and `_ZTIN3Foo3BarE` are rendered as `Foo` and `Foo::Bar` for discovered vtables.
 - Thunk classification now tolerates straight-line `nop`/`endbr32`/`endbr64` prefixes before a known direct or imported-slot jump.
 - Release notes now have a shared source: the current codename and What's New list are shown in-app, attached to GitHub releases, and archived on the GitHub Pages version-history page.
 - SIMD declaration width is inferred from the actual XMM/YMM/ZMM operand, avoiding blanket `__m256` labels for 128-bit VEX instructions.
