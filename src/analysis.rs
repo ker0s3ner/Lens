@@ -1819,7 +1819,9 @@ mod idea_tests {
         }
         let mut bin = bin_of(code, data);
         bin.segments[1].exec = false;
+        bin.data_symbols.push((0x2010, "_ZTI3Foo".into()));
         let an = run(&bin, Default::default());
         assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
+        assert_eq!(an.vtable_names.get(&0x2000).map(String::as_str), Some("vtable for Foo"));
     }
 }
