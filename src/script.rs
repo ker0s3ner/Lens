@@ -23,6 +23,7 @@ pub struct Snap {
     pub out_xrefs: HashMap<u64, Vec<u64>>,
     pub pointer_tables: Vec<(u64, Vec<u64>)>,
     pub vtables: Vec<(u64, Vec<u64>)>,
+    pub vtable_names: HashMap<u64, String>,
     pub applied_types: HashMap<u64, String>,
     pub types: Vec<crate::types::StructDef>,
 }
@@ -151,6 +152,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         s.vtables.iter().map(|(a, entries)| {
             let mut m = Map::new();
             m.insert("addr".into(), Dynamic::from(*a as INT));
+            if let Some(name) = s.vtable_names.get(a) { m.insert("type".into(), Dynamic::from(name.clone())); }
             m.insert("entries".into(), Dynamic::from(arr_u64(entries)));
             Dynamic::from_map(m)
         }).collect()
@@ -345,6 +347,7 @@ impl LensApp {
             out_xrefs,
             pointer_tables: l.an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtables: l.an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
+            vtable_names: l.an.vtable_names.clone(),
             applied_types: l.ann.applied.iter().cloned().collect(),
             types: l.ann.structs.clone(),
         })
@@ -526,7 +529,7 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: HashMap::new(), strings: vec![],
-            xrefs: HashMap::new(), out_xrefs: HashMap::new(), pointer_tables: vec![], vtables: vec![],
+            xrefs: HashMap::new(), out_xrefs: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
         let out = run("print(pointer_tables().len); print(vtables().len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);

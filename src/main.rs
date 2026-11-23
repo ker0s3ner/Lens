@@ -125,6 +125,7 @@ fn cli(args: &[String]) -> bool {
             out_xrefs,
             pointer_tables: an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtables: an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
+            vtable_names: an.vtable_names.clone(),
             applied_types: ann.applied.iter().cloned().collect(),
             types: ann.structs.clone(),
         };
