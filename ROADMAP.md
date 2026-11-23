@@ -159,6 +159,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Mach-O Swift reflection and type-reference string sections now receive `swift_` names during string analysis.
 - Common Swift `$s` symbols now retain readable module and declaration components through basic demangling.
 - ELF GNU IFUNC symbols now seed function discovery and navigation alongside ordinary function symbols.
+- PE TLS callbacks now seed function discovery before the entry point, with a loader note recording the callback count.
 - C enum parsing now accepts common binary/octal literals and constant bitwise, shift, addition and subtraction expressions.
 - User-defined enum definitions now propagate into typed pseudocode call arguments as scoped constants when the integer value matches.
 - Simple Itanium RTTI names such as `_ZTI3Foo` and `_ZTIN3Foo3BarE` are rendered as `Foo` and `Foo::Bar` for discovered vtables.

@@ -11,7 +11,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Translate pasted hex, C byte arrays, `\\x` escapes, Intel HEX and S-record data into disassembly.
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
 - Detect Electron `app.asar` archives and extract their JavaScript resources as source files.
-- Read function-start hints from ELF `.eh_frame`, PE `.pdata`, and Mach-O `LC_FUNCTION_STARTS` and `__unwind_info`. DWARF can supply function names and prototypes; named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
+- Read function-start hints from ELF `.eh_frame`, PE `.pdata` and TLS callbacks, and Mach-O `LC_FUNCTION_STARTS` and `__unwind_info`. DWARF can supply function names and prototypes; named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
 
 ### Analyze and navigate
 

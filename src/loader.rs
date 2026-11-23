@@ -655,6 +655,18 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             file_offset: Some(s.pointer_to_raw_data as u64),
         });
     }
+    // TLS callbacks execute before the PE entry point and are often used for
+    // runtime initialization or packer logic. Treat them as function starts.
+    if let Some(tls) = &pe.tls_data {
+        for &callback in &tls.callbacks {
+            if callback >= base && bin.is_exec(callback) {
+                bin.func_hints.push(callback);
+            }
+        }
+        if !tls.callbacks.is_empty() {
+            bin.notes.push(format!("PE TLS callbacks: {} function-start hint(s).", tls.callbacks.len()));
+        }
+    }
     for imp in &pe.imports {
         bin.imports.push(Import {
             slot: base + imp.rva as u64,
