@@ -95,6 +95,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Corpus run: 200 system programs decompiled end to end with no crashes or timeouts (found and fixed a runaway-memory bug on stack offsets).
 - Export the listing as text and the call graph as Graphviz.
 - Function prototypes (type library): ~190 built-in libc / POSIX / sockets / threads / Win32 / macOS signatures plus your own. Calls get the exact argument count, noreturn functions end paths, call results get real types (`char *v5`), and a function with a prototype is printed with its types and parameter names.
+- Known prototype return types now survive unambiguous temporary copy chains and explicit casts in pseudocode; conflicting or unknown repeated assignments stay conservative.
 - Rhai scripts can read a snapshot of functions, names, strings, segments, imports/exports, types, xrefs, pointer tables, vtables, bytes and disassembly, and queue changes such as renames, comments, marks, patches, navigation, function creation, and type definitions/application. `.rhai` plugins can run manually or on file open.
 - Scripts can query outgoing as well as incoming xrefs; command-line and GUI script snapshots expose the same additions.
 - Thumb TBB/TBH indirect branches recover bounded case targets when a nearby compare supplies a usable bound.
