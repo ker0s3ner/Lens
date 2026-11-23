@@ -1,6 +1,9 @@
-# Lens 0.6.68 — Fourier
+# Lens 0.6.69 — Fourier
 
 ## What's new
+
+- Common x86/x64 packed integer add/subtract, bitwise, and multiply families now remain visible as named pseudocode intrinsics.
+- AVX2 integer vector operations preserve their operand groups instead of falling through to opaque generic handling.
 
 - Common AVX/SSE blend, shuffle, permute, and lane-reordering instructions now remain visible as named pseudocode intrinsics.
 - Vector layout operations no longer fall through to opaque generic handling.
