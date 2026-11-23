@@ -29,11 +29,19 @@ pub fn load_project(path: &std::path::Path) -> Result<ProjectManifest, String> {
 
 pub fn save_project(path: &std::path::Path, name: &str, files: &[String], active_file: Option<&str>) -> Result<(), String> {
     if files.is_empty() { return Err("A Lens project needs at least one file".into()); }
+    let base = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let portable = |file: &str| {
+        let candidate = std::path::Path::new(file);
+        candidate.strip_prefix(base).ok()
+            .filter(|relative| !relative.as_os_str().is_empty())
+            .map(|relative| relative.to_string_lossy().to_string())
+            .unwrap_or_else(|| file.to_string())
+    };
     let project = ProjectManifest {
         schema_version: PROJECT_SCHEMA_VERSION,
         name: name.trim().to_string(),
-        files: files.to_vec(),
-        active_file: active_file.map(str::to_string),
+        files: files.iter().map(|file| portable(file)).collect(),
+        active_file: active_file.map(portable),
     };
     let text = serde_json::to_string_pretty(&project).map_err(|e| format!("Couldn't encode project: {e}"))?;
     let tmp = path.with_extension(format!("lensproj.{}.tmp", std::process::id()));
@@ -234,11 +242,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("lens-project-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("sample.lensproj");
-        let files = vec!["/tmp/one.bin".into(), "/tmp/two.bin".into()];
+        let local_file = dir.join("one.bin").to_string_lossy().to_string();
+        let files = vec![local_file, "/tmp/two.bin".into()];
         save_project(&path, "Sample", &files, Some("/tmp/two.bin")).unwrap();
         let loaded = load_project(&path).unwrap();
         assert_eq!(loaded.name, "Sample");
-        assert_eq!(loaded.files, files);
+        assert_eq!(loaded.files, vec!["one.bin", "/tmp/two.bin"]);
         assert_eq!(loaded.active_file.as_deref(), Some("/tmp/two.bin"));
         assert!(save_project(&path, "Empty", &[], None).is_err());
         let _ = std::fs::remove_file(path);

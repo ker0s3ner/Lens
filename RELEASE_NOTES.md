@@ -1,4 +1,4 @@
-# Lens 0.6.18 — Fourier
+# Lens 0.6.19 — Fourier
 
 ## What's new
 
@@ -17,6 +17,7 @@
 - Opening a project member keeps the workspace active and records that binary as the manifest’s active file.
 - Relative project members now resolve from the `.lensproj` directory, making project files portable.
 - Resolved absolute paths continue to match relative project members when switching files.
+- Save Project now serializes members inside the project directory as relative paths while preserving external paths.
 
 ## Release cadence
 

@@ -106,6 +106,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Opening a project member keeps the workspace active and records that binary as the manifest’s active file.
 - Relative project members resolve from the `.lensproj` directory for portable projects.
 - Resolved absolute paths continue to match relative project members when switching files.
+- Save Project serializes in-project members as relative paths for portability.
 - The debugger can restart the current launch/attach/remote configuration after the target exits.
 - ARM64 switch tables (both the 4-byte-offset and byte/halfword-scaled forms), so the Apple Silicon side of Mach-O files gets real switch edges.
 - Constant names in call arguments per OS (open flags, mmap, sockets, signals, Win32 memory/file) and short string arguments recovered.
