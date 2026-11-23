@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "x86/x64 adcx and adox now preserve named carry-chain arithmetic for multi-precision code.",
+    "Carry-domain arithmetic remains visible instead of falling through to an opaque intrinsic.",
     "PowerPC cntlzw and cntlzd now decompile as named count-leading-zero operations.",
     "PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.",
     "RISC-V andn, orn, and xnor now decompile as explicit complement-and-combine expressions.",

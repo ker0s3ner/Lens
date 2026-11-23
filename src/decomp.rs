@@ -1173,6 +1173,12 @@ impl<'a> Dc<'a> {
                     let amount = self.read_op(&mut st, ins, 2);
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("rorx")), vec![value, amount]));
                 }
+                Mnemonic::Adcx | Mnemonic::Adox if ins.op_count() >= 2 => {
+                    let acc = self.read_op(&mut st, ins, 0);
+                    let value = self.read_op(&mut st, ins, 1);
+                    let helper = if m == Mnemonic::Adcx { "adcx" } else { "adox" };
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(helper)), vec![acc, value]));
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = Ex::Call(Box::new(var("__wide_dividend")), vec![
                         self.rd_reg(&mut st, Register::RDX),
