@@ -1,6 +1,9 @@
-# Lens 0.6.42 — Fourier
+# Lens 0.6.43 — Fourier
 
 ## What's new
+
+- RISC-V `bext`, `bdep`, `bcompress`, and `bdecompress` now preserve named bit extract/deposit semantics.
+- RISC-V bitmanip data flow remains visible in pseudocode.
 
 - RISC-V `rol`, `ror`, word rotate forms, and `rev8` now decompile as named rotate and byte-reverse operations.
 - RISC-V bitmanip rotate semantics remain visible in pseudocode.

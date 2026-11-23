@@ -1208,6 +1208,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let amount = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![value, amount]));
         }
+        (Fam::Rv, "bext" | "bdep" | "bcompress" | "bdecompress") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), vec![a, b]));
+        }
         (Fam::Rv, "rev8") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("byteswap")), vec![value]));

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V bext, bdep, bcompress, and bdecompress now preserve named bit extract/deposit semantics.",
+    "RISC-V bitmanip data flow remains visible in pseudocode.",
     "RISC-V rol, ror, word rotate forms, and rev8 now decompile as named rotate and byte-reverse operations.",
     "RISC-V bitmanip rotate semantics remain visible in pseudocode.",
     "x86/x64 adcx and adox now preserve named carry-chain arithmetic for multi-precision code.",
