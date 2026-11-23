@@ -122,6 +122,7 @@ fn cli(args: &[String]) -> bool {
             names: names.iter().map(|(a, (n, _))| (*a, n.clone())).collect(),
             strings: an.strings.iter().map(|s| (s.addr, s.text.clone())).collect(),
             xrefs,
+            xref_details: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| (x.from, x.kind.label().to_string())).collect())).collect(),
             out_xrefs,
             pointer_tables: an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtables: an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
