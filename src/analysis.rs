@@ -1324,8 +1324,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
     }
 
-    // Mark direct one-instruction forwarding thunks after discovery is complete,
-    // so targets reached later in the queue are visible too.
+    // Mark one-instruction forwarding thunks after discovery is complete, so
+    // targets reached later in the queue are visible too. Import-slot jumps
+    // are also forwarding thunks even though their branch target is indirect.
     let function_starts: HashSet<u64> = functions.keys().copied().collect();
     let import_starts: HashSet<u64> = functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
     for f in functions.values_mut() {
@@ -1335,9 +1336,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                     if i.flow == Flow::Jump
                         && i.target != f.start
                         && (function_starts.contains(&i.target) || sym_at.contains_key(&i.target) || import_starts.contains(&i.target))
-                    {
-                        f.thunk_target = Some(i.target);
-                    }
+                    { f.thunk_target = Some(i.target); }
+                    else if i.flow == Flow::IndirectJump && import_slot.contains_key(&i.mem)
+                    { f.thunk_target = Some(i.mem); }
                 }
             }
         }
@@ -1688,6 +1689,20 @@ mod tests {
         };
         let mut bin = raw_binary(&spec);
         bin.symbols.push((0x1006, "target".into()));
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
+    }
+
+    #[test]
+    fn classifies_import_slot_forwarding_thunks() {
+        // jmp qword ptr [rip+0] with the import slot immediately after it.
+        let spec = RawSpec {
+            path: "t".into(), name: "t".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xFF, 0x25, 0, 0, 0, 0, 0, 0, 0, 0])],
+            entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.imports.push(crate::loader::Import { slot: 0x1006, name: "puts".into(), library: "libc".into() });
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
     }
