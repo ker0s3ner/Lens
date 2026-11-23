@@ -29,10 +29,10 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "Itanium C++ vtable metadata headers are recognized before method-pointer runs are validated.",
-    "ARM and Thumb PC-indexed inline switch tables are recovered with bounded case counts.",
-    "ARM64 NEON registers and common floating-point arithmetic are preserved in pseudocode.",
-    "Switch-case cross-references are distinct from ordinary direct jumps in listings and exports.",
+    "Rhai scripts can retrieve typed C-like pseudocode with decompile(addr).",
+    "Incoming and outgoing xrefs are available to scripts with relationship kinds preserved.",
+    "The Rhai API exposes script_api_version() and includes a versioned example plugin.",
+    "C declarations using __attribute__((packed)) now compute byte-aligned field layouts.",
 ];
 
 pub fn current_release_title() -> String {
