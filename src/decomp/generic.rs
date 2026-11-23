@@ -1072,6 +1072,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let ty = if base_mn == "seb" { "int8_t" } else { "int16_t" };
             set(dc, st, 0, Ex::Cast(ty, Box::new(value)));
         }
+        (Fam::Ppc, "popcntw" | "popcntd") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("popcount")), vec![value]));
+        }
         (Fam::Mips, "wsbh") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("byteswap16")), vec![value]));

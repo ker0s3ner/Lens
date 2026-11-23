@@ -1,6 +1,9 @@
-# Lens 0.6.49 — Fourier
+# Lens 0.6.50 — Fourier
 
 ## What's new
+
+- PowerPC `popcntw` and `popcntd` now decompile as named population-count operations.
+- PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.
 
 - MIPS `ext` and `ins` now preserve explicit bitfield extraction and insertion operands.
 - MIPS bitfield operations remain readable in pseudocode instead of opaque intrinsics.
