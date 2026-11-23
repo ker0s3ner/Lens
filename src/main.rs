@@ -118,6 +118,10 @@ fn cli(args: &[String]) -> bool {
         let mut out_xref_details: std::collections::HashMap<u64, Vec<(u64, String)>> = std::collections::HashMap::new();
         for (target, refs) in &an.xrefs_to { for x in refs { out_xref_details.entry(x.from).or_default().push((*target, x.kind.label().to_string())); } }
         for (target, sources) in &xrefs { for source in sources { out_xrefs.entry(*source).or_default().push(*target); } }
+        let pseudocode = an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| {
+            let d = decomp::decompile_with_types(&bin, &an, &names, f, det.conv, "", &ann.structs);
+            (f.start, decomp::render_text(&d))
+        }).collect();
         let snap = script::Snap {
             bin: std::sync::Arc::new(bin.clone()),
             funcs: an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| (f.start, names.get(&f.start).map(|n| n.0.clone()).unwrap_or_default(), f.end - f.start, f.blocks.len())).collect(),
@@ -127,6 +131,7 @@ fn cli(args: &[String]) -> bool {
             xref_details: an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| (x.from, x.kind.label().to_string())).collect())).collect(),
             out_xref_details,
             out_xrefs,
+            pseudocode,
             pointer_tables: an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtables: an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtable_names: an.vtable_names.clone(),
