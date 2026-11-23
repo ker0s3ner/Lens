@@ -1,6 +1,9 @@
-# Lens 0.6.59 — Fourier
+# Lens 0.6.60 — Fourier
 
 ## What's new
+
+- AArch64 NEON pairwise/reduction instructions now remain visible as named pseudocode intrinsics.
+- Saturating and halving vector add/subtract operations no longer disappear in generic lifting.
 
 - AArch64 NEON table, zip, unzip, and transpose instructions now remain visible as named pseudocode intrinsics.
 - Vector lane rearrangement operations no longer disappear when the generic lifter encounters them.

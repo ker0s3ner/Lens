@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 NEON pairwise/reduction instructions now remain visible as named pseudocode intrinsics.",
+    "Saturating and halving vector add/subtract operations no longer disappear in generic lifting.",
     "AArch64 NEON table, zip, unzip, and transpose instructions now remain visible as named pseudocode intrinsics.",
     "Vector lane rearrangement operations no longer disappear when the generic lifter encounters them.",
     "AArch64 SHA-1 and SHA-256 round/schedule instructions now preserve named cryptographic semantics and operands.",
