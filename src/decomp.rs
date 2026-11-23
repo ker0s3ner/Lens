@@ -1108,6 +1108,22 @@ impl<'a> Dc<'a> {
                     };
                     self.write_op(&mut st, ins, 0, r);
                 }
+                Mnemonic::Popcnt | Mnemonic::Tzcnt | Mnemonic::Lzcnt | Mnemonic::Bsf | Mnemonic::Bsr if ins.op_count() >= 2 => {
+                    let value = self.read_op(&mut st, ins, 1);
+                    let name = match m {
+                        Mnemonic::Popcnt => "popcount",
+                        Mnemonic::Tzcnt | Mnemonic::Bsf => "ctz",
+                        Mnemonic::Lzcnt => "clz",
+                        Mnemonic::Bsr => "msb_index",
+                        _ => "bitop",
+                    };
+                    let value = if m == Mnemonic::Bsr {
+                        bin("-", Ex::Num((ins.op0_register().size() as i64 * 8) - 1), Ex::Call(Box::new(var("clz")), vec![value]))
+                    } else {
+                        Ex::Call(Box::new(var(name)), vec![value])
+                    };
+                    self.write_op(&mut st, ins, 0, value);
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = self.rd_reg(&mut st, Register::RAX);
                     let b = self.read_op(&mut st, ins, 0);
