@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Documentation now reports the current 32% weighted breadth estimate and the implemented heuristic metadata coverage accurately.",
+    "README and roadmap limitations are synchronized with the current vtable/RTTI, Objective-C, and Swift analysis behavior.",
     "AArch64 NEON variable, rounded, and narrowing shift operations now remain visible as named pseudocode intrinsics.",
     "Common vector shift and rescale operations no longer disappear in generic lifting.",
     "AArch64 NEON widening, narrowing, and high-half vector operations now remain visible as named pseudocode intrinsics.",
