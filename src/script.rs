@@ -22,6 +22,7 @@ pub struct Snap {
     pub xrefs: HashMap<u64, Vec<u64>>,
     pub xref_details: HashMap<u64, Vec<(u64, String)>>,
     pub out_xrefs: HashMap<u64, Vec<u64>>,
+    pub out_xref_details: HashMap<u64, Vec<(u64, String)>>,
     pub pointer_tables: Vec<(u64, Vec<u64>)>,
     pub vtables: Vec<(u64, Vec<u64>)>,
     pub vtable_names: HashMap<u64, String>,
@@ -148,6 +149,15 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     });
     let s = snap.clone();
     e.register_fn("xrefs_from", move |a: INT| -> Array { arr_u64(s.out_xrefs.get(&(a as u64)).map(|v| v.as_slice()).unwrap_or(&[])) });
+    let s = snap.clone();
+    e.register_fn("xrefs_from_details", move |a: INT| -> Array {
+        s.out_xref_details.get(&(a as u64)).map(|xs| xs.iter().map(|(to, kind)| {
+            let mut m = Map::new();
+            m.insert("to".into(), Dynamic::from(*to as INT));
+            m.insert("kind".into(), Dynamic::from(kind.clone()));
+            Dynamic::from_map(m)
+        }).collect()).unwrap_or_default()
+    });
     let s = snap.clone();
     e.register_fn("pointer_tables", move || -> Array {
         s.pointer_tables.iter().map(|(a, entries)| {
@@ -346,6 +356,10 @@ impl LensApp {
         let xrefs: HashMap<u64, Vec<u64>> = l.an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect();
         let xref_details: HashMap<u64, Vec<(u64, String)>> = l.an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| (x.from, x.kind.label().to_string())).collect())).collect();
         let mut out_xrefs: HashMap<u64, Vec<u64>> = HashMap::new();
+        let mut out_xref_details: HashMap<u64, Vec<(u64, String)>> = HashMap::new();
+        for (target, refs) in &l.an.xrefs_to {
+            for x in refs { out_xref_details.entry(x.from).or_default().push((*target, x.kind.label().to_string())); }
+        }
         for (target, sources) in &xrefs {
             for source in sources { out_xrefs.entry(*source).or_default().push(*target); }
         }
@@ -357,6 +371,7 @@ impl LensApp {
             xrefs,
             xref_details,
             out_xrefs,
+            out_xref_details,
             pointer_tables: l.an.pointer_tables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtables: l.an.vtables.iter().map(|(a, v)| (*a, v.clone())).collect(),
             vtable_names: l.an.vtable_names.clone(),
@@ -514,7 +529,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API: functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) xrefs_to(a) xrefs_to_details(a) xrefs_from(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
+            ui.label(RichText::new("API: functions() strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();
@@ -541,7 +556,7 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: HashMap::new(), strings: vec![],
-            xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
+            xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
         let out = run("print(pointer_tables().len); print(vtables().len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);

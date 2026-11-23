@@ -43,6 +43,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Run Rhai scripts against a read-only analysis snapshot (including types, segments, imports/exports, and incoming/outgoing xrefs), then apply queued actions such as renames, notes, bookmarks, patches, navigation, and defining/applying types. `.rhai` plugins may define an `on_open` hook.
 - Rhai snapshots expose `pointer_tables()` and `vtables()` for scripted inspection; vtable records include an optional recovered RTTI `type`, and scripts can promote entries with `define_pointer_table(addr)` or `define_array(addr)`.
 - `xrefs_to_details(addr)` exposes incoming xrefs as `{from, kind}` records, preserving distinctions such as `call`, `switch case`, `read`, `write`, and `pointer`.
+- `xrefs_from_details(addr)` exposes outgoing xrefs as `{to, kind}` records with the same relationship labels.
 - Compare two program versions by function shape and name.
 - Import exported Lens JSON databases with annotations, data definitions and applied-type references restored.
 - Exported/imported JSON databases also preserve user-authored prototypes used by the decompiler.
