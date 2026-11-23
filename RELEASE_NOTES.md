@@ -1,6 +1,9 @@
-# Lens 0.6.74 — Fourier
+# Lens 0.6.75 — Fourier
 
 ## What's new
+
+- Common AVX2 packed logical, arithmetic, and variable shift families now remain visible as named pseudocode intrinsics.
+- Vector lane shifts preserve their operand groups instead of falling through to opaque generic handling.
 
 - AArch64 NEON floating/integer conversion and rounding families now remain visible as named pseudocode intrinsics.
 - Common lane-width conversion and rounding operations no longer fall through to opaque generic handling.
