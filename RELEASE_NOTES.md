@@ -1,6 +1,9 @@
-# Lens 0.6.26 — Fourier
+# Lens 0.6.27 — Fourier
 
 ## What's new
+
+- MIPS `mult`, `multu`, `dmult`, and `dmultu` now preserve implicit HI/LO results through `mfhi` and `mflo`.
+- MIPS wide multiply pseudocode no longer drops the architecture's hidden result pair.
 
 - ARM/Thumb long multiply and accumulate instructions now preserve both low and high result registers in pseudocode.
 - Long arithmetic is represented with explicit wide-value helpers instead of silently dropping the upper half.

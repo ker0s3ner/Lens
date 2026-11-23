@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS mult, multu, dmult, and dmultu now preserve implicit HI/LO results through mfhi and mflo.",
+    "MIPS wide multiply pseudocode no longer drops the architecture's hidden result pair.",
     "ARM/Thumb long multiply and accumulate instructions now preserve both low and high result registers in pseudocode.",
     "Long arithmetic is represented with explicit wide-value helpers instead of silently dropping the upper half.",
     "Stripped functions ending in an architectural stop/trap instruction are now conservatively inferred as no-return.",

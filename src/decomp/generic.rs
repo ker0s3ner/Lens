@@ -12,6 +12,9 @@ use crate::multiarch;
 use iced_x86::ConditionCode as CC;
 
 const ZERO: u8 = 254;
+// Synthetic front-end registers for MIPS' implicit HI/LO multiply-divide pair.
+const MIPS_HI: u8 = 252;
+const MIPS_LO: u8 = 253;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 struct R {
@@ -1051,6 +1054,18 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, bin("-", c, bin("*", a, b)));
         }
         (Fam::A64, "smull" | "umull") => arith(dc, st, "*", false),
+        (Fam::Mips, "mult" | "multu" | "dmult" | "dmultu") if ops.len() >= 2 => {
+            let a = dc.g_val(st, o(0), None);
+            let b = dc.g_val(st, o(1), None);
+            let wide = Ex::Call(Box::new(var(if base_mn.ends_with('u') { "__mips_multu" } else { "__mips_mult" })), vec![a, b]);
+            st.env.insert(MIPS_LO, Ex::Call(Box::new(var("__wide_low")), vec![wide.clone()]));
+            st.env.insert(MIPS_HI, Ex::Call(Box::new(var("__wide_high")), vec![wide]));
+        }
+        (Fam::Mips, "mflo" | "mfhi") if !ops.is_empty() => {
+            let v = st.env.get(if base_mn == "mflo" { &MIPS_LO } else { &MIPS_HI }).cloned()
+                .unwrap_or_else(|| Ex::Call(Box::new(var(if base_mn == "mflo" { "__mips_lo" } else { "__mips_hi" })), vec![]));
+            set(dc, st, 0, v);
+        }
         (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd") => arith(dc, st, "/", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),
         (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") => arith(dc, st, "&", false),
