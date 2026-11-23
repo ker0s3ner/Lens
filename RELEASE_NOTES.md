@@ -1,6 +1,9 @@
-# Lens 0.6.50 — Fourier
+# Lens 0.6.51 — Fourier
 
 ## What's new
+
+- AArch64 AES round, inverse/mix, and PMULL operations now preserve named crypto semantics and operands.
+- Common AArch64 cryptographic instructions remain visible in pseudocode.
 
 - PowerPC `popcntw` and `popcntd` now decompile as named population-count operations.
 - PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 AES round, inverse/mix, and PMULL operations now preserve named crypto semantics and operands.",
+    "Common AArch64 cryptographic instructions remain visible in pseudocode.",
     "PowerPC popcntw and popcntd now decompile as named population-count operations.",
     "PowerPC bit-count semantics remain readable across 32-bit and 64-bit forms.",
     "MIPS ext and ins now preserve explicit bitfield extraction and insertion operands.",

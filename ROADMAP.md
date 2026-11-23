@@ -85,6 +85,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - x86/x64 BMI2 variable shifts preserve `shlx`, `shrx`, and `sarx` semantics.
 - AArch64 count, bit-reverse, and byte-reversal idioms preserve named semantics.
 - AArch64 CRC32 and CRC32C instructions preserve named checksum semantics.
+- AArch64 AES and PMULL instructions preserve named cryptographic semantics.
 - MIPS count-leading-zero and count-leading-one instructions preserve named semantics.
 - MIPS sign-extension and byte-shuffle instructions preserve named semantics.
 - MIPS `ext`/`ins` bitfield extraction and insertion preserve explicit operand semantics.

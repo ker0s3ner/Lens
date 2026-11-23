@@ -1203,6 +1203,13 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), vec![crc, value]));
         }
+        (Fam::A64, "aese" | "aesd" | "aesmc" | "aesimc" | "pmull" | "pmull2") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            let key = ops.get(2).map(|_| dc.g_val(st, o(2), None));
+            let mut args = vec![value];
+            if let Some(k) = key { args.push(k); }
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {
