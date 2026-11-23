@@ -1095,6 +1095,19 @@ impl<'a> Dc<'a> {
                     };
                     self.write_op(&mut st, ins, 0, r);
                 }
+                Mnemonic::Shld | Mnemonic::Shrd if ins.op_count() >= 3 && matches!(ins.op_kind(2), OpKind::Immediate8 | OpKind::Register) => {
+                    let dst = self.read_op(&mut st, ins, 0);
+                    let src = self.read_op(&mut st, ins, 1);
+                    let bits = (ins.op0_register().size() as u32 * 8).clamp(8, 64);
+                    let shift = if ins.op_kind(2) == OpKind::Immediate8 { Ex::Num((ins.immediate8() as u32 % bits) as i64) } else { self.read_op(&mut st, ins, 2) };
+                    let opposite = if let Ex::Num(n) = &shift { Ex::Num((bits as i64 - *n).rem_euclid(bits as i64)) } else { bin("-", Ex::Num(bits as i64), shift.clone()) };
+                    let r = if ins.mnemonic() == Mnemonic::Shld {
+                        bin("|", bin("<<", dst, shift), bin(">>", src, opposite))
+                    } else {
+                        bin("|", bin(">>", dst, shift), bin("<<", src, opposite))
+                    };
+                    self.write_op(&mut st, ins, 0, r);
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = self.rd_reg(&mut st, Register::RAX);
                     let b = self.read_op(&mut st, ins, 0);
