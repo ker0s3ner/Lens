@@ -150,6 +150,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - x86/x64 `shld` and `shrd` now render common immediate and register-count double-precision shifts as composed expressions.
 - x86/x64 `popcnt`, `tzcnt`, `lzcnt`, `bsf` and `bsr` now render as named bit-count/index operations.
 - x86/x64 BMI2 `pext`, `pdep` and `bzhi` now render as named bit-manipulation calls with preserved operands.
+- x86/x64 `bswap` now renders as a named byte-swap operation.
 - ARM64 NEON registers in pseudocode declarations now use the 128-bit `uint8x16_t` type instead of falling back to the architecture-wide integer type.
 - Known pointer-typed prototypes now preserve casts for constant call arguments in pseudocode without forcing casts onto uncertain inferred variables.
 - C-like type parsing now preserves nested function-pointer depth, including pointer-to-callback fields and typedef aliases.

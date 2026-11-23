@@ -1129,6 +1129,10 @@ impl<'a> Dc<'a> {
                     let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(name)), args));
                 }
+                Mnemonic::Bswap if ins.op_count() >= 1 => {
+                    let value = self.read_op(&mut st, ins, 0);
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("byteswap")), vec![value]));
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = self.rd_reg(&mut st, Register::RAX);
                     let b = self.read_op(&mut st, ins, 0);
