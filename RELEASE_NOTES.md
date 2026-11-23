@@ -1,6 +1,9 @@
-# Lens 0.6.34 — Fourier
+# Lens 0.6.35 — Fourier
 
 ## What's new
+
+- x86/x64 BMI2 `mulx` now preserves both low and high products from implicit RDX input.
+- x86/x64 `rorx` now decompiles as a flag-independent rotate operation.
 
 - PowerPC `isel` now preserves conditional selection operands in pseudocode.
 - PowerPC conditional data flow remains visible through an explicit semantic helper.

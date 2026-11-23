@@ -1161,6 +1161,18 @@ impl<'a> Dc<'a> {
                     let value = self.read_op(&mut st, ins, 0);
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("byteswap")), vec![value]));
                 }
+                Mnemonic::Mulx if ins.op_count() >= 3 => {
+                    let a = self.rd_reg(&mut st, Register::RDX);
+                    let b = self.read_op(&mut st, ins, 2);
+                    let wide = Ex::Call(Box::new(var("mulx")), vec![a, b]);
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("mulx_low")), vec![wide.clone()]));
+                    self.write_op(&mut st, ins, 1, Ex::Call(Box::new(var("mulx_high")), vec![wide]));
+                }
+                Mnemonic::Rorx if ins.op_count() >= 3 => {
+                    let value = self.read_op(&mut st, ins, 1);
+                    let amount = self.read_op(&mut st, ins, 2);
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var("rorx")), vec![value, amount]));
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = Ex::Call(Box::new(var("__wide_dividend")), vec![
                         self.rd_reg(&mut st, Register::RDX),
