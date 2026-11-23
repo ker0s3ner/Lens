@@ -150,11 +150,12 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
     if name.is_empty() { return Err("The struct needs a name".into()); }
     if is_enum {
         let mut values = Vec::new();
+        let mut names = HashMap::new();
         let mut next = 0i64;
         for item in clean[open + 1..close].split(',').map(str::trim).filter(|s| !s.is_empty()) {
             let (n, value) = match item.split_once('=') {
                 Some((name, value)) => {
-                    let value = parse_enum_int(value.trim()).ok_or(format!("Unsupported enum value in `{item}`"))?;
+                    let value = parse_enum_int(value.trim(), &names).ok_or(format!("Unsupported enum value in `{item}`"))?;
                     (name.trim(), value)
                 }
                 None => (item, next),
@@ -163,6 +164,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
                 return Err(format!("Can't read enum member `{n}`"));
             }
             values.push(EnumValue { name: n.to_string(), value });
+            names.insert(n.to_string(), value);
             next = value.saturating_add(1);
         }
         if values.is_empty() { return Err("The enum has no values".into()); }
@@ -274,8 +276,8 @@ fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
         || known.iter().any(|d| d.is_enum && d.name == t)
 }
 
-fn parse_enum_int(s: &str) -> Option<i64> {
-    fn atom(raw: &str) -> Option<i64> {
+fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
+    fn atom(raw: &str, names: &HashMap<String, i64>) -> Option<i64> {
         let mut s = raw.trim();
         while s.starts_with('(') && s.ends_with(')') {
             let inner = &s[1..s.len() - 1];
@@ -283,6 +285,7 @@ fn parse_enum_int(s: &str) -> Option<i64> {
             s = inner.trim();
         }
         let s = s.trim_end_matches(|c: char| matches!(c, 'u' | 'U' | 'l' | 'L'));
+        if let Some(value) = names.get(s) { return Some(*value); }
         let (neg, s) = s.strip_prefix('-').map(|v| (true, v)).unwrap_or((false, s));
         let (radix, digits) = if let Some(v) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
             (16, v)
@@ -296,15 +299,15 @@ fn parse_enum_int(s: &str) -> Option<i64> {
         let v = i64::from_str_radix(digits, radix).ok()?;
         Some(if neg { v.wrapping_neg() } else { v })
     }
-    fn eval(s: &str) -> Option<i64> {
+    fn eval(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         let s = s.trim();
         for op in ["|", "^", "&", "<<", ">>", "+", "-"] {
             let mut depth = 0i32;
             for (i, c) in s.char_indices().rev() {
                 match c { ')' => depth += 1, '(' => depth -= 1, _ => {} }
                 if depth == 0 && s[i..].starts_with(op) && (op != "-" || i > 0) {
-                    let a = eval(&s[..i])?;
-                    let b = eval(&s[i + op.len()..])?;
+                    let a = eval(&s[..i], names)?;
+                    let b = eval(&s[i + op.len()..], names)?;
                     return Some(match op {
                         "|" => a | b, "^" => a ^ b, "&" => a & b,
                         "<<" => a.wrapping_shl(b as u32), ">>" => a.wrapping_shr(b as u32),
@@ -313,9 +316,9 @@ fn parse_enum_int(s: &str) -> Option<i64> {
                 }
             }
         }
-        atom(s)
+        atom(s, names)
     }
-    eval(s)
+    eval(s, names)
 }
 
 /// Names for the fields of every applied struct.
@@ -495,7 +498,7 @@ mod tests {
 
     #[test]
     fn parses_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = 1 | 2 }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
         assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3)]);
     }
