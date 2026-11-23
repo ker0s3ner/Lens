@@ -844,6 +844,9 @@ pub fn demangle(name: &str) -> Option<String> {
             }
         }
     }
+    if let Some(d) = swift_demangle(name) {
+        return Some(d);
+    }
     let n = if name.starts_with("__Z") { &name[1..] } else { name };
     if n.starts_with("_Z") {
         let sym = cpp_demangle::Symbol::new(n).ok()?;
@@ -851,6 +854,26 @@ pub fn demangle(name: &str) -> Option<String> {
         return sym.demangle_with_options(&opts).ok();
     }
     None
+}
+
+/// Decode the readable component names from Swift's common `$s<length><name>…`
+/// symbol form. The trailing type/signature encoding is intentionally omitted.
+fn swift_demangle(name: &str) -> Option<String> {
+    let mut rest = name.strip_prefix("$s").or_else(|| name.strip_prefix("$S"))?;
+    let mut parts = Vec::new();
+    while !rest.is_empty() {
+        let digits = rest.bytes().take_while(|b| b.is_ascii_digit()).count();
+        if digits == 0 { break; }
+        let len = rest[..digits].parse::<usize>().ok()?;
+        rest = &rest[digits..];
+        if len == 0 || rest.len() < len { break; }
+        let part = &rest[..len];
+        if !part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') { break; }
+        parts.push(part.to_string());
+        rest = &rest[len..];
+        if parts.len() >= 4 { break; }
+    }
+    (parts.len() >= 2).then(|| parts.join("."))
 }
 
 /// Short display form of a symbol: demangled when possible.
@@ -1681,6 +1704,11 @@ mod tests {
         assert_eq!(itanium_type_name("_ZTI3Foo").as_deref(), Some("Foo"));
         assert_eq!(itanium_type_name("_ZTIN3Foo3BarE").as_deref(), Some("Foo::Bar"));
         assert!(itanium_type_name("not_rtti").is_none());
+    }
+
+    #[test]
+    fn decodes_swift_component_names() {
+        assert_eq!(demangle("$s4Test5helloSiyF").as_deref(), Some("Test.hello"));
     }
 
     #[test]

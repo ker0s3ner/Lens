@@ -23,7 +23,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Prototype parsing preserves named function-pointer parameters and emits valid callback signatures.
 - Known prototype return types now propagate through simple temporary-to-temporary assignments in pseudocode declarations.
 - Identify direct and imported-slot forwarding thunks, including common `nop`/`endbr`-decorated stubs, and show their destination in function lists.
-- Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; available RTTI symbols are converted to readable C++ names in Lists and JSON. Objective-C method/property-name sections in Mach-O files receive selector-aware `sel_` names, and Swift reflection/type-reference strings receive `swift_` names.
+- Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; available RTTI symbols are converted to readable C++ names in Lists and JSON. Objective-C method/property-name sections in Mach-O files receive selector-aware `sel_` names, Swift `$s` symbols get readable component names, and Swift reflection/type-reference strings receive `swift_` names.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview; recovered switch-case destinations also appear as graph edges.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.
