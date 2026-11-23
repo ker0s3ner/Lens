@@ -724,7 +724,7 @@ fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) {
             let name = if raw & ordinal_mask != 0 {
                 format!("ordinal_{}", raw & 0xffff)
             } else {
-                read_string(base.saturating_add(raw & 0x7fff_ffff).saturating_add(2)).unwrap_or_else(|| "<unnamed>".into())
+                read_string(is_rva(attrs, raw & 0x7fff_ffff).saturating_add(2)).unwrap_or_else(|| "<unnamed>".into())
             };
             discovered.push(Import { slot: iat_addr.saturating_add(slot * ptr_size), name, library: library.clone() });
         }
