@@ -880,6 +880,25 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let no = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(yes), Box::new(no)));
         }
+        (Fam::A64, "csel" | "csinc" | "csinv" | "csneg") if ops.len() >= 4 => {
+            let c = ops.last().and_then(|s| cc_of(s)).unwrap_or(CC::e);
+            let cond = cc_expr(c, &st.flags);
+            let yes = dc.g_val(st, o(1), None);
+            let no0 = dc.g_val(st, o(2), None);
+            let no = match base_mn {
+                "csinc" => bin("+", no0, Ex::Num(1)),
+                "csinv" => Ex::Un("~", Box::new(no0)),
+                "csneg" => Ex::Un("-", Box::new(no0)),
+                _ => no0,
+            };
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(yes), Box::new(no)));
+        }
+        (Fam::A64, "cset" | "csetm") if ops.len() >= 2 => {
+            let c = ops.last().and_then(|s| cc_of(s)).unwrap_or(CC::e);
+            let cond = cc_expr(c, &st.flags);
+            let no = if base_mn == "csetm" { -1 } else { 0 };
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(Ex::Num(1)), Box::new(Ex::Num(no))));
+        }
         // AArch64 bitfield aliases are common in compiler-generated masking,
         // packed-struct access, and sign-extension sequences.  Render the
         // ordinary non-wrapping forms as C-like shifts and masks instead of
