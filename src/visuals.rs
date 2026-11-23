@@ -11,6 +11,7 @@ use eframe::egui::{
     self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Margin, Pos2, Rect, RichText, ScrollArea, Sense, Shape, Stroke, StrokeKind, Vec2,
 };
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Default)]
@@ -228,6 +229,8 @@ impl LensApp {
     // ------------------------------------------------------------------ overview
     pub fn overview(&mut self, ui: &mut egui::Ui) {
         let p = self.p;
+        let project = self.project.clone();
+        let project_path = self.project_path.clone();
         let State::Ready(l) = &self.state else { return };
         let det = &l.det;
         let bin = &l.bin;
@@ -275,6 +278,29 @@ impl LensApp {
                         acts.push(Action::SetView(View::Map));
                     }
                 });
+                if let Some(project) = &project {
+                    ui.add_space(10.0);
+                    card(ui, &p, &format!("Project · {}", project.name), |ui| {
+                        ui.label(RichText::new(format!("{} files", project.files.len())).small().color(p.muted));
+                        for file in &project.files {
+                            let active = project.active_file.as_deref() == Some(file.as_str());
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(if active { "●" } else { "○" }).color(if active { p.accent } else { p.faint }));
+                                ui.add(egui::Label::new(RichText::new(file).monospace()).truncate());
+                                if ui.small_button("Open").clicked() {
+                                    let selected = if Path::new(file).is_absolute() {
+                                        file.clone()
+                                    } else if let Some(project_path) = &project_path {
+                                        project_path.parent().unwrap_or_else(|| Path::new(".")).join(file).to_string_lossy().to_string()
+                                    } else {
+                                        file.clone()
+                                    };
+                                    acts.push(Action::Open(selected));
+                                }
+                            });
+                        }
+                    });
+                }
                 ui.add_space(14.0);
                 let wide = ui.available_width() > 800.0;
                 let left_w = if wide { (ui.available_width() * 0.46).floor() } else { ui.available_width() };
