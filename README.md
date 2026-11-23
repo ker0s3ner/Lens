@@ -48,7 +48,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - `script_api_version()` returns the current compatible Rhai API version (`1`); plugins can check it before using newer functions or record fields.
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
 - `data_at(addr)` reads a persisted data-definition code, and `data_definitions()` returns sorted `{addr, code}` records.
-- `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, and comments.
+- `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - Compare two program versions by function shape and name.
 - Import exported Lens JSON databases with annotations, data definitions and applied-type references restored.
 - Exported/imported JSON databases also preserve user-authored prototypes used by the decompiler.

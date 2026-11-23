@@ -163,6 +163,15 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                 out.push(Dynamic::from_map(m));
             }
         }
+        for (addr, text) in &s.pseudocode {
+            if text.to_lowercase().contains(&q) {
+                let mut m = Map::new();
+                m.insert("addr".into(), Dynamic::from(*addr as INT));
+                m.insert("kind".into(), Dynamic::from("pseudocode"));
+                m.insert("text".into(), Dynamic::from(text.clone()));
+                out.push(Dynamic::from_map(m));
+            }
+        }
         out.sort_by_key(|v| v.clone_cast::<Map>().get("addr").and_then(|a| a.clone().try_cast::<INT>()).unwrap_or(0));
         out
     });
