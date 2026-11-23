@@ -138,6 +138,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM64 generic lifting now tracks `v0`-`v31` NEON operands as 128-bit registers, preserving unsupported vector instructions as visible intrinsic assignments instead of dropping them.
 - Recovered indirect switch targets now produce explicit `switch case` xrefs in the listing, xref views and JSON export, distinct from direct jump edges.
 - Common ARM64 scalar/NEON `fadd`, `fsub`, `fmul`, `fdiv`, `fmla`, `fmls`, `fneg`, `fabs` and `fsqrt` instructions now lift to visible arithmetic expressions or calls.
+- Itanium C++ vtable discovery now recognizes the two-word offset-to-top/typeinfo header before validating the executable method-pointer run.
 - SIMD declaration width is inferred from the actual XMM/YMM/ZMM operand, avoiding blanket `__m256` labels for 128-bit VEX instructions.
 - Rename variables in pseudocode (double-click), remembered per function and undoable.
 - First unit tests (regression suite is still to be built out).

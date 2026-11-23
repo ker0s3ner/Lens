@@ -1231,6 +1231,30 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             }
         }
         flush(&mut run_start, &mut run, &mut pointer_tables, &mut vtables, s.start);
+
+        // Itanium C++ vtables normally begin with two non-function metadata
+        // slots: offset-to-top and a pointer to the typeinfo object. The
+        // function-pointer run starts after that header, so the conservative
+        // all-executable scan above intentionally cannot see these tables.
+        for off in (0..s.data.len()).step_by(w) {
+            if off + 4 * w > s.data.len() { break; }
+            let header = s.start + off as u64;
+            let top = bin.read_ptr(header).unwrap_or(u64::MAX);
+            let top_ok = top == 0 || (top as i64).unsigned_abs() <= 0x10_0000;
+            let typeinfo = bin.read_ptr(header + w as u64).unwrap_or(0);
+            if !top_ok || !bin.is_mapped(typeinfo) || bin.is_exec(typeinfo) { continue; }
+            let mut funcs = Vec::new();
+            let mut pos = off + 2 * w;
+            while pos + w <= s.data.len() && funcs.len() < 256 {
+                let target = bin.read_ptr(s.start + pos as u64).unwrap_or(0);
+                if !bin.is_exec(target) || decode_info(bin, target).is_none() { break; }
+                funcs.push(target);
+                pos += w;
+            }
+            if funcs.len() >= 2 {
+                vtables.entry(header).or_insert(funcs);
+            }
+        }
     }
     for (&a, &d) in &settings.data_defs {
         match d {
@@ -1691,5 +1715,20 @@ mod idea_tests {
         let an = run(&bin, Default::default());
         assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
         assert_eq!(an.pointer_tables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
+    }
+
+    #[test]
+    fn discovers_itanium_vtable_with_metadata_header() {
+        let code = vec![0xC3, 0xC3, 0xC3];
+        let mut data = vec![0u8; 0x30];
+        data[8..16].copy_from_slice(&0x2010u64.to_le_bytes()); // typeinfo pointer
+        for (i, target) in [0x1000u64, 0x1001, 0x1002].into_iter().enumerate() {
+            let off = 16 + i * 8;
+            data[off..off + 8].copy_from_slice(&target.to_le_bytes());
+        }
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
+        let an = run(&bin, Default::default());
+        assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
     }
 }

@@ -23,7 +23,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Prototype parsing preserves named function-pointer parameters and emits valid callback signatures.
 - Known prototype return types now propagate through simple temporary-to-temporary assignments in pseudocode declarations.
 - Identify direct one-instruction forwarding thunks and show their destination in function lists.
-- Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code; the analysis summary reports the discovered table count.
+- Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; the analysis summary reports the discovered table count.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.
