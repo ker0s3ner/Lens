@@ -1,4 +1,4 @@
-# Lens 0.6.8 — Fourier
+# Lens 0.6.9 — Fourier
 
 ## What's new
 
@@ -7,6 +7,7 @@
 - Decompiler types now survive call-result copy chains and explicit casts when the source type is unambiguous.
 - Repeated assignments with conflicting or unknown types remain conservatively untyped.
 - Release notes remain synchronized across Lens, GitHub Releases, and the public version history.
+- The macOS release job now uses an explicit Apple Silicon runner and verbose bundle-build diagnostics.
 
 ## Release cadence
 

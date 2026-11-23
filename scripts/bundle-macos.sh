@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
-cargo build --release --target aarch64-apple-darwin
+cargo build --locked --release --target aarch64-apple-darwin
 rm -rf dist && mkdir -p dist/Lens.app/Contents/{MacOS,Resources}
 cp target/aarch64-apple-darwin/release/lens dist/Lens.app/Contents/MacOS/Lens
 cp assets/Lens.icns dist/Lens.app/Contents/Resources/Lens.icns

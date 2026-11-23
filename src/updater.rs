@@ -33,6 +33,7 @@ pub const CURRENT_WHATS_NEW: &[&str] = &[
     "Analysis notes record recognized embedded-data ranges in Mach-O files.",
     "Decompiler types survive unambiguous call-result copy chains and explicit casts.",
     "Conflicting or unknown repeated assignments remain conservatively untyped.",
+    "The macOS release build now uses an explicit Apple Silicon runner with verbose diagnostics.",
 ];
 
 pub fn current_release_title() -> String {
