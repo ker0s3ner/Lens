@@ -30,7 +30,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Lists tabs can also be selected in automation with `LENS_TAB=arrays`, `pointer_tables`, or `vtables`.
 - Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`. Data rows can be explicitly marked as native-width pointers with the `O` action.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.
-- Define bytes and strings, apply C-like structs, unions, enums, scalar and function-pointer typedefs, function-pointer fields and integer bitfields, import supported DWARF layouts, inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
+- Define bytes and strings, apply C-like structs, unions, enums, scalar and function-pointer typedefs, function-pointer fields, packed layouts and integer bitfields, import supported DWARF layouts, inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
 - Identify common cryptographic constants and use built-in or learned function signatures to recognize library code.
 
 ### Decompile and edit

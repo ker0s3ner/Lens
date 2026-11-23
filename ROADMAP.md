@@ -36,7 +36,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
 
 ## Phase 4 - Type system and libraries
-- Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays and simple packed integer bitfields are supported; full function-pointer declarations and compiler-specific bitfield ABI/layout rules remain.
+- Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays, packed layouts and simple packed integer bitfields are supported; full function-pointer declarations and compiler-specific bitfield ABI/layout rules remain.
 - Extend the built-in/user prototype library (about 190 signatures) and improve type propagation from prototypes into variables, memory accesses, and pseudocode.
 - Generate and ship broader versioned signature/type libraries from system libraries (libSystem, libc, MSVC CRT and platform frameworks); the current built-in prototype set is not a complete type library.
 
@@ -153,6 +153,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Rhai scripts can query typed outgoing xrefs with `xrefs_from_details(addr)` for symmetric call, jump, switch-case, data, and pointer analysis.
 - Rhai scripts can retrieve typed C-like pseudocode with `decompile(addr)` for automated audits and reports.
 - The Rhai API exposes a compatibility version through `script_api_version()`, allowing plugins to guard newer capabilities.
+- Common packed C declarations using `__attribute__((packed))` now use byte alignment when computing applied field offsets.
 - Anonymous C typedef forms such as `typedef struct { ... } Name;` and `typedef enum { ... } Name;` now preserve the alias name and layout.
 - Thunk classification now tolerates straight-line `nop`/`endbr32`/`endbr64` prefixes before a known direct or imported-slot jump.
 - Release notes now have a shared source: the current codename and What's New list are shown in-app, attached to GitHub releases, and archived on the GitHub Pages version-history page.

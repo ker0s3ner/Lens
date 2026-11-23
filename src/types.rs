@@ -104,6 +104,8 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             clean.push(c);
         }
     }
+    let packed = clean.contains("__attribute__((packed))") || clean.contains("__attribute__ ((packed))") || clean.contains(" packed ");
+    clean = clean.replace("__attribute__((packed))", "").replace("__attribute__ ((packed))", "");
     let Some(open) = clean.find('{') else {
         let decl = clean.trim().trim_end_matches(';').trim();
         let decl = decl.strip_prefix("typedef").ok_or("Expected a struct, union, enum or typedef declaration")?.trim();
@@ -207,6 +209,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             (fname, ty, stars)
         };
         let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
+        let field_align = if packed { 1 } else { al };
         if let Some(width) = bit_width {
             if stars != 0 || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) || width as u32 > sz * 8 {
                 return Err(format!("Bitfield `{}` must fit an integer storage type of at most 64 bits", fname));
@@ -218,10 +221,10 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
                 (unit_addr, used, used)
             } else {
                 bit_unit = None;
-                off = off.div_ceil(al) * al;
+                off = off.div_ceil(field_align) * field_align;
                 let addr = off;
                 off = off.checked_add(sz).ok_or("Struct size overflows")?;
-                max_align = max_align.max(al.min(8));
+                max_align = max_align.max(field_align.min(8));
                 (addr, 0, 0)
             };
             fields.push(Field { off: unit_addr, name: fname, ty, size: sz, bit_offset: Some(bit_off as u8), bit_width: Some(width) });
@@ -233,9 +236,9 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         }
         bit_unit = None;
         if !is_union {
-            off = off.div_ceil(al) * al;
+            off = off.div_ceil(field_align) * field_align;
         }
-        max_align = max_align.max(al.min(8));
+        max_align = max_align.max(field_align.min(8));
         if count == 0 { return Err(format!("Array size must be greater than zero in `{decl}`")); }
         let total = sz.checked_mul(count).ok_or(format!("Field size overflows in `{decl}`"))?;
         if fields.iter().any(|field: &Field| field.name == fname) { return Err(format!("Duplicate field name `{fname}`")); }
@@ -461,5 +464,12 @@ mod tests {
         let en = parse_c("typedef enum { Zero, One = 1 } Count;", 8, &[]).unwrap();
         assert_eq!(en.name, "Count");
         assert_eq!(en.enum_values[1].name, "One");
+    }
+
+    #[test]
+    fn packed_records_use_byte_alignment() {
+        let packed = parse_c("struct Packet __attribute__((packed)) { char tag; int value; };", 8, &[]).unwrap();
+        assert_eq!(packed.fields[1].off, 1);
+        assert_eq!(packed.size, 5);
     }
 }
