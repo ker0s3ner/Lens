@@ -152,6 +152,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Rhai scripts can query typed incoming xrefs with `xrefs_to_details(addr)` without losing the relationship kind.
 - Rhai scripts can query typed outgoing xrefs with `xrefs_from_details(addr)` for symmetric call, jump, switch-case, data, and pointer analysis.
 - Rhai scripts can retrieve typed C-like pseudocode with `decompile(addr)` for automated audits and reports.
+- The Rhai API exposes a compatibility version through `script_api_version()`, allowing plugins to guard newer capabilities.
 - Anonymous C typedef forms such as `typedef struct { ... } Name;` and `typedef enum { ... } Name;` now preserve the alias name and layout.
 - Thunk classification now tolerates straight-line `nop`/`endbr32`/`endbr64` prefixes before a known direct or imported-slot jump.
 - Release notes now have a shared source: the current codename and What's New list are shown in-app, attached to GitHub releases, and archived on the GitHub Pages version-history page.
