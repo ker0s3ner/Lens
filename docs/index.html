@@ -41,7 +41,7 @@
 <section id="inside"><div class="wrap split">
 <div><h2>What's inside</h2><p>A reverse-engineering tool is mostly a lot of small things working together. Here are the ones that exist today.</p></div>
 <dl class="spec">
-<div><dt>CPUs</dt><dd>x86, x86-64, ARM64, ARM, RISC-V, MIPS, PowerPC<small>Pseudocode is complete on x86. On the others it covers the integer core and marks anything else as <code>__mnemonic(...)</code>.</small></dd></div>
+<div><dt>CPUs</dt><dd>x86, x86-64, ARM64, ARM, RISC-V, MIPS, PowerPC<small>Pseudocode is deepest on x86. ARM64 includes tracked NEON registers and common floating-point operations; other unsupported instructions remain visible as <code>__mnemonic(...)</code>.</small></dd></div>
 <div><dt>Files</dt><dd>Mach-O (including universal and .app bundles), ELF, PE<small>ARM64 imports are resolved through chained fixups. Raw hex, .bin, Intel HEX and S-record load through Hex to Code.</small></dd></div>
 <div><dt>Pseudocode</dt><dd>C, Python, Rust, Go or JavaScript style<small>Rename a variable once and it stays renamed. Names, notes and bookmarks are saved per program.</small></dd></div>
 <div><dt>Patching</dt><dd>Change bytes, NOP, flip a branch, save a copy<small>The copy is re-signed so it still launches. The original is never touched.</small></dd></div>
@@ -62,7 +62,7 @@
 
 <div class="where"><div class="wrap split">
 <div><h2>Where it stands</h2></div>
-<div><p>Lens is young. It is a long way from IDA Pro or Ghidra: no type recovery, no switch-table or vtable recovery, and it has seen far fewer odd binaries than they have. It's good for reading a program quickly, and it's getting better in the open.</p>
+<div><p>Lens is young. It is a long way from IDA Pro or Ghidra: type recovery is still partial, while switch-table and conservative C++ vtable/RTTI recovery cover common patterns. It has seen far fewer odd binaries than they have. It's good for reading a program quickly, and it's getting better in the open.</p>
 <p>The plan to close the gap, phase by phase, is in the <a href="https://github.com/ker0s3ner/Lens/blob/main/ROADMAP.md">roadmap</a>.</p></div>
 </div></div>
 
