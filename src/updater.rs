@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 clz, cls, rbit, and byte-reversal instructions now decompile as named operations.",
+    "AArch64 bit and endian idioms remain readable instead of opaque generic calls.",
     "x86/x64 BMI2 shlx, shrx, and sarx now preserve variable-shift semantics in pseudocode.",
     "Signed and unsigned variable right shifts remain distinguishable in decompilation.",
     "RISC-V bext, bdep, bcompress, and bdecompress now preserve named bit extract/deposit semantics.",

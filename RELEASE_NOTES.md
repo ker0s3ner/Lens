@@ -1,6 +1,9 @@
-# Lens 0.6.44 — Fourier
+# Lens 0.6.45 — Fourier
 
 ## What's new
+
+- AArch64 `clz`, `cls`, `rbit`, and byte-reversal instructions now decompile as named operations.
+- AArch64 bit and endian idioms remain readable instead of opaque generic calls.
 
 - x86/x64 BMI2 `shlx`, `shrx`, and `sarx` now preserve variable-shift semantics in pseudocode.
 - Signed and unsigned variable right shifts remain distinguishable in decompilation.
