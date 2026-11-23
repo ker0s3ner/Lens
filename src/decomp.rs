@@ -1080,6 +1080,19 @@ impl<'a> Dc<'a> {
                     self.wr_reg(&mut st, Register::RDX, Ex::Call(Box::new(var("__mulhi")), vec![a.clone(), b.clone()]), addr);
                     self.wr_reg(&mut st, Register::RAX, bin("*", a, b), addr);
                 }
+                Mnemonic::Rol | Mnemonic::Ror if ins.op_count() >= 2 && ins.op_kind(1) == OpKind::Immediate8 => {
+                    let value = self.read_op(&mut st, ins, 0);
+                    let bits = (ins.op0_register().size() as u32 * 8).clamp(8, 64);
+                    let shift = (ins.immediate8() as u32) % bits;
+                    let r = if shift == 0 {
+                        value
+                    } else if m == Mnemonic::Rol {
+                        bin("|", bin("<<", value.clone(), Ex::Num(shift as i64)), bin(">>", value, Ex::Num((bits - shift) as i64)))
+                    } else {
+                        bin("|", bin(">>", value.clone(), Ex::Num(shift as i64)), bin("<<", value, Ex::Num((bits - shift) as i64)))
+                    };
+                    self.write_op(&mut st, ins, 0, r);
+                }
                 Mnemonic::Idiv | Mnemonic::Div => {
                     let a = self.rd_reg(&mut st, Register::RAX);
                     let b = self.read_op(&mut st, ins, 0);
