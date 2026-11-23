@@ -1,6 +1,9 @@
-# Lens 0.6.67 — Fourier
+# Lens 0.6.68 — Fourier
 
 ## What's new
+
+- Common AVX/SSE blend, shuffle, permute, and lane-reordering instructions now remain visible as named pseudocode intrinsics.
+- Vector layout operations no longer fall through to opaque generic handling.
 
 - Lens JSON import now restores exported import-slot and recovered-vtable names.
 - Richer database round-trips preserve more of the analysis names shown by Lists and JSON export.

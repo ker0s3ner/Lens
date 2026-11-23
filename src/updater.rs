@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Common AVX/SSE blend, shuffle, permute, and lane-reordering instructions now remain visible as named pseudocode intrinsics.",
+    "Vector layout operations no longer fall through to opaque generic handling.",
     "Lens JSON import now restores exported import-slot and recovered-vtable names.",
     "Richer database round-trips preserve more of the analysis names shown by Lists and JSON export.",
     "AVX/FMA3 negated fused multiply-add/subtract families now remain visible as named pseudocode intrinsics.",
