@@ -29,8 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
-    "Signed C bitfields now display sign-extended values in the Types view.",
-    "Zero-width C bitfields now force a fresh ABI storage unit using declared integer alignment.",
+    "PE delay-import descriptors now populate delayed API names, IAT slots, and Libraries metadata.",
+    "Delay-import addressing is validated for both RVA- and VA-based descriptor forms.",
 ];
 
 pub fn current_release_title() -> String {
