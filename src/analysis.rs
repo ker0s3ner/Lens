@@ -1418,7 +1418,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         if !xrefs_to.contains_key(&s.addr) {
             continue;
         }
-        let base = string_name(&s.text);
+        let objc_selector = bin.segments.iter().any(|seg| seg.contains(s.addr) && (seg.name.contains("__objc_methname") || seg.name.contains("__objc_propname")));
+        let base = if objc_selector { format!("sel_{}", string_name(&s.text)) } else { string_name(&s.text) };
         let mut n = base.clone();
         let mut k = 0;
         while used.contains(&n) {
