@@ -162,6 +162,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PE TLS callbacks now seed function discovery before the entry point, with a loader note recording the callback count.
 - Zero-width C bitfields now force a fresh ABI storage unit using the declared integer alignment.
 - Signed C bitfields now sign-extend when their applied values are displayed in the Types view.
+- x86 `cdq`, `cqo` and `cwd` now preserve sign-extension into the high half of integer division in pseudocode.
 - C enum parsing now accepts common binary/octal literals and constant bitwise, shift, addition and subtraction expressions.
 - User-defined enum definitions now propagate into typed pseudocode call arguments as scoped constants when the integer value matches.
 - Simple Itanium RTTI names such as `_ZTI3Foo` and `_ZTIN3Foo3BarE` are rendered as `Foo` and `Foo::Bar` for discovered vtables.

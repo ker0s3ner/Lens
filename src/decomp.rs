@@ -1006,7 +1006,10 @@ impl<'a> Dc<'a> {
                     let v = self.rd_reg(&mut st, Register::EAX);
                     self.wr_reg(&mut st, Register::RAX, Ex::Cast("int32_t", Box::new(v)), addr);
                 }
-                Mnemonic::Cdq | Mnemonic::Cqo | Mnemonic::Cwd => {}
+                Mnemonic::Cdq | Mnemonic::Cqo | Mnemonic::Cwd => {
+                    let value = self.rd_reg(&mut st, Register::RAX);
+                    self.wr_reg(&mut st, Register::RDX, Ex::Call(Box::new(var("__sign_extend_high")), vec![value]), addr);
+                }
                 Mnemonic::Lea => {
                     let sz = 1;
                     let (a, _) = self.mem_operand(&mut st, ins, sz);
@@ -2079,5 +2082,17 @@ mod tests {
         let f = an.functions.get(&0x1000).unwrap();
         let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
         assert!(text.contains("__wide_dividend") && text.contains("/"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn division_pseudocode_preserves_cdq_sign_extension() {
+        let bin = raw_binary(&RawSpec {
+            path: "divsx".into(), name: "divsx".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x48, 0x99, 0x48, 0xF7, 0xF9, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("__sign_extend_high"), "unexpected pseudocode:\n{text}");
     }
 }
