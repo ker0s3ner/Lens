@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Raw-binary CLI loading now accepts explicit thumb, thumb2, and armthumb architecture selectors.",
+    "Deterministic golden analysis now exercises a Thumb return instruction alongside the existing cross-architecture fixtures.",
     "The deterministic golden gate now includes a big-endian MIPS32 return fixture.",
     "Six representative CPU-family paths now have pinned raw decoding metadata and function counts.",
     "The deterministic golden gate now includes a big-endian PowerPC 64 return fixture.",

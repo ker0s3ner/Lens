@@ -1,3 +1,8 @@
+# Lens 0.6.314 — Fourier
+
+- Raw-binary CLI loading now accepts explicit `thumb`, `thumb2`, and `armthumb` architecture selectors.
+- Deterministic golden analysis now exercises a Thumb return instruction alongside the existing x64, ARM, RISC-V, PowerPC, and MIPS fixtures.
+
 # Lens 0.6.313 — Fourier
 
 - The deterministic golden gate now includes a big-endian MIPS32 return fixture.
