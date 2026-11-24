@@ -1,3 +1,17 @@
+# Lens 0.6.194 — Fourier
+
+## What's new
+
+- Raw-binary JSON reports now preserve explicit entry addresses, with smoke coverage for `--entry`.
+- The smoke corpus now exercises raw loading separately from host executable discovery.
+
+## Verification
+
+- `cargo test --locked --quiet` — 81 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries plus raw-entry regression passed
+
+---
+
 # Lens 0.6.193 — Fourier
 
 ## What's new

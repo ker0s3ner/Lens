@@ -42,4 +42,14 @@ for target in "${targets[@]}"; do
   done
 done
 
+raw_fixture="$(mktemp -t lens-raw-entry.XXXXXX)"
+trap 'rm -f "$raw_fixture"' EXIT
+printf '\xC3' > "$raw_fixture"
+raw_json="$(cd "$root" && cargo run --quiet -- "$raw_fixture" --arch x86 --base 0x1000 --entry 0x1234 --json 2>/dev/null)"
+grep -q '"entry_point": 4660' <<<"$raw_json" || {
+  echo "smoke corpus: raw --entry was not reflected in JSON" >&2
+  printf '%s\n' "$raw_json" >&2
+  exit 1
+}
+
 echo "smoke corpus: ${#targets[@]} targets passed"

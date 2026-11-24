@@ -164,7 +164,7 @@ fn cli(args: &[String]) -> bool {
             "stripped": det.stripped,
             "debug_info": det.has_debug_info,
             "sha256": det.sha256,
-            "entry_point": det.main.as_ref().map(|(a, _)| *a),
+            "entry_point": det.main.as_ref().map(|(a, _)| *a).or(bin.entry),
             "functions": an.functions.len(),
             "instructions": an.insns.len(),
             "basic_blocks": an.functions.values().map(|f| f.blocks.len()).sum::<usize>(),
