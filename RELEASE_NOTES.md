@@ -9,6 +9,20 @@
 # Lens 0.6.205 — Fourier
 # Lens 0.6.206 — Fourier
 # Lens 0.6.207 — Fourier
+# Lens 0.6.208 — Fourier
+
+## What's new
+
+- JSON analysis reports now include a unified name stream for function, data, and export symbols.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.207 — Fourier
 
 ## What's new
 

@@ -222,6 +222,19 @@ fn cli(args: &[String]) -> bool {
                 "to": target,
             }))).collect::<Vec<_>>(),
             "entry_records": bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).collect::<Vec<_>>(),
+            "name_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
+                "address": address,
+                "name": name,
+                "kind": "function",
+            })).chain(bin.data_symbols.iter().map(|(address, name)| serde_json::json!({
+                "address": address,
+                "name": name,
+                "kind": "data",
+            }))).chain(bin.exports.iter().map(|export| serde_json::json!({
+                "address": export.addr,
+                "name": export.name,
+                "kind": "export",
+            }))).collect::<Vec<_>>(),
             "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
                 "jump": jump,
                 "targets": targets,

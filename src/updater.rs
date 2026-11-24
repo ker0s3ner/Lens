@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now include a unified name stream for function, data, and export symbols.",
     "JSON analysis reports now include explicit call-edge and entry-point records for graph consumers.",
     "JSON analysis reports now include basic-block boundaries, instruction membership, and typed successor edges.",
     "JSON analysis reports now include compact per-instruction flow, operand-reference, and memory-access records.",
