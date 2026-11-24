@@ -199,7 +199,15 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         }
         if bit_width == Some(0) {
             let ty = d.trim().to_string();
-            let (sz, al) = size_align(&ty, ptr, known).ok_or(format!("Unknown type `{ty}` in `{}`", decl.trim()))?;
+            let type_words = ty.split_whitespace().filter(|word| !word.is_empty()).count();
+            if type_words > 2 {
+                return Err(format!("Zero-width bitfield must be unnamed in `{decl}`"));
+            }
+            let (sz, al) = match size_align(&ty, ptr, known) {
+                Some(layout) => layout,
+                None if type_words > 1 => return Err(format!("Zero-width bitfield must be unnamed in `{decl}`")),
+                None => return Err(format!("Unknown type `{ty}` in `{}`", decl.trim())),
+            };
             let field_align = if packed { 1 } else { pack_align.unwrap_or(al).min(al) };
             if is_union || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) {
                 return Err(format!("Zero-width bitfield must use an integer storage type in `{decl}`"));
@@ -581,6 +589,12 @@ mod tests {
         let bits = parse_c("struct Bits { char first:1; int :0; int second:1; };", 8, &[]).unwrap();
         assert_eq!(bits.fields[0].off, 0);
         assert_eq!(bits.fields[1].off, 4);
+    }
+
+    #[test]
+    fn rejects_named_zero_width_bitfields() {
+        let err = parse_c("struct Bits { int separator:0; };", 8, &[]).unwrap_err();
+        assert!(err.contains("zero-width") || err.contains("Zero-width"), "unexpected error: {err}");
     }
 
     #[test]
