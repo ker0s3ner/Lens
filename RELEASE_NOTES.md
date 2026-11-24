@@ -1,6 +1,9 @@
-# Lens 0.6.115 — Fourier
+# Lens 0.6.116 — Fourier
 
 ## What's new
+
+- CodeView never-returning procedure flags now terminate PE control-flow analysis conservatively.
+- PDB no-return metadata is preserved alongside imported symbols and prototypes.
 
 - CodeView LF_BITFIELD records now retain their underlying scalar type in recovered PDB prototypes.
 - Bitfield width and layout remain conservative until full PDB field-layout import is implemented.

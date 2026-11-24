@@ -71,12 +71,13 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>) -> HashMap<pdb::TypeIndex, String
     out
 }
 
-fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: &HashMap<pdb::TypeIndex, String>, out: &mut Vec<(u32, String)>, protos: &mut Vec<String>) {
+fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: &HashMap<pdb::TypeIndex, String>, out: &mut Vec<(u32, String)>, protos: &mut Vec<String>, noreturn: &mut Vec<String>) {
     while let Ok(Some(symbol)) = iter.next() {
         let Ok(data) = symbol.parse() else { continue };
         let (offset, name) = match data {
             SymbolData::Public(data) => (data.offset, data.name),
             SymbolData::Procedure(data) => {
+                if data.flags.never { noreturn.push(data.name.to_string().into_owned()); }
                 let signature = types.get(&data.type_index).cloned();
                 let result = (data.offset, data.name);
                 if let Some(sig) = signature {
@@ -95,22 +96,23 @@ fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: 
 }
 
 /// Read global procedure/public symbols and return their RVAs plus display names.
-pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String)> {
+pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>)> {
     let file = std::fs::File::open(path).ok()?;
     let mut db = pdb::PDB::open(file).ok()?;
     let map = db.address_map().ok()?;
     let types = pdb_types(&mut db);
     let mut out = Vec::new();
     let mut protos = Vec::new();
+    let mut noreturn = Vec::new();
     if let Ok(table) = db.global_symbols() {
-        collect(table.iter(), &map, &types, &mut out, &mut protos);
+        collect(table.iter(), &map, &types, &mut out, &mut protos, &mut noreturn);
     }
     if let Ok(info) = db.debug_information() {
         if let Ok(mut modules) = info.modules() {
             while let Ok(Some(module)) = modules.next() {
                 if let Ok(Some(module_info)) = db.module_info(&module) {
                     if let Ok(symbols) = module_info.symbols() {
-                        collect(symbols, &map, &types, &mut out, &mut protos);
+                        collect(symbols, &map, &types, &mut out, &mut protos, &mut noreturn);
                     }
                 }
             }
@@ -120,7 +122,9 @@ pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String)> {
     out.dedup_by_key(|(rva, _)| *rva);
     protos.sort();
     protos.dedup();
-    Some((out, protos.join("\n")))
+    noreturn.sort();
+    noreturn.dedup();
+    Some((out, protos.join("\n"), noreturn))
 }
 
 #[cfg(test)]

@@ -128,6 +128,8 @@ pub struct Binary {
     pub func_hints: Vec<u64>,
     /// C prototypes taken from DWARF debug info (one per line).
     pub debug_protos: String,
+    /// Procedure names marked never-returning by CodeView/PDB.
+    pub debug_noreturn: Vec<String>,
     /// struct / union / enum definitions from DWARF, as C text.
     pub debug_types: String,
     /// Struct/union/enum layouts reconstructed from DWARF member offsets.
@@ -300,6 +302,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         file_base: 0,
         func_hints: vec![],
         debug_protos: String::new(),
+        debug_noreturn: vec![],
         debug_types: String::new(),
         debug_structs: vec![],
     };
@@ -705,7 +708,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
         }
     }
     for candidate in pdb_candidates {
-        let Some((symbols, protos)) = crate::pdb::symbols(&candidate) else { continue };
+        let Some((symbols, protos, noreturn)) = crate::pdb::symbols(&candidate) else { continue };
         let mut added = 0;
         for (rva, name) in symbols {
             let addr = base.saturating_add(rva as u64);
@@ -718,6 +721,9 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             if !bin.debug_protos.is_empty() { bin.debug_protos.push('\n'); }
             bin.debug_protos.push_str(&protos);
         }
+        bin.debug_noreturn.extend(noreturn);
+        bin.debug_noreturn.sort();
+        bin.debug_noreturn.dedup();
         if added > 0 {
             bin.notes.push(format!("PDB symbols: {added} function name(s) imported from {}.", candidate.display()));
             break;
@@ -1201,6 +1207,7 @@ pub fn raw_binary(spec: &RawSpec) -> Binary {
         file_base: 0,
         func_hints: vec![],
         debug_protos: String::new(),
+        debug_noreturn: vec![],
         debug_types: String::new(),
         debug_structs: vec![],
     };

@@ -120,6 +120,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Inline CodeView primitive PDB type indices now resolve to concrete prototype types.
 - Inline primitive and pointer-indirected PDB type decoding is covered by deterministic tests.
 - PDB `LF_BITFIELD` records preserve their underlying scalar type when used by recovered prototypes.
+- CodeView/PDB procedure flags now preserve explicit never-returning functions for PE analysis.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

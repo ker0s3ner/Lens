@@ -1135,7 +1135,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                                 push(&mut queue, t);
                             }
                             let nr = *noret_cache.entry(t).or_insert_with(|| {
-                                callee_name(t, &dec_only).map(|n| is_noreturn_name(&n)).unwrap_or(false)
+                                callee_name(t, &dec_only).map(|n| is_noreturn_name(&n) || bin.debug_noreturn.iter().any(|p| p == &n)).unwrap_or(false)
                             });
                             if nr {
                                 break;
@@ -1236,7 +1236,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             // and has no recognizable symbol or prototype.
             let terminates = addrs.iter().filter_map(|a| insns.get(a).map(|i| (a, i))).max_by_key(|(a, _)| *a)
                 .map(|(_, i)| i.flow == Flow::Stop).unwrap_or(false);
-            let noreturn = terminates || callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n)).unwrap_or(false);
+            let noreturn = terminates || callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n) || bin.debug_noreturn.iter().any(|p| p == &n)).unwrap_or(false);
             calls.sort();
             calls.dedup();
             functions.insert(

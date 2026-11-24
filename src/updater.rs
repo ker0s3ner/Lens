@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "CodeView never-returning procedure flags now terminate PE control-flow analysis conservatively.",
+    "PDB no-return metadata is preserved alongside imported symbols and prototypes.",
     "CodeView LF_BITFIELD records now retain their underlying scalar type in recovered PDB prototypes.",
     "Bitfield width and layout remain conservative until full PDB field-layout import is implemented.",
     "PDB primitive and pointer-indirected type decoding now has direct regression coverage.",
