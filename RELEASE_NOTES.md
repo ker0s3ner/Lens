@@ -1,6 +1,9 @@
-# Lens 0.6.114 — Fourier
+# Lens 0.6.115 — Fourier
 
 ## What's new
+
+- CodeView LF_BITFIELD records now retain their underlying scalar type in recovered PDB prototypes.
+- Bitfield width and layout remain conservative until full PDB field-layout import is implemented.
 
 - PDB primitive and pointer-indirected type decoding now has direct regression coverage.
 - The deterministic suite now covers 57 cases across analysis, interchange, DWARF, and PDB paths.

@@ -54,6 +54,7 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>) -> HashMap<pdb::TypeIndex, String
             pdb::TypeData::Primitive(p) => primitive_name(p),
             pdb::TypeData::Pointer(p) => format!("{} *", type_name(p.underlying_type, &out)),
             pdb::TypeData::Modifier(m) => type_name(m.underlying_type, &out),
+            pdb::TypeData::Bitfield(b) => type_name(b.underlying_type, &out),
             pdb::TypeData::Class(c) => format!("struct {}", c.name),
             pdb::TypeData::Union(u) => format!("union {}", u.name),
             pdb::TypeData::Enumeration(e) => format!("enum {}", e.name),
