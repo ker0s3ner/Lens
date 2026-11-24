@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler type propagation now recovers pointee types when dereferencing typed pointer temporaries.",
+    "Added regression coverage for both direct pointer-return dereferences and dereferences after temporary assignment.",
     "Decompiler type propagation now carries known pointer types through constant byte-offset expressions.",
     "Added regression coverage for `pointer + constant` assignments derived from known pointer-returning calls.",
     "Added a direct decompiler regression test for pointee-type inference through dereferenced `strdup` calls.",

@@ -2300,7 +2300,7 @@ pub fn render_text(d: &Decompiled) -> String {
 }
 
 fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
-    let mut types = HashMap::new();
+    let mut types: HashMap<String, String> = HashMap::new();
     let mut assignments = Vec::new();
     for out in outs {
         for (_, stmt) in &out.stmts {
@@ -2322,6 +2322,7 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                         Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()).filter(|r| r != "void"),
                         _ => None,
                     },
+                    Ex::Var(source) => types.get(source).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
                     _ => None,
                 },
                 Ex::Cast(t, _) => Some((*t).to_string()),
@@ -2406,6 +2407,18 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("q").map(String::as_str), Some("char *"));
+    }
+
+    #[test]
+    fn render_type_inference_recovers_pointee_from_typed_pointer_temporary() {
+        let outs = vec![BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("p".into()), Ex::Call(Box::new(var("strdup")), vec![]))),
+                (1, Stmt::Assign(Ex::Var("ch".into()), Ex::Deref(Box::new(Ex::Var("p".into())), 1))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("char"));
     }
 
     #[test]

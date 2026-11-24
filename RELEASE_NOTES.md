@@ -1,3 +1,17 @@
+# Lens 0.6.146 — Fourier
+
+## What's new
+
+- Decompiler type propagation now recovers pointee types when dereferencing typed pointer temporaries.
+- Added regression coverage for both direct pointer-return dereferences and dereferences after temporary assignment.
+
+## Verification
+
+- `cargo test --locked --quiet` — 64 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.145 — Fourier
 
 ## What's new
