@@ -296,6 +296,12 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let t = t.trim().trim_start_matches('#');
         if let Some(h) = t.strip_prefix("0x") { u64::from_str_radix(h, 16).ok() } else { t.parse().ok() }
     };
+    let signed_num = |t: &str| -> Option<i64> {
+        let t = t.trim().trim_start_matches('#');
+        let (negative, digits) = t.strip_prefix('-').map_or((false, t), |digits| (true, digits));
+        let value = if let Some(h) = digits.strip_prefix("0x") { i64::from_str_radix(h, 16).ok()? } else { digits.parse().ok()? };
+        Some(if negative { -value } else { value })
+    };
     let reg = |t: &str| -> String { t.trim().trim_start_matches(['x', 'w']).to_string() };
     let mut back: Vec<u64> = insns.range(..at).rev().take(14).map(|(a, _)| *a).collect();
     back.reverse();
@@ -310,9 +316,9 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let Some(i) = crate::multiarch::one(bin, a) else { continue };
         let ops: Vec<&str> = i.ops.split(", ").collect();
         match i.mnemonic.as_str() {
-            "adrp" | "adr" => { if let Some(v) = ops.get(1).and_then(|o| num(o)) { val.insert(reg(ops[0]), v); } }
+            "adrp" | "adr" => { if let Some(v) = ops.get(1).and_then(|o| signed_num(o)) { val.insert(reg(ops[0]), v as u64); } }
             "add" if ops.len() == 3 && ops[2].starts_with('#') => {
-                if let (Some(b), Some(im)) = (val.get(&reg(ops[1])).copied(), num(ops[2])) { val.insert(reg(ops[0]), b + im); }
+                if let (Some(b), Some(im)) = (val.get(&reg(ops[1])).copied(), signed_num(ops[2])) { val.insert(reg(ops[0]), b.wrapping_add_signed(im)); }
             }
             "add" if ops.len() == 3 => {
                 // add xD, xBase, xOffset
