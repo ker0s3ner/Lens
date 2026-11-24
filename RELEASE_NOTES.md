@@ -1,3 +1,17 @@
+# Lens 0.6.141 — Fourier
+
+## What's new
+
+- Indirect calls through imported slots now contribute explicit call-graph edges.
+- Added regression coverage for imported call instructions, alongside existing forwarding-thunk edges.
+
+## Verification
+
+- `cargo test --locked --quiet` — 61 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.140 — Fourier
 
 ## What's new

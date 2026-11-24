@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Indirect calls through imported slots now contribute explicit call-graph edges.",
+    "Added regression coverage for imported call instructions, alongside existing forwarding-thunk edges.",
     "JSON analysis reports now declare the stable `lens.analysis.v1` schema.",
     "The release smoke corpus validates both human-readable and JSON analysis output for every discovered binary.",
     "Added `--json` CLI reports with stable machine-readable format, architecture, entry point, analysis counts, and notes.",

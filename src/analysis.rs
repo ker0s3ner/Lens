@@ -1148,6 +1148,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         Flow::IndirectCall => {
                             if info.mem != 0 {
                                 if let Some(ix) = import_slot.get(&info.mem) {
+                                    calls.push(bin.imports[*ix].slot);
                                     if is_noreturn_name(&bin.imports[*ix].name) {
                                         break;
                                     }
@@ -1884,6 +1885,21 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
         assert!(an.functions[&0x1000].calls.contains(&0x1006));
+    }
+
+    #[test]
+    fn records_import_slot_indirect_calls() {
+        // call qword ptr [rip+0xa]; ret; import slot at 0x1010.
+        let mut code = vec![0xFF, 0x15, 0x0A, 0x00, 0x00, 0x00, 0xC3];
+        code.resize(0x20, 0);
+        let spec = RawSpec {
+            path: "t".into(), name: "t".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.imports.push(crate::loader::Import { slot: 0x1010, name: "puts".into(), library: "libc".into() });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions[&0x1000].calls.contains(&0x1010));
     }
 }
 
