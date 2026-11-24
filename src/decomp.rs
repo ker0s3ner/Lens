@@ -747,37 +747,37 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
     }
 }
 
-fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, enum_return: Option<&str>) -> Option<String> {
+fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, current_name: &str, enum_return: Option<&str>) -> Option<String> {
     match e {
         Ex::Var(name) => vars.get(name).cloned(),
-        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars, enum_return),
+        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars, current_name, enum_return),
         Ex::Tern(_, yes, no) => {
-            let ty = enum_var_source(yes, vars, enum_return)?;
-            (enum_var_source(no, vars, enum_return).as_deref() == Some(ty.as_str())).then_some(ty)
+            let ty = enum_var_source(yes, vars, current_name, enum_return)?;
+            (enum_var_source(no, vars, current_name, enum_return).as_deref() == Some(ty.as_str())).then_some(ty)
         }
         Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^" | "<<" | ">>") => {
-            if let Some(ty) = enum_var_source(left, vars, enum_return) {
+            if let Some(ty) = enum_var_source(left, vars, current_name, enum_return) {
                 enum_const_int(right).is_some().then_some(ty)
-            } else if let Some(ty) = enum_var_source(right, vars, enum_return) {
+            } else if let Some(ty) = enum_var_source(right, vars, current_name, enum_return) {
                 enum_const_int(left).is_some().then_some(ty)
             } else { None }
         }
         Ex::Call(function, _) => match &**function {
-            Ex::Var(name) => crate::protos::find(name).and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string)),
+            Ex::Var(name) => crate::protos::find(name).and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string)).or_else(|| (name == current_name).then(|| enum_return.map(str::to_string)).flatten()),
             _ => None,
         },
         _ => None,
     }
 }
 
-fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>, enum_return: Option<&str>) -> HashMap<String, String> {
+fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>, current_name: &str, enum_return: Option<&str>) -> HashMap<String, String> {
     let mut vars = seed.clone();
     for _ in 0..outs.len().max(1) {
         let mut changed = false;
         for block in outs {
             for (_, stmt) in &block.stmts {
                 if let Stmt::Assign(Ex::Var(dst), rhs) = stmt {
-                    let source = enum_var_source(rhs, &vars, enum_return);
+                    let source = enum_var_source(rhs, &vars, current_name, enum_return);
                     if let Some(ty) = source {
                         let old = vars.insert(dst.clone(), ty.clone());
                         changed |= old.as_ref() != Some(&ty);
@@ -2498,7 +2498,7 @@ fn decompile_inner(
     let own_proto = crate::protos::find(&name);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
-    let enum_vars = infer_enum_vars(&outs, &enum_params, enum_return.as_deref());
+    let enum_vars = infer_enum_vars(&outs, &enum_params, &name, enum_return.as_deref());
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
@@ -2970,16 +2970,18 @@ mod tests {
                 (3, Stmt::Assign(Ex::Var("v3".into()), Ex::Cast("int".into(), Box::new(Ex::Var("v1".into()))))),
                 (4, Stmt::Assign(Ex::Var("v4".into()), Ex::Tern(Box::new(Ex::Var("cond".into())), Box::new(Ex::Var("a1".into())), Box::new(Ex::Var("a1".into()))))),
                 (5, Stmt::Assign(Ex::Var("v5".into()), Ex::Bin("+", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1))))),
+                (6, Stmt::Assign(Ex::Var("v6".into()), Ex::Call(Box::new(Ex::Var("enum_color".into())), vec![]))),
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
         }];
         let seed = HashMap::from([(String::from("a1"), String::from("Color"))]);
-        let vars = infer_enum_vars(&outs, &seed, Some("Color"));
+        let vars = infer_enum_vars(&outs, &seed, "enum_color", Some("Color"));
         assert_eq!(vars.get("v1").map(String::as_str), Some("Color"));
         assert!(!vars.contains_key("v2"));
         assert_eq!(vars.get("v3").map(String::as_str), Some("Color"));
         assert_eq!(vars.get("v4").map(String::as_str), Some("Color"));
         assert_eq!(vars.get("v5").map(String::as_str), Some("Color"));
+        assert_eq!(vars.get("v6").map(String::as_str), Some("Color"));
     }
 
     #[test]
