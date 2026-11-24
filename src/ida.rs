@@ -773,6 +773,12 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 callers.dedup();
                 callers
             };
+            let callees_for = |f: &crate::analysis::Function| -> Vec<u64> {
+                let mut callees: Vec<u64> = f.calls.iter().map(|target| l.an.function_containing(*target).map(|callee| callee.start).unwrap_or(*target)).collect();
+                callees.sort_unstable();
+                callees.dedup();
+                callees
+            };
             let v = serde_json::json!({
                 "schema": 2,
                 "schema_id": "lens.analysis.v1",
@@ -781,7 +787,7 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 "segments": l.bin.segments.iter().map(|s| serde_json::json!({"name": s.name, "start": s.start, "end": s.end()})).collect::<Vec<_>>(),
                 "functions": l.an.functions.values().map(|f| serde_json::json!({
                     "start": f.start, "end": f.end, "name": l.names.get(&f.start).map(|n| n.0.clone()),
-                    "blocks": f.blocks.len(), "calls": f.calls, "callees": f.calls.iter().map(|target| l.an.function_containing(*target).map(|callee| callee.start).unwrap_or(*target)).collect::<Vec<_>>(), "callers": callers_for(f.start), "noreturn": f.noreturn,
+                    "blocks": f.blocks.len(), "calls": f.calls, "callees": callees_for(f), "callers": callers_for(f.start), "noreturn": f.noreturn,
                     "thunk_target": f.thunk_target })).collect::<Vec<_>>(),
                 "names": l.ann.names.iter().map(|(addr, name)| serde_json::json!({"addr": addr, "name": name})).collect::<Vec<_>>(),
                 "imports": l.bin.imports.iter().map(|i| serde_json::json!({"slot": i.slot, "name": i.name, "library": i.library})).collect::<Vec<_>>(),

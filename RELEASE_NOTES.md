@@ -1,3 +1,10 @@
+# Lens 0.6.277 — Fourier
+
+- JSON callee records are now normalized, sorted, and deduplicated for stable graph diffs.
+- Function graph exports now avoid duplicate outgoing edges while retaining raw call-site records.
+
+Verification: `cargo test --locked --quiet` — 92 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.276 — Fourier
 
 - JSON function records now include normalized callers and callees alongside call sites.

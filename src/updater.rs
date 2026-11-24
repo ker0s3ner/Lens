@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON callee records are now normalized, sorted, and deduplicated for stable graph diffs.",
+    "Function graph exports now avoid duplicate outgoing edges while retaining raw call-site records.",
     "JSON function records now include normalized callers and callees alongside call sites.",
     "Machine-readable graph consumers can now reconstruct function neighborhoods without rescanning xrefs.",
     "Decompiler now inlines safe single-use call temporaries into their consuming assignment.",
