@@ -1,3 +1,16 @@
+# Lens 0.6.195 — Fourier
+
+## What's new
+
+- Raw-binary architecture selection now accepts common x64, amd64, i386, and i686 aliases.
+
+## Verification
+
+- `cargo test --locked --quiet` — 81 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries plus raw-entry regression passed
+
+---
+
 # Lens 0.6.194 — Fourier
 
 ## What's new

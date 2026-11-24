@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Raw-binary architecture selection now accepts common x64, amd64, i386, and i686 aliases.",
     "Raw-binary JSON reports now preserve explicit entry addresses, with smoke coverage for --entry.",
     "Raw-binary CLI analysis now accepts an explicit --entry address for firmware workflows.",
     "CLI JSON reports now include typed source/target cross-reference records.",
