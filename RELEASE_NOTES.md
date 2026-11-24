@@ -1,6 +1,9 @@
-# Lens 0.6.101 — Fourier
+# Lens 0.6.102 — Fourier
 
 ## What's new
+
+- Go runtime panic symbol matching now covers versioned panic and throw families without exact-name tables.
+- No-return regression coverage includes bounds, slice, and goroutine-exit helpers.
 
 - Go runtime.panic* and runtime.goexit symbol families are recognized as no-return functions.
 - Version-specific compiler panic helpers now terminate analysis consistently.
