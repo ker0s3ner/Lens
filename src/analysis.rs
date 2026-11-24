@@ -267,6 +267,23 @@ fn itanium_type_name(symbol: &str) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join("::"))
 }
 
+/// Recover the mangled type name from an Itanium `__class_type_info` object
+/// when the loader did not retain a `_ZTI...` data symbol. The second word of
+/// the object is a pointer to a NUL-terminated name in the mapped image.
+fn itanium_typeinfo_name(bin: &Binary, typeinfo: u64) -> Option<String> {
+    let name_ptr = bin.read_ptr(typeinfo + (bin.bitness() / 8) as u64)?;
+    if !bin.is_mapped(name_ptr) || bin.is_exec(name_ptr) { return None; }
+    let mut bytes = Vec::new();
+    for i in 0..256u64 {
+        let b = bin.byte(name_ptr + i)?;
+        if b == 0 { break; }
+        bytes.push(b);
+    }
+    if bytes.is_empty() { return None; }
+    let name = std::str::from_utf8(&bytes).ok()?;
+    itanium_type_name(name).or_else(|| demangle(name))
+}
+
 /// Arch-neutral summary of the instruction at `addr` (any supported CPU).
 /// Finds the targets of a compiler-generated switch: `cmp idx, N; ja default; lea base,[table]; movsxd; add; jmp reg`
 /// (position independent, 4-byte offsets) or `jmp [table + idx*8]` (absolute pointers).
@@ -1535,8 +1552,11 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             }
             if funcs.len() >= 2 {
                 vtables.entry(header).or_insert(funcs);
-                if let Some((_, symbol)) = bin.data_symbols.iter().find(|(addr, _)| *addr == typeinfo) {
-                    let type_name = itanium_type_name(symbol).unwrap_or_else(|| display_symbol(symbol));
+                let type_name = bin.data_symbols.iter()
+                    .find(|(addr, _)| *addr == typeinfo)
+                    .and_then(|(_, symbol)| itanium_type_name(symbol).or_else(|| Some(display_symbol(symbol))))
+                    .or_else(|| itanium_typeinfo_name(bin, typeinfo));
+                if let Some(type_name) = type_name {
                     vtable_names.entry(header).or_insert_with(|| format!("vtable for {type_name}"));
                 }
             }
@@ -2220,6 +2240,23 @@ mod idea_tests {
         bin.data_symbols.push((0x2010, "_ZTI3Foo".into()));
         let an = run(&bin, Default::default());
         assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
+        assert_eq!(an.vtable_names.get(&0x2000).map(String::as_str), Some("vtable for Foo"));
+    }
+
+    #[test]
+    fn discovers_stripped_itanium_vtable_name_from_typeinfo_object() {
+        let code = vec![0xC3, 0xC3, 0xC3];
+        let mut data = vec![0u8; 0x50];
+        data[8..16].copy_from_slice(&0x2030u64.to_le_bytes()); // typeinfo pointer
+        for (i, target) in [0x1000u64, 0x1001, 0x1002].into_iter().enumerate() {
+            let off = 16 + i * 8;
+            data[off..off + 8].copy_from_slice(&target.to_le_bytes());
+        }
+        data[0x38..0x40].copy_from_slice(&0x2040u64.to_le_bytes()); // type name pointer
+        data[0x40..0x48].copy_from_slice(b"_ZTI3Foo");
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
+        let an = run(&bin, Default::default());
         assert_eq!(an.vtable_names.get(&0x2000).map(String::as_str), Some("vtable for Foo"));
     }
 }

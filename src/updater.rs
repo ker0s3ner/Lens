@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Stripped Itanium C++ vtables now recover class names from the typeinfo object when symbols are absent.",
+    "RTTI name recovery is bounded and validates mapped, non-executable name storage before demangling.",
     "PE .pdata hints now reject records outside executable image ranges before they reach analysis.",
     "PE function-start hints are now sorted and deduplicated, with regression coverage for duplicate and invalid records.",
     "PE ARM64 loading now seeds stripped function discovery from .pdata runtime-function records.",

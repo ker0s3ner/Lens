@@ -1,3 +1,8 @@
+# Lens 0.6.336 — Fourier
+
+- Stripped Itanium C++ vtables now recover class names from the typeinfo object when symbols are absent.
+- RTTI name recovery is bounded and validates mapped, non-executable name storage before demangling.
+
 # Lens 0.6.335 — Fourier
 
 - PE `.pdata` hints now reject records outside executable image ranges before they reach analysis.
