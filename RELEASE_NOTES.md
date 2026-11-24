@@ -1,3 +1,10 @@
+# Lens 0.6.269 — Fourier
+
+- Decompiler now distinguishes logical `SHR` from arithmetic `SAR` shifts.
+- Rotate and unsigned-byte extraction expressions now preserve logical right-shift semantics.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.268 — Fourier
 
 - Constant signed right shifts now preserve arithmetic sign extension in pseudocode.

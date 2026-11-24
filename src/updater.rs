@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler now distinguishes logical SHR from arithmetic SAR shifts.",
+    "Rotate and unsigned-byte extraction expressions now preserve logical right-shift semantics.",
     "Constant signed right shifts now preserve arithmetic sign extension in pseudocode.",
     "Decompiler remainder folding now recognizes x % 1 as zero.",
     "Decompiler boolean identities now simplify constant truthiness around && and ||.",

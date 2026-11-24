@@ -79,7 +79,8 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("^", Num(x), Num(y)) => Num(x ^ y),
         ("<<", Num(x), Num(y)) if *y < 64 => Num(x.wrapping_shl(*y as u32)),
         (">>", Num(x), Num(y)) if *y < 64 => Num(x.wrapping_shr(*y as u32)),
-        ("+", _, Num(0)) | ("-", _, Num(0)) | ("|", _, Num(0)) | ("^", _, Num(0)) | ("<<", _, Num(0)) | (">>", _, Num(0)) => a,
+        (">>>", Num(x), Num(y)) if *y < 64 => Num((*x as u64).wrapping_shr(*y as u32) as i64),
+        ("+", _, Num(0)) | ("-", _, Num(0)) | ("|", _, Num(0)) | ("^", _, Num(0)) | ("<<", _, Num(0)) | (">>", _, Num(0)) | (">>>", _, Num(0)) => a,
         ("+", Num(0), _) | ("|", Num(0), _) | ("^", Num(0), _) => b,
         ("*", _, Num(1)) | ("/", _, Num(1)) => a,
         ("%", _, Num(1)) => Num(0),
@@ -122,7 +123,7 @@ fn prec(e: &Ex) -> u8 {
         Ex::Bin(op, _, _) => match *op {
             "*" | "/" | "%" => 5,
             "+" | "-" => 6,
-            "<<" | ">>" => 7,
+            "<<" | ">>" | ">>>" => 7,
             "<" | "<=" | ">" | ">=" => 8,
             "==" | "!=" => 9,
             "&" => 10,
@@ -731,7 +732,7 @@ impl<'a> Dc<'a> {
         let sz = r.size();
         if r.is_gpr() && sz < 4 {
             if r == Register::AH || r == Register::BH || r == Register::CH || r == Register::DH {
-                return Ex::Cast("uint8_t", Box::new(bin(">>", base, Ex::Num(8))));
+                return Ex::Cast("uint8_t", Box::new(bin(">>>", base, Ex::Num(8))));
             }
             let t = if sz == 1 { "uint8_t" } else { "uint16_t" };
             if is_narrow(&base) {
@@ -1413,7 +1414,8 @@ impl<'a> Dc<'a> {
                         Mnemonic::Or | Mnemonic::Orps => bin("|", a.clone(), b),
                         Mnemonic::Xor | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd => bin("^", a.clone(), b),
                         Mnemonic::Shl | Mnemonic::Sal => bin("<<", a.clone(), b),
-                        Mnemonic::Shr | Mnemonic::Sar => bin(">>", a.clone(), b),
+                        Mnemonic::Shr => bin(">>>", a.clone(), b),
+                        Mnemonic::Sar => bin(">>", a.clone(), b),
                         Mnemonic::Mulss | Mnemonic::Mulsd | Mnemonic::Mulps | Mnemonic::Mulpd | Mnemonic::Vmulps | Mnemonic::Vmulpd => bin("*", a.clone(), b),
                         _ => bin("/", a.clone(), b),
                     };
@@ -1464,9 +1466,9 @@ impl<'a> Dc<'a> {
                     let r = if zero {
                         value
                     } else if m == Mnemonic::Rol {
-                        bin("|", bin("<<", value.clone(), shift), bin(">>", value, opposite))
+                        bin("|", bin("<<", value.clone(), shift), bin(">>>", value, opposite))
                     } else {
-                        bin("|", bin(">>", value.clone(), shift), bin("<<", value, opposite))
+                        bin("|", bin(">>>", value.clone(), shift), bin("<<", value, opposite))
                     };
                     self.write_op(&mut st, ins, 0, r);
                 }
@@ -1477,9 +1479,9 @@ impl<'a> Dc<'a> {
                     let shift = if ins.op_kind(2) == OpKind::Immediate8 { Ex::Num((ins.immediate8() as u32 % bits) as i64) } else { self.read_op(&mut st, ins, 2) };
                     let opposite = if let Ex::Num(n) = &shift { Ex::Num((bits as i64 - *n).rem_euclid(bits as i64)) } else { bin("-", Ex::Num(bits as i64), shift.clone()) };
                     let r = if ins.mnemonic() == Mnemonic::Shld {
-                        bin("|", bin("<<", dst, shift), bin(">>", src, opposite))
+                        bin("|", bin("<<", dst, shift), bin(">>>", src, opposite))
                     } else {
-                        bin("|", bin(">>", dst, shift), bin("<<", src, opposite))
+                        bin("|", bin(">>>", dst, shift), bin("<<", src, opposite))
                     };
                     self.write_op(&mut st, ins, 0, r);
                 }
@@ -2847,6 +2849,7 @@ mod tests {
     fn folds_signed_right_shift_and_unit_remainder() {
         assert_eq!(bin(">>", Ex::Num(-8), Ex::Num(2)), Ex::Num(-2));
         assert_eq!(bin(">>", Ex::Num(8), Ex::Num(2)), Ex::Num(2));
+        assert_eq!(bin(">>>", Ex::Num(-8), Ex::Num(2)), Ex::Num(0x3FFF_FFFF_FFFF_FFFE));
         assert_eq!(bin("%", var("value"), Ex::Num(1)), Ex::Num(0));
     }
 
