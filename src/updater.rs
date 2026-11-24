@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler typed pointer and array recovery now recognizes __int128 and __uint128 element widths.",
+    "The 128-bit type model now flows from declaration sizing through prototype parsing and field-index recovery.",
     "The C type system now models compiler __int128 and __uint128 scalars as aligned 16-byte values.",
     "Prototype parsing recognizes both 128-bit integer spellings with deterministic struct-layout regression coverage.",
     "Desktop call-graph caller discovery now bounds incoming call/jump xrefs before resolving containing functions.",

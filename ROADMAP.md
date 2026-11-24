@@ -1,5 +1,7 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
+Release update: **Lens 0.6.443 — Fourier** carries 128-bit integer widths through typed pointer and array recovery. The 50% target remains unmet.
+
 Release update: **Lens 0.6.442 — Fourier** adds aligned compiler 128-bit integer sizing and prototype recognition. The 50% target remains unmet.
 
 Release update: **Lens 0.6.441 — Fourier** bounds desktop caller xref mapping before function lookup to reduce worst-case high-fan-in graph startup work. The 50% target remains unmet.

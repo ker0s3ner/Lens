@@ -1,3 +1,8 @@
+# Lens 0.6.443 — Fourier
+
+- Decompiler typed pointer and array recovery now recognizes `__int128` and `__uint128` element widths.
+- The 128-bit type model now flows consistently from declaration sizing through prototype parsing and field-index recovery.
+
 # Lens 0.6.442 — Fourier
 
 - The C type system now models compiler `__int128` and `__uint128` scalars as aligned 16-byte values.
