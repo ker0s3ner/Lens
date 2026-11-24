@@ -414,7 +414,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - IDA-style stack slots in the listing for frame-pointer functions: `[rbp+var_8]`, `[rbp+arg_0]`; pseudocode variable renames show up in the listing too.
 
 ## Next implementation queue
-1. **Types:** validate bitfield layouts across compiler ABIs; expand function-pointer declarations and enum constant propagation in pseudocode.
+1. **Types:** validate bitfield layouts across compiler ABIs; expand remaining enum constant propagation through arithmetic and switch-value recovery.
 2. **Analysis quality:** improve tail-call and thunk classification; expand ARM/Thumb switch recovery beyond TBB/TBH; discover vtables and RTTI with confidence and source locations.
    - No-return propagation now also follows conservative multi-instruction tail-call edges.
    - JSON analysis reports expose exact direct and indirect call-site records.
