@@ -1017,10 +1017,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 arith(dc, st, "+", false)
             }
         }
-        (Fam::Rv, "sh1add" | "sh2add" | "sh3add") if ops.len() >= 3 => {
+        (Fam::Rv, "sh1add" | "sh2add" | "sh3add" | "sh1add.uw" | "sh2add.uw" | "sh3add.uw") if ops.len() >= 3 => {
             let base = dc.g_val(st, o(1), None);
             let index = dc.g_val(st, o(2), None);
-            let shift = match base_mn { "sh1add" => 1, "sh2add" => 2, _ => 3 };
+            let shift = if base_mn.starts_with("sh1") { 1 } else if base_mn.starts_with("sh2") { 2 } else { 3 };
+            let base = if base_mn.ends_with(".uw") { bin("&", base, Ex::Num(0xffff_ffff)) } else { base };
             set(dc, st, 0, bin("+", base, bin("<<", index, Ex::Num(shift))));
         }
         (Fam::Rv, "slli.uw") if ops.len() >= 3 => {

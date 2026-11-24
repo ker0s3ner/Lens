@@ -1,3 +1,8 @@
+# Lens 0.6.300 — Fourier
+
+- RISC-V SH1ADD.UW, SH2ADD.UW, and SH3ADD.UW now preserve low-word zero-extension in scaled-index expressions.
+- The roadmap now tracks the current 0.6.300 Fourier build and its expanded RISC-V address-generation coverage.
+
 # Lens 0.6.299 — Fourier
 
 - RISC-V ADD.UW and SUB.UW now preserve their low-word zero-extension semantics in pseudocode.
