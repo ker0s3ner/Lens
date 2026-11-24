@@ -410,13 +410,13 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
                 let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
                 let lowered = prev.ops.to_ascii_lowercase();
                 let operands = lowered.split(", ").map(str::trim).collect::<Vec<_>>();
-                if prev.mnemonic == "add" && operands.len() >= 3 && operands[0] == base && operands[1] == "pc" {
+                if matches!(prev.mnemonic.as_str(), "add" | "sub") && operands.len() >= 3 && operands[0] == base && operands[1] == "pc" {
                     let imm = operands[2].trim_start_matches('#');
                     let (negative, digits) = imm.strip_prefix('-').map_or((false, imm), |digits| (true, digits));
                     let value = digits.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| digits.parse().ok());
                     if let Some(value) = value {
                         let base = (addr + 4) & !3;
-                        found = Some(if negative { base.saturating_sub(value) } else { base.saturating_add(value) });
+                        found = Some(if negative || prev.mnemonic == "sub" { base.saturating_sub(value) } else { base.saturating_add(value) });
                         break;
                     }
                 }
@@ -544,13 +544,13 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
             let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
             let lower = prev.ops.to_ascii_lowercase();
             let p = lower.split(", ").map(str::trim).collect::<Vec<_>>();
-            if prev.mnemonic == "add" && p.len() >= 3 && p[0] == mem && p[1] == "pc" {
+            if matches!(prev.mnemonic.as_str(), "add" | "sub") && p.len() >= 3 && p[0] == mem && p[1] == "pc" {
                 let imm = p[2].trim_start_matches('#');
                 let (negative, digits) = imm.strip_prefix('-').map_or((false, imm), |digits| (true, digits));
                 let value = digits.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| digits.parse().ok());
                 if let Some(v) = value {
                     let base = addr.saturating_add(8);
-                    found = Some(if negative { base.saturating_sub(v) } else { base.saturating_add(v) });
+                    found = Some(if negative || prev.mnemonic == "sub" { base.saturating_sub(v) } else { base.saturating_add(v) });
                     break;
                 }
             }
