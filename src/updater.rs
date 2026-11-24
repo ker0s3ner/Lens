@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "CLI JSON pseudocode now receives recovered DWARF and CodeView struct layouts instead of an empty type database.",
+    "Command-line reports can now render recovered field names and typed member accesses consistently with the GUI.",
     "CLI decompilation and script reports now register loader-recovered DWARF and CodeView prototypes before rendering pseudocode.",
     "Debug-signature behavior is now aligned between the GUI and command-line workflows.",
     "Decompiler type recovery now preserves common pointee types when conditional pointers are dereferenced.",

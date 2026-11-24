@@ -1,3 +1,8 @@
+# Lens 0.6.343 — Fourier
+
+- CLI JSON pseudocode now receives recovered DWARF and CodeView struct layouts instead of an empty type database.
+- Command-line reports can now render recovered field names and typed member accesses consistently with the GUI.
+
 # Lens 0.6.342 — Fourier
 
 - CLI decompilation and script reports now register loader-recovered DWARF and CodeView prototypes before rendering pseudocode.

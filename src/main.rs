@@ -234,7 +234,7 @@ fn cli(args: &[String]) -> bool {
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),
             "pseudocode_records": an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|function| {
-                let code = decomp::decompile_with_types(&bin, &an, &an.names, function, det.conv, "", &[]);
+                let code = decomp::decompile_with_types(&bin, &an, &an.names, function, det.conv, "", &bin.debug_structs);
                 serde_json::json!({
                     "address": function.start,
                     "name": bin.symbols.iter().find(|(address, _)| *address == function.start).map(|(_, name)| name),
