@@ -100,6 +100,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON function records now expose normalized caller and callee function addresses for graph consumers.
 - JSON callee records are deterministic and deduplicated while raw call-site records remain available.
 - Decompiler folds constant ternary conditions while preserving non-constant branch structure.
+- Script call-graph expansion is bounded and deterministic for large-binary automation.
 - Decompiler lifting now distinguishes logical and arithmetic right shifts, including rotate expressions.
 - Return expressions now also fold safe adjacent temporary-to-register copies.
 - CLI JSON analysis reports now expose recovered switch-table locations and targets.

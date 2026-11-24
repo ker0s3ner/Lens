@@ -1,3 +1,10 @@
+# Lens 0.6.279 — Fourier
+
+- Script `call_graph` now caps expansion at 256 functions to protect large-binary automation.
+- Structured script graph edges are now sorted deterministically for repeatable reports.
+
+Verification: `cargo test --locked --quiet` — 93 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.278 — Fourier
 
 - Decompiler now folds constant ternary conditions after flag propagation.

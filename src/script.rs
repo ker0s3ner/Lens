@@ -264,7 +264,9 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         let outgoing = |source: u64| s.out_xref_details.iter().filter(move |(from, _)| normalize(**from) == source).flat_map(|(_, refs)| refs.iter()).filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump"));
         let center = normalize(a as u64);
         let max_depth = depth.clamp(0, 8) as usize;
+        const MAX_GRAPH_NODES: usize = 256;
         let mut seen = std::collections::HashSet::new();
+        let mut visited = std::collections::HashSet::from([center]);
         let mut frontier = vec![center];
         let mut edges = Vec::new();
         for _ in 0..=max_depth {
@@ -272,6 +274,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
             for source in frontier {
                 for (target, kind) in outgoing(source) {
                     let target = normalize(*target);
+                    if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&target) { continue; }
                     if seen.insert((source, target, kind.clone())) {
                         let mut row = Map::new();
                         row.insert("from".into(), Dynamic::from(source as INT));
@@ -279,13 +282,14 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                         row.insert("kind".into(), Dynamic::from(kind.clone()));
                         row.insert("direction".into(), Dynamic::from("callee"));
                         edges.push(Dynamic::from_map(row));
-                        next.push(target);
+                        if visited.insert(target) { next.push(target); }
                     }
                 }
                 for (from, kind) in s.xref_details.iter().filter_map(|(target, refs)| {
                     (normalize(*target) == source).then_some(refs)
                 }).flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")) {
                     let from = normalize(*from);
+                    if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&from) { continue; }
                     if seen.insert((from, source, kind.clone())) {
                         let mut row = Map::new();
                         row.insert("from".into(), Dynamic::from(from as INT));
@@ -293,13 +297,17 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                         row.insert("kind".into(), Dynamic::from(kind.clone()));
                         row.insert("direction".into(), Dynamic::from("caller"));
                         edges.push(Dynamic::from_map(row));
-                        next.push(from);
+                        if visited.insert(from) { next.push(from); }
                     }
                 }
             }
             frontier = next;
             if frontier.is_empty() { break; }
         }
+        edges.sort_by_key(|edge| {
+            let map = edge.clone_cast::<Map>();
+            (map.get("from").and_then(|v| v.clone().try_cast::<INT>()).unwrap_or(0), map.get("to").and_then(|v| v.clone().try_cast::<INT>()).unwrap_or(0), map.get("kind").and_then(|v| v.clone().try_cast::<String>()).unwrap_or_default())
+        });
         edges
     });
     let s = snap.clone();
