@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler call arguments now retain known pointer types for inferred variables.",
     "Known pointer prototypes now propagate through inferred call arguments in pseudocode.",
     "Function-scoped search results now clear when navigation moves to another function.",
     "Function-scoped searches now scan the full function before applying the result cap.",
