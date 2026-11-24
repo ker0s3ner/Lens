@@ -279,6 +279,10 @@ impl LensApp {
                 }
             });
             ui.label(RichText::new(&s.note).small().color(p.muted));
+            if !s.results.is_empty() && ui.small_button("Copy results").on_hover_text("Copy addresses and matched text").clicked() {
+                let report = s.results.iter().map(|(address, text)| format!("{address:X}\t{text}")).collect::<Vec<_>>().join("\n");
+                ui.ctx().copy_text(report);
+            }
             ui.add_space(4.0);
             let n = s.results.len();
             let row_h = 22.0;
