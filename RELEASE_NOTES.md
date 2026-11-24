@@ -1,3 +1,8 @@
+# Lens 0.6.312 — Fourier
+
+- The deterministic golden gate now includes a big-endian PowerPC 64 return fixture.
+- Five representative CPU-family paths now have pinned raw decoding metadata and function counts.
+
 # Lens 0.6.311 — Fourier
 
 - The deterministic golden gate now includes an ARM32 return fixture alongside x64, ARM64, and RISC-V 64.
