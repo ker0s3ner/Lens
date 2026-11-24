@@ -58,7 +58,8 @@ fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
     if t.ends_with('*') {
         return Some((ptr, ptr));
     }
-    let t = t.trim_start_matches("const ").trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
+    let t = t.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict")).collect::<Vec<_>>().join(" ");
+    let t = t.trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
     Some(match t {
         "char" | "bool" | "_Bool" | "int8_t" | "uint8_t" | "u8" | "i8" | "BYTE" | "byte" | "" => (1, 1),
         "short" | "int16_t" | "uint16_t" | "u16" | "i16" | "WORD" | "wchar_t" => (2, 2),
@@ -296,7 +297,8 @@ fn valid_ident(name: &str) -> bool {
 }
 
 fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
-    let t = ty.trim().trim_start_matches("const ").trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
+    let t = ty.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict")).collect::<Vec<_>>().join(" ");
+    let t = t.trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
     matches!(t, "char" | "short" | "int" | "long" | "long long" | "_Bool" | "bool"
         | "int8_t" | "uint8_t" | "int16_t" | "uint16_t" | "int32_t" | "uint32_t" | "int64_t" | "uint64_t"
         | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "BYTE" | "WORD" | "DWORD" | "QWORD")
@@ -304,7 +306,7 @@ fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
 }
 
 fn compatible_bitfield_storage(a: &str, b: &str) -> bool {
-    let normalize = |ty: &str| ty.split_whitespace().filter(|word| *word != "const").collect::<Vec<_>>().join(" ");
+    let normalize = |ty: &str| ty.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict")).collect::<Vec<_>>().join(" ");
     let a = normalize(a);
     let b = normalize(b);
     if a == b { return true; }
@@ -629,6 +631,14 @@ mod tests {
     #[test]
     fn qualified_signed_bitfields_share_storage() {
         let bits = parse_c("struct Bits { const signed int first:3; signed int second:3; };", 8, &[]).unwrap();
+        assert_eq!(bits.fields[0].off, 0);
+        assert_eq!(bits.fields[1].off, 0);
+        assert_eq!(bits.fields[1].bit_offset, Some(3));
+    }
+
+    #[test]
+    fn cv_qualified_signed_bitfields_share_storage() {
+        let bits = parse_c("struct Bits { volatile signed int first:3; restrict signed int second:3; };", 8, &[]).unwrap();
         assert_eq!(bits.fields[0].off, 0);
         assert_eq!(bits.fields[1].off, 0);
         assert_eq!(bits.fields[1].bit_offset, Some(3));
