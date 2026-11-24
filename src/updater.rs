@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ELF dynamic `DT_INIT` and `DT_FINI` entry points now seed validated function discovery.",
+    "The loader accepts these roots only when they fall inside executable mappings, preserving conservative analysis on malformed files.",
     "Pointer arithmetic propagation now remains available in the decompiler's earlier fixed-point type pass.",
     "Later assignments can retain pointer types after constant offsets instead of losing them before rendering.",
     "The decompiler's earlier type-analysis pass now preserves pointee types through dereferences, casts, and pointer temporaries before rendering.",

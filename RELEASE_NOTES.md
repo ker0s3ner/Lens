@@ -1,3 +1,17 @@
+# Lens 0.6.150 — Fourier
+
+## What's new
+
+- ELF dynamic `DT_INIT` and `DT_FINI` entry points now seed validated function discovery.
+- The loader accepts these roots only when they fall inside executable mappings, preserving conservative analysis on malformed files.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.149 — Fourier
 
 ## What's new

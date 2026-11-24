@@ -452,6 +452,12 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         bin.entry = bin.segments.iter().find(|s| s.exec).map(|s| s.start);
         let (applied, skipped) = apply_elf_object_relocations(bin, elf, &section_bases);
         bin.notes.push(format!("Relocatable ELF object: alloc sections are mapped at synthetic addresses; applied {applied} supported relocations and skipped {skipped} unresolved or unsupported relocations."));
+    } else if let Some(dynamic) = &elf.dynamic {
+        for (addr, name) in [(dynamic.info.init as u64, "__elf_init"), (dynamic.info.fini as u64, "__elf_fini")] {
+            if addr != 0 && bin.is_exec(addr) && !bin.symbols.iter().any(|(a, _)| *a == addr) {
+                bin.symbols.push((addr, name.to_string()));
+            }
+        }
     }
     for sym in elf.syms.iter().chain(elf.dynsyms.iter()) {
         if sym.st_shndx == 0 {
