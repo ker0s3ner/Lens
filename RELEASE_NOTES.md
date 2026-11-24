@@ -30,6 +30,20 @@
 # Lens 0.6.226 — Fourier
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
+# Lens 0.6.229 — Fourier
+
+## What's new
+
+- JSON analysis reports now include exact direct and indirect call-site records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.228 — Fourier
 
 ## What's new
 

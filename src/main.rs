@@ -259,6 +259,15 @@ fn cli(args: &[String]) -> bool {
                 "to": target,
                 "kind": xrefs_to.get(target).and_then(|refs| refs.iter().find(|xref| xref.from == function.start)).map(|xref| xref.kind.label()).unwrap_or("call"),
             }))).collect::<Vec<_>>(),
+            "call_site_records": an.insns.iter().filter_map(|(address, insn)| {
+                if !matches!(insn.flow, analysis::Flow::Call | analysis::Flow::IndirectCall) { return None; }
+                let target = if insn.flow == analysis::Flow::Call { Some(insn.target) } else if insn.mem != 0 { Some(insn.mem) } else { None };
+                Some(serde_json::json!({
+                    "address": address,
+                    "target": target,
+                    "kind": if insn.flow == analysis::Flow::Call { "direct" } else { "indirect" },
+                }))
+            }).collect::<Vec<_>>(),
             "entry_records": entry_records,
             "name_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
