@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PE analysis now imports global procedure/public symbols from an adjacent CodeView PDB when available.",
+    "PDB-backed function names are mapped through the executable image base before analysis begins.",
     "DWARF variadic callback signatures now retain their `...` parameter marker.",
     "Imported callback types preserve fixed parameters and variadic ABI shape together.",
     "Named DWARF callback parameters are retained in imported function-pointer signatures when available.",

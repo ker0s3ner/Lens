@@ -19,6 +19,7 @@ mod menubar;
 mod multiarch;
 mod panels;
 mod patch;
+mod pdb;
 mod script;
 mod settings;
 mod sigs;

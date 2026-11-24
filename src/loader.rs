@@ -690,6 +690,32 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             bin.symbols.push((base + e.rva as u64, n.to_string()));
         }
     }
+    let mut pdb_candidates = vec![PathBuf::from(&bin.path).with_extension("pdb")];
+    if let Some(debug) = &pe.debug_data {
+        if let Some(cv) = &debug.codeview_pdb70_debug_info {
+            if let Ok(raw) = std::str::from_utf8(cv.filename) {
+                let embedded = Path::new(raw.trim_end_matches('\0'));
+                if let Some(name) = embedded.file_name() {
+                    pdb_candidates.push(Path::new(&bin.path).parent().unwrap_or(Path::new(".")).join(name));
+                }
+            }
+        }
+    }
+    for candidate in pdb_candidates {
+        let Some(symbols) = crate::pdb::symbols(&candidate) else { continue };
+        let mut added = 0;
+        for (rva, name) in symbols {
+            let addr = base.saturating_add(rva as u64);
+            if bin.is_exec(addr) && !bin.symbols.iter().any(|(a, _)| *a == addr) {
+                bin.symbols.push((addr, name));
+                added += 1;
+            }
+        }
+        if added > 0 {
+            bin.notes.push(format!("PDB symbols: {added} function name(s) imported from {}.", candidate.display()));
+            break;
+        }
+    }
 }
 
 fn add_pe_delay_imports(bin: &mut Binary, pe: &goblin::pe::PE, base: u64) -> Vec<String> {

@@ -1,6 +1,6 @@
 [package]
 name = "lens"
-version = "0.6.106"
+version = "0.6.107"
 edition = "2021"
 description = "Lens - a clean, friendly disassembler for x86/x64 programs (ELF, PE, Mach-O)"
 
@@ -24,6 +24,7 @@ libc = "0.2"
 ab_glyph = "0.2"
 gimli = { version = "0.31", default-features = false, features = ["read", "std"] }
 object = { version = "0.36", default-features = false, features = ["read_core", "std", "macho", "elf", "pe", "unaligned"] }
+pdb = "0.8"
 
 ureq = { version = "3", features = ["json"] }
 

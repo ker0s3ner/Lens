@@ -1,6 +1,9 @@
-# Lens 0.6.106 — Fourier
+# Lens 0.6.107 — Fourier
 
 ## What's new
+
+- PE analysis now imports global procedure/public symbols from an adjacent CodeView PDB when available.
+- PDB-backed function names are mapped through the executable image base before analysis begins.
 
 - DWARF variadic callback signatures now retain their `...` parameter marker.
 - Imported callback types preserve fixed parameters and variadic ABI shape together.

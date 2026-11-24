@@ -11,7 +11,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - Translate pasted hex, C byte arrays, `\\x` escapes, Intel HEX and S-record data into disassembly.
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
 - Detect Electron `app.asar` archives and extract their JavaScript resources as source files.
-- Read function-start hints from ELF `.eh_frame`, PE `.pdata` and TLS callbacks, and Mach-O `LC_FUNCTION_STARTS`, `LC_DATA_IN_CODE`, and `__unwind_info`. Mach-O embedded data ranges are excluded from code discovery. DWARF can supply function names and prototypes; named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
+- Read function-start hints from ELF `.eh_frame`, PE `.pdata` and TLS callbacks, and Mach-O `LC_FUNCTION_STARTS`, `LC_DATA_IN_CODE`, and `__unwind_info`. Mach-O embedded data ranges are excluded from code discovery. DWARF can supply function names and prototypes; PE files can import global procedure/public symbols from an adjacent CodeView PDB. Named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
 
 ### Analyze and navigate
 
@@ -113,7 +113,7 @@ Release versions use `x.y.z`: `x` is a themed major release, `y` is a monthly fe
 
 - Analysis completeness and pseudocode quality vary substantially by architecture and compiler. The pseudocode is a best-effort lift, not source recovery or a correctness proof.
 - Switch recovery covers x86, ARM32, ARM64, Thumb TBB/TBH, RISC-V, MIPS and PowerPC patterns, but remains conservative. Vtable/RTTI, Objective-C selector, and Swift symbol/reflection metadata recovery are implemented heuristically; broad data-versus-code typing is not. Relocatable ELF inputs apply common static relocations but do not synthesize linker GOT/PLT entries or resolve every architecture's compound relocations.
-- The type parser is intentionally limited. It supports anonymous typedef records/enums, simple integer bitfields, callback fields, nested function-pointer declarations and function-pointer typedef aliases, but not compiler-specific bitfield ABI layouts. DWARF types containing bitfields or unsupported member-location expressions are skipped instead of assigned guessed offsets.
+- The type parser is intentionally limited. It supports anonymous typedef records/enums, simple integer bitfields, callback fields, nested function-pointer declarations and function-pointer typedef aliases, but not compiler-specific bitfield ABI layouts. Supported DWARF bitfields and callback signatures are imported; unsupported member-location expressions are skipped instead of assigned guessed offsets.
 - Debugging depends on LLDB; Lens does not yet have its own native debug engine. Hardware breakpoints depend on target support. Instruction tracing uses repeated single-step operations, so it is slower than processor trace facilities and stops at the selected instruction limit. Process attach and GDB remote connection are available through LLDB.
 - Files are read fully into memory, then loading and analysis run on a background thread. Incremental analysis/listing, explicit memory limits and measured performance on very large files remain future work.
 - Java, .NET, DEX/APK, WebAssembly, firmware and the additional processor families listed in the roadmap are not supported as native analysis targets yet.
