@@ -51,6 +51,15 @@ mod tests {
         assert_eq!(abi.sp, 15);
         assert!(abi.args.is_empty());
     }
+
+    #[test]
+    fn m68k_parses_percent_prefixed_parenthesized_addressing() {
+        let ops = vec!["(%a0)".to_string()];
+        let (mem, used) = parse_mem(Fam::M68k, &ops, 0).expect("m68k indirect address");
+        assert_eq!(used, 1);
+        assert_eq!(mem.base, R { i: 8, w: 4 });
+        assert_eq!(mem.disp, 0);
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -130,7 +139,7 @@ fn ppc_mask(mb: u32, me: u32) -> Option<i64> {
 }
 
 fn parse_reg(f: Fam, tok: &str) -> Option<R> {
-    let t = tok.trim().trim_end_matches('!').split('.').next().unwrap_or(tok.trim());
+    let t = tok.trim().trim_start_matches('%').trim_end_matches('!').split('.').next().unwrap_or(tok.trim());
     let num = |p: &str, max: u8| t.strip_prefix(p).and_then(|d| if d.is_empty() || !d.chars().all(|c| c.is_ascii_digit()) { None } else { d.parse::<u8>().ok() }).filter(|n| *n <= max);
     match f {
         Fam::A64 => match t {

@@ -1,3 +1,8 @@
+# Lens 0.6.358 — Fourier
+
+- M68k decompiler operands now normalize percent-prefixed registers from Capstone syntax.
+- Parenthesized M68k indirect addressing now parses as a real memory operand with regression coverage.
+
 # Lens 0.6.357 — Fourier
 
 - M68k decompilation now lifts common move and arithmetic instructions into readable expressions.

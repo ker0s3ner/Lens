@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k decompiler operands now normalize percent-prefixed registers from Capstone syntax.",
+    "Parenthesized M68k indirect addressing now parses as a real memory operand with regression coverage.",
     "M68k decompilation now lifts common move and arithmetic instructions into readable expressions.",
     "M68k arithmetic-family coverage now includes address and quick forms with the dedicated ABI path.",
     "M68k now has a dedicated generic-decompiler register and ABI family instead of being routed through PowerPC semantics.",
