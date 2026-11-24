@@ -2514,6 +2514,18 @@ fn decompile_inner(
                     Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
                     Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                     Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                    Ex::Tern(_, yes, no) => {
+                        let pointee = |e: &Ex| match e {
+                            Ex::Call(c, _) => call_pointee_type(c),
+                            Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
+                            Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                            Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                            _ => None,
+                        };
+                        let a = pointee(yes);
+                        let b = pointee(no);
+                        (a == b).then(|| a).flatten()
+                    }
                     _ => None,
                 },
                 Ex::Cast(ty, _) => Some((*ty).to_string()),
@@ -2554,6 +2566,18 @@ fn decompile_inner(
                 Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
                 Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                 Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                Ex::Tern(_, yes, no) => {
+                    let pointee = |e: &Ex| match e {
+                        Ex::Call(c, _) => call_pointee_type(c),
+                        Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
+                        Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                        Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                        _ => None,
+                    };
+                    let a = pointee(yes);
+                    let b = pointee(no);
+                    (a == b).then(|| a).flatten()
+                }
                 _ => None,
             },
             Ex::Cast(ty, _) => Some((*ty).to_string()),
@@ -2708,6 +2732,18 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                     Ex::Var(source) => types.get(source).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
                     Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                     Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                    Ex::Tern(_, yes, no) => {
+                        let pointee = |e: &Ex| match e {
+                            Ex::Call(c, _) => call_pointee_type(c),
+                            Ex::Var(v) => types.get(v).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
+                            Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                            Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                            _ => None,
+                        };
+                        let a = pointee(yes);
+                        let b = pointee(no);
+                        (a == b).then(|| a).flatten()
+                    }
                     _ => None,
                 },
                 Ex::Cast(t, _) => Some((*t).to_string()),
@@ -2833,6 +2869,17 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("chosen").map(String::as_str), Some("char *"));
+    }
+
+    #[test]
+    fn render_type_inference_keeps_pointee_through_conditional_dereference() {
+        let call = || Ex::Call(Box::new(var("strdup")), vec![]);
+        let rhs = Ex::Deref(Box::new(Ex::Tern(Box::new(var("flag")), Box::new(call()), Box::new(call()))), 1);
+        let outs = vec![BlockOut {
+            stmts: vec![(0, Stmt::Assign(Ex::Var("ch".into()), rhs))],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("char"));
     }
 
     #[test]

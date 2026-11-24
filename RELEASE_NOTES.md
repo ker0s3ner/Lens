@@ -1,3 +1,8 @@
+# Lens 0.6.341 — Fourier
+
+- Decompiler type recovery now preserves common pointee types when conditional pointers are dereferenced.
+- Conditional pointer dereferences continue into typed scalar and struct-field rendering, with regression coverage.
+
 # Lens 0.6.340 — Fourier
 
 - Function discovery now skips Mach-O-marked data ranges embedded inside executable sections.
