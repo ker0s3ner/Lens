@@ -1,3 +1,8 @@
+# Lens 0.6.359 — Fourier
+
+- M68k decompilation now lifts multiply and divide instructions into readable expressions.
+- M68k logical and arithmetic shifts now preserve their direction and operands in pseudocode.
+
 # Lens 0.6.358 — Fourier
 
 - M68k decompiler operands now normalize percent-prefixed registers from Capstone syntax.

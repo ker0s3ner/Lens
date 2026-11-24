@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k decompilation now lifts multiply and divide instructions into readable expressions.",
+    "M68k logical and arithmetic shifts now preserve their direction and operands in pseudocode.",
     "M68k decompiler operands now normalize percent-prefixed registers from Capstone syntax.",
     "Parenthesized M68k indirect addressing now parses as a real memory operand with regression coverage.",
     "M68k decompilation now lifts common move and arithmetic instructions into readable expressions.",

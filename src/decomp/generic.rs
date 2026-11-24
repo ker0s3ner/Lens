@@ -1112,7 +1112,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, bin("-", Ex::Num(0), v));
         }
-        (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") => arith(dc, st, "*", false),
+        (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") | (Fam::M68k, "mulu" | "muls") => arith(dc, st, "*", false),
         (Fam::Rv, "mulh" | "mulhu" | "mulhsu") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
@@ -1298,7 +1298,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let field = if width == 32 { u64::from(u32::MAX) } else { ((1u64 << width) - 1) << lsb };
             set(dc, st, 0, bin("&", dst, Ex::Num((!(field as u32)) as i64)));
         }
-        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") => arith(dc, st, "/", false),
+        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") | (Fam::M68k, "divu" | "divs") => arith(dc, st, "/", false),
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),
         (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") => arith(dc, st, "&", false),
@@ -1462,9 +1462,9 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
-        (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") => arith(dc, st, "<<", false),
-        (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") => arith(dc, st, ">>", false),
-        (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") => {
+        (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") | (Fam::M68k, "lsl") => arith(dc, st, "<<", false),
+        (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") | (Fam::M68k, "lsr") => arith(dc, st, ">>", false),
+        (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") | (Fam::M68k, "asr") => {
             let (a, b) = if ops.len() >= 3 { (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None)) } else { (dc.g_val(st, o(0), None), dc.g_val(st, o(1), None)) };
             set(dc, st, 0, bin(">>", Ex::Cast("int64_t", Box::new(a)), b));
         }
