@@ -1,3 +1,8 @@
+# Lens 0.6.321 — Fourier
+
+- PowerPC `rlwnm` now preserves register-count rotate-left-and-mask semantics in pseudocode.
+- The PowerPC rotate/mask family now covers immediate, register-count, and mask-insert forms with shared bit-range handling.
+
 # Lens 0.6.320 — Fourier
 
 - PowerPC `rlwimi` now preserves rotate-left-and-mask-insert semantics in pseudocode.

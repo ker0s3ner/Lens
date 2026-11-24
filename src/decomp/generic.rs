@@ -1461,6 +1461,14 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let Some(mask) = ppc_mask(mb, me) else { return };
             set(dc, st, 0, bin("&", Ex::Call(Box::new(var("rol")), vec![value, amount]), Ex::Num(mask)));
         }
+        (Fam::Ppc, "rlwnm") if ops.len() >= 5 => {
+            let value = dc.g_val(st, o(1), None);
+            let amount = dc.g_val(st, o(2), None);
+            let Some(mb) = parse_imm(&ops[3]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(me) = parse_imm(&ops[4]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(mask) = ppc_mask(mb, me) else { return };
+            set(dc, st, 0, bin("&", Ex::Call(Box::new(var("rol")), vec![value, amount]), Ex::Num(mask)));
+        }
         (Fam::Ppc, "rlwimi") if ops.len() >= 5 => {
             let dst = dc.g_val(st, o(0), None);
             let value = dc.g_val(st, o(1), None);

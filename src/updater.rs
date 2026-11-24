@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC rlwnm now preserves register-count rotate-left-and-mask semantics in pseudocode.",
+    "The PowerPC rotate/mask family now covers immediate, register-count, and mask-insert forms with shared bit-range handling.",
     "PowerPC rlwimi now preserves rotate-left-and-mask-insert semantics in pseudocode.",
     "Shared PowerPC MB/ME mask generation is now unit-tested for both contiguous and wrapping bit ranges.",
     "PowerPC rlwinm now decompiles as an explicit rotate-left-and-mask expression instead of an opaque intrinsic.",
