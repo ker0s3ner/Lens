@@ -1,6 +1,9 @@
-# Lens 0.6.103 — Fourier
+# Lens 0.6.104 — Fourier
 
 ## What's new
+
+- DWARF callback types now retain return and formal-parameter types in imported function-pointer fields.
+- Typed callbacks no longer collapse to opaque `void *` declarations in the Types tool.
 
 - Supported DWARF bitfields now import with their native storage offsets and widths.
 - The Types tool can preserve compiler-emitted bitfield layouts instead of skipping those structs.

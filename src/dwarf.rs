@@ -84,7 +84,24 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
             let count = array_count(unit, e.offset()).map(|n| n.to_string()).unwrap_or_default();
             format!("{t}[{count}]")
         }
-        gimli::DW_TAG_subroutine_type => "void *".into(),
+        gimli::DW_TAG_subroutine_type => {
+            let ret = type_name(c, unit, inner(), depth + 1);
+            let mut params = Vec::new();
+            if let Ok(mut tree) = unit.entries_at_offset(e.offset()) {
+                let _ = tree.next_dfs();
+                while let Ok(Some((level, child))) = tree.next_dfs() {
+                    if level < 1 { break; }
+                    if level == 1 && child.tag() == gimli::DW_TAG_formal_parameter {
+                        let p = match child.attr_value(gimli::DW_AT_type).ok().flatten() {
+                            Some(AttributeValue::UnitRef(o)) => type_name(c, unit, Some(o), depth + 1),
+                            _ => "void".into(),
+                        };
+                        params.push(p);
+                    }
+                }
+            }
+            format!("fn({}) -> {ret}", params.join(", "))
+        }
         _ => "void".into(),
     }
 }

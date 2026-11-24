@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "DWARF callback types now retain return and formal-parameter types in imported function-pointer fields.",
+    "Typed callbacks no longer collapse to opaque `void *` declarations in the Types tool.",
     "Supported DWARF bitfields now import with their native storage offsets and widths.",
     "The Types tool can preserve compiler-emitted bitfield layouts instead of skipping those structs.",
     "Go runtime panic symbol matching now covers versioned panic and throw families without exact-name tables.",
