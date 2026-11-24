@@ -1,3 +1,8 @@
+# Lens 0.6.292 — Fourier
+
+- PowerPC ROTRW/ROTRD and immediate rotate-right forms now render as explicit rotate expressions.
+- PowerPC rotate lifting now covers both directions across the common 32-bit and 64-bit forms.
+
 # Lens 0.6.291 — Fourier
 
 - PowerPC ROTLW/ROTLD and immediate rotate-left forms now render as explicit rotate expressions.
