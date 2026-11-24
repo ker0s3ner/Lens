@@ -1,3 +1,8 @@
+# Lens 0.6.368 — Fourier
+
+- Call graphs now reuse canonical analyzed call targets instead of rescanning every function's instructions.
+- Switch-case graph edges remain indexed and bounded, preserving control-flow context while keeping large graphs responsive.
+
 # Lens 0.6.367 — Fourier
 
 - M68k link prologues now apply frame-pointer setup and stack allocation together during symbolic execution.

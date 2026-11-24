@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call graphs now reuse canonical analyzed call targets instead of rescanning every function's instructions.",
+    "Switch-case graph edges remain indexed and bounded, preserving control-flow context while keeping large graphs responsive.",
     "M68k link prologues now apply frame-pointer setup and stack allocation together during symbolic execution.",
     "M68k local and argument address recovery no longer sees stale stack offsets after link instructions.",
     "M68k exg and swap idioms now lift as explicit register transformations.",

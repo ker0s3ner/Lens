@@ -1033,20 +1033,15 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
     if func.kind == FuncKind::Import {
         return vec![];
     }
-    let mut v = vec![];
-    for a in func.blocks.iter().flat_map(|b| b.insns.iter()).take(CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION) {
-            let i = &l.an.insns[a];
-            match i.flow {
-                crate::analysis::Flow::Call if i.target != 0 && l.an.functions.contains_key(&i.target) => v.push(i.target),
-                crate::analysis::Flow::Jump if i.target != f && l.an.functions.contains_key(&i.target) => v.push(i.target),
-                crate::analysis::Flow::IndirectCall if l.an.import_slot.contains_key(&i.mem) => v.push(i.mem),
-                _ => {}
-            }
-    }
+    // Analysis already canonicalizes direct calls, indirect import-slot calls,
+    // and conservative tail-call edges in Function::calls. Reusing that index
+    // avoids rescanning thousands of instructions every time the graph opens.
+    let mut v: Vec<u64> = func.calls.iter().copied()
+        .filter(|target| l.an.functions.contains_key(target))
+        .collect();
     // Indirect switch cases have no single instruction target. Walk only this
     // function's instructions and consult the analyzer's indexed switch map;
-    // scanning every xref destination here made opening a graph quadratic in
-    // the size of a large binary.
+    // this bounded scan preserves case edges without redoing call discovery.
     for a in func.blocks.iter().flat_map(|b| b.insns.iter().copied()).take(CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION) {
         if let Some(targets) = l.an.switches.get(&a) {
             v.extend(targets.iter().copied().filter(|target| l.an.functions.contains_key(target)));
