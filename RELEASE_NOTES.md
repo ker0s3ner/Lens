@@ -1,6 +1,9 @@
-# Lens 0.6.111 — Fourier
+# Lens 0.6.112 — Fourier
 
 ## What's new
+
+- PDB prototypes are now retained even when their symbol names were already known from PE exports.
+- Debug type recovery is no longer coupled to whether PDB names add new function entries.
 
 - PE/PDB procedure records now contribute conservative primitive/pointer prototypes to decompilation.
 - Unsupported PDB type records remain skipped instead of generating guessed signatures.
