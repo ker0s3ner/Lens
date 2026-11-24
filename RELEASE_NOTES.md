@@ -1,3 +1,8 @@
+# Lens 0.6.339 — Fourier
+
+- Decompiler conditional type propagation now recognizes matching typed call and cast branches directly.
+- Common pointer results survive more compiler-emitted conditional forms, with focused regression coverage.
+
 # Lens 0.6.338 — Fourier
 
 - Decompiler type recovery now preserves a common pointer type through conditional values.

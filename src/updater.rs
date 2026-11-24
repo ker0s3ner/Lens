@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler conditional type propagation now recognizes matching typed call and cast branches directly.",
+    "Common pointer results survive more compiler-emitted conditional forms, with focused regression coverage.",
     "Decompiler type recovery now preserves a common pointer type through conditional values.",
     "Typed conditional results now continue into pointer arithmetic and struct-field rendering, with regression coverage.",
     "Call-graph switch edges now use the analyzer's indexed jump-table map instead of rescanning every xref in the binary.",

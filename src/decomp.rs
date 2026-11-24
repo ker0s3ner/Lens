@@ -2524,10 +2524,16 @@ fn decompile_inner(
                     _ => None,
                 },
                 Ex::Tern(_, yes, no) => {
-                    match (&**yes, &**no) {
-                        (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
+                    let branch_type = |e: &Ex| match e {
+                        Ex::Var(v) => known_types.get(v).cloned(),
+                        Ex::Call(c, _) => call_return_type(c),
+                        Ex::Cast(t, _) => Some((*t).to_string()),
+                        Ex::CastOwned(t, _) => Some(t.clone()),
                         _ => None,
-                    }
+                    };
+                    let a = branch_type(yes);
+                    let b = branch_type(no);
+                    (a == b).then(|| a).flatten()
                 }
                 _ => None,
             };
@@ -2559,7 +2565,17 @@ fn decompile_inner(
             },
                 Ex::Tern(_, yes, no) => match (&**yes, &**no) {
                     (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
-                    _ => None,
+                    _ => {
+                        let branch_type = |e: &Ex| match e {
+                            Ex::Call(c, _) => call_return_type(c),
+                            Ex::Cast(t, _) => Some((*t).to_string()),
+                            Ex::CastOwned(t, _) => Some(t.clone()),
+                            _ => None,
+                        };
+                        let a = branch_type(yes);
+                        let b = branch_type(no);
+                        (a == b).then(|| a).flatten()
+                    }
                 },
             _ => None,
         };
@@ -2703,7 +2719,17 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                 },
                 Ex::Tern(_, yes, no) => match (&**yes, &**no) {
                     (Ex::Var(a), Ex::Var(b)) if types.get(a) == types.get(b) => types.get(a).cloned(),
-                    _ => None,
+                    _ => {
+                        let branch_type = |e: &Ex| match e {
+                            Ex::Call(c, _) => call_return_type(c),
+                            Ex::Cast(t, _) => Some((*t).to_string()),
+                            Ex::CastOwned(t, _) => Some(t.clone()),
+                            _ => None,
+                        };
+                        let a = branch_type(yes);
+                        let b = branch_type(no);
+                        (a == b).then(|| a).flatten()
+                    }
                 },
                 _ => None,
             };
@@ -2791,6 +2817,19 @@ mod tests {
                 (1, Stmt::Assign(Ex::Var("q".into()), call())),
                 (2, Stmt::Assign(Ex::Var("chosen".into()), Ex::Tern(Box::new(var("flag")), Box::new(var("p")), Box::new(var("q"))))),
             ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("chosen").map(String::as_str), Some("char *"));
+    }
+
+    #[test]
+    fn render_type_inference_keeps_common_type_through_conditional_calls() {
+        let call = |name: &str| Ex::Call(Box::new(var(name)), vec![]);
+        let outs = vec![BlockOut {
+            stmts: vec![(0, Stmt::Assign(
+                Ex::Var("chosen".into()),
+                Ex::Tern(Box::new(var("flag")), Box::new(call("strdup")), Box::new(call("strdup"))),
+            ))],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("chosen").map(String::as_str), Some("char *"));
