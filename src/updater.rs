@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Common AVX2 packed absolute-value and signed/unsigned min/max families now remain visible as named pseudocode intrinsics.",
+    "Vector bounds and absolute-value operations preserve their operand groups in decompiler output.",
     "Common AVX2 packed logical, arithmetic, and variable shift families now remain visible as named pseudocode intrinsics.",
     "Vector lane shifts preserve their operand groups instead of falling through to opaque generic handling.",
     "AArch64 NEON floating/integer conversion and rounding families now remain visible as named pseudocode intrinsics.",

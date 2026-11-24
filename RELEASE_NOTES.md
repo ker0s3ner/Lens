@@ -1,6 +1,9 @@
-# Lens 0.6.75 — Fourier
+# Lens 0.6.76 — Fourier
 
 ## What's new
+
+- Common AVX2 packed absolute-value and signed/unsigned min/max families now remain visible as named pseudocode intrinsics.
+- Vector bounds and absolute-value operations preserve their operand groups in decompiler output.
 
 - Common AVX2 packed logical, arithmetic, and variable shift families now remain visible as named pseudocode intrinsics.
 - Vector lane shifts preserve their operand groups instead of falling through to opaque generic handling.
