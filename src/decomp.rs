@@ -2317,6 +2317,13 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                     Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"),
                     _ => None,
                 },
+                Ex::Deref(inner, _) => match &**inner {
+                    Ex::Call(c, _) => match &**c {
+                        Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()).filter(|r| r != "void"),
+                        _ => None,
+                    },
+                    _ => None,
+                },
                 Ex::Cast(t, _) => Some((*t).to_string()),
                 Ex::CastOwned(t, _) => Some(t.clone()),
                 Ex::Var(source) => types.get(source).cloned(),

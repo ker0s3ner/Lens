@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler type propagation now preserves pointee types when assigning from dereferenced known pointer-returning calls.",
+    "Known prototypes such as `strdup` retain useful scalar pointee information through direct dereference expressions.",
     "Desktop JSON database exports now include the shared `lens.analysis.v1` schema identifier.",
     "The legacy numeric JSON schema field remains intact for backward compatibility.",
     "Indirect calls through imported slots now contribute explicit call-graph edges.",

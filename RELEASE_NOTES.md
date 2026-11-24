@@ -1,3 +1,17 @@
+# Lens 0.6.143 — Fourier
+
+## What's new
+
+- Decompiler type propagation now preserves pointee types when assigning from dereferenced known pointer-returning calls.
+- Known prototypes such as `strdup` retain useful scalar pointee information through direct dereference expressions.
+
+## Verification
+
+- `cargo test --locked --quiet` — 61 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.142 — Fourier
 
 ## What's new
