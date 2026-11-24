@@ -1077,11 +1077,14 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         let f = l.an.functions.get(&addr);
         let name = l.name(addr).map(display_symbol).unwrap_or_else(|| format!("{addr:X}"));
         let import = f.map(|f| f.kind == FuncKind::Import).unwrap_or(true);
-        let sub = match f {
+        let mut sub = match f {
             Some(f) if f.kind == FuncKind::Normal => format!("{:X} · {} bytes · {} blocks", addr, f.size(), f.blocks.len()),
             Some(_) => "imported function".to_string(),
             None => "imported function".to_string(),
         };
+        if let Some(target) = f.and_then(|f| f.thunk_target) {
+            sub.push_str(&format!(" · thunk → {:X}", target));
+        }
         CNode { addr, layer, y: 0.0, name, sub, import, noreturn: f.map(|f| f.noreturn).unwrap_or(false) }
     };
     let mut nodes = vec![mk(center, 0)];

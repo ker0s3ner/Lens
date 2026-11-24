@@ -1,3 +1,8 @@
+# Lens 0.6.369 — Fourier
+
+- Call graph nodes now identify forwarding thunks and show their analyzed target address.
+- Thunk context is preserved alongside normal function size and block details for quick navigation decisions.
+
 # Lens 0.6.368 — Fourier
 
 - Call graphs now reuse canonical analyzed call targets instead of rescanning every function's instructions.
