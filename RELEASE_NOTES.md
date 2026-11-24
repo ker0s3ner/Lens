@@ -1,3 +1,8 @@
+# Lens 0.6.320 — Fourier
+
+- PowerPC `rlwimi` now preserves rotate-left-and-mask-insert semantics in pseudocode.
+- Shared PowerPC MB/ME mask generation is now unit-tested for both contiguous and wrapping bit ranges.
+
 # Lens 0.6.319 — Fourier
 
 - PowerPC `rlwinm` now decompiles as an explicit rotate-left-and-mask expression instead of an opaque intrinsic.

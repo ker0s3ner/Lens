@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC rlwimi now preserves rotate-left-and-mask-insert semantics in pseudocode.",
+    "Shared PowerPC MB/ME mask generation is now unit-tested for both contiguous and wrapping bit ranges.",
     "PowerPC rlwinm now decompiles as an explicit rotate-left-and-mask expression instead of an opaque intrinsic.",
     "PowerPC mask-bit numbering is converted correctly for both non-wrapping and wrapping MB/ME ranges.",
     "MIPS control-flow analysis now keeps the architectural delay-slot instruction in the current basic block before following branch, jump, call, and return edges.",

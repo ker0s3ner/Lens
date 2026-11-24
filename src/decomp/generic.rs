@@ -27,6 +27,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ppc_masks_follow_most_significant_bit_numbering() {
+        assert_eq!(ppc_mask(0, 3), Some(0xF000_0000u64 as i64));
+        assert_eq!(ppc_mask(28, 3), Some(0xF000_000Fu64 as i64));
+        assert_eq!(ppc_mask(32, 0), None);
+    }
+
+    #[test]
     fn parses_a64_vector_registers_and_names_them() {
         let r = parse_reg(Fam::A64, "v7.4s").expect("vector register");
         assert_eq!(r.i, 39);
@@ -93,6 +100,15 @@ fn parse_imm(s: &str) -> Option<i64> {
     };
     let v = if let Some(h) = t.strip_prefix("0x") { i64::from_str_radix(h, 16).ok().or_else(|| u64::from_str_radix(h, 16).ok().map(|x| x as i64))? } else { t.parse::<i64>().ok()? };
     Some(if neg { v.wrapping_neg() } else { v })
+}
+
+fn ppc_mask(mb: u32, me: u32) -> Option<i64> {
+    if mb >= 32 || me >= 32 { return None; }
+    Some(if mb <= me {
+        (((1u64 << (me - mb + 1)) - 1) << (31 - me)) as i64
+    } else {
+        (((1u64 << (32 - mb)) - 1) | (((1u64 << (me + 1)) - 1) << (31 - me))) as i64
+    })
 }
 
 fn parse_reg(f: Fam, tok: &str) -> Option<R> {
@@ -1440,14 +1456,20 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::Ppc, "rlwinm") if ops.len() >= 5 => {
             let value = dc.g_val(st, o(1), None);
             let amount = dc.g_val(st, o(2), None);
-            let Some(mb) = parse_imm(&ops[3]).and_then(|v| u32::try_from(v).ok()).filter(|v| *v < 32) else { return };
-            let Some(me) = parse_imm(&ops[4]).and_then(|v| u32::try_from(v).ok()).filter(|v| *v < 32) else { return };
-            let mask = if mb <= me {
-                (((1u64 << (me - mb + 1)) - 1) << (31 - me)) as i64
-            } else {
-                (((1u64 << (32 - mb)) - 1) | (((1u64 << (me + 1)) - 1) << (31 - me))) as i64
-            };
+            let Some(mb) = parse_imm(&ops[3]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(me) = parse_imm(&ops[4]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(mask) = ppc_mask(mb, me) else { return };
             set(dc, st, 0, bin("&", Ex::Call(Box::new(var("rol")), vec![value, amount]), Ex::Num(mask)));
+        }
+        (Fam::Ppc, "rlwimi") if ops.len() >= 5 => {
+            let dst = dc.g_val(st, o(0), None);
+            let value = dc.g_val(st, o(1), None);
+            let amount = dc.g_val(st, o(2), None);
+            let Some(mb) = parse_imm(&ops[3]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(me) = parse_imm(&ops[4]).and_then(|v| u32::try_from(v).ok()) else { return };
+            let Some(mask) = ppc_mask(mb, me) else { return };
+            let masked = bin("&", Ex::Call(Box::new(var("rol")), vec![value, amount]), Ex::Num(mask));
+            set(dc, st, 0, bin("|", bin("&", dst, Ex::Num(!mask)), masked));
         }
         (Fam::Rv, "bext" | "bexti") if ops.len() >= 3 => {
             let value = dc.g_val(st, o(1), None);
