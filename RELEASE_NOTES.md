@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.258 — Fourier
+
+## What's new
+
+- Call graph caches now invalidate when analysis data changes.
+- Call graph construction now memoizes callee scans within each build.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.257 — Fourier
 
 ## What's new

@@ -20,7 +20,7 @@ pub struct VisState {
     pub cg_zoom: f32,
     pub cg_depth: usize,
     pub cg_for: u64,
-    pub cg_cache: Option<(u64, usize, Vec<CNode>, Vec<(usize, usize)>)>,
+    pub cg_cache: Option<(u64, usize, u64, Vec<CNode>, Vec<(usize, usize)>)>,
     pub map_mode: u8,
     pub map_pan: Vec2,
     pub map_zoom: f32,
@@ -667,11 +667,11 @@ impl LensApp {
             ui.add_space(10.0);
             ui.label(RichText::new("callers (left)  ->  this function  ->  callees (right)").small().color(p.faint));
         });
-        if vis.cg_cache.as_ref().map(|(cached_for, cached_depth, _, _)| (*cached_for, *cached_depth)) != Some((fs, vis.cg_depth)) {
+        if vis.cg_cache.as_ref().map(|(cached_for, cached_depth, cached_version, _, _)| (*cached_for, *cached_depth, *cached_version)) != Some((fs, vis.cg_depth, l.version)) {
             let (nodes, edges) = build_callgraph(l, fs, vis.cg_depth);
-            vis.cg_cache = Some((fs, vis.cg_depth, nodes, edges));
+            vis.cg_cache = Some((fs, vis.cg_depth, l.version, nodes, edges));
         }
-        let (_, _, nodes, edges) = vis.cg_cache.as_ref().expect("call graph cache populated");
+        let (_, _, _, nodes, edges) = vis.cg_cache.as_ref().expect("call graph cache populated");
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let area = resp.rect;
         painter.rect_filled(area, 0.0, p.panel_alt);
@@ -1063,6 +1063,10 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
 }
 
 pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>) {
+    let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut cached_callees = |addr: u64| -> Vec<u64> {
+        callees_cache.entry(addr).or_insert_with(|| callees_of(l, addr)).clone()
+    };
     let mk = |addr: u64, layer: i32| -> CNode {
         let f = l.an.functions.get(&addr);
         let name = l.name(addr).map(display_symbol).unwrap_or_else(|| format!("{addr:X}"));
@@ -1082,7 +1086,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for d in 1..=depth as i32 {
             let mut next = vec![];
             for a in &frontier {
-                let list = if dir > 0 { callees_of(l, *a) } else { callers_of(l, *a) };
+                let list = if dir > 0 { cached_callees(*a) } else { callers_of(l, *a) };
                 for c in list.into_iter().take(40) {
                     if !idx.contains_key(&c) && nodes.len() < 160 {
                         idx.insert(c, nodes.len());
@@ -1098,7 +1102,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     let mut edges: Vec<(usize, usize)> = vec![];
     let addrs: Vec<u64> = nodes.iter().map(|n| n.addr).collect();
     for (i, a) in addrs.iter().enumerate() {
-        for c in callees_of(l, *a) {
+        for c in cached_callees(*a) {
             if let Some(&j) = idx.get(&c) {
                 if i != j {
                     edges.push((i, j));

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call graph caches now invalidate when analysis data changes.",
+    "Call graph construction now memoizes callee scans within each build.",
     "Imported patches now trigger reanalysis of the patched in-memory binary.",
     "The import log now reports how many patch records were restored.",
     "Call graph layout is now cached between frames to prevent repeated rescans and UI stalls.",
