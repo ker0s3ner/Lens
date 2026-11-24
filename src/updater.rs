@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "No-return status now propagates through known wrapper and thunk call chains.",
     "Prototype parsing now recognizes GCC/Clang and C++ no-return attributes.",
     "Applied type parsing now preserves chained function-pointer typedef aliases.",
     "Function-pointer typedef aliases now resolve through bounded alias chains.",

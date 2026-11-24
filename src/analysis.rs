@@ -235,6 +235,20 @@ pub fn is_noreturn_name(name: &str) -> bool {
         || n.starts_with("runtime.throw")
 }
 
+fn propagate_noreturn(functions: &mut BTreeMap<u64, Function>) {
+    loop {
+        let mut changed = false;
+        let known: HashSet<u64> = functions.values().filter(|f| f.noreturn).map(|f| f.start).collect();
+        for f in functions.values_mut() {
+            if !f.noreturn && f.calls.iter().any(|target| known.contains(target)) {
+                f.noreturn = true;
+                changed = true;
+            }
+        }
+        if !changed { break; }
+    }
+}
+
 fn itanium_type_name(symbol: &str) -> Option<String> {
     let s = symbol.trim_start_matches('_');
     let mut rest = s.strip_prefix("ZTI")?;
@@ -1374,6 +1388,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
 
     // ---- cross references ----
     let mut xrefs_to: HashMap<u64, Vec<Xref>> = HashMap::new();
+    propagate_noreturn(&mut functions);
     let mut data_size: HashMap<u64, u8> = HashMap::new();
     for (&a, i) in &insns {
         match i.flow {
@@ -1871,6 +1886,18 @@ mod tests {
         };
         let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert!(an.functions[&0x1000].noreturn);
+    }
+
+    #[test]
+    fn propagates_noreturn_through_wrapper_calls() {
+        let mut functions = BTreeMap::from([
+            (0x1000, Function { start: 0x1000, end: 0x1001, blocks: vec![], insn_count: 1, kind: FuncKind::Normal, noreturn: true, calls: vec![], has_symbol: true, thunk_target: None }),
+            (0x2000, Function { start: 0x2000, end: 0x2001, blocks: vec![], insn_count: 1, kind: FuncKind::Normal, noreturn: false, calls: vec![0x1000], has_symbol: true, thunk_target: None }),
+            (0x3000, Function { start: 0x3000, end: 0x3001, blocks: vec![], insn_count: 1, kind: FuncKind::Normal, noreturn: false, calls: vec![0x2000], has_symbol: true, thunk_target: None }),
+        ]);
+        propagate_noreturn(&mut functions);
+        assert!(functions[&0x2000].noreturn);
+        assert!(functions[&0x3000].noreturn);
     }
 
     #[test]

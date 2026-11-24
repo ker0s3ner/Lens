@@ -1,3 +1,17 @@
+# Lens 0.6.181 — Fourier
+
+## What's new
+
+- No-return status now propagates through known wrapper and thunk call chains.
+- Function graphs and decompiler control flow now retain termination metadata across bounded call chains.
+
+## Verification
+
+- `cargo test --locked --quiet` — 78 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.180 — Fourier
 
 ## What's new
