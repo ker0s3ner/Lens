@@ -146,7 +146,7 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
     for d in declarations {
         let mut d = d;
         let mut leading_noret = false;
-        for attr in ["__attribute__((noreturn))", "[[noreturn]]"] {
+        for attr in ["__attribute__((noreturn))", "__attribute__((__noreturn__))", "[[noreturn]]", "[[gnu::noreturn]]"] {
             if d.trim_start().starts_with(attr) {
                 leading_noret = true;
                 d = d.trim_start()[attr.len()..].trim().to_string();
@@ -163,7 +163,7 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
         let head = d[..open].trim();
         let mut noret = leading_noret || d[close + 1..].contains("noreturn");
         let head: Vec<&str> = head.split_whitespace().filter(|w| {
-            if matches!(*w, "noreturn" | "__noreturn" | "_Noreturn" | "__declspec(noreturn)" | "__attribute__((noreturn))" | "[[noreturn]]") { noret = true; false } else { !matches!(*w, "extern" | "static" | "inline" | "WINAPI" | "__stdcall" | "__cdecl" | "APIENTRY") }
+            if matches!(*w, "noreturn" | "__noreturn" | "_Noreturn" | "__declspec(noreturn)" | "__attribute__((noreturn))" | "__attribute__((__noreturn__))" | "[[noreturn]]" | "[[gnu::noreturn]]") { noret = true; false } else { !matches!(*w, "extern" | "static" | "inline" | "WINAPI" | "__stdcall" | "__cdecl" | "APIENTRY") }
         }).collect();
         let joined = head.join(" ").replace('*', " * ");
         let mut toks: Vec<&str> = joined.split_whitespace().collect();
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn parses_common_noreturn_attributes() {
-        let (p, e) = parse("__attribute__((noreturn)) void die(void); [[noreturn]] void halt(void);");
+        let (p, e) = parse("__attribute__((noreturn)) void die(void); [[noreturn]] void halt(void); __attribute__((__noreturn__)) void abort2(void); [[gnu::noreturn]] void halt2(void);");
         assert!(e.is_empty(), "{e:?}");
         assert!(p.iter().all(|proto| proto.noreturn));
     }

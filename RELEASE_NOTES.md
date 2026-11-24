@@ -1,3 +1,16 @@
+# Lens 0.6.182 — Fourier
+
+## What's new
+
+- Prototype parsing now accepts GNU and compiler-qualified no-return attribute spellings.
+
+## Verification
+
+- `cargo test --locked --quiet` — 78 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.181 — Fourier
 
 ## What's new
