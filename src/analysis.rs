@@ -216,7 +216,7 @@ pub const NORETURN: &[&str] = &[
     "CxxThrowException", "Unwind_Resume", "Unwind_SjLj_Resume", "cxa_throw", "cxa_rethrow",
     "Exit", "exit_group", "pthread_exit", "assert_rtn", "libc_fatal", "fortify_fail", "chk_fail",
     "rust_begin_unwind", "rust_start_panic", "panic", "panic_fmt", "panic_nounwind", "panic_cannot_unwind",
-    "swift_fatalError", "fatalError", "fatal", "builtin_trap", "trap", "cxa_pure_virtual",
+    "swift_fatalError", "fatalError", "fatal", "builtin_trap", "__builtin_trap", "builtin_unreachable", "std::unreachable", "trap", "cxa_pure_virtual",
     "ubsan_handle_builtin_unreachable", "ubsan_handle_type_mismatch_v1",
     "runtime.gopanic", "runtime.throw", "runtime.fatalpanic", "runtime.fatal", "runtime.panichandler",
     "__rustc::rust_begin_unwind", "core::panicking::panic_nounwind_fmt", "core::panicking::panic_bounds_check",
@@ -235,6 +235,8 @@ pub fn is_noreturn_name(name: &str) -> bool {
         || n == "runtime.goexit"
         || n.starts_with("runtime.panic")
         || n.starts_with("runtime.throw")
+        || short.starts_with("panic_")
+        || short.starts_with("unreachable")
 }
 
 fn propagate_noreturn(functions: &mut BTreeMap<u64, Function>) {
@@ -2010,6 +2012,9 @@ mod tests {
         assert!(is_noreturn_name("runtime.panicSliceAlen"));
         assert!(is_noreturn_name("runtime.goexit"));
         assert!(is_noreturn_name("core::panicking::panic_bounds_check"));
+        assert!(is_noreturn_name("__builtin_unreachable"));
+        assert!(is_noreturn_name("std::unreachable"));
+        assert!(is_noreturn_name("panic_bounds_check.cold"));
     }
 
     #[test]
