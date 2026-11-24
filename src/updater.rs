@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 NEON reciprocal and reciprocal-square-root estimate/refinement instructions now remain visible as named pseudocode intrinsics.",
+    "Common vector math approximation steps no longer fall through to opaque generic handling.",
     "JSON name restoration now uses one shared importer path for functions, exports, import slots, vtables, and explicit names.",
     "Interchange parsing is covered by a deterministic regression test and avoids duplicated collection-specific logic.",
     "AVX-512 mask-register logical, move, shift, and inversion families now remain visible as named pseudocode intrinsics.",

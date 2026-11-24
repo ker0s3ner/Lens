@@ -1,6 +1,9 @@
-# Lens 0.6.80 — Fourier
+# Lens 0.6.81 — Fourier
 
 ## What's new
+
+- AArch64 NEON reciprocal and reciprocal-square-root estimate/refinement instructions now remain visible as named pseudocode intrinsics.
+- Common vector math approximation steps no longer fall through to opaque generic handling.
 
 - JSON name restoration now uses one shared importer path for functions, exports, import slots, vtables, and explicit names.
 - Interchange parsing is covered by a deterministic regression test and avoids duplicated collection-specific logic.
