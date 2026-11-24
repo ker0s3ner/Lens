@@ -1420,7 +1420,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 xrefs_to.entry(v).or_default().push(Xref { from, kind: XrefKind::Data });
                 data_size.entry(from).or_insert(w as u8 | 0x80);
             }
-            off += w;
+            // Pointer fields can be packed or embedded at an unaligned offset;
+            // validate every byte position instead of assuming native alignment.
+            off += 1;
         }
 
         // Tables are runs of at least two mapped pointers. Keep the executable
@@ -2018,7 +2020,8 @@ mod idea_tests {
         let code = vec![0xC3];
         let mut data = b"hello world\0".to_vec();
         data.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
-        let bin = bin_of(code, data);
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
         let an = run(&bin, HashMap::from([(0x200C, 4u8)]));
         assert!(an.lines.iter().any(|l| l.addr == 0x200C && l.kind == LineKind::Data && l.len == 4));
         let an = run(&bin, HashMap::from([(0x200C, 0x88u8)]));
@@ -2043,6 +2046,17 @@ mod idea_tests {
         let an = run(&bin, Default::default());
         assert_eq!(an.vtables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
         assert_eq!(an.pointer_tables.get(&0x2000), Some(&vec![0x1000, 0x1001, 0x1002]));
+    }
+
+    #[test]
+    fn discovers_unaligned_data_pointer_xref() {
+        let code = vec![0xC3];
+        let mut data = vec![0x7F];
+        data.extend_from_slice(&0x1000u64.to_le_bytes());
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
+        let an = run(&bin, Default::default());
+        assert!(an.xrefs_to.get(&0x1000).unwrap_or(&vec![]).iter().any(|x| x.from == 0x2001 && x.kind == XrefKind::Data));
     }
 
     #[test]

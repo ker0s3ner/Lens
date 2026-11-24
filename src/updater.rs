@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Data-reference recovery now detects validated native pointers at unaligned offsets in packed data.",
+    "Added regression coverage for unaligned pointer xrefs without broadening pointer-table classification.",
     "Added deterministic ARM32 relative-offset switch regression coverage to protect cross-architecture control-flow recovery.",
     "Thumb PC-indexed switch recovery now accepts validated signed relative-offset tables in addition to absolute pointer tables.",
     "Relative Thumb cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",

@@ -1,3 +1,17 @@
+# Lens 0.6.166 — Fourier
+
+## What's new
+
+- Data-reference recovery now detects validated native pointers at unaligned offsets in packed data.
+- Added regression coverage for unaligned pointer xrefs without broadening pointer-table classification.
+
+## Verification
+
+- `cargo test --locked --quiet` — 67 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.165 — Fourier
 
 ## What's new
@@ -6,7 +20,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 66 passed
+- `cargo test --locked --quiet` — 67 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---
