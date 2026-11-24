@@ -1,3 +1,17 @@
+# Lens 0.6.170 — Fourier
+
+## What's new
+
+- Known nested struct members now render chained field access such as `p->inner.value` in pseudocode.
+- Nested field rendering remains conservative and requires an unambiguous known layout.
+
+## Verification
+
+- `cargo test --locked --quiet` — 71 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.169 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 70 passed
+- `cargo test --locked --quiet` — 71 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

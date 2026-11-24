@@ -133,6 +133,21 @@ impl Fmt<'_> {
         if relative == 0 {
             return Some(format!("{base_text}->{}", field.name));
         }
+        let nested_name = field.ty.trim().trim_start_matches("const ").trim();
+        let nested_name = nested_name.strip_prefix("struct ").or_else(|| nested_name.strip_prefix("union ")).unwrap_or(nested_name);
+        if !nested_name.contains('[') {
+            if let Some(nested) = self.structs.iter().find(|candidate| candidate.name == nested_name && !candidate.is_enum) {
+                if let Some(inner) = nested.fields.iter().find(|inner| {
+                    let end = inner.off as i64 + inner.size as i64;
+                    relative >= inner.off as i64 && relative < end
+                }) {
+                    let inner_offset = relative - inner.off as i64;
+                    if inner_offset == 0 {
+                        return Some(format!("{base_text}->{}.{}", field.name, inner.name));
+                    }
+                }
+            }
+        }
         let Some(open) = field.ty.rfind('[') else { return None };
         let Some(close) = field.ty[open..].find(']') else { return None };
         let count = field.ty[open + 1..open + close].parse::<i64>().ok()?;
@@ -140,7 +155,8 @@ impl Fmt<'_> {
         let element_size = field.size as i64 / count;
         if element_size <= 0 || relative % element_size != 0 { return None; }
         let index = relative / element_size;
-        (index >= 0 && index < count).then(|| format!("{base_text}->{}[{index}]", field.name))
+        if index >= 0 && index < count { return Some(format!("{base_text}->{}[{index}]", field.name)); }
+        None
     }
 
     fn num(n: i64) -> String {
@@ -2573,6 +2589,17 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(6)))), 2);
         assert_eq!(fmt.show(&expression), "p->items[1]");
+    }
+
+    #[test]
+    fn renders_known_nested_struct_field() {
+        let inner = crate::types::parse_c("struct Inner { uint32_t tag; uint32_t value; }", 8, &[]).unwrap();
+        let outer = crate::types::parse_c("struct Outer { struct Inner inner; }", 8, &[inner.clone()]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Outer *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[inner, outer] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "p->inner.value");
     }
 
     #[test]
