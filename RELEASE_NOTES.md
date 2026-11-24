@@ -1,3 +1,10 @@
+# Lens 0.6.273 — Fourier
+
+- Script `call_graph` neighborhoods now include both callers and callees.
+- Structured call-graph edges now label whether they came from caller or callee expansion.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.272 — Fourier
 
 - Rhai scripts can now retrieve bounded structured call-graph edges with `call_graph(addr, depth)`.

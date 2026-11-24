@@ -276,8 +276,23 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                         row.insert("from".into(), Dynamic::from(source as INT));
                         row.insert("to".into(), Dynamic::from(target as INT));
                         row.insert("kind".into(), Dynamic::from(kind.clone()));
+                        row.insert("direction".into(), Dynamic::from("callee"));
                         edges.push(Dynamic::from_map(row));
                         next.push(target);
+                    }
+                }
+                for (from, kind) in s.xref_details.iter().filter_map(|(target, refs)| {
+                    (normalize(*target) == source).then_some(refs)
+                }).flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")) {
+                    let from = normalize(*from);
+                    if seen.insert((from, source, kind.clone())) {
+                        let mut row = Map::new();
+                        row.insert("from".into(), Dynamic::from(from as INT));
+                        row.insert("to".into(), Dynamic::from(source as INT));
+                        row.insert("kind".into(), Dynamic::from(kind.clone()));
+                        row.insert("direction".into(), Dynamic::from("caller"));
+                        edges.push(Dynamic::from_map(row));
+                        next.push(from);
                     }
                 }
             }
