@@ -56,6 +56,7 @@ pub struct SearchState {
     pub focus: bool,
     pub mode: SearchMode,
     pub scope: SearchScope,
+    pub scope_function: Option<u64>,
     pub text: String,
     pub results: Vec<(u64, String)>,
     pub note: String,
@@ -88,7 +89,7 @@ pub struct Tools {
 impl Default for Tools {
     fn default() -> Self {
         Tools {
-            search: SearchState { open: false, focus: false, mode: SearchMode::Listing, scope: SearchScope::Program, text: String::new(), results: vec![], note: String::new() },
+            search: SearchState { open: false, focus: false, mode: SearchMode::Listing, scope: SearchScope::Program, scope_function: None, text: String::new(), results: vec![], note: String::new() },
             hex: HexState { open: false, text: String::new(), arch: Arch::X64, big: false, base: "0".into(), file: None, key: 0, rows: vec![], note: String::new() },
             settings_open: false,
         }
@@ -192,6 +193,7 @@ impl LensApp {
             self.tools.search.note = "Place the cursor inside a function to search its scope.".into();
             return;
         }
+        self.tools.search.scope_function = current_function.map(|(start, _)| start);
         let mut res: Vec<(u64, String)> = vec![];
         let mut note = String::new();
         const CAP: usize = 3000;
@@ -287,6 +289,13 @@ impl LensApp {
         let mut run = false;
         let mut goto: Option<u64> = None;
         let ready = self.loaded().is_some();
+        if ready && self.tools.search.scope == SearchScope::CurrentFunction {
+            let current_start = self.loaded().and_then(|l| l.an.function_containing(self.nav.cursor).map(|f| f.start));
+            if current_start != self.tools.search.scope_function && !self.tools.search.results.is_empty() {
+                self.tools.search.results.clear();
+                self.tools.search.note = "Cursor moved to another function; search again for this scope.".into();
+            }
+        }
         if ready && self.tools.search.focus && std::env::var("LENS_Q").is_ok() && self.tools.search.results.is_empty() {
             run = true;
         }
