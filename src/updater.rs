@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler constant folding now simplifies boolean conjunctions and disjunctions.",
     "Decompiler constant folding now simplifies deterministic division, remainder, and comparisons.",
     "CLI JSON reports now include recovered switch-table locations and targets.",
     "Decompiler copy propagation now folds temporary register copies into return expressions.",

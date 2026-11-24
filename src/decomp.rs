@@ -72,6 +72,8 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("<=", Num(x), Num(y)) => Num((*x <= *y) as i64),
         (">", Num(x), Num(y)) => Num((*x > *y) as i64),
         (">=", Num(x), Num(y)) => Num((*x >= *y) as i64),
+        ("&&", Num(x), Num(y)) => Num(((*x != 0) && (*y != 0)) as i64),
+        ("||", Num(x), Num(y)) => Num(((*x != 0) || (*y != 0)) as i64),
         ("&", Num(x), Num(y)) => Num(x & y),
         ("|", Num(x), Num(y)) => Num(x | y),
         ("^", Num(x), Num(y)) => Num(x ^ y),
@@ -2719,6 +2721,8 @@ mod tests {
         assert_eq!(bin("<", Ex::Num(2), Ex::Num(3)), Ex::Num(1));
         assert_eq!(bin("==", Ex::Num(2), Ex::Num(3)), Ex::Num(0));
         assert!(matches!(bin("/", Ex::Num(1), Ex::Num(0)), Ex::Bin("/", ..)));
+        assert_eq!(bin("&&", Ex::Num(1), Ex::Num(0)), Ex::Num(0));
+        assert_eq!(bin("||", Ex::Num(0), Ex::Num(4)), Ex::Num(1));
     }
 
     #[test]

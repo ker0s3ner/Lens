@@ -96,6 +96,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Return expressions now also fold safe adjacent temporary-to-register copies.
 - CLI JSON analysis reports now expose recovered switch-table locations and targets.
 - Decompiler expression folding now simplifies deterministic constant division, remainder, and comparisons.
+- Decompiler expression folding now simplifies constant boolean conjunctions and disjunctions.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.
