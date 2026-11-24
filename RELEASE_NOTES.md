@@ -1,3 +1,8 @@
+# Lens 0.6.360 — Fourier
+
+- M68k comparisons now feed the shared condition model used by branch pseudocode.
+- M68k bitwise and unary operations now lift as readable expressions instead of generic intrinsics.
+
 # Lens 0.6.359 — Fourier
 
 - M68k decompilation now lifts multiply and divide instructions into readable expressions.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k comparisons now feed the shared condition model used by branch pseudocode.",
+    "M68k bitwise and unary operations now lift as readable expressions instead of generic intrinsics.",
     "M68k decompilation now lifts multiply and divide instructions into readable expressions.",
     "M68k logical and arithmetic shifts now preserve their direction and operands in pseudocode.",
     "M68k decompiler operands now normalize percent-prefixed registers from Capstone syntax.",
