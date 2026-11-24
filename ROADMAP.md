@@ -1,17 +1,17 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Status checked against the repository on 2026-11-24. A weighted capability estimate puts Lens at about **32% of IDA Pro's breadth** (plausible range: **28–36%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-24. A weighted capability estimate puts Lens at about **33% of IDA Pro's breadth** (plausible range: **29–37%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 25% | 5.0% |
 | Static analysis and navigation | 20% | 48% | 9.6% |
 | Decompiler and type recovery | 20% | 22% | 4.4% |
-| Type system and debug information | 10% | 25% | 2.5% |
+| Type system and debug information | 10% | 35% | 3.5% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 50% | 5.0% |
 | Reliability, performance and scale | 10% | 20% | 2.0% |
-| **Total** | **100%** |  | **32.0%** |
+| **Total** | **100%** |  | **33.0%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
