@@ -7,6 +7,20 @@
 # Lens 0.6.203 — Fourier
 # Lens 0.6.204 — Fourier
 # Lens 0.6.205 — Fourier
+# Lens 0.6.206 — Fourier
+
+## What's new
+
+- JSON analysis reports now include basic-block boundaries, instruction membership, and typed successor edges.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.205 — Fourier
 
 ## What's new
 

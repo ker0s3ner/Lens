@@ -34,7 +34,7 @@ for target in "${targets[@]}"; do
     printf '%s\n' "$json" >&2
     exit 1
   }
-  for field in noreturn_functions forwarding_thunks switch_tables function_records instruction_records switch_records xref_records string_records segment_records import_records export_records symbol_records library_records data_records pointer_table_records vtable_records; do
+  for field in noreturn_functions forwarding_thunks switch_tables function_records instruction_records block_records switch_records xref_records string_records segment_records import_records export_records symbol_records library_records data_records pointer_table_records vtable_records; do
     grep -q "\"$field\":" <<<"$json" || {
       echo "missing JSON field $field for $target" >&2
       exit 1

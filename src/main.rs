@@ -203,6 +203,20 @@ fn cli(args: &[String]) -> bool {
                 "lea": insn.is_lea,
                 "write": insn.is_write,
             })).collect::<Vec<_>>(),
+            "block_records": an.functions.values().flat_map(|function| function.blocks.iter().map(move |block| serde_json::json!({
+                "function": function.start,
+                "start": block.start,
+                "end": block.end,
+                "instructions": block.insns,
+                "successors": block.succs.iter().map(|(target, kind)| serde_json::json!({
+                    "target": target,
+                    "kind": match kind {
+                        analysis::EdgeKind::Taken => "taken",
+                        analysis::EdgeKind::NotTaken => "not_taken",
+                        analysis::EdgeKind::Always => "always",
+                    },
+                })).collect::<Vec<_>>(),
+            }))).collect::<Vec<_>>(),
             "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
                 "jump": jump,
                 "targets": targets,
