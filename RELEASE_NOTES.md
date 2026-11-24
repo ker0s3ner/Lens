@@ -1,3 +1,8 @@
+# Lens 0.6.394 — Fourier
+
+- x86 switch normalization now preserves case bases for add-before-index idioms as well as subtraction.
+- Enum arithmetic and CV-qualified bitfield improvements are included in this Fourier patch.
+
 # Lens 0.6.393 — Fourier
 
 - Enum identity now survives safe constant `+` and `-` arithmetic in typed comparisons.
