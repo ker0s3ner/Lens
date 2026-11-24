@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum constant propagation now folds C-style logical && and || expressions.",
+    "Enum constant propagation now folds unary logical-not expressions.",
     "No-return analysis now recognizes compiler unreachable helpers and panic-family symbols.",
     "No-return matching now handles decorated builtin trap and unreachable names.",
     "Enum identity now propagates through matching enum branches in conditional expressions.",

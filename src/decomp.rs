@@ -723,6 +723,7 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
         Ex::Num(value) => Some(*value),
         Ex::Un("-", value) => enum_const_int(value)?.checked_neg(),
         Ex::Un("~", value) => Some(!enum_const_int(value)?),
+        Ex::Un("!", value) => Some((enum_const_int(value)? == 0) as i64),
         Ex::Bin(op, left, right) => {
             let (left, right) = (enum_const_int(left)?, enum_const_int(right)?);
             match *op {
@@ -736,6 +737,8 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
                 "%" => left.checked_rem(right),
                 "<<" => left.checked_shl(right.try_into().ok()?),
                 ">>" => left.checked_shr(right.try_into().ok()?),
+                "&&" => Some((left != 0 && right != 0) as i64),
+                "||" => Some((left != 0 || right != 0) as i64),
                 _ => None,
             }
         }
@@ -2932,6 +2935,10 @@ mod tests {
         assert_eq!(emit.fmt.show(&conditional_member), "(cond ? a1 : a1) == Color::One");
         let inverted_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Un("~", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&inverted_member), "~a1 == Color::One");
+        let logical_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("&&", Box::new(Ex::Num(1)), Box::new(Ex::Num(1))))));
+        assert_eq!(emit.fmt.show(&logical_member), "a1 == Color::One");
+        let not_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Un("!", Box::new(Ex::Num(0))))));
+        assert_eq!(emit.fmt.show(&not_member), "a1 == Color::One");
     }
 
     #[test]

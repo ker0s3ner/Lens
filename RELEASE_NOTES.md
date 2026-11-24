@@ -1,7 +1,12 @@
+# Lens 0.6.398 — Fourier
+
+- Enum constant propagation now folds C-style logical `&&` and `||` expressions.
+- Enum constant propagation now folds unary logical-not expressions.
+
 # Lens 0.6.397 — Fourier
 
-- Enum identity now propagates through matching enum branches in conditional expressions.
-- Enum identity now propagates through bitwise-not flag-mask expressions.
+- No-return analysis now recognizes compiler unreachable helpers and panic-family symbols.
+- No-return matching now handles decorated builtin trap and unreachable names.
 
 # Lens 0.6.396 — Fourier
 
