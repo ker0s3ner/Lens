@@ -25,7 +25,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
-- Extend switch/jump-table recovery beyond x86, ARM64 and basic Thumb TBB/TBH tables to additional ARM/Thumb patterns, RISC-V, MIPS and PowerPC; common absolute-table forms are implemented, while more compiler idioms and corpus validation remain.
+- Extend switch/jump-table recovery beyond x86, ARM64 and basic Thumb TBB/TBH tables to additional ARM/Thumb patterns, RISC-V, MIPS and PowerPC; common absolute-table forms and Thumb register-based PC tables are implemented, while more compiler idioms and corpus validation remain.
 - Vtable, RTTI and Objective-C / Swift metadata recovery.
 - Extend function-boundary recovery beyond ELF `.eh_frame`, PE `.pdata` and Mach-O `LC_FUNCTION_STARTS` / `__unwind_info`; add more robust malformed-table handling and additional format-specific tables.
 - Improve constant propagation and broaden no-return, tail-call and thunk detection beyond the current known names/prototypes and direct-target cases.
@@ -232,6 +232,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Enum propagation now survives transparent scalar casts around typed parameters.
 - Enum-typed switch expressions now render named members for recovered jump-table cases.
 - Enum-aware constant propagation now folds multiplication, division, and remainder in typed comparisons.
+- Thumb indexed `ldr pc` tables can now recover a table base prepared by `add reg, pc, #imm`.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
 - Enum comparison rendering through transparent casts now has direct expression-level regression coverage.

@@ -390,7 +390,7 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
 fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
     let Some(raw) = crate::multiarch::one(bin, at) else { return vec![] };
     let raw_ops = raw.ops.to_ascii_lowercase();
-    if raw.mnemonic.starts_with("ldr") && raw_ops.starts_with("pc,") && raw_ops.contains("[pc,") && raw_ops.contains("lsl #2") {
+    if raw.mnemonic.starts_with("ldr") && raw_ops.starts_with("pc,") && raw_ops.contains("lsl #2") {
         let mut bound = None;
         for (&addr, _) in insns.range(..at).rev().take(20) {
             let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
@@ -401,7 +401,24 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
             }
         }
         let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
-        let table = (at + 4) & !3;
+        let table = if raw_ops.contains("[pc,") {
+            (at + 4) & !3
+        } else {
+            let base = raw_ops.split('[').nth(1).and_then(|s| s.split(',').next()).unwrap_or("").trim();
+            let mut found = None;
+            for (&addr, _) in insns.range(..at).rev().take(24) {
+                let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+                let lowered = prev.ops.to_ascii_lowercase();
+                let operands = lowered.split(", ").map(str::trim).collect::<Vec<_>>();
+                if prev.mnemonic == "add" && operands.len() >= 3 && operands[0] == base && operands[1] == "pc" {
+                    let imm = operands[2].trim_start_matches('#');
+                    let value = imm.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| imm.parse().ok());
+                    if let Some(value) = value { found = Some(((addr + 4) & !3).saturating_add(value)); break; }
+                }
+            }
+            let Some(table) = found else { return vec![] };
+            table
+        };
         let mut raw_entries = Vec::new();
         for k in 0..count {
             let b = bin.read(table + (k * 4) as u64, 4);
