@@ -487,6 +487,37 @@ fn propagate_forward_copy(o: &mut BlockOut) {
     }
 }
 
+fn inline_adjacent_call_temp(o: &mut BlockOut) {
+    let mut i = 0;
+    while i + 1 < o.stmts.len() {
+        let (tmp, call) = match &o.stmts[i].1 {
+            Stmt::Assign(Ex::Var(tmp), Ex::Call(_, _)) if tmp.starts_with('v') || tmp.starts_with('t') => (tmp.clone(), o.stmts[i].1.clone()),
+            _ => { i += 1; continue; }
+        };
+        let (left, used) = match &o.stmts[i + 1].1 {
+            Stmt::Assign(left, Ex::Var(used)) if used == &tmp && !mentions(left, &Ex::Var(tmp.clone())) => (left.clone(), used.clone()),
+            _ => { i += 1; continue; }
+        };
+        let later_use = o.stmts[i + 2..].iter().any(|(_, stmt)| match stmt {
+            Stmt::Assign(l, r) => mentions(l, &Ex::Var(tmp.clone())) || mentions(r, &Ex::Var(tmp.clone())),
+            Stmt::Expr(e) => mentions(e, &Ex::Var(tmp.clone())),
+            Stmt::Comment(_) => false,
+        }) || match &o.term {
+            Term::Ret(Some(e)) | Term::Indirect(e) => mentions(e, &Ex::Var(tmp.clone())),
+            Term::Cond { cond, .. } => mentions(cond, &Ex::Var(tmp.clone())),
+            _ => false,
+        };
+        if later_use {
+            i += 1;
+            continue;
+        }
+        o.stmts[i].1 = Stmt::Comment(String::new());
+        o.stmts[i + 1].1 = Stmt::Assign(left, match call { Stmt::Assign(_, rhs) => rhs, _ => unreachable!() });
+        let _ = used;
+        i += 1;
+    }
+}
+
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     match e {
         Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
@@ -2121,6 +2152,7 @@ fn decompile_inner(
     for out in &mut outs {
         propagate_adjacent_copy(out);
         propagate_forward_copy(out);
+        inline_adjacent_call_temp(out);
     }
 
     // pass 3: liveness of registers
@@ -2817,6 +2849,20 @@ mod tests {
         };
         propagate_forward_copy(&mut stopped);
         assert!(matches!(&stopped.stmts[2].1, Stmt::Assign(Ex::Var(z), Ex::Var(v)) if z == "z" && v == "v2"));
+    }
+
+    #[test]
+    fn inlines_single_use_adjacent_call_temp() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Call(Box::new(var("make")), vec![]))),
+                (1, Stmt::Assign(Ex::Var("result".into()), Ex::Var("v1".into()))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(None), term_addr: 2,
+        };
+        inline_adjacent_call_temp(&mut out);
+        assert!(matches!(&out.stmts[0].1, Stmt::Comment(c) if c.is_empty()));
+        assert!(matches!(&out.stmts[1].1, Stmt::Assign(Ex::Var(name), Ex::Call(_, _)) if name == "result"));
     }
 
     #[test]

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler now inlines safe single-use call temporaries into their consuming assignment.",
+    "Call results remain separate when a temporary is used later, preserving evaluation and value flow.",
     "Script callee queries now aggregate call sites across the whole containing function.",
     "Two-sided script call graphs now discover outgoing edges from instruction-level xrefs correctly.",
     "Script call_graph neighborhoods now include both callers and callees.",

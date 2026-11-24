@@ -1,3 +1,10 @@
+# Lens 0.6.275 — Fourier
+
+- Decompiler now inlines safe single-use call temporaries into their consuming assignment.
+- Call results remain separate when a temporary is used later, preserving evaluation and value flow.
+
+Verification: `cargo test --locked --quiet` — 92 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.274 — Fourier
 
 - Script callee queries now aggregate call sites across the whole containing function.
