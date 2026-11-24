@@ -1249,7 +1249,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),
         (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") => arith(dc, st, "&", false),
-        (Fam::Ppc, "nor" | "nand" | "eqv" | "andc" | "orc") if ops.len() >= 3 => {
+        (Fam::Mips, "nor") | (Fam::Ppc, "nor" | "nand" | "eqv" | "andc" | "orc") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
             let inner = match base_mn {

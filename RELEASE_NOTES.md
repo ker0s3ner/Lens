@@ -1,3 +1,8 @@
+# Lens 0.6.325 — Fourier
+
+- MIPS `nor` now decompiles as an explicit inverted OR expression.
+- MIPS boolean-mask idioms now share readable bitwise lowering with the PowerPC path instead of opaque intrinsics.
+
 # Lens 0.6.324 — Fourier
 
 - PowerPC `andc` now decompiles as an AND with an inverted operand.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS nor now decompiles as an explicit inverted OR expression.",
+    "MIPS boolean-mask idioms now share readable bitwise lowering with the PowerPC path instead of opaque intrinsics.",
     "PowerPC andc now decompiles as an AND with an inverted operand.",
     "PowerPC orc now decompiles as an OR with an inverted operand, completing the common complementing boolean forms.",
     "PowerPC nor and nand now decompile as explicit inverted OR/AND expressions.",
