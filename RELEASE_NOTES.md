@@ -1,3 +1,8 @@
+# Lens 0.6.380 — Fourier
+
+- x86 switch recovery now recognizes bounded subtract-before-index patterns and preserves their non-zero case base.
+- Other architectures retain conservative zero-based indices until their compiler-specific lowering is identified.
+
 # Lens 0.6.379 — Fourier
 
 - Recovered switch analysis now preserves zero-based case indices alongside each destination.

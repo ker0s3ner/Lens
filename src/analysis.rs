@@ -853,6 +853,20 @@ fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u6
     if uniq.len() < 2 { vec![] } else { out }
 }
 
+fn recovered_case_indices(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, count: usize) -> Vec<i64> {
+    let mut base = 0i64;
+    if bin.arch.is_x86() {
+        for (&addr, _) in insns.range(..at).rev().take(16) {
+            let Some((decoded, _)) = decode_at(bin, addr) else { continue };
+            if decoded.mnemonic() == Mnemonic::Sub && matches!(decoded.op1_kind(), OpKind::Immediate8 | OpKind::Immediate32 | OpKind::Immediate8to32 | OpKind::Immediate8to64 | OpKind::Immediate32to64) {
+                base = decoded.immediate(1) as i64;
+                break;
+            }
+        }
+    }
+    (0..count).map(|index| base + index as i64).collect()
+}
+
 pub fn decode_info(bin: &Binary, addr: u64) -> Option<Insn> {
     if !bin.is_exec(addr) {
         return None;
@@ -1217,7 +1231,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                                 if !ts.is_empty() {
                                     switches.insert(a, ts);
                                     if let Some(targets) = switches.get(&a) {
-                                        switch_case_indices.insert(a, (0..targets.len() as i64).collect());
+                                        switch_case_indices.insert(a, recovered_case_indices(bin, &insns, a, targets.len()));
                                     }
                                 } else if std::env::var("LENS_TRACE3").is_ok() && bin.arch == Arch::Arm64 {
                                     eprintln!("-- unresolved br at {a:X}");
