@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON name restoration now uses one shared importer path for functions, exports, import slots, vtables, and explicit names.",
+    "Interchange parsing is covered by a deterministic regression test and avoids duplicated collection-specific logic.",
     "AVX-512 mask-register logical, move, shift, and inversion families now remain visible as named pseudocode intrinsics.",
     "Mask operand groups are preserved instead of disappearing into generic handling.",
     "Added a deterministic JSON interchange regression covering function, export, import-slot, vtable, and explicit name records.",

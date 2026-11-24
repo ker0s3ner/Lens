@@ -201,6 +201,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Data definitions now include an IDA-style `O` action for explicitly marking a native-width pointer, with persistence and re-analysis.
 - Added a deterministic pseudocode golden regression fixture for a simple x86-64 function; corpus-scale golden coverage remains planned.
 - Added a deterministic JSON interchange regression covering function, export, import-slot, vtable, and explicit name records.
+- JSON name restoration now uses one shared importer path for all exported name collections.
 - Scalar SSE/XMM temporaries now get float/double declarations, and packed single/double move/arithmetic families get vector declarations and binary expressions in pseudocode.
 - Common VEX `vadd*`, `vsub*`, `vmul*`, `vdiv*` and vector-move forms now share the SIMD lifting path with XMM/YMM/ZMM declarations.
 - ARM64 generic lifting now tracks `v0`-`v31` NEON operands as 128-bit registers, preserving unsupported vector instructions as visible intrinsic assignments instead of dropping them.

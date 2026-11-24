@@ -937,47 +937,17 @@ impl LensApp {
                         crate::protos::set_user(&l.ann.protos);
                         recognized = true;
                     }
+                    for (addr, name) in json_named_records(&v) {
+                        l.ann.names.insert(addr, name);
+                        n += 1;
+                        recognized = true;
+                    }
                     if let Some(arr) = v.get("functions").and_then(|x| x.as_array()) {
                         for item in arr {
                             let Some(addr) = item.get("start").and_then(|a| a.as_u64()) else { continue };
                             if !l.ann.functions.contains(&addr) { l.ann.functions.push(addr); f += 1; }
-                            if let Some(name) = item.get("name").and_then(|n| n.as_str()).filter(|n| !n.is_empty()) {
-                                l.ann.names.insert(addr, name.to_string()); n += 1;
-                            }
-                            recognized = true;
                         }
-                    }
-                    if let Some(arr) = v.get("exports").and_then(|x| x.as_array()) {
-                        for item in arr {
-                            if let (Some(addr), Some(name)) = (item.get("addr").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
-                                if !name.is_empty() { l.ann.names.insert(addr, name.to_string()); n += 1; }
-                                recognized = true;
-                            }
-                        }
-                    }
-                    if let Some(arr) = v.get("imports").and_then(|x| x.as_array()) {
-                        for item in arr {
-                            if let (Some(slot), Some(name)) = (item.get("slot").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
-                                if !name.is_empty() { l.ann.names.insert(slot, name.to_string()); n += 1; }
-                                recognized = true;
-                            }
-                        }
-                    }
-                    if let Some(arr) = v.get("vtables").and_then(|x| x.as_array()) {
-                        for item in arr {
-                            if let (Some(addr), Some(name)) = (item.get("addr").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
-                                if !name.is_empty() { l.ann.names.insert(addr, name.to_string()); n += 1; }
-                                recognized = true;
-                            }
-                        }
-                    }
-                    if let Some(arr) = v.get("names").and_then(|x| x.as_array()) {
-                        for item in arr {
-                            if let (Some(addr), Some(name)) = (item.get("addr").and_then(|a| a.as_u64()), item.get("name").and_then(|n| n.as_str())) {
-                                if !name.is_empty() { l.ann.names.insert(addr, name.to_string()); n += 1; }
-                                recognized = true;
-                            }
-                        }
+                        recognized = true;
                     }
                     if !recognized { self.logm(format!("That isn't a Lens notes file: {e}")); return; }
                 }
