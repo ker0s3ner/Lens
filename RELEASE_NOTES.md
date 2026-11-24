@@ -1,3 +1,8 @@
+# Lens 0.6.367 — Fourier
+
+- M68k link prologues now apply frame-pointer setup and stack allocation together during symbolic execution.
+- M68k local and argument address recovery no longer sees stale stack offsets after link instructions.
+
 # Lens 0.6.366 — Fourier
 
 - M68k `exg` and `swap` idioms now lift as explicit register transformations.

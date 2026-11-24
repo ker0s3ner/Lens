@@ -666,6 +666,11 @@ pub(super) fn exec(dc: &mut Dc, f: &Function, bi: usize, sp_in: i64, bp_in: Opti
         let o = |k: usize| ops.get(k).map(|s| s.as_str()).unwrap_or("");
         let reg = |k: usize| parse_reg(fm, o(k));
         // ---- stack frame housekeeping: skipped, only tracked
+        if fm == Fam::M68k && mn == "link" {
+            st.bp = Some(st.sp);
+            st.sp += parse_imm(ops.get(1).map(String::as_str).unwrap_or("0")).unwrap_or(0);
+            continue;
+        }
         if let Some(n) = fp_set(fm, mn, &ops) {
             st.bp = Some(st.sp + n);
             continue;
