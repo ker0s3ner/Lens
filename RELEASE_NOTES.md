@@ -2,6 +2,20 @@
 # Lens 0.6.198 — Fourier
 # Lens 0.6.199 — Fourier
 # Lens 0.6.200 — Fourier
+# Lens 0.6.201 — Fourier
+
+## What's new
+
+- JSON function records now identify the mapped segment containing each function.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.200 — Fourier
 
 ## What's new
 

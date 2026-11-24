@@ -107,6 +107,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON analysis reports expose detailed import slots and export symbol records.
 - JSON analysis reports expose named internal function and data symbol records.
 - JSON function records expose matched symbol names and recovered function kinds.
+- JSON function records identify the mapped segment containing each function.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.
