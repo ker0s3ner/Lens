@@ -1,3 +1,10 @@
+# Lens 0.6.285 — Fourier
+
+- Typed struct-field rendering now follows cast function-pointer returns.
+- Indirect pointer-returning calls now keep field names through dereference formatting.
+
+Verification: `cargo test --locked --quiet` — 96 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.284 — Fourier
 
 - Decompiler type inference now recognizes return types from cast function-pointer calls.

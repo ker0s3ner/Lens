@@ -226,6 +226,8 @@ impl Fmt<'_> {
             Ex::Var(name) => self.types.get(name).cloned(),
             Ex::Call(callee, _) => match &**callee {
                 Ex::Var(name) => crate::protos::find(name).map(|proto| proto.ret),
+                Ex::Cast(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
+                Ex::CastOwned(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
                 _ => None,
             },
             _ => None,
@@ -2956,6 +2958,18 @@ mod tests {
         let call = Ex::Call(Box::new(var("make_pair")), vec![]);
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "make_pair()->second");
+    }
+
+    #[test]
+    fn renders_struct_field_from_cast_function_pointer_return() {
+        let def = crate::types::parse_c("struct Pair { uint32_t first; uint32_t second; }", 8, &[]).unwrap();
+        let empty_types = HashMap::new();
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty_types, structs: &[def] };
+        let callee = Ex::CastOwned("struct Pair *(*)(void)".into(), Box::new(var("fp")));
+        let call = Ex::Call(Box::new(callee), vec![]);
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "(*(struct Pair *(*)(void))fp)()->second");
     }
 
     #[test]
