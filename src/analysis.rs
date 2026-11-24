@@ -2051,6 +2051,17 @@ mod tests {
     }
 
     #[test]
+    fn preserves_x86_subtracted_switch_case_base() {
+        let bin = raw_binary(&RawSpec {
+            path: "switch-base".into(), name: "switch-base".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x83, 0xEF, 0x03, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let mut insns = BTreeMap::new();
+        insns.insert(0x1000, decode_info(&bin, 0x1000).unwrap());
+        assert_eq!(recovered_case_indices(&bin, &insns, 0x1003, 3), vec![3, 4, 5]);
+    }
+
+    #[test]
     fn recovers_arm32_absolute_switch_table() {
         // cmp r0, #2; ldr pc, [pc, r0, lsl #2]; table at PC+8.
         let mut code = vec![0x02, 0x00, 0x50, 0xE3, 0x00, 0xF1, 0x9F, 0xE7];
