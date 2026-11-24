@@ -17,6 +17,20 @@
 # Lens 0.6.213 — Fourier
 # Lens 0.6.214 — Fourier
 # Lens 0.6.215 — Fourier
+# Lens 0.6.216 — Fourier
+
+## What's new
+
+- JSON analysis reports now include compact classified listing-line records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.215 — Fourier
 
 ## What's new
 
