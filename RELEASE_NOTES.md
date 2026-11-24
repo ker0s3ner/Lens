@@ -1,3 +1,8 @@
+# Lens 0.6.409 — Fourier
+
+- Copy propagation now traverses owned casts used by typed pointer and function-pointer values.
+- Dereference and liveness analysis now traverses owned casts consistently.
+
 # Lens 0.6.408 — Fourier
 
 - Shift-scaled struct-pointer arrays now preserve variable-index nested field paths.

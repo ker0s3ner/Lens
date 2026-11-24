@@ -500,7 +500,7 @@ fn has_deref(e: &Ex) -> bool {
     match e {
         Ex::Deref(..) => true,
         Ex::Bin(_, a, b) => has_deref(a) || has_deref(b),
-        Ex::Un(_, a) | Ex::Cast(_, a) => has_deref(a),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => has_deref(a),
         Ex::Call(f, args) => has_deref(f) || args.iter().any(has_deref),
         Ex::Tern(a, b, c) => has_deref(a) || has_deref(b) || has_deref(c),
         _ => false,
@@ -515,6 +515,7 @@ fn subst(e: &Ex, from: &Ex, to: &Ex) -> Ex {
         Ex::Bin(o, a, b) => Ex::Bin(o, Box::new(subst(a, from, to)), Box::new(subst(b, from, to))),
         Ex::Un(o, a) => Ex::Un(o, Box::new(subst(a, from, to))),
         Ex::Cast(t, a) => Ex::Cast(t, Box::new(subst(a, from, to))),
+        Ex::CastOwned(t, a) => Ex::CastOwned(t.clone(), Box::new(subst(a, from, to))),
         Ex::Deref(a, s) => Ex::Deref(Box::new(subst(a, from, to)), *s),
         Ex::Call(f, args) => Ex::Call(Box::new(subst(f, from, to)), args.iter().map(|a| subst(a, from, to)).collect()),
         Ex::Tern(a, b, c) => Ex::Tern(Box::new(subst(a, from, to)), Box::new(subst(b, from, to)), Box::new(subst(c, from, to))),
@@ -3050,6 +3051,19 @@ mod tests {
         assert_eq!(vars.get("v4").map(String::as_str), Some("Color"));
         assert_eq!(vars.get("v5").map(String::as_str), Some("Color"));
         assert_eq!(vars.get("v6").map(String::as_str), Some("Color"));
+    }
+
+    #[test]
+    fn copy_propagation_recurses_through_owned_casts() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("p".into()))),
+                (1, Stmt::Assign(Ex::Var("v2".into()), Ex::CastOwned("uint32_t *".into(), Box::new(Ex::Var("v1".into()))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v2".into()))), term_addr: 1,
+        };
+        propagate_forward_copy(&mut out);
+        assert!(matches!(out.stmts[0].1, Stmt::Assign(Ex::Var(ref name), Ex::CastOwned(_, ref inner)) if name == "v2" && **inner == Ex::Var("p".into())));
     }
 
     #[test]
