@@ -631,6 +631,15 @@ impl LensApp {
                         if ui.add_enabled(d.state == RunState::Stopped && d.queue_idle(), egui::Button::new("Trace 1,000")).clicked() { trace_instructions = Some(1000); }
                         if ui.add_enabled(d.trace_active, egui::Button::new("Stop trace")).clicked() { stop_instruction_trace = true; }
                         if ui.small_button("Clear trace").clicked() { d.trace.clear(); }
+                        if ui.add_enabled(!d.trace.is_empty(), egui::Button::new("Export trace…")).clicked() {
+                            if let Some(path) = rfd::FileDialog::new().set_title("Export instruction trace").set_file_name("lens-trace.txt").save_file() {
+                                let text = d.trace.iter().enumerate().map(|(i, address)| format!("{i:06}  {address:016X}")).collect::<Vec<_>>().join("\n");
+                                match std::fs::write(&path, format!("# Lens instruction trace\n{text}\n")) {
+                                    Ok(_) => d.console.push(format!("trace exported to {}", path.display())),
+                                    Err(error) => d.console.push(format!("trace export failed: {error}")),
+                                }
+                            }
+                        }
                         ui.label(RichText::new(format!("{} instructions", d.trace.len())).small().color(p.muted));
                     });
                     ScrollArea::vertical().id_salt("dbg_trace").max_height(90.0).show(ui, |ui| {

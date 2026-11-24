@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.237 — Fourier
+
+## What's new
+
+- Debugger instruction traces can now be exported with step indexes and addresses.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.236 — Fourier
 
 ## What's new
