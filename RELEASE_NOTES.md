@@ -1,3 +1,8 @@
+# Lens 0.6.328 — Fourier
+
+- AArch64 flag-setting aliases `bics`, `orns`, and `eons` now preserve their value semantics in pseudocode.
+- ARM complementing bitwise lowering now handles both flag-preserving and flag-setting spellings while remaining conservative about condition flags.
+
 # Lens 0.6.327 — Fourier
 
 - AArch64 `eon` now decompiles as explicit XOR-with-inverted-operand logic.

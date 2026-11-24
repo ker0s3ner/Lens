@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 flag-setting aliases bics, orns, and eons now preserve their value semantics in pseudocode.",
+    "ARM complementing bitwise lowering now handles both flag-preserving and flag-setting spellings while remaining conservative about condition flags.",
     "AArch64 eon now decompiles as explicit XOR-with-inverted-operand logic.",
     "ARM complementing bitwise lowering now covers AND, OR, and XOR inverted-operand forms consistently.",
     "ARM32, Thumb, and ARM64 bic now decompile as explicit AND-with-inverted-operand expressions.",
