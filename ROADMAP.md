@@ -36,7 +36,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
 
 ## Phase 4 - Type system and libraries
-- Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays, packed layouts and simple packed integer bitfields are supported; full function-pointer declarations and compiler-specific bitfield ABI/layout rules remain.
+- Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays, packed layouts and simple packed integer bitfields are supported; compiler-specific bitfield ABI/layout rules remain.
 - Extend the built-in/user prototype library (about 190 signatures) and improve type propagation from prototypes into variables, memory accesses, and pseudocode.
 - Generate and ship broader versioned signature/type libraries from system libraries (libSystem, libc, MSVC CRT and platform frameworks); the current built-in prototype set is not a complete type library.
 
@@ -83,6 +83,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Known scalar pointer arithmetic now renders bounded indexed accesses in typed pseudocode.
 - Typed pointer-returning calls now participate in known struct-field resolution.
 - Explicit function-pointer casts now contribute conservative prototypes to indirect calls.
+- Function-pointer typedef aliases now resolve to full callable parameter and return prototypes.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

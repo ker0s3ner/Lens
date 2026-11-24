@@ -54,6 +54,35 @@ fn tidy(t: String) -> String {
     t.trim().to_string()
 }
 
+fn collect_typedefs(decls: &[String]) -> HashMap<String, String> {
+    let mut aliases = HashMap::new();
+    for d in decls {
+        let d = d.trim();
+        if !d.starts_with("typedef ") { continue; }
+        let body = d.trim_start_matches("typedef ").trim();
+        if let Some(start) = body.find("(*") {
+            let Some(end) = body[start + 2..].find(')') else { continue };
+            let end = start + 2 + end;
+            let name = body[start + 2..end].trim();
+            if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') { continue; }
+            aliases.insert(name.to_string(), tidy(format!("{} (*){}", body[..start].trim(), body[end + 1..].trim())));
+        } else {
+            let toks: Vec<&str> = body.split_whitespace().collect();
+            if toks.len() >= 2 {
+                let name = toks[toks.len() - 1];
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    aliases.insert(name.to_string(), tidy(toks[..toks.len() - 1].join(" ")));
+                }
+            }
+        }
+    }
+    aliases
+}
+
+fn resolve_alias(ty: String, aliases: &HashMap<String, String>) -> String {
+    aliases.get(ty.trim()).cloned().unwrap_or(ty)
+}
+
 fn split_top(s: &str) -> Vec<String> {
     let (mut depth, mut cur, mut out) = (0i32, String::new(), vec![]);
     for c in s.chars() {
@@ -104,10 +133,11 @@ fn split_param(p: &str, i: usize) -> (String, String) {
 /// Parses C-style declarations such as `int open(const char *path, int flags, ...);`. Lines that aren't declarations are skipped.
 pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
     let clean = strip_comments(text);
+    let declarations: Vec<String> = clean.split(';').map(|d| d.trim().replace('\n', " ")).collect();
+    let aliases = collect_typedefs(&declarations);
     let mut out = vec![];
     let mut errs = vec![];
-    for decl in clean.split(';') {
-        let d = decl.trim().replace('\n', " ");
+    for d in declarations {
         if d.is_empty() || d.starts_with("typedef") || d.starts_with("struct ") && !d.contains('(') || d.starts_with('#') { continue; }
         let Some(open) = d.find('(') else { errs.push(format!("Not a function declaration: {d}")); continue };
         let mut depth = 0i32;
@@ -125,7 +155,7 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
         let mut toks: Vec<&str> = joined.split_whitespace().collect();
         let Some(name) = toks.pop() else { errs.push(format!("No name in: {d}")); continue };
         if toks.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '$') { errs.push(format!("Couldn't read: {d}")); continue; }
-        let ret = toks.join(" ").replace(" *", "*").replace('*', " *").trim().to_string();
+        let ret = resolve_alias(toks.join(" ").replace(" *", "*").replace('*', " *").trim().to_string(), &aliases);
         let inner = &d[open + 1..close];
         let mut variadic = false;
         let mut params = vec![];
@@ -134,7 +164,7 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
             if p == "void" && i == 0 { continue; }
             if p.is_empty() { continue; }
             let (t, n) = split_param(&p, params.len());
-            params.push((tidy(t), n));
+            params.push((resolve_alias(tidy(t), &aliases), n));
         }
         out.push(Proto { name: name.to_string(), ret: tidy(ret), params, variadic, noreturn: noret });
     }
@@ -303,6 +333,14 @@ mod tests {
         assert!(e.is_empty(), "{e:?}");
         assert_eq!(p[0].params[0].1, "callback");
         assert_eq!(p[0].signature(), "void register_cb(int (*callback)(int, void *))");
+    }
+
+    #[test]
+    fn resolves_function_pointer_typedef_parameters() {
+        let (p, e) = parse("typedef int (*callback_t)(int, void *); void register_cb(callback_t cb); callback_t get_cb(void);");
+        assert!(e.is_empty(), "{e:?}");
+        assert_eq!(p[0].params[0].0, "int (*)(int, void *)");
+        assert_eq!(p[1].ret, "int (*)(int, void *)");
     }
 
     #[test]

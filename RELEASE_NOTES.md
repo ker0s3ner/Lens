@@ -1,3 +1,17 @@
+# Lens 0.6.177 — Fourier
+
+## What's new
+
+- Function-pointer typedefs now resolve into callable parameter and return prototypes.
+- User-defined callback aliases retain their full C-style signature in decompiler call metadata.
+
+## Verification
+
+- `cargo test --locked --quiet` — 76 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.176 — Fourier
 
 ## What's new
