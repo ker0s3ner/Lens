@@ -132,6 +132,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON call records retain the analyzer's call-edge classification.
 - JSON library records include the imported symbol names associated with each dependency.
 - JSON entry records include loader-provided function-start hints.
+- JSON entry records are deterministically sorted and deduplicated.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

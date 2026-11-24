@@ -27,6 +27,20 @@
 # Lens 0.6.223 — Fourier
 # Lens 0.6.224 — Fourier
 # Lens 0.6.225 — Fourier
+# Lens 0.6.226 — Fourier
+
+## What's new
+
+- JSON entry records are now deterministically sorted and deduplicated.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.225 — Fourier
 
 ## What's new
 

@@ -155,6 +155,9 @@ fn cli(args: &[String]) -> bool {
     }
     if json_report {
         let xrefs_to = &an.xrefs_to;
+        let mut entry_records: Vec<u64> = bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).chain(bin.func_hints.iter().copied()).collect();
+        entry_records.sort_unstable();
+        entry_records.dedup();
         let value = serde_json::json!({
             "schema": "lens.analysis.v1",
             "file": bin.file_name,
@@ -256,7 +259,7 @@ fn cli(args: &[String]) -> bool {
                 "to": target,
                 "kind": xrefs_to.get(target).and_then(|refs| refs.iter().find(|xref| xref.from == function.start)).map(|xref| xref.kind.label()).unwrap_or("call"),
             }))).collect::<Vec<_>>(),
-            "entry_records": bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).chain(bin.func_hints.iter().copied()).collect::<Vec<_>>(),
+            "entry_records": entry_records,
             "name_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
                 "name": name,
