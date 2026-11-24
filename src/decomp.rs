@@ -114,6 +114,33 @@ struct Fmt<'a> {
 }
 
 impl Fmt<'_> {
+    fn resolve_struct_path(&self, def: &crate::types::StructDef, offset: i64, depth: usize) -> Option<String> {
+        if depth > self.structs.len() { return None; }
+        let field = def.fields.iter().find(|field| {
+            let end = field.off as i64 + field.size as i64;
+            offset >= field.off as i64 && offset < end
+        })?;
+        let relative = offset - field.off as i64;
+        if relative == 0 { return Some(field.name.clone()); }
+        let ty = field.ty.trim().trim_start_matches("const ").trim();
+        let named = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
+        if !named.contains('[') {
+            if let Some(nested) = self.structs.iter().find(|candidate| candidate.name == named && !candidate.is_enum) {
+                if let Some(path) = self.resolve_struct_path(nested, relative, depth + 1) {
+                    return Some(format!("{}.{}", field.name, path));
+                }
+            }
+        }
+        let open = field.ty.rfind('[')?;
+        let close = field.ty[open..].find(']')?;
+        let count = field.ty[open + 1..open + close].parse::<i64>().ok()?;
+        if count <= 0 || field.size as i64 % count != 0 { return None; }
+        let element_size = field.size as i64 / count;
+        let index = relative / element_size;
+        (element_size > 0 && relative % element_size == 0 && index >= 0 && index < count)
+            .then(|| format!("{}[{index}]", field.name))
+    }
+
     fn struct_field(&self, address: &Ex) -> Option<String> {
         let Ex::Bin(op, base, offset) = address else { return None };
         if *op != "+" && *op != "-" { return None; }
@@ -124,39 +151,9 @@ impl Fmt<'_> {
         let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
         let ty = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         let def = self.structs.iter().find(|def| def.name == ty && !def.is_enum)?;
-        let field = def.fields.iter().find(|field| {
-            let end = field.off as i64 + field.size as i64;
-            byte_offset >= field.off as i64 && byte_offset < end
-        })?;
         let base_text = self.at(base, 99);
-        let relative = byte_offset - field.off as i64;
-        if relative == 0 {
-            return Some(format!("{base_text}->{}", field.name));
-        }
-        let nested_name = field.ty.trim().trim_start_matches("const ").trim();
-        let nested_name = nested_name.strip_prefix("struct ").or_else(|| nested_name.strip_prefix("union ")).unwrap_or(nested_name);
-        if !nested_name.contains('[') {
-            if let Some(nested) = self.structs.iter().find(|candidate| candidate.name == nested_name && !candidate.is_enum) {
-                if let Some(inner) = nested.fields.iter().find(|inner| {
-                    let end = inner.off as i64 + inner.size as i64;
-                    relative >= inner.off as i64 && relative < end
-                }) {
-                    let inner_offset = relative - inner.off as i64;
-                    if inner_offset == 0 {
-                        return Some(format!("{base_text}->{}.{}", field.name, inner.name));
-                    }
-                }
-            }
-        }
-        let Some(open) = field.ty.rfind('[') else { return None };
-        let Some(close) = field.ty[open..].find(']') else { return None };
-        let count = field.ty[open + 1..open + close].parse::<i64>().ok()?;
-        if count <= 0 || field.size as i64 % count != 0 { return None; }
-        let element_size = field.size as i64 / count;
-        if element_size <= 0 || relative % element_size != 0 { return None; }
-        let index = relative / element_size;
-        if index >= 0 && index < count { return Some(format!("{base_text}->{}[{index}]", field.name)); }
-        None
+        let path = self.resolve_struct_path(def, byte_offset, 0)?;
+        Some(format!("{base_text}->{path}"))
     }
 
     fn num(n: i64) -> String {

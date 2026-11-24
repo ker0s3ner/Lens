@@ -1,3 +1,17 @@
+# Lens 0.6.171 — Fourier
+
+## What's new
+
+- Typed field resolution now walks nested records and fixed arrays recursively when layouts are known.
+- Conservative fallback behavior remains unchanged for ambiguous or unsupported nested layouts.
+
+## Verification
+
+- `cargo test --locked --quiet` — 71 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.170 — Fourier
 
 ## What's new

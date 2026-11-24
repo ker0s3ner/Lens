@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed field resolution now walks nested records and fixed arrays recursively when layouts are known.",
+    "Conservative fallback behavior remains unchanged for ambiguous or unsupported nested layouts.",
     "Known nested struct members now render chained field access such as `p->inner.value` in pseudocode.",
     "Nested field rendering remains conservative and requires an unambiguous known layout.",
     "Known fixed-array members in typed structs now render indexed accesses such as `p->items[1]` in pseudocode.",
