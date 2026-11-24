@@ -78,10 +78,11 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("|", Num(x), Num(y)) => Num(x | y),
         ("^", Num(x), Num(y)) => Num(x ^ y),
         ("<<", Num(x), Num(y)) if *y < 64 => Num(x.wrapping_shl(*y as u32)),
-        (">>", Num(x), Num(y)) if *y < 64 => Num(((*x as u64) >> *y) as i64),
+        (">>", Num(x), Num(y)) if *y < 64 => Num(x.wrapping_shr(*y as u32)),
         ("+", _, Num(0)) | ("-", _, Num(0)) | ("|", _, Num(0)) | ("^", _, Num(0)) | ("<<", _, Num(0)) | (">>", _, Num(0)) => a,
         ("+", Num(0), _) | ("|", Num(0), _) | ("^", Num(0), _) => b,
         ("*", _, Num(1)) | ("/", _, Num(1)) => a,
+        ("%", _, Num(1)) => Num(0),
         ("*", Num(1), _) => b,
         ("*", _, Num(0)) | ("*", Num(0), _) | ("&", _, Num(0)) | ("&", Num(0), _) => Num(0),
         ("&", x, Num(-1)) | ("&", Num(-1), x) => x.clone(),
@@ -2840,6 +2841,13 @@ mod tests {
         let bits = var("bits");
         assert_eq!(bin("&", bits.clone(), Ex::Num(-1)), bits);
         assert_eq!(bin("|", var("bits"), Ex::Num(-1)), Ex::Num(-1));
+    }
+
+    #[test]
+    fn folds_signed_right_shift_and_unit_remainder() {
+        assert_eq!(bin(">>", Ex::Num(-8), Ex::Num(2)), Ex::Num(-2));
+        assert_eq!(bin(">>", Ex::Num(8), Ex::Num(2)), Ex::Num(2));
+        assert_eq!(bin("%", var("value"), Ex::Num(1)), Ex::Num(0));
     }
 
     #[test]

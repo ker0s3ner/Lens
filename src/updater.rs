@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Constant signed right shifts now preserve arithmetic sign extension in pseudocode.",
+    "Decompiler remainder folding now recognizes x % 1 as zero.",
     "Decompiler boolean identities now simplify constant truthiness around && and ||.",
     "Decompiler bitmask identities now simplify x & -1 and x | -1 without changing semantics.",
     "Call graph expansion now caps high-fanout neighborhoods to keep rendering responsive.",

@@ -1,3 +1,10 @@
+# Lens 0.6.268 — Fourier
+
+- Constant signed right shifts now preserve arithmetic sign extension in pseudocode.
+- Decompiler remainder folding now recognizes `x % 1` as zero.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.267 — Fourier
 
 - Decompiler boolean identities now simplify constant truthiness around `&&` and `||`.

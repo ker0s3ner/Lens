@@ -95,6 +95,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CLI JSON analysis reports now expose per-function boundaries, calls, no-return status, and thunk targets.
 - Decompiler output folds safe adjacent temporary-to-register copies within a basic block.
 - Decompiler expression folding now simplifies boolean truthiness identities and full-width bitmask identities.
+- Decompiler constant folding now preserves signed right-shift semantics and recognizes unit remainders.
 - Return expressions now also fold safe adjacent temporary-to-register copies.
 - CLI JSON analysis reports now expose recovered switch-table locations and targets.
 - Decompiler expression folding now simplifies deterministic constant division, remainder, and comparisons.
