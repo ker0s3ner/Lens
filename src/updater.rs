@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Bitfield storage matching now recognizes equivalent explicit signed integer spellings.",
+    "Existing int versus unsigned-int extraction behavior remains unchanged, with ABI regression coverage.",
     "Enum identity now survives safe integer casts during decompiler local-copy propagation.",
     "Enum propagation still invalidates on unrelated expressions, keeping cast-aware naming conservative.",
     "Enum propagation now invalidates a local when it is overwritten by a non-enum value.",

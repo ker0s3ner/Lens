@@ -1,3 +1,8 @@
+# Lens 0.6.374 — Fourier
+
+- Bitfield storage matching now recognizes equivalent explicit signed integer spellings.
+- Existing int versus unsigned-int extraction behavior remains unchanged, with ABI regression coverage.
+
 # Lens 0.6.373 — Fourier
 
 - Enum identity now survives safe integer casts during decompiler local-copy propagation.

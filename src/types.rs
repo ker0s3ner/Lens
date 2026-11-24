@@ -247,7 +247,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             if stars != 0 || !integer_bitfield_type(&ty, known) || !matches!(sz, 1 | 2 | 4 | 8) || width as u32 > sz * 8 {
                 return Err(format!("Bitfield `{}` must fit an integer storage type of at most 64 bits", fname));
             }
-            let share = bit_unit.as_ref().filter(|(_, unit_size, used, unit_ty)| *unit_size == sz && *unit_ty == ty && *used + width as u32 <= sz * 8).cloned();
+            let share = bit_unit.as_ref().filter(|(_, unit_size, used, unit_ty)| *unit_size == sz && compatible_bitfield_storage(unit_ty, &ty) && *used + width as u32 <= sz * 8).cloned();
             let (unit_addr, bit_off, used) = if is_union {
                 (0, 0, 0)
             } else if let Some((unit_addr, _, used, _)) = share {
@@ -301,6 +301,13 @@ fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
         | "int8_t" | "uint8_t" | "int16_t" | "uint16_t" | "int32_t" | "uint32_t" | "int64_t" | "uint64_t"
         | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "BYTE" | "WORD" | "DWORD" | "QWORD")
         || known.iter().any(|d| d.is_enum && d.name == t)
+}
+
+fn compatible_bitfield_storage(a: &str, b: &str) -> bool {
+    if a == b { return true; }
+    let a = a.strip_prefix("signed ").unwrap_or(a);
+    let b = b.strip_prefix("signed ").unwrap_or(b);
+    a == b
 }
 
 fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
@@ -606,5 +613,13 @@ mod tests {
         });
         assert!(value(&bin, 0x1000, &bits.fields[0]).starts_with("-3"));
         assert!(value(&bin, 0x1000, &bits.fields[1]).starts_with("2"));
+    }
+
+    #[test]
+    fn compatible_signedness_bitfields_share_storage() {
+        let bits = parse_c("struct Bits { int signed_value:3; signed int raw_value:3; };", 8, &[]).unwrap();
+        assert_eq!(bits.fields[0].off, 0);
+        assert_eq!(bits.fields[1].off, 0);
+        assert_eq!(bits.fields[1].bit_offset, Some(3));
     }
 }
