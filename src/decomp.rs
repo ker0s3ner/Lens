@@ -366,6 +366,42 @@ fn subst(e: &Ex, from: &Ex, to: &Ex) -> Ex {
     }
 }
 
+fn propagate_adjacent_copy(o: &mut BlockOut) {
+    let mut i = 0;
+    while i + 1 < o.stmts.len() {
+        let (dst, src) = match &o.stmts[i].1 {
+            Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => (dst.clone(), src.clone()),
+            _ => { i += 1; continue; }
+        };
+        let replacement = Ex::Var(src);
+        let changed = {
+            let next = &mut o.stmts[i + 1].1;
+            match next {
+                Stmt::Assign(left, right) => {
+                    let new_left = subst(left, &Ex::Var(dst.clone()), &replacement);
+                    let new_right = subst(right, &Ex::Var(dst.clone()), &replacement);
+                    let changed = new_left != *left || new_right != *right;
+                    *left = new_left;
+                    *right = new_right;
+                    changed
+                }
+                Stmt::Expr(expr) => {
+                    let new_expr = subst(expr, &Ex::Var(dst.clone()), &replacement);
+                    let changed = new_expr != *expr;
+                    *expr = new_expr;
+                    changed
+                }
+                Stmt::Comment(_) => false,
+            }
+        };
+        if changed {
+            o.stmts.remove(i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     match e {
         Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
@@ -1981,6 +2017,9 @@ fn decompile_inner(
         let (sp, bp) = sp_in[b].unwrap_or((0, None));
         outs.push(if x86 { dc.exec(f, b, sp, bp, b == 0) } else { generic::exec(&mut dc, f, b, sp, bp) });
     }
+    for out in &mut outs {
+        propagate_adjacent_copy(out);
+    }
 
     // pass 3: liveness of registers
     let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
@@ -2629,6 +2668,20 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "p->second");
+    }
+
+    #[test]
+    fn folds_adjacent_temporary_copy() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("rax".into()))),
+                (1, Stmt::Assign(Ex::Var("x".into()), Ex::Bin("+", Box::new(Ex::Var("v1".into())), Box::new(Ex::Num(1))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
+        };
+        propagate_adjacent_copy(&mut out);
+        assert_eq!(out.stmts.len(), 1);
+        assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Var("rax".into())));
     }
 
     #[test]

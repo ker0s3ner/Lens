@@ -92,6 +92,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Imported indirect calls to known no-return symbols now mark the containing function as no-return.
 - CLI JSON analysis reports now expose no-return, forwarding-thunk, and recovered switch-table counts.
 - CLI JSON analysis reports now expose per-function boundaries, calls, no-return status, and thunk targets.
+- Decompiler output folds safe adjacent temporary-to-register copies within a basic block.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

@@ -1,3 +1,16 @@
+# Lens 0.6.186 — Fourier
+
+## What's new
+
+- Decompiler output now folds safe adjacent temporary-to-register copies.
+
+## Verification
+
+- `cargo test --locked --quiet` — 80 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.185 — Fourier
 
 ## What's new
