@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler now folds constant ternary conditions after flag propagation.",
+    "Non-constant ternary expressions remain structured, preserving branch semantics.",
     "JSON callee records are now normalized, sorted, and deduplicated for stable graph diffs.",
     "Function graph exports now avoid duplicate outgoing edges while retaining raw call-site records.",
     "JSON function records now include normalized callers and callees alongside call sites.",

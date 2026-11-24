@@ -118,6 +118,13 @@ fn un(op: &'static str, a: Ex) -> Ex {
     }
 }
 
+fn tern(c: Ex, a: Ex, b: Ex) -> Ex {
+    match c {
+        Ex::Num(value) => if value != 0 { a } else { b },
+        condition => Ex::Tern(Box::new(condition), Box::new(a), Box::new(b)),
+    }
+}
+
 fn prec(e: &Ex) -> u8 {
     match e {
         Ex::Bin(op, _, _) => match *op {
@@ -1648,7 +1655,7 @@ impl<'a> Dc<'a> {
                         let cond = cc_expr(ins.condition_code(), &st.flags);
                         let a = self.read_op(&mut st, ins, 1);
                         let old = self.read_op(&mut st, ins, 0);
-                        self.write_op(&mut st, ins, 0, Ex::Tern(Box::new(cond), Box::new(a), Box::new(old)));
+                        self.write_op(&mut st, ins, 0, tern(cond, a, old));
                     } else {
                         // anything else becomes an intrinsic so nothing is silently dropped
                         let name = format!("__{}", ms.to_lowercase());
@@ -2897,6 +2904,13 @@ mod tests {
         assert_eq!(bin(">>", Ex::Num(8), Ex::Num(2)), Ex::Num(2));
         assert_eq!(bin(">>>", Ex::Num(-8), Ex::Num(2)), Ex::Num(0x3FFF_FFFF_FFFF_FFFE));
         assert_eq!(bin("%", var("value"), Ex::Num(1)), Ex::Num(0));
+    }
+
+    #[test]
+    fn folds_constant_ternary_conditions() {
+        assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
+        assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
+        assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
     }
 
     #[test]

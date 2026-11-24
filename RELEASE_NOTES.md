@@ -1,3 +1,10 @@
+# Lens 0.6.278 — Fourier
+
+- Decompiler now folds constant ternary conditions after flag propagation.
+- Non-constant ternary expressions remain structured, preserving branch semantics.
+
+Verification: `cargo test --locked --quiet` — 93 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.277 — Fourier
 
 - JSON callee records are now normalized, sorted, and deduplicated for stable graph diffs.
