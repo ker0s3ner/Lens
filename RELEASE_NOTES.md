@@ -1,3 +1,8 @@
+# Lens 0.6.399 — Fourier
+
+- Enum constant propagation now folds C-style logical `&&` and `||` expressions.
+- Enum constant propagation now folds unary logical-not expressions.
+
 # Lens 0.6.398 — Fourier
 
 - Enum constant propagation now folds C-style logical `&&` and `||` expressions.

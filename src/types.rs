@@ -343,10 +343,16 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
     }
     fn eval(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         let s = s.trim();
+        if s.starts_with('(') && s.ends_with(')') {
+            return eval(&s[1..s.len() - 1], names);
+        }
         if let Some(rest) = s.strip_prefix('~') {
             return Some(!eval(rest, names)?);
         }
-        for op in ["|", "^", "&", "<<", ">>", "+", "-"] {
+        if let Some(rest) = s.strip_prefix('!') {
+            return Some((eval(rest, names)? == 0) as i64);
+        }
+        for op in ["||", "&&", "|", "^", "&", "<<", ">>", "+", "-"] {
             let mut depth = 0i32;
             for (i, c) in s.char_indices().rev() {
                 match c { ')' => depth += 1, '(' => depth -= 1, _ => {} }
@@ -354,6 +360,7 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
                     let a = eval(&s[..i], names)?;
                     let b = eval(&s[i + op.len()..], names)?;
                     return Some(match op {
+                        "||" => (a != 0 || b != 0) as i64, "&&" => (a != 0 && b != 0) as i64,
                         "|" => a | b, "^" => a ^ b, "&" => a & b,
                         "<<" => a.wrapping_shl(b as u32), ">>" => a.wrapping_shr(b as u32),
                         "+" => a.wrapping_add(b), "-" => a.wrapping_sub(b), _ => unreachable!(),
@@ -563,6 +570,13 @@ mod tests {
         let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write, All = ~0u, Letter = 'A' }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
         assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3), ("All", -1), ("Letter", 65)]);
+    }
+
+    #[test]
+    fn parses_logical_enum_constant_expressions() {
+        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0 }", 8, &[]).unwrap();
+        let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
+        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1)]);
     }
 
     #[test]
