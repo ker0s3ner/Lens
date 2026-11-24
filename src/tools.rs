@@ -36,10 +36,26 @@ impl SearchMode {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SearchScope {
+    Program,
+    CurrentFunction,
+}
+
+impl SearchScope {
+    fn label(self) -> &'static str {
+        match self {
+            SearchScope::Program => "Program",
+            SearchScope::CurrentFunction => "Current function",
+        }
+    }
+}
+
 pub struct SearchState {
     pub open: bool,
     pub focus: bool,
     pub mode: SearchMode,
+    pub scope: SearchScope,
     pub text: String,
     pub results: Vec<(u64, String)>,
     pub note: String,
@@ -72,7 +88,7 @@ pub struct Tools {
 impl Default for Tools {
     fn default() -> Self {
         Tools {
-            search: SearchState { open: false, focus: false, mode: SearchMode::Listing, text: String::new(), results: vec![], note: String::new() },
+            search: SearchState { open: false, focus: false, mode: SearchMode::Listing, scope: SearchScope::Program, text: String::new(), results: vec![], note: String::new() },
             hex: HexState { open: false, text: String::new(), arch: Arch::X64, big: false, base: "0".into(), file: None, key: 0, rows: vec![], note: String::new() },
             settings_open: false,
         }
@@ -161,11 +177,21 @@ impl LensApp {
     // ---------------------------------------------------------------- search
     fn run_search(&mut self) {
         let mode = self.tools.search.mode;
+        let scope = self.tools.search.scope;
         let q = self.tools.search.text.trim().to_string();
         if q.is_empty() {
             return;
         }
         let State::Ready(l) = &mut self.state else { return };
+        let current_function = match scope {
+            SearchScope::Program => None,
+            SearchScope::CurrentFunction => l.an.function_containing(self.nav.cursor).map(|f| (f.start, f.end)),
+        };
+        if scope == SearchScope::CurrentFunction && current_function.is_none() {
+            self.tools.search.results.clear();
+            self.tools.search.note = "Place the cursor inside a function to search its scope.".into();
+            return;
+        }
         let mut res: Vec<(u64, String)> = vec![];
         let mut note = String::new();
         const CAP: usize = 3000;
@@ -240,6 +266,9 @@ impl LensApp {
         } else if note.is_empty() {
             note = format!("{} match{}", res.len(), if res.len() == 1 { "" } else { "es" });
         }
+        if let Some((start, end)) = current_function {
+            res.retain(|(address, _)| *address >= start && *address < end);
+        }
         self.tools.search.results = res;
         self.tools.search.note = note;
     }
@@ -262,6 +291,16 @@ impl LensApp {
                 for m in [SearchMode::Listing, SearchMode::Strings, SearchMode::Names, SearchMode::Bytes, SearchMode::Value] {
                     if ui.selectable_label(self.tools.search.mode == m, m.label()).clicked() {
                         self.tools.search.mode = m;
+                        self.tools.search.results.clear();
+                        self.tools.search.note.clear();
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Scope:");
+                for scope in [SearchScope::Program, SearchScope::CurrentFunction] {
+                    if ui.selectable_label(self.tools.search.scope == scope, scope.label()).clicked() {
+                        self.tools.search.scope = scope;
                         self.tools.search.results.clear();
                         self.tools.search.note.clear();
                     }
