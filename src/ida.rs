@@ -978,10 +978,28 @@ impl LensApp {
                             }
                         }
                     }
+                    if let Some(arr) = v.get("debug_type_records") {
+                        if let Ok(types) = serde_json::from_value::<Vec<crate::types::StructDef>>(arr.clone()) {
+                            for def in types {
+                                if let Some(existing) = l.ann.structs.iter_mut().find(|x| x.name == def.name) { *existing = def; }
+                                else { l.ann.structs.push(def); }
+                                recognized = true;
+                            }
+                        }
+                    }
                     if let Some(protos) = v.get("prototypes").and_then(|x| x.as_str()) {
                         l.ann.protos = protos.to_string();
                         crate::protos::set_user(&l.ann.protos);
                         recognized = true;
+                    }
+                    if let Some(arr) = v.get("debug_prototype_records").and_then(|x| x.as_array()) {
+                        let recovered = arr.iter().filter_map(|item| item.get("text").and_then(|text| text.as_str())).collect::<Vec<_>>().join("\n");
+                        if !recovered.is_empty() {
+                            if !l.ann.protos.is_empty() { l.ann.protos.push('\n'); }
+                            l.ann.protos.push_str(&recovered);
+                            crate::protos::set_user(&l.ann.protos);
+                            recognized = true;
+                        }
                     }
                     for (addr, name) in json_named_records(&v) {
                         l.ann.names.insert(addr, name);
