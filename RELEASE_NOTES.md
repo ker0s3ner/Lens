@@ -1,6 +1,9 @@
-# Lens 0.6.77 — Fourier
+# Lens 0.6.78 — Fourier
 
 ## What's new
+
+- Added a deterministic JSON interchange regression covering function, export, import-slot, vtable, and explicit name records.
+- The repeatable test suite now has 54 passing tests.
 
 - Common AVX2 high-half, multiply-add, and saturating multiply families now remain visible as named pseudocode intrinsics.
 - Fixed-point and crypto-oriented packed multiply operand groups are preserved in decompiler output.

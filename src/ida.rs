@@ -788,6 +788,19 @@ mod tests {
     fn escapes_quotes_and_newlines_for_scripts() {
         assert_eq!(esc("a\"b\\c\n"), "a\\\"b\\\\c\\n");
     }
+
+    #[test]
+    fn restores_names_from_exported_json_collections() {
+        let v = serde_json::json!({
+            "functions": [{"start": 4096, "name": "main"}],
+            "exports": [{"addr": 8192, "name": "exported"}],
+            "imports": [{"slot": 12288, "name": "lib_call"}],
+            "vtables": [{"addr": 16384, "name": "vtable_Base"}],
+            "names": [{"addr": 20480, "name": "label"}]
+        });
+        assert_eq!(json_named_records(&v).len(), 5);
+        assert!(json_named_records(&v).contains(&(12288, "lib_call".into())));
+    }
 }
 
 // ------------------------------------------------------------------ import
@@ -841,6 +854,20 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
         }
     }
     (names, cmts, funcs)
+}
+
+fn json_named_records(v: &serde_json::Value) -> Vec<(u64, String)> {
+    let mut out = Vec::new();
+    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("names", "addr")];
+    for (collection, address_field) in fields {
+        let Some(items) = v.get(collection).and_then(|x| x.as_array()) else { continue };
+        for item in items {
+            let Some(addr) = item.get(address_field).and_then(|x| x.as_u64()) else { continue };
+            let Some(name) = item.get("name").and_then(|x| x.as_str()).filter(|x| !x.is_empty()) else { continue };
+            out.push((addr, name.to_string()));
+        }
+    }
+    out
 }
 
 impl LensApp {

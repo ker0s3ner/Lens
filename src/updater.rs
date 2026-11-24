@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Added a deterministic JSON interchange regression covering function, export, import-slot, vtable, and explicit name records.",
+    "The repeatable test suite now has 54 passing tests.",
     "Common AVX2 high-half, multiply-add, and saturating multiply families now remain visible as named pseudocode intrinsics.",
     "Fixed-point and crypto-oriented packed multiply operand groups are preserved in decompiler output.",
     "Common AVX2 packed absolute-value and signed/unsigned min/max families now remain visible as named pseudocode intrinsics.",
