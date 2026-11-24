@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 mod analysis;
 mod app;
 mod code;
@@ -183,6 +185,13 @@ fn cli(args: &[String]) -> bool {
                 "noreturn": f.noreturn,
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),
+            "pseudocode_records": an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|function| {
+                let code = decomp::decompile_with_types(&bin, &an, &an.names, function, det.conv, "", &[]);
+                serde_json::json!({
+                    "address": function.start,
+                    "text": decomp::render_text(&code),
+                })
+            }).collect::<Vec<_>>(),
             "instruction_records": an.insns.iter().map(|(address, insn)| serde_json::json!({
                 "address": address,
                 "length": insn.len,
