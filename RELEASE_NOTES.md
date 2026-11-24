@@ -1,6 +1,9 @@
-# Lens 0.6.95 — Fourier
+# Lens 0.6.96 — Fourier
 
 ## What's new
+
+- Lens JSON import now restores exported pointer-table entries as persistent native pointer definitions.
+- Interchange preserves analyst-promoted pointer data across files and sessions.
 
 - RISC-V, MIPS and PowerPC jump-table recognizers now participate in live indirect-branch analysis.
 - Switch cases on these architectures can now become real graph edges and pseudocode cases.

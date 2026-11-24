@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Lens JSON import now restores exported pointer-table entries as persistent native pointer definitions.",
+    "Interchange preserves analyst-promoted pointer data across files and sessions.",
     "RISC-V, MIPS and PowerPC jump-table recognizers now participate in live indirect-branch analysis.",
     "Switch cases on these architectures can now become real graph edges and pseudocode cases.",
     "AArch64 SM4 round and key-schedule instructions now remain visible as named pseudocode intrinsics.",
