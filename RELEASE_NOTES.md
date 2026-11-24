@@ -1,3 +1,8 @@
+# Lens 0.6.298 — Fourier
+
+- RISC-V SLLI.UW now renders its 32-bit zero-extension before shifting, preserving the instruction's exact data flow.
+- RISC-V word-width arithmetic is now clearer in pseudocode for this common address and integer idiom.
+
 # Lens 0.6.297 — Fourier
 
 - RISC-V SH1ADD, SH2ADD, and SH3ADD now render as explicit scaled-index address expressions.
