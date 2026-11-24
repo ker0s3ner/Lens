@@ -325,7 +325,11 @@ impl Fmt<'_> {
     }
 
     fn pointer_index(&self, address: &Ex) -> Option<(String, String)> {
-        let Ex::Bin("+", base, offset) = address else { return None };
+        let (base, offset, reverse) = match address {
+            Ex::Bin("+", base, offset) => (base, offset, false),
+            Ex::Bin("-", base, offset) => (base, offset, true),
+            _ => return None,
+        };
         let (index, stride) = match &**offset {
             Ex::Bin("*", left, right) => match (&**left, &**right) {
                 (index, Ex::Num(stride)) => (index, *stride),
@@ -347,14 +351,19 @@ impl Fmt<'_> {
             Ex::CastOwned(ty, _) => ty.trim().ends_with('*'),
             _ => false,
         };
-        pointer.then(|| (self.at(base, 3), self.at(index, 99)))
+        let index = if reverse { Ex::Un("-", Box::new(index.clone())) } else { index.clone() };
+        pointer.then(|| (self.at(base, 3), self.at(&index, 99)))
     }
 
     fn variable_struct_field(&self, address: &Ex) -> Option<String> {
-        let Ex::Bin("+", scaled, tail) = address else { return None };
-        let (base, index, stride) = match (&**scaled, &**tail) {
-            (Ex::Bin("+", base, scaled), Ex::Num(offset)) => (base, scaled, *offset),
-            (Ex::Num(offset), Ex::Bin("+", base, scaled)) => (base, scaled, *offset),
+        let (scaled, tail, reverse) = match address {
+            Ex::Bin("+", scaled, tail) => (scaled, tail, false),
+            Ex::Bin("-", scaled, tail) => (scaled, tail, true),
+            _ => return None,
+        };
+        let (base, index, stride, inner_reverse) = match (&**scaled, &**tail) {
+            (Ex::Bin(op @ ("+" | "-"), base, scaled), Ex::Num(offset)) => (base, scaled, *offset, *op == "-"),
+            (Ex::Num(offset), Ex::Bin(op @ ("+" | "-"), base, scaled)) => (base, scaled, *offset, *op == "-"),
             _ => return None,
         };
         let (index, element_size) = match &**index {
@@ -383,7 +392,8 @@ impl Fmt<'_> {
         let def = self.struct_def(name)?;
         if def.size as i64 != element_size { return None; }
         let field = self.resolve_struct_path(def, stride, 0)?;
-        Some(format!("{}[{}].{field}", self.at(base, 3), self.at(index, 99)))
+        let index = if reverse ^ inner_reverse { Ex::Un("-", Box::new(index.clone())) } else { index.clone() };
+        Some(format!("{}[{}].{field}", self.at(base, 3), self.at(&index, 99)))
     }
 
     fn at(&self, e: &Ex, ctx: u8) -> String {
@@ -3379,6 +3389,8 @@ mod tests {
         assert_eq!(fmt.show(&reversed), "p[i]");
         let shifted = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("<<", Box::new(var("i")), Box::new(Ex::Num(2)))))), 4);
         assert_eq!(fmt.show(&shifted), "p[i]");
+        let reverse = Ex::Deref(Box::new(Ex::Bin("-", Box::new(var("p")), Box::new(Ex::Bin("*", Box::new(var("i")), Box::new(Ex::Num(4)))))), 4);
+        assert_eq!(fmt.show(&reverse), "p[-i]");
     }
 
     #[test]
@@ -3476,6 +3488,10 @@ mod tests {
         let shifted = Ex::Bin("<<", Box::new(var("i")), Box::new(Ex::Num(3)));
         let shifted_address = Ex::Bin("+", Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(shifted))), Box::new(Ex::Num(4)));
         assert_eq!(fmt.show(&Ex::Deref(Box::new(shifted_address), 4)), "p[i].value");
+        let reverse_scaled = Ex::Bin("*", Box::new(var("i")), Box::new(Ex::Num(8)));
+        let reverse_base = Ex::Bin("-", Box::new(var("p")), Box::new(reverse_scaled));
+        let reverse_address = Ex::Bin("+", Box::new(reverse_base), Box::new(Ex::Num(4)));
+        assert_eq!(fmt.show(&Ex::Deref(Box::new(reverse_address), 4)), "p[-i].value");
     }
 
     #[test]

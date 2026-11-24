@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed pointer and struct-array reconstruction now handles reverse-index forms such as p[-index].",
+    "Variable-index reconstruction now supports both forward and reverse array walks.",
     "Reference tracking, expression sizing, and variable-use counting now traverse owned casts.",
     "Owned-cast handling is now consistent across decompiler copy and liveness visitors.",
     "Copy propagation now traverses owned casts used by typed pointer and function-pointer values.",

@@ -1,3 +1,8 @@
+# Lens 0.6.411 — Fourier
+
+- Typed pointer and struct-array reconstruction now handles reverse-index forms such as `p[-i]`.
+- Variable-index reconstruction now supports both forward and reverse array walks.
+
 # Lens 0.6.410 — Fourier
 
 - Reference tracking, expression sizing, and variable-use counting now traverse owned casts.
