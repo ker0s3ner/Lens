@@ -874,7 +874,7 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
 
 fn json_named_records(v: &serde_json::Value) -> Vec<(u64, String)> {
     let mut out = Vec::new();
-    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("vtable_records", "address"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
+    let fields = [("functions", "start"), ("function_records", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("vtable_records", "address"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
     for (collection, address_field) in fields {
         let Some(items) = v.get(collection).and_then(|x| x.as_array()) else { continue };
         for item in items {
@@ -1032,10 +1032,16 @@ impl LensApp {
                         n += 1;
                         recognized = true;
                     }
-                    if let Some(arr) = v.get("functions").and_then(|x| x.as_array()) {
+                    if let Some(arr) = v.get("functions").or_else(|| v.get("function_records")).and_then(|x| x.as_array()) {
                         for item in arr {
                             let Some(addr) = item.get("start").and_then(|a| a.as_u64()) else { continue };
                             if !l.ann.functions.contains(&addr) { l.ann.functions.push(addr); f += 1; }
+                        }
+                        recognized = true;
+                    }
+                    if let Some(arr) = v.get("entry_records").and_then(|x| x.as_array()) {
+                        for addr in arr.iter().filter_map(|item| item.as_u64()) {
+                            if !l.ann.functions.contains(&addr) && l.bin.is_mapped(addr) { l.ann.functions.push(addr); f += 1; }
                         }
                         recognized = true;
                     }

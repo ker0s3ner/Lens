@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON database import now restores analysis function records and mapped entry hints.",
     "JSON database import now restores RTTI-derived names from vtable records.",
     "JSON database import now restores vtable entries as persistent native pointers.",
     "JSON database import now restores pointer-table records from both analysis and annotation schemas.",
