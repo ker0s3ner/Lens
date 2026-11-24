@@ -1,3 +1,8 @@
+# Lens 0.6.390 — Fourier
+
+- The Lists vtables view now shows each table's owning segment beside entry and xref counts.
+- Vtable source context remains available consistently in reports, database exports, and Rhai scripts.
+
 # Lens 0.6.389 — Fourier
 
 - Rhai `vtables()` records now expose optional owning segment and file-offset fields.
