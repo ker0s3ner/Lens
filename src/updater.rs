@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Split CodeView field lists are now reconstructed across continuation records.",
+    "Large PDB structs, unions, and enums no longer lose members at field-list boundaries.",
     "PE/PDB union records now import supported overlapping members through the Types database.",
     "Union layouts reuse CodeView member offsets and declared sizes without guessing unsupported fields.",
     "PE/PDB struct records now import supported scalar and pointer members with their CodeView offsets.",

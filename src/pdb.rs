@@ -7,7 +7,7 @@ use std::path::Path;
 fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
-    let mut lists: HashMap<pdb::TypeIndex, Vec<(String, i64)>> = HashMap::new();
+    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, i64)>, Option<pdb::TypeIndex>)> = HashMap::new();
     let mut enums = Vec::new();
     while let Ok(Some(item)) = iter.next() {
         let Ok(data) = item.parse() else { continue };
@@ -17,14 +17,22 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
                     pdb::TypeData::Enumerate(e) => e.value.to_string().parse().ok().map(|v| (e.name.to_string().into_owned(), v)),
                     _ => None,
                 }).collect::<Vec<_>>();
-                lists.insert(item.index(), values);
+                lists.insert(item.index(), (values, list.continuation));
             }
             pdb::TypeData::Enumeration(e) => enums.push((e.name.to_string().into_owned(), e.fields)),
             _ => {}
         }
     }
     enums.into_iter().filter_map(|(name, fields)| {
-        let values = lists.get(&fields)?;
+        let mut values = Vec::new();
+        let mut current = Some(fields);
+        let mut seen = std::collections::HashSet::new();
+        while let Some(index) = current {
+            if !seen.insert(index) { return None; }
+            let (part, next) = lists.get(&index)?;
+            values.extend(part.iter().cloned());
+            current = *next;
+        }
         if name.is_empty() || values.is_empty() { return None; }
         let body = values.iter().map(|(n, v)| format!("{n} = {v}")).collect::<Vec<_>>().join(", ");
         Some(format!("enum {name} {{ {body} }};"))
@@ -34,7 +42,7 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
 fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, ptr: u32) -> Vec<crate::types::StructDef> {
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
-    let mut lists: HashMap<pdb::TypeIndex, Vec<(String, pdb::TypeIndex, u64)>> = HashMap::new();
+    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>)> = HashMap::new();
     let mut records = Vec::new();
     while let Ok(Some(item)) = iter.next() {
         let Ok(data) = item.parse() else { continue };
@@ -44,7 +52,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                     pdb::TypeData::Member(member) => Some((member.name.to_string().into_owned(), member.field_type, member.offset)),
                     _ => None,
                 }).collect();
-                lists.insert(item.index(), fields);
+                lists.insert(item.index(), (fields, list.continuation));
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct) => {
                 if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
@@ -56,10 +64,18 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         }
     }
     records.into_iter().filter_map(|(name, field_list, size, is_union)| {
-        let fields = lists.get(&field_list)?;
+        let mut fields = Vec::new();
+        let mut current = Some(field_list);
+        let mut seen = std::collections::HashSet::new();
+        while let Some(index) = current {
+            if !seen.insert(index) { return None; }
+            let (part, next) = lists.get(&index)?;
+            fields.extend(part.iter().cloned());
+            current = *next;
+        }
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
-            let ty = types.get(field_type)?.clone();
+            let ty = types.get(&field_type)?.clone();
             let field_size = if ty.ends_with('*') { ptr } else { match ty.as_str() {
                 "char" | "int8_t" | "uint8_t" | "bool" => 1,
                 "short" | "int16_t" | "uint16_t" => 2,
@@ -67,8 +83,8 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 "long" | "int64_t" | "uint64_t" | "double" => 8,
                 _ => return None,
             }};
-            if field_name.is_empty() || *offset > u32::MAX as u64 { return None; }
-            out.push(crate::types::Field { off: *offset as u32, name: field_name.clone(), ty, size: field_size, bit_offset: None, bit_width: None });
+            if field_name.is_empty() || offset > u32::MAX as u64 { return None; }
+            out.push(crate::types::Field { off: offset as u32, name: field_name, ty, size: field_size, bit_offset: None, bit_width: None });
         }
         if name.is_empty() || out.is_empty() || size > u32::MAX as u64 { return None; }
         Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union, is_enum: false, enum_values: vec![], alias_of: None })

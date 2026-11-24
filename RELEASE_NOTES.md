@@ -1,6 +1,9 @@
-# Lens 0.6.121 — Fourier
+# Lens 0.6.122 — Fourier
 
 ## What's new
+
+- Split CodeView field lists are now reconstructed across continuation records.
+- Large PDB structs, unions, and enums no longer lose members at field-list boundaries.
 
 - PE/PDB union records now import supported overlapping members through the Types database.
 - Union layouts reuse CodeView member offsets and declared sizes without guessing unsupported fields.
