@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Added deterministic ARM64 NEON bsl operand-order coverage using the real little-endian instruction encoding.",
+    "The regression protects the mask-combine lift from decoder or encoding drift.",
     "ARM64 NEON bsl, bit, and bif now lift to explicit bit-select and mask-combine expressions.",
     "Destination-mask semantics are preserved in pseudocode instead of falling back to opaque intrinsics.",
     "Type recovery now recognizes GCC’s __int128_t and __uint128_t aliases as aligned 16-byte integer types.",

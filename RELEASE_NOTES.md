@@ -1,3 +1,8 @@
+# Lens 0.6.446 — Fourier
+
+- Added deterministic ARM64 NEON `bsl v0.16b, v1.16b, v2.16b` decoding coverage using the real little-endian instruction encoding.
+- The regression locks operand order for the mask-combine lift while the existing 130-test suite continues to validate the full decompiler.
+
 # Lens 0.6.445 — Fourier
 
 - ARM64 NEON `bsl`, `bit`, and `bif` now lift to explicit bit-select and mask-combine expressions.

@@ -75,6 +75,12 @@ mod tests {
         assert_eq!(a64_float_minmax_helper("fmax"), Some("fmax"));
         assert_eq!(a64_float_minmax_helper("fadd"), None);
     }
+
+    #[test]
+    fn a64_neon_bsl_fixture_decodes_as_expected() {
+        let decoded = multiarch::disasm(Arch::Arm64, false, &[0x20, 0x1C, 0x62, 0x6E], 0x1000, 1);
+        assert_eq!(decoded.first().map(|x| (x.mnemonic.as_str(), x.ops.as_str())), Some(("bsl", "v0.16b, v1.16b, v2.16b")));
+    }
 }
 
 fn base_mnemonic(mn: &str) -> &str {
