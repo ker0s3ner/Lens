@@ -29,7 +29,7 @@ impl Proto {
     }
 }
 
-const BASE_TYPES: &[&str] = &["void", "int", "char", "short", "long", "float", "double", "unsigned", "signed", "const", "struct", "union", "enum", "size_t", "ssize_t", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "intptr_t", "uintptr_t", "bool", "BOOL", "DWORD", "HANDLE", "LPVOID", "LPCSTR", "LPCWSTR", "HMODULE", "UINT", "ULONG", "LONG", "WORD", "BYTE", "off_t", "pid_t", "FILE", "va_list", "time_t", "mode_t", "socklen_t"];
+const BASE_TYPES: &[&str] = &["void", "int", "char", "short", "long", "float", "double", "unsigned", "signed", "const", "struct", "union", "enum", "size_t", "ssize_t", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "intptr_t", "uintptr_t", "__int128", "__uint128", "bool", "BOOL", "DWORD", "HANDLE", "LPVOID", "LPCSTR", "LPCWSTR", "HMODULE", "UINT", "ULONG", "LONG", "WORD", "BYTE", "off_t", "pid_t", "FILE", "va_list", "time_t", "mode_t", "socklen_t"];
 
 fn strip_comments(s: &str) -> String {
     let mut out = String::new();

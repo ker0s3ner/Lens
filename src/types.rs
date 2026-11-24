@@ -65,6 +65,7 @@ fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
         "short" | "int16_t" | "uint16_t" | "u16" | "i16" | "WORD" | "wchar_t" => (2, 2),
         "int" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" | "DWORD" | "long32" => (4, 4),
         "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" | "size_t" | "ssize_t" | "intptr_t" | "uintptr_t" | "QWORD" | "ptrdiff_t" => (8, 8),
+        "__int128" | "__uint128" => (16, 16),
         _ => return None,
     })
 }
@@ -629,6 +630,13 @@ mod tests {
         let en = parse_c("typedef enum { Zero, One = 1 } Count;", 8, &[]).unwrap();
         assert_eq!(en.name, "Count");
         assert_eq!(en.enum_values[1].name, "One");
+    }
+
+    #[test]
+    fn sizes_compiler_128_bit_integer_types() {
+        let def = parse_c("struct Wide { __int128 value; __uint128 other; };", 8, &[]).unwrap();
+        assert_eq!(def.size, 32);
+        assert_eq!(def.fields.iter().map(|f| f.off).collect::<Vec<_>>(), vec![0, 16]);
     }
 
     #[test]

@@ -1,3 +1,8 @@
+# Lens 0.6.442 — Fourier
+
+- The C type system now models compiler `__int128` and `__uint128` scalars as aligned 16-byte values.
+- Prototype parsing now recognizes both 128-bit integer spellings, with a struct-layout regression covering consecutive wide fields.
+
 # Lens 0.6.441 — Fourier
 
 - Desktop call-graph caller discovery now sorts and bounds incoming call/jump xrefs before resolving containing functions.

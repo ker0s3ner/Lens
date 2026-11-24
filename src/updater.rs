@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The C type system now models compiler __int128 and __uint128 scalars as aligned 16-byte values.",
+    "Prototype parsing recognizes both 128-bit integer spellings with deterministic struct-layout regression coverage.",
     "Desktop call-graph caller discovery now bounds incoming call/jump xrefs before resolving containing functions.",
     "High-fan-in graph construction now uses a deterministic 192-xref lookup budget while retaining the neighbor cap.",
     "Rhai call_graph now caps emitted edges at 2,048 as well as limiting nodes for high-fanout binaries.",
