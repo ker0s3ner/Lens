@@ -1,3 +1,8 @@
+# Lens 0.6.393 — Fourier
+
+- Enum identity now survives safe constant `+` and `-` arithmetic in typed comparisons.
+- CV-qualified bitfield storage parsing and regression coverage are included in this Fourier patch.
+
 # Lens 0.6.392 — Fourier
 
 - Bitfield scalar parsing now accepts `volatile` and `restrict` qualifiers without changing storage layout.
