@@ -41,3 +41,16 @@ pub fn symbols(path: &Path) -> Option<Vec<(u32, String)>> {
     out.dedup_by_key(|(rva, _)| *rva);
     Some(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::symbols;
+
+    #[test]
+    fn ignores_non_pdb_inputs() {
+        let path = std::env::temp_dir().join("lens-not-a-pdb.bin");
+        std::fs::write(&path, b"not a PDB").unwrap();
+        assert!(symbols(&path).is_none());
+        let _ = std::fs::remove_file(path);
+    }
+}

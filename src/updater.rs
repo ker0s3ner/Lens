@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB ingestion now has a malformed-input regression guard before type-stream expansion.",
+    "The deterministic test suite now covers 56 cases, including PE debug-symbol safety.",
     "PE analysis now imports procedure/public symbols from PDB module streams in addition to global symbols.",
     "Static and compiler-generated module procedures are available to function discovery when PDB data is present.",
     "PDB discovery now honors a valid embedded CodeView path before local executable-directory fallbacks.",
