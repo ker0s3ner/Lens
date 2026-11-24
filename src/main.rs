@@ -156,6 +156,8 @@ fn cli(args: &[String]) -> bool {
             "os": det.os,
             "architecture": det.arch,
             "bits": det.bits,
+            "slice": bin.slice,
+            "file_base": bin.file_base,
             "stripped": det.stripped,
             "debug_info": det.has_debug_info,
             "sha256": det.sha256,
@@ -174,6 +176,7 @@ fn cli(args: &[String]) -> bool {
     }
     if report && !json_report && script.is_none() && !sig_apply && patch.is_none() || args.iter().any(|a| a == "--report") && !json_report {
         println!("{} | {} | {} | {}-bit", det.kind, det.os, det.arch, det.bits);
+        if !bin.slice.is_empty() || bin.file_base != 0 { println!("image: slice={} file_base=0x{:X}", bin.slice, bin.file_base); }
         for c in &det.container { println!("container: {c}"); }
         for (k, v) in &det.app_info { println!("  {k}: {v}"); }
         for g in &det.compilers { println!("compiler: {} ({:.0}%) {:?}", g.name, g.score * 100.0, g.why); }

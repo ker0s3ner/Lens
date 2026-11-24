@@ -69,6 +69,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader and fail closed when none is parseable.
 - Mach-O fileset entries can be selected by name with `--slice`, with a recorded fallback when the requested entry is unavailable.
 - The runtime smoke corpus now includes discovered shared-library/dylib candidates alongside executable programs.
+- CLI reports expose selected image slices and embedded file bases for universal binaries and filesets.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

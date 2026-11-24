@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON and human-readable reports now expose the selected image slice and embedded file base offset.",
+    "Fileset and universal-binary automation can distinguish the analyzed child image from its outer container.",
     "The analysis smoke corpus now discovers representative shared libraries and dylibs in addition to executable programs.",
     "Runtime corpus validation now covers both program and library loading paths without committing platform-specific binaries.",
     "Selected Mach-O fileset images now retain their embedded file base offset for patching and exported metadata.",

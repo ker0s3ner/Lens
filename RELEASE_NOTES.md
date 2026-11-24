@@ -1,3 +1,17 @@
+# Lens 0.6.158 — Fourier
+
+## What's new
+
+- JSON and human-readable reports now expose the selected image slice and embedded file base offset.
+- Fileset and universal-binary automation can distinguish the analyzed child image from its outer container.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.157 — Fourier
 
 ## What's new
