@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB C++ class and interface records now import supported explicit data members through the Types database.",
+    "Unsupported C++ inheritance, methods, and virtual-layout records remain conservative skips.",
     "PDB struct and union layouts now retain named enum members with their CodeView underlying widths.",
     "Enum-typed fields are no longer dropped during conservative PDB layout recovery.",
     "PDB CodeView modifier records now preserve const and volatile qualifiers in recovered types.",

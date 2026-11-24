@@ -56,7 +56,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 }).collect();
                 lists.insert(item.index(), (fields, list.continuation));
             }
-            pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct) => {
+            pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct | pdb::ClassKind::Class | pdb::ClassKind::Interface) => {
                 if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
             }
             pdb::TypeData::Bitfield(bitfield) => {

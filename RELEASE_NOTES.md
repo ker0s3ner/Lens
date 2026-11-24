@@ -1,6 +1,9 @@
-# Lens 0.6.127 — Fourier
+# Lens 0.6.128 — Fourier
 
 ## What's new
+
+- PDB C++ class and interface records now import supported explicit data members through the Types database.
+- Unsupported C++ inheritance, methods, and virtual-layout records remain conservative skips.
 
 - PDB struct and union layouts now retain named enum members with their CodeView underlying widths.
 - Enum-typed fields are no longer dropped during conservative PDB layout recovery.
