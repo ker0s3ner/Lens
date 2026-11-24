@@ -13,6 +13,7 @@ pub struct GRow {
     pub toks: Vec<Token>,
     pub label: bool,
     pub chars: usize,
+    pub xrefs: usize,
 }
 
 pub struct GNode {
@@ -56,13 +57,13 @@ pub fn build(bin: &Binary, an: &Analysis, f: &Function, fmt: &mut CodeFormatter)
                 let name = name.clone();
                 if b.start != f.start || true {
                     let t = Token { text: format!("{name}:"), kind: Tok::Name(fmt.names()[&b.start].1), target: None };
-                    rows.push(GRow { addr: b.start, chars: t.text.chars().count(), toks: vec![t], label: true });
+                    rows.push(GRow { addr: b.start, chars: t.text.chars().count(), toks: vec![t], label: true, xrefs: an.xrefs_to.get(&b.start).map(Vec::len).unwrap_or(0) });
                 }
             }
             for a in &b.insns {
                 if let Some((_, toks)) = fmt.format(bin, *a) {
                     let chars = toks.iter().map(|t| t.text.chars().count()).sum();
-                    rows.push(GRow { addr: *a, toks, label: false, chars });
+                rows.push(GRow { addr: *a, toks, label: false, chars, xrefs: an.xrefs_to.get(a).map(Vec::len).unwrap_or(0) });
                 }
             }
             let w = rows.iter().map(|r| r.chars).max().unwrap_or(10).clamp(12, 90) as f32 * CHAR_W + PAD * 2.0;
@@ -255,6 +256,7 @@ pub enum GraphAction {
     Select(u64),
     Follow(u64),
     Context(u64),
+    Xrefs(u64),
 }
 
 pub fn show(
@@ -385,6 +387,16 @@ pub fn show(
             if let Some(c) = comments.get(&row.addr) {
                 let g = painter.layout_no_wrap(format!("  ; {c}"), font.clone(), p.comment);
                 painter.galley(pos2(x, top + 1.0), g, p.comment);
+            }
+            if row.xrefs > 0 && !row.label {
+                let g = painter.layout_no_wrap(format!("  ×{}", row.xrefs), font.clone(), p.xref);
+                let marker = Rect::from_min_size(pos2(r.right() - g.size().x - PAD * z, top + 1.0), g.size());
+                if interact.map(|h| marker.contains(h)).unwrap_or(false) {
+                    painter.galley(marker.min, g, p.xref);
+                    if clicked { action = Some(GraphAction::Xrefs(row.addr)); }
+                } else {
+                    painter.galley(marker.min, g, p.xref);
+                }
             }
             if let Some(h) = interact {
                 if row_rect.contains(h) {

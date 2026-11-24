@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.234 — Fourier
+
+## What's new
+
+- Flow-graph rows now show clickable incoming-xref markers.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.233 — Fourier
 
 ## What's new
