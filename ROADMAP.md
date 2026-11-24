@@ -373,6 +373,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - C-like type parsing now preserves nested function-pointer depth, including pointer-to-callback fields and typedef aliases.
 - Itanium vtables now retain an associated typeinfo symbol when the binary exposes one, and Lists/JSON surface that RTTI-derived name.
 - Mach-O Objective-C method/property-name sections now receive selector-aware `sel_` names during string analysis.
+- Mach-O Objective-C class-name sections now receive stable `objc_class_` names during string analysis.
 - Mach-O Swift reflection and type-reference string sections now receive `swift_` names during string analysis.
 - Common Swift `$s` symbols now retain readable module and declaration components through basic demangling.
 - ELF GNU IFUNC symbols now seed function discovery and navigation alongside ordinary function symbols.
