@@ -1,3 +1,8 @@
+# Lens 0.6.296 — Fourier
+
+- RISC-V ORC.B and REV8 now render as named byte-oriented operations instead of opaque instruction fallbacks.
+- Roadmap and release documentation now track the shipped 0.6.296 Fourier build consistently.
+
 # Lens 0.6.295 — Fourier
 
 - RISC-V BEXTI immediate bit extraction now renders through the same visible shift-and-mask expression as BEXT.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V ORC.B and REV8 now render as named byte-oriented operations instead of opaque instruction fallbacks.",
+    "Roadmap and release documentation now track the shipped 0.6.296 Fourier build consistently.",
     "RISC-V BEXTI immediate bit extraction now renders through the same visible shift-and-mask expression as BEXT.",
     "RISC-V indexed and immediate bit extraction paths now produce consistent pseudocode for bit-level data flow.",
     "RISC-V BSETI, BCLRI, and BINVI immediate aliases now share the exact visible bit-mask lowering.",
