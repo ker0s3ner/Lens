@@ -1,6 +1,9 @@
-# Lens 0.6.87 — Fourier
+# Lens 0.6.88 — Fourier
 
 ## What's new
+
+- AArch64 NEON numeric min/max and horizontal reduction families now remain visible as named pseudocode intrinsics.
+- Vector aggregation operations preserve their operands instead of falling through to opaque generic handling.
 
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families now remain visible as named pseudocode intrinsics.
 - Modern fixed-point codec and DSP operations preserve their operand groups.
