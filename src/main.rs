@@ -291,6 +291,7 @@ fn cli(args: &[String]) -> bool {
                 "code": code,
                 "kind": if *code == analysis::DEF_STRING { "string" } else if (*code & 0x80) != 0 { "pointer" } else { "scalar" },
                 "size": if *code == analysis::DEF_STRING { serde_json::Value::Null } else { serde_json::json!(code & 0x7f) },
+                "references": an.xrefs_to.get(address).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "pointer_table_records": an.pointer_tables.iter().map(|(address, targets)| serde_json::json!({
                 "address": address,
