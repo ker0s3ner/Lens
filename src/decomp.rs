@@ -2178,6 +2178,10 @@ fn decompile_inner(
                 Ex::Cast(ty, _) => Some((*ty).to_string()),
                 Ex::CastOwned(ty, _) => Some(ty.clone()),
                 Ex::Var(v) => known_types.get(v).cloned(),
+                Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
+                    Ex::Var(v) => known_types.get(v).cloned(),
+                    _ => None,
+                },
                 _ => None,
             };
             let old = known_types.get(t).cloned();
@@ -2202,6 +2206,10 @@ fn decompile_inner(
             Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Var(v) => known_types.get(v).cloned(),
+            Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
+                Ex::Var(v) => known_types.get(v).cloned(),
+                _ => None,
+            },
             _ => None,
         };
         if let Some(ty) = ty {

@@ -1,3 +1,17 @@
+# Lens 0.6.149 — Fourier
+
+## What's new
+
+- Pointer arithmetic propagation now remains available in the decompiler's earlier fixed-point type pass.
+- Later assignments can retain pointer types after constant offsets instead of losing them before rendering.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.148 — Fourier
 
 ## What's new

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Pointer arithmetic propagation now remains available in the decompiler's earlier fixed-point type pass.",
+    "Later assignments can retain pointer types after constant offsets instead of losing them before rendering.",
     "The decompiler's earlier type-analysis pass now preserves pointee types through dereferences, casts, and pointer temporaries before rendering.",
     "Pointer type information remains available to later assignments and call-result propagation instead of only affecting final display formatting.",
     "Decompiler pointee inference now survives explicit pointer casts before dereference.",
