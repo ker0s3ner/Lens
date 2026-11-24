@@ -1,3 +1,10 @@
+# Lens 0.6.274 — Fourier
+
+- Script callee queries now aggregate call sites across the whole containing function.
+- Two-sided script call graphs now discover outgoing edges from instruction-level xrefs correctly.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.273 — Fourier
 
 - Script `call_graph` neighborhoods now include both callers and callees.

@@ -251,7 +251,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let s = snap.clone();
     e.register_fn("callees", move |a: INT| -> Array {
         let start = s.funcs.iter().find(|(candidate, _, size, _)| (a as u64) >= *candidate && (a as u64) < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(a as u64);
-        let mut callees: Vec<u64> = s.out_xref_details.get(&start).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, _)| {
+        let mut callees: Vec<u64> = s.out_xref_details.iter().filter(|(from, _)| s.funcs.iter().any(|(candidate, _, size, _)| **from >= *candidate && **from < candidate.saturating_add(*size as u64) && *candidate == start)).flat_map(|(_, refs)| refs.iter()).filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, _)| {
             s.funcs.iter().find(|(candidate, _, size, _)| *to >= *candidate && *to < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(*to)
         }).collect();
         callees.sort_unstable();
@@ -261,6 +261,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let s = snap.clone();
     e.register_fn("call_graph", move |a: INT, depth: INT| -> Array {
         let normalize = |addr: u64| s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(addr);
+        let outgoing = |source: u64| s.out_xref_details.iter().filter(move |(from, _)| normalize(**from) == source).flat_map(|(_, refs)| refs.iter()).filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump"));
         let center = normalize(a as u64);
         let max_depth = depth.clamp(0, 8) as usize;
         let mut seen = std::collections::HashSet::new();
@@ -269,7 +270,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         for _ in 0..=max_depth {
             let mut next = Vec::new();
             for source in frontier {
-                for (target, kind) in s.out_xref_details.get(&source).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")) {
+                for (target, kind) in outgoing(source) {
                     let target = normalize(*target);
                     if seen.insert((source, target, kind.clone())) {
                         let mut row = Map::new();
@@ -716,7 +717,7 @@ mod tests {
         };
         let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); print(call_graph(0x1100, 1).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
-        assert!(out.text.contains("1") && out.text.contains("4") && out.text.contains("1\n1"), "unexpected output: {}", out.text);
+        assert!(out.text.contains("1") && out.text.contains("4") && out.text.contains("\n1\n0\n1"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
         let _ = an;
     }
