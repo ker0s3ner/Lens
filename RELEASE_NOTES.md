@@ -1,3 +1,8 @@
+# Lens 0.6.392 — Fourier
+
+- Bitfield scalar parsing now accepts `volatile` and `restrict` qualifiers without changing storage layout.
+- Qualified signed bitfield regression coverage now verifies shared storage units and bit offsets.
+
 # Lens 0.6.391 — Fourier
 
 - Bitfield storage matching now normalizes redundant `const` qualifiers across equivalent signed integer declarations.
