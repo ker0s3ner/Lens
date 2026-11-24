@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "CLI decompilation and script reports now register loader-recovered DWARF and CodeView prototypes before rendering pseudocode.",
+    "Debug-signature behavior is now aligned between the GUI and command-line workflows.",
     "Decompiler type recovery now preserves common pointee types when conditional pointers are dereferenced.",
     "Conditional pointer dereferences continue into typed scalar and struct-field rendering, with regression coverage.",
     "Function discovery now skips Mach-O-marked data ranges embedded inside executable sections.",

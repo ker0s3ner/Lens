@@ -1,3 +1,8 @@
+# Lens 0.6.342 — Fourier
+
+- CLI decompilation and script reports now register loader-recovered DWARF and CodeView prototypes before rendering pseudocode.
+- Debug-signature behavior is now aligned between the GUI and command-line workflows.
+
 # Lens 0.6.341 — Fourier
 
 - Decompiler type recovery now preserves common pointee types when conditional pointers are dereferenced.

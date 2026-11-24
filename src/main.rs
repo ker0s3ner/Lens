@@ -101,6 +101,10 @@ fn cli(args: &[String]) -> bool {
             return true;
         }
     };
+    // Keep CLI decompilation and script reports aligned with the GUI: DWARF /
+    // CodeView prototypes recovered by the loader must be visible to the
+    // shared decompiler before any pseudocode is rendered.
+    protos::set_user(&bin.debug_protos);
     let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
     let det = detect::detect(&bin, &an);
     if sig_apply {
