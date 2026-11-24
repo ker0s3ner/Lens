@@ -944,12 +944,12 @@ impl LensApp {
                             }
                         }
                     }
-                    if let Some(arr) = v.get("pointer_tables").and_then(|x| x.as_array()) {
+                    if let Some(arr) = v.get("pointer_tables").or_else(|| v.get("pointer_table_records")).and_then(|x| x.as_array()) {
                         let width = (l.bin.bitness() / 8) as u64;
                         let code = width as u8 | 0x80;
                         for item in arr {
-                            let Some(addr) = item.get("addr").and_then(|x| x.as_u64()) else { continue };
-                            let Some(entries) = item.get("entries").and_then(|x| x.as_array()) else { continue };
+                            let Some(addr) = item.get("addr").or_else(|| item.get("address")).and_then(|x| x.as_u64()) else { continue };
+                            let Some(entries) = item.get("entries").or_else(|| item.get("targets")).and_then(|x| x.as_array()) else { continue };
                             for index in 0..entries.len() {
                                 let slot = addr.saturating_add(index as u64 * width);
                                 if l.bin.is_mapped(slot) {
