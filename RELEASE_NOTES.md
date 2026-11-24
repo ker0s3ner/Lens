@@ -1,3 +1,17 @@
+# Lens 0.6.176 — Fourier
+
+## What's new
+
+- Relocatable ELF analysis now applies common MIPS 32/64-bit and PC-relative relocations.
+- Relocatable ELF analysis now applies common PowerPC 32/64-bit absolute and PC-relative relocations.
+
+## Verification
+
+- `cargo test --locked --quiet` — 75 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.175 — Fourier
 
 ## What's new

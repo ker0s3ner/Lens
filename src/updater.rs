@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Relocatable ELF analysis now applies common MIPS 32/64-bit and PC-relative relocations.",
+    "Relocatable ELF analysis now applies common PowerPC 32/64-bit absolute and PC-relative relocations.",
     "Explicit C-style and normalized function-pointer casts now supply parameter and return prototypes to indirect calls.",
     "Indirect-call prototype parsing preserves conservative behavior for unsupported signatures.",
     "Known struct layouts now propagate through typed pointer-returning calls when rendering field accesses.",

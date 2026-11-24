@@ -619,6 +619,14 @@ fn apply_elf_object_relocations(bin: &mut Binary, elf: &goblin::elf::Elf, bases:
                 (EM_68K, 6) => (1, 1), // R_68K_PC8
                 (EM_RISCV, R_RISCV_32) => (4, 0),
                 (EM_RISCV, R_RISCV_64) => (8, 0),
+                (EM_MIPS, R_MIPS_32) => (4, 0),
+                (EM_MIPS, R_MIPS_64) => (8, 0),
+                (EM_MIPS, R_MIPS_REL32) => (4, 1),
+                (EM_PPC, R_PPC_ADDR32) => (4, 0),
+                (EM_PPC, R_PPC_REL32) => (4, 1),
+                (EM_PPC64, R_PPC64_ADDR32) => (4, 0),
+                (EM_PPC64, R_PPC64_ADDR64) => (8, 0),
+                (EM_PPC64, R_PPC64_REL32) => (4, 1),
                 _ => { skipped += 1; continue; }
             };
             let addend = if formula == 2 { rel.r_addend.unwrap_or(0) }
