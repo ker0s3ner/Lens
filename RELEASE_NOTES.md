@@ -1,3 +1,8 @@
+# Lens 0.6.293 — Fourier
+
+- RISC-V BSET, BCLR, and BINV bit-manipulation instructions now render as exact shift/mask expressions.
+- RISC-V bit operations now preserve the modified source value visibly instead of falling back to opaque intrinsics.
+
 # Lens 0.6.292 — Fourier
 
 - PowerPC ROTRW/ROTRD and immediate rotate-right forms now render as explicit rotate expressions.

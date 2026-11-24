@@ -1383,6 +1383,17 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let b = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), vec![a, b]));
         }
+        (Fam::Rv, "bset" | "bclr" | "binv") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let bit = dc.g_val(st, o(2), None);
+            let mask = bin("<<", Ex::Num(1), bit);
+            let result = match base_mn {
+                "bset" => bin("|", value, mask),
+                "bclr" => bin("&", value, Ex::Un("~", Box::new(mask))),
+                _ => bin("^", value, mask),
+            };
+            set(dc, st, 0, result);
+        }
         (Fam::Rv, "clmul" | "clmulh" | "clmulr") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
