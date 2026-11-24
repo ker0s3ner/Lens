@@ -1433,6 +1433,22 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let amount = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Call(Box::new(var("ror")), vec![value, amount]));
         }
+        // Rotate-left-word-immediate-and-mask is a common PowerPC field
+        // extraction/address-generation idiom. PowerPC numbers mask bits from
+        // the most-significant side, so convert MB/ME to the ordinary integer
+        // mask used by the shared expression printer.
+        (Fam::Ppc, "rlwinm") if ops.len() >= 5 => {
+            let value = dc.g_val(st, o(1), None);
+            let amount = dc.g_val(st, o(2), None);
+            let Some(mb) = parse_imm(&ops[3]).and_then(|v| u32::try_from(v).ok()).filter(|v| *v < 32) else { return };
+            let Some(me) = parse_imm(&ops[4]).and_then(|v| u32::try_from(v).ok()).filter(|v| *v < 32) else { return };
+            let mask = if mb <= me {
+                (((1u64 << (me - mb + 1)) - 1) << (31 - me)) as i64
+            } else {
+                (((1u64 << (32 - mb)) - 1) | (((1u64 << (me + 1)) - 1) << (31 - me))) as i64
+            };
+            set(dc, st, 0, bin("&", Ex::Call(Box::new(var("rol")), vec![value, amount]), Ex::Num(mask)));
+        }
         (Fam::Rv, "bext" | "bexti") if ops.len() >= 3 => {
             let value = dc.g_val(st, o(1), None);
             let bit = dc.g_val(st, o(2), None);

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC rlwinm now decompiles as an explicit rotate-left-and-mask expression instead of an opaque intrinsic.",
+    "PowerPC mask-bit numbering is converted correctly for both non-wrapping and wrapping MB/ME ranges.",
     "MIPS control-flow analysis now keeps the architectural delay-slot instruction in the current basic block before following branch, jump, call, and return edges.",
     "Golden analysis now verifies a big-endian MIPS conditional branch with its delay slot and return instruction.",
     "Thumb function-boundary scanning now recognizes common push {…, lr} prologues when discovering unreachable functions.",

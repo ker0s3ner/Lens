@@ -1,3 +1,8 @@
+# Lens 0.6.319 — Fourier
+
+- PowerPC `rlwinm` now decompiles as an explicit rotate-left-and-mask expression instead of an opaque intrinsic.
+- PowerPC mask-bit numbering is converted correctly for both non-wrapping and wrapping MB/ME ranges.
+
 # Lens 0.6.318 — Fourier
 
 - MIPS control-flow analysis now keeps the architectural delay-slot instruction in the current basic block before following branch, jump, call, and return edges.
