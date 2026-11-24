@@ -902,8 +902,9 @@ fn recovered_case_indices(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, co
     if bin.arch.is_x86() {
         for (&addr, _) in insns.range(..at).rev().take(16) {
             let Some((decoded, _)) = decode_at(bin, addr) else { continue };
-            if decoded.mnemonic() == Mnemonic::Sub && matches!(decoded.op1_kind(), OpKind::Immediate8 | OpKind::Immediate32 | OpKind::Immediate8to32 | OpKind::Immediate8to64 | OpKind::Immediate32to64) {
-                base = decoded.immediate(1) as i64;
+            if matches!(decoded.mnemonic(), Mnemonic::Sub | Mnemonic::Add) && matches!(decoded.op1_kind(), OpKind::Immediate8 | OpKind::Immediate32 | OpKind::Immediate8to32 | OpKind::Immediate8to64 | OpKind::Immediate32to64) {
+                let immediate = decoded.immediate(1) as i64;
+                base = if decoded.mnemonic() == Mnemonic::Add { immediate.saturating_neg() } else { immediate };
                 break;
             }
         }
@@ -2103,6 +2104,17 @@ mod tests {
         let mut insns = BTreeMap::new();
         insns.insert(0x1000, decode_info(&bin, 0x1000).unwrap());
         assert_eq!(recovered_case_indices(&bin, &insns, 0x1003, 3), vec![3, 4, 5]);
+    }
+
+    #[test]
+    fn preserves_x86_added_switch_case_base() {
+        let bin = raw_binary(&RawSpec {
+            path: "switch-add-base".into(), name: "switch-add-base".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x83, 0xC0, 0x03, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let mut insns = BTreeMap::new();
+        insns.insert(0x1000, decode_info(&bin, 0x1000).unwrap());
+        assert_eq!(recovered_case_indices(&bin, &insns, 0x1003, 3), vec![-3, -2, -1]);
     }
 
     #[test]

@@ -244,6 +244,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ARM64 switch-table address reconstruction accepts signed `adrp`/`adr` and immediate `add` adjustments.
 - Bitfield layout validation now normalizes redundant cv-qualified qualifiers before matching signed storage types.
 - Enum propagation now retains type identity through safe constant `+`/`-` arithmetic.
+- x86 switch case-index recovery now handles both add and subtract normalization idioms.
 - Call-graph caller neighborhoods now deduplicate functions before applying the large-graph cap.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
