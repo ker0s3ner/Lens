@@ -4,14 +4,14 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
-| File formats and processor breadth | 20% | 25% | 5.0% |
+| File formats and processor breadth | 20% | 26% | 5.2% |
 | Static analysis and navigation | 20% | 51% | 10.2% |
 | Decompiler and type recovery | 20% | 22% | 4.4% |
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 25% | 2.5% |
-| **Total** | **100%** |  | **35.1%** |
+| **Total** | **100%** |  | **35.3%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -66,6 +66,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ELF dynamic `DT_INIT` and `DT_FINI` entries now seed executable-range-validated function discovery.
 - ELF dynamic init/fini arrays now seed bounded executable-range-validated constructor and destructor roots when section names are unavailable.
 - ELF `DT_PREINIT_ARRAY` entries now seed the same bounded executable-range-validated function discovery path.
+- Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader and fail closed when none is parseable.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

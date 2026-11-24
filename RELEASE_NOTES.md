@@ -1,3 +1,17 @@
+# Lens 0.6.154 — Fourier
+
+## What's new
+
+- Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader.
+- Fileset analysis records the embedded file offset and fails closed when no child image is parseable.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.153 — Fourier
 
 ## What's new

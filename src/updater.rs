@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader.",
+    "Fileset analysis records the embedded file offset and fails closed when no child image is parseable.",
     "ELF analysis notes now report how many dynamic init/fini array roots were accepted.",
     "Root-count diagnostics make stripped-binary constructor discovery and malformed-table handling visible in reports.",
     "ELF `DT_PREINIT_ARRAY` entries now seed bounded, executable-range-validated preinitialization function roots.",

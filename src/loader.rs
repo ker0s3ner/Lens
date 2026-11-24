@@ -883,6 +883,19 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
 }
 
 fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
+    if m.header.filetype == goblin::mach::header::MH_FILESET {
+        for command in &m.load_commands {
+            let goblin::mach::load_command::CommandVariant::FilesetEntry(entry) = command.command else { continue };
+            let offset = entry.fileoff as usize;
+            let Some(child_slice) = slice.get(offset..) else { continue };
+            let Ok(child) = goblin::mach::MachO::parse(child_slice, 0) else { continue };
+            bin.notes.push(format!("Mach-O fileset: opened embedded entry at file offset 0x{offset:X}."));
+            load_macho(bin, &child, child_slice);
+            return;
+        }
+        bin.notes.push("Mach-O fileset contains no parseable embedded entry.".into());
+        return;
+    }
     use goblin::mach::constants::cputype::*;
     let object_file = m.header.filetype == goblin::mach::header::MH_OBJECT;
     bin.big_endian = !m.little_endian;
