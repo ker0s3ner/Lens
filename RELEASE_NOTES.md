@@ -1,3 +1,10 @@
+# Lens 0.6.284 — Fourier
+
+- Decompiler type inference now recognizes return types from cast function-pointer calls.
+- Pointer-returning indirect calls now preserve pointee types through dereference rendering.
+
+Verification: `cargo test --locked --quiet` — 95 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.283 — Fourier
 
 - Decompiler now turns constant conditional terminators into direct jumps.

@@ -58,6 +58,19 @@ fn function_pointer_proto(ty: &str) -> Option<crate::protos::Proto> {
     parsed.pop()
 }
 
+fn call_return_type(callee: &Ex) -> Option<String> {
+    match callee {
+        Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
+        Ex::Cast(ty, _) => function_pointer_proto(ty).map(|p| p.ret).filter(|ret| ret != "void"),
+        Ex::CastOwned(ty, _) => function_pointer_proto(ty).map(|p| p.ret).filter(|ret| ret != "void"),
+        _ => None,
+    }
+}
+
+fn call_pointee_type(callee: &Ex) -> Option<String> {
+    call_return_type(callee).and_then(|ret| ret.strip_suffix('*').map(str::trim).filter(|ty| !ty.is_empty()).map(str::to_string))
+}
+
 fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
     use Ex::*;
     match (op, &a, &b) {
@@ -2454,9 +2467,9 @@ fn decompile_inner(
         let mut changed = false;
         for (t, rhs) in &assignments {
             let ty = match rhs {
-                Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                Ex::Call(c, _) => call_return_type(c),
                 Ex::Deref(inner, _) => match &**inner {
-                    Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()), _ => None },
+                    Ex::Call(c, _) => call_pointee_type(c),
                     Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
                     Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                     Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
@@ -2482,9 +2495,9 @@ fn decompile_inner(
     let mut type_conflicts = HashSet::new();
     for (t, rhs) in &assignments {
         let ty = match rhs {
-            Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+            Ex::Call(c, _) => call_return_type(c),
             Ex::Deref(inner, _) => match &**inner {
-                Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()), _ => None },
+                Ex::Call(c, _) => call_pointee_type(c),
                 Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
                 Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                 Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
@@ -2622,15 +2635,9 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
         let mut changed = false;
         for (name, rhs) in &assignments {
             let ty = match rhs {
-                Ex::Call(c, _) => match &**c {
-                    Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"),
-                    _ => None,
-                },
+                Ex::Call(c, _) => call_return_type(c),
                 Ex::Deref(inner, _) => match &**inner {
-                    Ex::Call(c, _) => match &**c {
-                        Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()).filter(|r| r != "void"),
-                        _ => None,
-                    },
+                    Ex::Call(c, _) => call_pointee_type(c),
                     Ex::Var(source) => types.get(source).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
                     Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                     Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
@@ -2959,6 +2966,12 @@ mod tests {
         let normalized = function_pointer_proto("fn(const char *, int) -> int *").unwrap();
         assert_eq!(normalized.params.len(), 2);
         assert_eq!(normalized.ret, "int");
+    }
+
+    #[test]
+    fn infers_return_type_from_cast_function_pointer_call() {
+        let callee = Ex::CastOwned("struct Pair *(*)(void)".into(), Box::new(var("fp")));
+        assert_eq!(call_return_type(&callee).as_deref(), Some("struct Pair *"));
     }
 
     #[test]

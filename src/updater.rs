@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler type inference now recognizes return types from cast function-pointer calls.",
+    "Pointer-returning indirect calls now preserve pointee types through dereference rendering.",
     "Decompiler now turns constant conditional terminators into direct jumps.",
     "Impossible constant branches are removed while non-constant control flow remains unchanged.",
     "Roadmap and README now identify the shipped 0.6.281 Fourier graph-report build.",

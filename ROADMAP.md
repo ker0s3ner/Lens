@@ -102,6 +102,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - The runtime smoke corpus now gates releases on the presence of normalized JSON callers/callees.
 - Decompiler folds constant ternary conditions while preserving non-constant branch structure.
 - Decompiler folds constant conditional terminators into direct jumps, removing impossible branches.
+- Decompiler type inference now propagates return and pointee types through cast function-pointer calls.
 - Script call-graph expansion is bounded and deterministic for large-binary automation.
 - Decompiler lifting now distinguishes logical and arithmetic right shifts, including rotate expressions.
 - Return expressions now also fold safe adjacent temporary-to-register copies.
