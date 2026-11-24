@@ -142,6 +142,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON pointer-table and vtable records include their incoming references.
 - JSON vtable records now retain owning segment and file-offset source context.
 - Desktop JSON database exports preserve the same vtable source context as analysis reports.
+- Rhai vtable snapshots expose the same optional source-location fields.
 - JSON analysis reports expose compact classified listing-line records.
 - JSON analysis reports expose recovered debug struct, union, enum, and alias layouts.
 - JSON analysis reports expose recovered debug prototypes from DWARF and CodeView data.

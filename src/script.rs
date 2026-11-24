@@ -328,6 +328,12 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         s.vtables.iter().map(|(a, entries)| {
             let mut m = Map::new();
             m.insert("addr".into(), Dynamic::from(*a as INT));
+            if let Some(segment) = s.bin.segment_of(*a) {
+                m.insert("segment".into(), Dynamic::from(segment.name.clone()));
+                if let Some(offset) = segment.file_offset {
+                    m.insert("file_offset".into(), Dynamic::from((offset + a.saturating_sub(segment.start)) as INT));
+                }
+            }
             if let Some(name) = s.vtable_names.get(a) { m.insert("type".into(), Dynamic::from(name.clone())); }
             m.insert("entries".into(), Dynamic::from(arr_u64(entries)));
             Dynamic::from_map(m)
