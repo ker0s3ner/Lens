@@ -10,8 +10,8 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 50% | 5.0% |
-| Reliability, performance and scale | 10% | 20% | 2.0% |
-| **Total** | **100%** |  | **33.5% ≈ 34%** |
+| Reliability, performance and scale | 10% | 25% | 2.5% |
+| **Total** | **100%** |  | **34.0%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
