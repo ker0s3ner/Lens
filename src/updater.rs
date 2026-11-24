@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Added `--json` CLI reports with stable machine-readable format, architecture, entry point, analysis counts, and notes.",
+    "JSON reports expose function, instruction, basic-block, string, import, export, call-edge, and xref totals for automation.",
     "Added direct regression coverage for enum comparison rendering through transparent casts.",
     "The decompiler suite now verifies named enum constants at the expression-emission boundary.",
     "GitHub release builds now run the locked unit-test suite and analysis smoke corpus before packaging.",

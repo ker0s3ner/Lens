@@ -50,6 +50,7 @@ fn cli(args: &[String]) -> bool {
     }
     let Some(file) = args.iter().find(|a| !a.starts_with("--") && std::path::Path::new(a.as_str()).exists()).cloned() else { return false };
     let report = args.iter().any(|a| a == "--report");
+    let json_report = args.iter().any(|a| a == "--json");
     let arg_of = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     if let Some(sf) = arg_of("--learn-sigs") {
         let bin = match loader::load(&sf) { Ok(b) => b, Err(e) => { eprintln!("{e}"); return true } };
@@ -61,7 +62,7 @@ fn cli(args: &[String]) -> bool {
     let script = arg_of("--run-script");
     let sig_apply = args.iter().any(|a| a == "--sigs");
     let patch = arg_of("--patch");
-    let report = report || args.iter().any(|a| a == "--dbg-test") || script.is_some() || sig_apply || patch.is_some();
+    let report = report || json_report || args.iter().any(|a| a == "--dbg-test") || script.is_some() || sig_apply || patch.is_some();
     let dec = args.iter().position(|a| a == "--decompile").and_then(|i| args.get(i + 1)).cloned();
     if !report && dec.is_none() {
         return false;
@@ -147,7 +148,30 @@ fn cli(args: &[String]) -> bool {
         if let Some(e) = r.error { println!("error: {e}"); }
         for c in r.cmds { println!("cmd: {c:?}"); }
     }
-    if report && script.is_none() && !sig_apply && patch.is_none() || args.iter().any(|a| a == "--report") {
+    if json_report {
+        let value = serde_json::json!({
+            "file": bin.file_name,
+            "format": det.kind,
+            "os": det.os,
+            "architecture": det.arch,
+            "bits": det.bits,
+            "stripped": det.stripped,
+            "debug_info": det.has_debug_info,
+            "sha256": det.sha256,
+            "entry_point": det.main.as_ref().map(|(a, _)| *a),
+            "functions": an.functions.len(),
+            "instructions": an.insns.len(),
+            "basic_blocks": an.functions.values().map(|f| f.blocks.len()).sum::<usize>(),
+            "strings": an.strings.len(),
+            "imports": bin.imports.len(),
+            "exports": bin.exports.len(),
+            "call_edges": an.functions.values().map(|f| f.calls.len()).sum::<usize>(),
+            "xrefs": an.xrefs_to.values().map(Vec::len).sum::<usize>(),
+            "notes": bin.notes,
+        });
+        println!("{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+    }
+    if report && !json_report && script.is_none() && !sig_apply && patch.is_none() || args.iter().any(|a| a == "--report") && !json_report {
         println!("{} | {} | {} | {}-bit", det.kind, det.os, det.arch, det.bits);
         for c in &det.container { println!("container: {c}"); }
         for (k, v) in &det.app_info { println!("  {k}: {v}"); }

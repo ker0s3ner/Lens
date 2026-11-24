@@ -1,3 +1,17 @@
+# Lens 0.6.139 — Fourier
+
+## What's new
+
+- Added `--json` CLI reports with stable machine-readable format, architecture, entry point, analysis counts, and notes.
+- JSON reports expose function, instruction, basic-block, string, import, export, call-edge, and xref totals for automation.
+
+## Verification
+
+- `cargo test --locked --quiet` — 60 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed
+
+---
+
 # Lens 0.6.138 — Fourier
 
 ## What's new
