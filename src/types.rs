@@ -304,9 +304,12 @@ fn integer_bitfield_type(ty: &str, known: &[StructDef]) -> bool {
 }
 
 fn compatible_bitfield_storage(a: &str, b: &str) -> bool {
+    let normalize = |ty: &str| ty.split_whitespace().filter(|word| *word != "const").collect::<Vec<_>>().join(" ");
+    let a = normalize(a);
+    let b = normalize(b);
     if a == b { return true; }
-    let a = a.strip_prefix("signed ").unwrap_or(a);
-    let b = b.strip_prefix("signed ").unwrap_or(b);
+    let a = a.strip_prefix("signed ").unwrap_or(&a);
+    let b = b.strip_prefix("signed ").unwrap_or(&b);
     a == b
 }
 
@@ -618,6 +621,14 @@ mod tests {
     #[test]
     fn compatible_signedness_bitfields_share_storage() {
         let bits = parse_c("struct Bits { int signed_value:3; signed int raw_value:3; };", 8, &[]).unwrap();
+        assert_eq!(bits.fields[0].off, 0);
+        assert_eq!(bits.fields[1].off, 0);
+        assert_eq!(bits.fields[1].bit_offset, Some(3));
+    }
+
+    #[test]
+    fn qualified_signed_bitfields_share_storage() {
+        let bits = parse_c("struct Bits { const signed int first:3; signed int second:3; };", 8, &[]).unwrap();
         assert_eq!(bits.fields[0].off, 0);
         assert_eq!(bits.fields[1].off, 0);
         assert_eq!(bits.fields[1].bit_offset, Some(3));
