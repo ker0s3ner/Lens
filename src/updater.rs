@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now export saved analyst comments as address/text annotation records.",
+    "JSON analysis reports now export saved bookmarks alongside analysis, names, types, and graph data.",
     "GitHub Pages now links every Fourier patch from 0.6.314 through 0.6.346 in the release archive.",
     "The roadmap audit marker now matches the latest shipped build and its current evidence date.",
     "JSON function and pseudocode records now use the merged annotation-aware name table instead of raw symbols only.",

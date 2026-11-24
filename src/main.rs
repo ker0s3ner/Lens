@@ -404,6 +404,10 @@ fn cli(args: &[String]) -> bool {
             "exports": bin.exports.len(),
             "call_edges": an.functions.values().map(|f| f.calls.len()).sum::<usize>(),
             "xrefs": an.xrefs_to.values().map(Vec::len).sum::<usize>(),
+            "annotation_records": {
+                "comments": ann.comments.iter().map(|(address, text)| serde_json::json!({"address": address, "text": text})).collect::<Vec<_>>(),
+                "bookmarks": ann.marks,
+            },
             "notes": bin.notes,
         });
         println!("{}", serde_json::to_string_pretty(&value).unwrap_or_default());

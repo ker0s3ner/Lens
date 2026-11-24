@@ -1,3 +1,8 @@
+# Lens 0.6.348 — Fourier
+
+- JSON analysis reports now export saved analyst comments as address/text annotation records.
+- JSON analysis reports now export saved bookmarks alongside analysis, names, types, and graph data.
+
 # Lens 0.6.347 — Fourier
 
 - GitHub Pages now links every Fourier patch from 0.6.314 through 0.6.346 in the release archive.
