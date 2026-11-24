@@ -1,6 +1,9 @@
-# Lens 0.6.92 — Fourier
+# Lens 0.6.93 — Fourier
 
 ## What's new
+
+- AArch64 SHA-3/SM3-style Boolean and rotate-combine instructions now remain visible as named pseudocode intrinsics.
+- Modern cryptographic mix operations preserve their operand groups.
 
 - AArch64 SHA-512 round and schedule instructions now remain visible as named pseudocode intrinsics.
 - SHA-512 cryptographic operand groups are preserved alongside existing SHA-1/SHA-256 coverage.

@@ -1236,6 +1236,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
+        (Fam::A64, "eor3" | "bcax" | "rax1" | "xar") if ops.len() >= 2 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::A64, "tbl" | "tbx" | "zip1" | "zip2" | "uzp1" | "uzp2" | "trn1" | "trn2") if ops.len() >= 2 => {
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
