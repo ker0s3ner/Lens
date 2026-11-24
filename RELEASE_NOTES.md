@@ -1,6 +1,9 @@
-# Lens 0.6.119 — Fourier
+# Lens 0.6.120 — Fourier
 
 ## What's new
+
+- PE/PDB struct records now import supported scalar and pointer members with their CodeView offsets.
+- Incomplete or unsupported PDB layouts are skipped instead of producing partial types.
 
 - PE/PDB enum records now import named CodeView members into the Types database.
 - Recovered PDB enum values are available to pseudocode constant propagation.

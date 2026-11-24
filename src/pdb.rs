@@ -31,6 +31,47 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
     }).collect()
 }
 
+fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, ptr: u32) -> Vec<crate::types::StructDef> {
+    let Ok(info) = db.type_information() else { return Vec::new() };
+    let mut iter = info.iter();
+    let mut lists: HashMap<pdb::TypeIndex, Vec<(String, pdb::TypeIndex, u64)>> = HashMap::new();
+    let mut records = Vec::new();
+    while let Ok(Some(item)) = iter.next() {
+        let Ok(data) = item.parse() else { continue };
+        match data {
+            pdb::TypeData::FieldList(list) => {
+                let fields = list.fields.iter().filter_map(|field| match field {
+                    pdb::TypeData::Member(member) => Some((member.name.to_string().into_owned(), member.field_type, member.offset)),
+                    _ => None,
+                }).collect();
+                lists.insert(item.index(), fields);
+            }
+            pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct) => {
+                if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size)); }
+            }
+            _ => {}
+        }
+    }
+    records.into_iter().filter_map(|(name, field_list, size)| {
+        let fields = lists.get(&field_list)?;
+        let mut out = Vec::new();
+        for (field_name, field_type, offset) in fields {
+            let ty = types.get(field_type)?.clone();
+            let field_size = if ty.ends_with('*') { ptr } else { match ty.as_str() {
+                "char" | "int8_t" | "uint8_t" | "bool" => 1,
+                "short" | "int16_t" | "uint16_t" => 2,
+                "int" | "int32_t" | "uint32_t" | "float" => 4,
+                "long" | "int64_t" | "uint64_t" | "double" => 8,
+                _ => return None,
+            }};
+            if field_name.is_empty() || *offset > u32::MAX as u64 { return None; }
+            out.push(crate::types::Field { off: *offset as u32, name: field_name.clone(), ty, size: field_size, bit_offset: None, bit_width: None });
+        }
+        if name.is_empty() || out.is_empty() || size > u32::MAX as u64 { return None; }
+        Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union: false, is_enum: false, enum_values: vec![], alias_of: None })
+    }).collect()
+}
+
 fn type_name(index: pdb::TypeIndex, types: &HashMap<pdb::TypeIndex, String>) -> String {
     if index.0 < 0x1000 {
         let base = match index.0 & 0xff {
@@ -123,12 +164,13 @@ fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: 
 }
 
 /// Read global procedure/public symbols and return their RVAs plus display names.
-pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>, Vec<String>)> {
+pub fn symbols(path: &Path, ptr: u32) -> Option<(Vec<(u32, String)>, String, Vec<String>, Vec<String>, Vec<crate::types::StructDef>)> {
     let file = std::fs::File::open(path).ok()?;
     let mut db = pdb::PDB::open(file).ok()?;
     let map = db.address_map().ok()?;
     let types = pdb_types(&mut db);
     let enum_decls = pdb_enum_declarations(&mut db);
+    let structs = pdb_structs(&mut db, &types, ptr);
     let mut out = Vec::new();
     let mut protos = Vec::new();
     let mut noreturn = Vec::new();
@@ -152,7 +194,7 @@ pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>, 
     protos.dedup();
     noreturn.sort();
     noreturn.dedup();
-    Some((out, protos.join("\n"), noreturn, enum_decls))
+    Some((out, protos.join("\n"), noreturn, enum_decls, structs))
 }
 
 #[cfg(test)]
@@ -164,7 +206,7 @@ mod tests {
     fn ignores_non_pdb_inputs() {
         let path = std::env::temp_dir().join("lens-not-a-pdb.bin");
         std::fs::write(&path, b"not a PDB").unwrap();
-        assert!(symbols(&path).is_none());
+        assert!(symbols(&path, 8).is_none());
         let _ = std::fs::remove_file(path);
     }
 

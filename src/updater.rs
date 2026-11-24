@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PE/PDB struct records now import supported scalar and pointer members with their CodeView offsets.",
+    "Incomplete or unsupported PDB layouts are skipped instead of producing partial types.",
     "PE/PDB enum records now import named CodeView members into the Types database.",
     "Recovered PDB enum values are available to pseudocode constant propagation.",
     "PDB no-return name matching in pseudocode is now exact and regression-tested.",
