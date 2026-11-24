@@ -6,12 +6,12 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 26% | 5.2% |
 | Static analysis and navigation | 20% | 58% | 11.6% |
-| Decompiler and type recovery | 20% | 23% | 4.6% |
+| Decompiler and type recovery | 20% | 24% | 4.8% |
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 27% | 2.7% |
-| **Total** | **100%** |  | **37.1%** |
+| **Total** | **100%** |  | **37.3%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -78,6 +78,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Data-reference recovery now validates native pointers at unaligned offsets in packed data.
 - Packed pointer-table discovery now recognizes complete native-stride runs at unaligned starts.
 - Typed struct-pointer arithmetic now renders known field names in pseudocode when the type and offset are unambiguous.
+- Known fixed-array members now render bounded indexed accesses in typed pseudocode.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

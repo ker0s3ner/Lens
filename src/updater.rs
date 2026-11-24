@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Known fixed-array members in typed structs now render indexed accesses such as `p->items[1]` in pseudocode.",
+    "Array indices are emitted only when the member bounds and element size are unambiguous.",
     "Typed struct-pointer arithmetic now renders known fields such as `p->second` in pseudocode.",
     "Unknown types and offsets retain the existing conservative dereference rendering.",
     "Packed pointer tables can now be discovered and promoted even when their first entry is unaligned.",

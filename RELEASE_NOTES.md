@@ -1,3 +1,17 @@
+# Lens 0.6.169 — Fourier
+
+## What's new
+
+- Known fixed-array members in typed structs now render indexed accesses such as `p->items[1]` in pseudocode.
+- Array indices are emitted only when the member bounds and element size are unambiguous.
+
+## Verification
+
+- `cargo test --locked --quiet` — 70 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.168 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 69 passed
+- `cargo test --locked --quiet` — 70 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

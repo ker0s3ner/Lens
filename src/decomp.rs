@@ -124,8 +124,23 @@ impl Fmt<'_> {
         let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
         let ty = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         let def = self.structs.iter().find(|def| def.name == ty && !def.is_enum)?;
-        let field = def.fields.iter().find(|field| field.off as i64 == byte_offset)?;
-        Some(format!("{}->{}", self.at(base, 99), field.name))
+        let field = def.fields.iter().find(|field| {
+            let end = field.off as i64 + field.size as i64;
+            byte_offset >= field.off as i64 && byte_offset < end
+        })?;
+        let base_text = self.at(base, 99);
+        let relative = byte_offset - field.off as i64;
+        if relative == 0 {
+            return Some(format!("{base_text}->{}", field.name));
+        }
+        let Some(open) = field.ty.rfind('[') else { return None };
+        let Some(close) = field.ty[open..].find(']') else { return None };
+        let count = field.ty[open + 1..open + close].parse::<i64>().ok()?;
+        if count <= 0 || field.size as i64 % count != 0 { return None; }
+        let element_size = field.size as i64 / count;
+        if element_size <= 0 || relative % element_size != 0 { return None; }
+        let index = relative / element_size;
+        (index >= 0 && index < count).then(|| format!("{base_text}->{}[{index}]", field.name))
     }
 
     fn num(n: i64) -> String {
@@ -2548,6 +2563,16 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "p->second");
+    }
+
+    #[test]
+    fn renders_known_struct_array_field_index() {
+        let def = crate::types::parse_c("struct Packet { uint32_t tag; uint16_t items[4]; }", 8, &[]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Packet *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(6)))), 2);
+        assert_eq!(fmt.show(&expression), "p->items[1]");
     }
 
     #[test]
