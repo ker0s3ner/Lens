@@ -192,6 +192,7 @@ fn cli(args: &[String]) -> bool {
                     "name": bin.symbols.iter().find(|(address, _)| *address == function.start).map(|(_, name)| name),
                     "kind": format!("{:?}", function.kind),
                     "segment": bin.segment_of(function.start).map(|segment| segment.name.clone()),
+                    "lines": code.lines.len(),
                     "text": decomp::render_text(&code),
                 })
             }).collect::<Vec<_>>(),

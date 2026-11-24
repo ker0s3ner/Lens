@@ -12,6 +12,20 @@
 # Lens 0.6.208 — Fourier
 # Lens 0.6.209 — Fourier
 # Lens 0.6.210 — Fourier
+# Lens 0.6.211 — Fourier
+
+## What's new
+
+- JSON pseudocode records now include their structured decompiler line count.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.210 — Fourier
 
 ## What's new
 
