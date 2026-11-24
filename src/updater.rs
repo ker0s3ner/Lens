@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V BSETI, BCLRI, and BINVI immediate aliases now share the exact visible bit-mask lowering.",
+    "RISC-V BEXT now renders as a shift-and-mask expression, making extracted bit flow visible in pseudocode.",
     "RISC-V BSET, BCLR, and BINV bit-manipulation instructions now render as exact shift/mask expressions.",
     "RISC-V bit operations now preserve the modified source value visibly instead of falling back to opaque intrinsics.",
     "PowerPC ROTRW/ROTRD and immediate rotate-right forms now render as explicit rotate expressions.",

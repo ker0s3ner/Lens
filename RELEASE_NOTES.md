@@ -1,3 +1,8 @@
+# Lens 0.6.294 — Fourier
+
+- RISC-V BSETI, BCLRI, and BINVI immediate aliases now share the exact visible bit-mask lowering.
+- RISC-V BEXT now renders as a shift-and-mask expression, making extracted bit flow visible in pseudocode.
+
 # Lens 0.6.293 — Fourier
 
 - RISC-V BSET, BCLR, and BINV bit-manipulation instructions now render as exact shift/mask expressions.
