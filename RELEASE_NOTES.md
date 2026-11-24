@@ -1,3 +1,8 @@
+# Lens 0.6.349 — Fourier
+
+- JSON `annotation_records` comments and bookmarks now round-trip through the existing database importer.
+- Analysis interchange now preserves analyst notes in both export and import paths with the same address-based schema.
+
 # Lens 0.6.348 — Fourier
 
 - JSON analysis reports now export saved analyst comments as address/text annotation records.

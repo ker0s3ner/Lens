@@ -1020,6 +1020,23 @@ impl LensApp {
                     if let Some(arr) = v.get("bookmarks").and_then(|x| x.as_array()) {
                         for addr in arr.iter().filter_map(|x| x.as_u64()) { if !l.ann.marks.contains(&addr) { l.ann.marks.push(addr); } recognized = true; }
                     }
+                    if let Some(records) = v.get("annotation_records").and_then(|x| x.as_object()) {
+                        if let Some(comments) = records.get("comments").and_then(|x| x.as_array()) {
+                            for record in comments {
+                                let addr = record.get("address").and_then(|x| x.as_u64());
+                                let text = record.get("text").and_then(|x| x.as_str());
+                                if let (Some(addr), Some(text)) = (addr, text) {
+                                    l.ann.comments.insert(addr, text.to_string());
+                                    c += 1;
+                                }
+                            }
+                            recognized = true;
+                        }
+                        if let Some(bookmarks) = records.get("bookmarks").and_then(|x| x.as_array()) {
+                            for addr in bookmarks.iter().filter_map(|x| x.as_u64()) { if !l.ann.marks.contains(&addr) { l.ann.marks.push(addr); } }
+                            recognized = true;
+                        }
+                    }
                     if let Some(arr) = v.get("patches").and_then(|x| x.as_array()) {
                         if let Ok(patches) = serde_json::from_value::<Vec<crate::patch::Patch>>(serde_json::Value::Array(arr.clone())) {
                             for patch in patches { if !l.ann.patches.iter().any(|old| old.addr == patch.addr && old.old == patch.old && old.new == patch.new) { l.ann.patches.push(patch); } }
