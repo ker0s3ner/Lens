@@ -627,6 +627,61 @@ fn propagate_forward_copy(o: &mut BlockOut) {
     }
 }
 
+/// Propagate a final temporary copy across an unambiguous control-flow edge.
+/// This is a deliberately conservative SSA step: the destination block must
+/// have exactly one predecessor, and propagation stops at either variable's
+/// next assignment.
+fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
+    let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
+    let mut pred_count = vec![0usize; f.blocks.len()];
+    for block in &f.blocks {
+        for (target, _) in &block.succs {
+            if let Some(&i) = index.get(target) { pred_count[i] += 1; }
+        }
+    }
+    for source in 0..f.blocks.len() {
+        let Some((dst, src)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
+            Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => Some((dst.clone(), src.clone())),
+            _ => None,
+        }) else { continue };
+        let mut propagated = false;
+        for (target, _) in &f.blocks[source].succs {
+            let Some(&ti) = index.get(target) else { continue };
+            if pred_count[ti] != 1 { continue; }
+            let mut stopped = false;
+            for (_, stmt) in &mut outs[ti].stmts {
+                if writes_var(stmt, &dst) || writes_var(stmt, &src) { stopped = true; break; }
+                let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
+                let (new, changed) = match old {
+                    Stmt::Assign(left, right) => {
+                        let l = subst(&left, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        let r = subst(&right, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        (Stmt::Assign(l.clone(), r.clone()), l != left || r != right)
+                    }
+                    Stmt::Expr(expr) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Stmt::Expr(n.clone()), n != expr) }
+                    Stmt::Comment(text) => (Stmt::Comment(text), false),
+                };
+                *stmt = new;
+                propagated |= changed;
+            }
+            if !stopped {
+                let old = std::mem::replace(&mut outs[ti].term, Term::Stop);
+                let (new, changed) = match old {
+                    Term::Ret(Some(expr)) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Ret(Some(n.clone())), n != expr) }
+                    Term::Indirect(expr) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Indirect(n.clone()), n != expr) }
+                    Term::Cond { cond, taken, fall } => { let n = subst(&cond, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Cond { cond: n.clone(), taken, fall }, n != cond) }
+                    other => (other, false),
+                };
+                outs[ti].term = new;
+                propagated |= changed;
+            }
+        }
+        if propagated && f.blocks[source].succs.len() == 1 {
+            outs[source].stmts.pop();
+        }
+    }
+}
+
 fn inline_adjacent_call_temp(o: &mut BlockOut) {
     let mut i = 0;
     while i + 1 < o.stmts.len() {
@@ -2432,6 +2487,7 @@ fn decompile_inner(
         inline_adjacent_call_temp(out);
         fold_constant_term(out);
     }
+    propagate_single_predecessor_copy(&mut outs, f);
 
     // pass 3: liveness of registers
     let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
@@ -3316,6 +3372,26 @@ mod tests {
         };
         propagate_forward_copy(&mut stopped);
         assert!(matches!(&stopped.stmts[2].1, Stmt::Assign(Ex::Var(z), Ex::Var(v)) if z == "z" && v == "v2"));
+    }
+
+    #[test]
+    fn propagates_copy_into_single_predecessor_successor() {
+        let f = Function {
+            start: 0x1000, end: 0x1002,
+            blocks: vec![
+                crate::analysis::Block { start: 0x1000, end: 0x1001, insns: vec![], succs: vec![(0x1001, crate::analysis::EdgeKind::Always)] },
+                crate::analysis::Block { start: 0x1001, end: 0x1002, insns: vec![], succs: vec![] },
+            ],
+            insn_count: 0, kind: crate::analysis::FuncKind::Normal, noreturn: false, calls: vec![], has_symbol: false, thunk_target: None,
+        };
+        let mut outs = vec![
+            BlockOut { stmts: vec![(0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("a1".into())))], defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Jmp(0x1001), term_addr: 0 },
+            BlockOut { stmts: vec![(1, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("v1".into())))], defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 1 },
+        ];
+        propagate_single_predecessor_copy(&mut outs, &f);
+        assert!(outs[0].stmts.is_empty());
+        assert!(matches!(&outs[1].stmts[0].1, Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if dst == "v2" && src == "a1"));
+        assert!(matches!(&outs[1].term, Term::Ret(Some(Ex::Var(v))) if v == "a1"));
     }
 
     #[test]

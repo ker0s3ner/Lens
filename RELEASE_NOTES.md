@@ -1,3 +1,8 @@
+# Lens 0.6.422 — Fourier
+
+- Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.
+- Cross-block propagation preserves source and destination reassignment barriers with regression coverage.
+
 # Lens 0.6.421 — Fourier
 
 - Open raw binary is now available directly from the command palette.

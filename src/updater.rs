@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.",
+    "Cross-block propagation preserves source and destination reassignment barriers with regression coverage.",
     "Open raw binary is now available directly from the command palette.",
     "Raw-file commands preload the existing architecture, endian, base, and Intel HEX/S-record loader controls.",
     "Project members can now be removed directly from the workspace inspector.",

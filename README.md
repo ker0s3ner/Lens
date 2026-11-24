@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.421 — Fourier**. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
+Latest shipped build: **0.6.422 — Fourier**. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
@@ -86,6 +86,8 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Active and last project files are protected so removal cannot strand the session or empty the manifest.
 - Open raw binary is now available directly from the command palette.
 - Raw-file commands preload the existing architecture, endian, base, and Intel HEX/S-record loader controls.
+- Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.
+- Cross-block propagation preserves source and destination reassignment barriers with regression coverage.
 - Reference tracking and expression sizing now traverse owned casts consistently.
 - Enum identity also survives constant `<<` and `>>` transformations used by flag and bitfield code.
 - The x86/x64 lifter has the broadest coverage, including immediate and register-count rotate expressions, BMI2 `mulx`, flag-independent `rorx`, AVX/FMA3 fused arithmetic, double-precision shifts, integer division with implicit wide dividends and `cdq`/`cqo` sign extension, named bit-count operations, BMI2 bit manipulation, and byte swaps useful for hash, crypto, endian, and wide-integer code. ARM64, ARM/Thumb, RISC-V, MIPS and PowerPC use integer-focused lifters; ARM/Thumb long multiply preserves both halves of 64-bit results, RISC-V and PowerPC high-half multiplication preserve signedness, MIPS HI/LO multiply and division results flow through `mfhi`/`mflo`, ARM64 NEON vector registers are tracked and declared as 128-bit values, common floating-point arithmetic, pairwise/reduction operations, saturating arithmetic, vector comparisons, widening/narrowing and high-half operations, variable and rounded shifts, reciprocal/complex/dot-product operations, bit-select masks, bitfield extraction/insertion, rotate/extract idioms, conditional integer selects, moves and comparisons become readable expressions, typed enum parameters and return values render named members even through transparent casts and enum switch cases, and other unsupported vector operations remain visible as intrinsic-style calls.
