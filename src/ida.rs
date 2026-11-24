@@ -277,13 +277,18 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
                     ("scalar", (*code & 0x7f).max(1) as u64)
                 };
                 let xrefs = l.an.xrefs_to.get(addr).map(|refs| refs.len()).unwrap_or(0);
-                let detail = if size == 0 { format!("{kind} · {xrefs} xrefs") } else { format!("{kind} · {size} bytes · {xrefs} xrefs") };
+                let mut detail = if size == 0 { format!("{kind} · {xrefs} xrefs") } else { format!("{kind} · {size} bytes · {xrefs} xrefs") };
+                if let Some(ty) = l.ann.applied.iter().find(|(base, _)| base == addr).map(|(_, ty)| ty) { detail.push_str(&format!(" · type {ty}")); }
+                if let Some(comment) = l.ann.comments.get(addr).filter(|comment| !comment.is_empty()) { detail.push_str(&format!(" · {}", comment.replace('\n', " "))); }
                 out.push(Row { addr: *addr, name: name_of(*addr), detail, num: size });
             }
             for (addr, size) in &l.an.data_size {
                 if l.ann.data_defs.contains_key(addr) || *size == 0 { continue; }
                 let xrefs = l.an.xrefs_to.get(addr).map(|refs| refs.len()).unwrap_or(0);
-                out.push(Row { addr: *addr, name: name_of(*addr), detail: format!("inferred scalar · {} bytes · {xrefs} xrefs", size), num: *size as u64 });
+                let mut detail = format!("inferred scalar · {} bytes · {xrefs} xrefs", size);
+                if let Some(ty) = l.ann.applied.iter().find(|(base, _)| base == addr).map(|(_, ty)| ty) { detail.push_str(&format!(" · type {ty}")); }
+                if let Some(comment) = l.ann.comments.get(addr).filter(|comment| !comment.is_empty()) { detail.push_str(&format!(" · {}", comment.replace('\n', " "))); }
+                out.push(Row { addr: *addr, name: name_of(*addr), detail, num: *size as u64 });
             }
             out
         }

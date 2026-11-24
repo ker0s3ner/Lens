@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.260 — Fourier
+
+## What's new
+
+- Data rows now show applied struct/type annotations.
+- Data rows now include analyst comments in their detail text.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.259 — Fourier
 
 ## What's new
