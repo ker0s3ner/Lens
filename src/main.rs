@@ -303,6 +303,7 @@ fn cli(args: &[String]) -> bool {
                 "slot": i.slot,
                 "name": i.name,
                 "library": i.library,
+                "references": an.xrefs_to.get(&i.slot).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "export_records": bin.exports.iter().map(|e| serde_json::json!({
                 "address": e.addr,

@@ -22,6 +22,20 @@
 # Lens 0.6.218 — Fourier
 # Lens 0.6.219 — Fourier
 # Lens 0.6.220 — Fourier
+# Lens 0.6.221 — Fourier
+
+## What's new
+
+- JSON import records now include incoming references to each imported API slot.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.220 — Fourier
 
 ## What's new
 

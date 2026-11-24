@@ -127,6 +127,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON analysis reports expose recovered debug prototypes from DWARF and CodeView data.
 - JSON switch-table records include references to their indirect-branch instructions.
 - JSON function records distinguish symbol-backed functions from inferred boundaries.
+- JSON import records include incoming references to each imported API slot.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.
