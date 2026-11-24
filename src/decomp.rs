@@ -1969,12 +1969,15 @@ impl Emit<'_> {
 
     fn enum_type(&self, e: &Ex) -> Option<String> {
         match e {
-            Ex::Var(name) => self.enum_vars.get(name).cloned(),
+            Ex::Var(name) => self.enum_vars.get(name).cloned().or_else(|| {
+                let (ty, member) = name.split_once("::")?;
+                self.enum_constants.get(ty)?.values().any(|known| known == member).then(|| ty.to_string())
+            }),
             Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
-            Ex::Bin(op, left, right) if matches!(*op, "+" | "-") => {
-                if self.enum_type(left).is_some() && enum_const_int(right).is_some() {
+            Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^") => {
+                if self.enum_type(left).is_some() && (enum_const_int(right).is_some() || self.enum_type(right).is_some()) {
                     self.enum_type(left)
-                } else if self.enum_type(right).is_some() && enum_const_int(left).is_some() {
+                } else if self.enum_type(right).is_some() && (enum_const_int(left).is_some() || self.enum_type(left).is_some()) {
                     self.enum_type(right)
                 } else {
                     None
@@ -2915,7 +2918,9 @@ mod tests {
         let remainder = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("%", Box::new(Ex::Num(5)), Box::new(Ex::Num(3))))));
         assert_eq!(emit.fmt.show(&remainder), "a1 == Color::Two");
         let shifted_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Bin("+", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1)))), Box::new(Ex::Num(2))));
-        assert_eq!(emit.fmt.show(&shifted_member), "a1 + Color::One == 2");
+        assert_eq!(emit.fmt.show(&shifted_member), "a1 + Color::One == Color::Two");
+        let flag_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Bin("|", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1)))), Box::new(Ex::Num(3))));
+        assert_eq!(emit.fmt.show(&flag_member), "(a1 | Color::One) == (Color::Two | Color::One)");
     }
 
     #[test]

@@ -245,6 +245,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Bitfield layout validation now normalizes redundant cv-qualified qualifiers before matching signed storage types.
 - Enum propagation now retains type identity through safe constant `+`/`-` arithmetic.
 - x86 switch case-index recovery now handles both add and subtract normalization idioms.
+- Enum propagation now retains type identity through safe constant bitwise transformations.
 - Call-graph caller neighborhoods now deduplicate functions before applying the large-graph cap.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
