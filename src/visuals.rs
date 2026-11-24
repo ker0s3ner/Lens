@@ -1064,8 +1064,12 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
 
 pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>) {
     let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::new();
     let mut cached_callees = |addr: u64| -> Vec<u64> {
         callees_cache.entry(addr).or_insert_with(|| callees_of(l, addr)).clone()
+    };
+    let mut cached_callers = |addr: u64| -> Vec<u64> {
+        callers_cache.entry(addr).or_insert_with(|| callers_of(l, addr)).clone()
     };
     let mk = |addr: u64, layer: i32| -> CNode {
         let f = l.an.functions.get(&addr);
@@ -1086,7 +1090,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for d in 1..=depth as i32 {
             let mut next = vec![];
             for a in &frontier {
-                let list = if dir > 0 { cached_callees(*a) } else { callers_of(l, *a) };
+                let list = if dir > 0 { cached_callees(*a) } else { cached_callers(*a) };
                 for c in list.into_iter().take(40) {
                     if !idx.contains_key(&c) && nodes.len() < 160 {
                         idx.insert(c, nodes.len());

@@ -438,6 +438,8 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Objective-C `objc_getClass` arguments now render as `@class(...)` in pseudocode.
 - Decompiler copy propagation now crosses safe intervening statements.
 - Copy propagation stops when the source or temporary is reassigned, with regression coverage.
+- Call graph caller expansion now memoizes xref scans within each build.
+- Multi-level call graph construction now avoids duplicate caller traversal work.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.

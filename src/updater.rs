@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call graph caller expansion now memoizes xref scans within each build.",
+    "Multi-level call graph construction now avoids duplicate caller traversal work.",
     "Decompiler copy propagation now crosses safe intervening statements.",
     "Copy propagation now stops when the source or temporary is reassigned, with regression coverage.",
     "Objective-C objc_msgSend selector arguments now render as @selector(...) in pseudocode.",

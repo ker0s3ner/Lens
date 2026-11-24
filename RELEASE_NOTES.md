@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.265 — Fourier
+
+## What's new
+
+- Call graph caller expansion now memoizes xref scans within each build.
+- Multi-level call graph construction now avoids duplicate caller traversal work.
+
+## Verification
+
+- `cargo test --locked --quiet` — 89 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.264 — Fourier
 
 ## What's new
