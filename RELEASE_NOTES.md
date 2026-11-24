@@ -1,6 +1,9 @@
-# Lens 0.6.99 — Fourier
+# Lens 0.6.100 — Fourier
 
 ## What's new
+
+- Go runtime panic/throw and additional Rust bounds-panic symbols are recognized as no-return functions.
+- Call graphs and decompilation now terminate more accurately across Go and Rust binaries.
 
 - ARM32 register-relative switch recovery now has a raw-binary regression fixture.
 - The analyzer test suite now covers 55 deterministic cases across architecture and interchange paths.

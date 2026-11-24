@@ -216,6 +216,8 @@ pub const NORETURN: &[&str] = &[
     "rust_begin_unwind", "rust_start_panic", "panic", "panic_fmt", "panic_nounwind", "panic_cannot_unwind",
     "swift_fatalError", "fatalError", "fatal", "builtin_trap", "trap", "cxa_pure_virtual",
     "ubsan_handle_builtin_unreachable", "ubsan_handle_type_mismatch_v1",
+    "runtime.gopanic", "runtime.throw", "runtime.fatalpanic", "runtime.fatal", "runtime.panichandler",
+    "__rustc::rust_begin_unwind", "core::panicking::panic_nounwind_fmt", "core::panicking::panic_bounds_check",
 ];
 
 pub fn is_noreturn_name(name: &str) -> bool {
@@ -1760,6 +1762,9 @@ mod tests {
         assert!(is_noreturn_name("core::panicking::panic_fmt"));
         assert!(is_noreturn_name("__cxa_pure_virtual"));
         assert!(is_noreturn_name("panic"));
+        assert!(is_noreturn_name("runtime.gopanic"));
+        assert!(is_noreturn_name("runtime.throw"));
+        assert!(is_noreturn_name("core::panicking::panic_bounds_check"));
     }
 
     #[test]

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Go runtime panic/throw and additional Rust bounds-panic symbols are recognized as no-return functions.",
+    "Call graphs and decompilation now terminate more accurately across Go and Rust binaries.",
     "ARM32 register-relative switch recovery now has a raw-binary regression fixture.",
     "The analyzer test suite now covers 55 deterministic cases across architecture and interchange paths.",
     "ARM32 table-base switch idioms now recover bounded targets from `add pc, #imm` plus indexed loads.",
