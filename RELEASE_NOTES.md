@@ -1,3 +1,8 @@
+# Lens 0.6.291 — Fourier
+
+- PowerPC ROTLW/ROTLD and immediate rotate-left forms now render as explicit rotate expressions.
+- Bit-manipulation-heavy PowerPC code no longer falls back to opaque rotate mnemonics for these common instructions.
+
 # Lens 0.6.290 — Fourier
 
 - PowerPC unsigned 64-bit DIVDU instructions now lift to readable division expressions alongside DIVD.

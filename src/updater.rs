@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC ROTLW/ROTLD and immediate rotate-left forms now render as explicit rotate expressions.",
+    "Bit-manipulation-heavy PowerPC code no longer falls back to opaque rotate mnemonics for these common instructions.",
     "PowerPC unsigned 64-bit DIVDU instructions now lift to readable division expressions alongside DIVD.",
     "PowerPC division coverage now includes the common 32-bit and 64-bit signed/unsigned forms used by compiled code.",
     "PowerPC integer remainder instructions (MODSW/MODUW/MODSD/MODUD) now render as readable remainder expressions.",
