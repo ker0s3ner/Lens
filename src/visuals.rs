@@ -1083,7 +1083,8 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
             None => "imported function".to_string(),
         };
         if let Some(target) = f.and_then(|f| f.thunk_target) {
-            sub.push_str(&format!(" · thunk → {:X}", target));
+            let target_name = l.name(target).map(display_symbol).unwrap_or_else(|| format!("{:X}", target));
+            sub.push_str(&format!(" · thunk → {target_name}"));
         }
         CNode { addr, layer, y: 0.0, name, sub, import, noreturn: f.map(|f| f.noreturn).unwrap_or(false) }
     };

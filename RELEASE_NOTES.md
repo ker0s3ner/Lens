@@ -1,3 +1,8 @@
+# Lens 0.6.375 — Fourier
+
+- Call graph thunk nodes now show the resolved target symbol when analysis has a name for it.
+- Unnamed thunk targets retain their hexadecimal address fallback for reliable navigation.
+
 # Lens 0.6.374 — Fourier
 
 - Bitfield storage matching now recognizes equivalent explicit signed integer spellings.
