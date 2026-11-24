@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Pseudocode now collapses identical conditional branches instead of printing redundant ternaries.",
+    "Decompiler formatting keeps the branch simplification semantics-preserving with regression coverage.",
     "Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion.",
     "Depth inputs are clamped defensively so large or scripted requests cannot trigger unbounded graph work.",
     "Call graph now opens with a bounded one-hop neighborhood for a responsive first frame.",

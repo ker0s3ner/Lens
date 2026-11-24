@@ -1,3 +1,8 @@
+# Lens 0.6.427 — Fourier
+
+- Pseudocode now collapses identical conditional branches instead of printing redundant ternaries.
+- Decompiler formatting keeps the branch simplification semantics-preserving with regression coverage.
+
 # Lens 0.6.426 — Fourier
 
 - Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion.

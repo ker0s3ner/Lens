@@ -428,6 +428,7 @@ impl Fmt<'_> {
                 let a: Vec<String> = args.iter().map(|x| self.at(x, 99)).collect();
                 format!("{callee}({})", a.join(", "))
             }
+            Ex::Tern(_, a, b) if a == b => self.at(a, ctx),
             Ex::Tern(c, a, b) => format!("{} ? {} : {}", self.at(c, 15), self.at(a, 15), self.at(b, 15)),
             Ex::Bin(op, a, b) => {
                 // x + -4  →  x - 4
@@ -3137,7 +3138,7 @@ mod tests {
         let shifted_flag = emit.enumize(Ex::Bin("==", Box::new(Ex::Bin("<<", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1)))), Box::new(Ex::Num(2))));
         assert_eq!(emit.fmt.show(&shifted_flag), "a1 << Color::One == Color::Two");
         let conditional_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Tern(Box::new(Ex::Var("cond".into())), Box::new(Ex::Var("a1".into())), Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
-        assert_eq!(emit.fmt.show(&conditional_member), "(cond ? a1 : a1) == Color::One");
+        assert_eq!(emit.fmt.show(&conditional_member), "(a1) == Color::One");
         let inverted_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Un("~", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&inverted_member), "~a1 == Color::One");
         let logical_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("&&", Box::new(Ex::Num(1)), Box::new(Ex::Num(1))))));
@@ -3510,6 +3511,14 @@ mod tests {
         assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
         assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
         assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
+    }
+
+    #[test]
+    fn renders_identical_ternary_branches_once() {
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty, structs: &[] };
+        let expression = Ex::Tern(Box::new(var("condition")), Box::new(var("value")), Box::new(var("value")));
+        assert_eq!(fmt.show(&expression), "value");
     }
 
     #[test]
