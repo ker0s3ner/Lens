@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now export normalized merged name_records for analyst labels and inferred names.",
+    "Name records now match the existing importer schema, completing the report round-trip for labels, comments, and bookmarks.",
     "JSON annotation_records comments and bookmarks now round-trip through the existing database importer.",
     "Analysis interchange now preserves analyst notes in both export and import paths with the same address-based schema.",
     "JSON analysis reports now export saved analyst comments as address/text annotation records.",

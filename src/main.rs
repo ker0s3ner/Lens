@@ -399,6 +399,11 @@ fn cli(args: &[String]) -> bool {
                 "name": name,
                 "kind": "data",
             }))).collect::<Vec<_>>(),
+            "name_records": names.iter().map(|(address, (name, kind))| serde_json::json!({
+                "address": address,
+                "name": name,
+                "kind": format!("{:?}", kind).to_lowercase(),
+            })).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

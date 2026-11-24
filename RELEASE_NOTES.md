@@ -1,3 +1,8 @@
+# Lens 0.6.350 — Fourier
+
+- JSON analysis reports now export normalized merged `name_records` for analyst labels and inferred names.
+- Name records now match the existing importer schema, completing the report round-trip for labels, comments, and bookmarks.
+
 # Lens 0.6.349 — Fourier
 
 - JSON `annotation_records` comments and bookmarks now round-trip through the existing database importer.
