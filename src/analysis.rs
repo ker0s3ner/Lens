@@ -732,13 +732,13 @@ fn riscv_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let ops: Vec<&str> = i.ops.split(',').map(str::trim).collect();
         match i.mnemonic.as_str() {
             "auipc" if ops.len() >= 2 && ops[0] == reg => {
-                table = parse_riscv_num(ops[1]);
+                table = parse_riscv_signed(ops[1]).map(|value| value as u64);
             }
             "lw" | "ld" if ops.len() >= 2 && ops[0] == reg => {
                 let mem = ops[1];
                 if let Some((off, b)) = mem.split_once('(') {
                     if b.trim_end_matches(')') == reg {
-                        if let (Some(base), Some(delta)) = (table, parse_riscv_num(off)) { table = Some(base.wrapping_add(delta)); }
+                        if let (Some(base), Some(delta)) = (table, parse_riscv_signed(off)) { table = Some(base.wrapping_add_signed(delta)); }
                     }
                 }
             }
@@ -779,6 +779,17 @@ fn riscv_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
 fn parse_riscv_num(text: &str) -> Option<u64> {
     let t = text.trim().trim_start_matches('#');
     if let Some(h) = t.strip_prefix("0x") { u64::from_str_radix(h, 16).ok() } else { t.parse().ok() }
+}
+
+fn parse_riscv_signed(text: &str) -> Option<i64> {
+    let t = text.trim().trim_start_matches('#');
+    let (negative, digits) = t.strip_prefix('-').map_or((false, t), |digits| (true, digits));
+    let value = if let Some(h) = digits.strip_prefix("0x") {
+        i64::from_str_radix(h, 16).ok()?
+    } else {
+        digits.parse::<i64>().ok()?
+    };
+    Some(if negative { -value } else { value })
 }
 
 fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {

@@ -236,6 +236,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Thumb register-based switch tables accept signed PC-relative base immediates.
 - ARM32 register-based switch tables accept signed PC-relative base immediates.
 - ARM32 and Thumb register-based switch tables also recognize `sub reg, pc, #imm` backward-base idioms.
+- RISC-V switch-table address reconstruction accepts signed `auipc` and load offsets.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
 - Enum comparison rendering through transparent casts now has direct expression-level regression coverage.
