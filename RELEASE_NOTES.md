@@ -1,6 +1,9 @@
-# Lens 0.6.94 — Fourier
+# Lens 0.6.95 — Fourier
 
 ## What's new
+
+- RISC-V, MIPS and PowerPC jump-table recognizers now participate in live indirect-branch analysis.
+- Switch cases on these architectures can now become real graph edges and pseudocode cases.
 
 - AArch64 SM4 round and key-schedule instructions now remain visible as named pseudocode intrinsics.
 - Modern block-cipher operand groups are preserved alongside existing AES and SHA coverage.

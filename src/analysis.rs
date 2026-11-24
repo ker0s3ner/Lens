@@ -1047,7 +1047,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         Flow::Normal => a = next,
                         Flow::Ret | Flow::Stop => break,
                         Flow::IndirectJump => {
-                            if (bin.arch.is_x86() || matches!(bin.arch, Arch::Arm64 | Arch::Arm32 | Arch::Thumb)) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
+                            if (bin.arch.is_x86() || matches!(bin.arch, Arch::Arm64 | Arch::Arm32 | Arch::Thumb | Arch::RiscV32 | Arch::RiscV64 | Arch::Mips32 | Arch::Mips64 | Arch::Ppc32 | Arch::Ppc64)) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
                                 let ts = switch_targets(bin, &insns, a, fstart);
                                 for t in &ts {
                                     work.push(*t);

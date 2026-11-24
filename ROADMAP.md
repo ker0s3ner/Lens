@@ -100,6 +100,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 SHA-512 round and schedule instructions remain visible as named intrinsics.
 - AArch64 SHA-3/SM3-style Boolean and rotate-combine families remain visible as named intrinsics.
 - AArch64 SM4 round and key-schedule instructions remain visible as named intrinsics.
+- RISC-V, MIPS and PowerPC jump-table recognizers are now connected to live indirect-branch traversal.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
