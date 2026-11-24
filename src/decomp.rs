@@ -478,7 +478,7 @@ fn mentions(e: &Ex, target: &Ex) -> bool {
     }
     match e {
         Ex::Bin(_, a, b) => mentions(a, target) || mentions(b, target),
-        Ex::Un(_, a) | Ex::Cast(_, a) => mentions(a, target),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => mentions(a, target),
         Ex::Deref(a, _) => matches!(target, Ex::Deref(..)) || mentions(a, target),
         Ex::Call(f, args) => mentions(f, target) || args.iter().any(|a| mentions(a, target)),
         Ex::Tern(a, b, c) => mentions(a, target) || mentions(b, target) || mentions(c, target),
@@ -489,7 +489,7 @@ fn mentions(e: &Ex, target: &Ex) -> bool {
 fn ex_size(e: &Ex) -> usize {
     match e {
         Ex::Bin(_, a, b) => 1 + ex_size(a) + ex_size(b),
-        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::Deref(a, _) => 1 + ex_size(a),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) | Ex::Deref(a, _) => 1 + ex_size(a),
         Ex::Call(f, args) => 1 + ex_size(f) + args.iter().map(ex_size).sum::<usize>(),
         Ex::Tern(a, b, c) => 1 + ex_size(a) + ex_size(b) + ex_size(c),
         _ => 1,
@@ -668,7 +668,7 @@ fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
             count_vars(a, m);
             count_vars(b, m)
         }
-        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::Deref(a, _) => count_vars(a, m),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) | Ex::Deref(a, _) => count_vars(a, m),
         Ex::Call(f, args) => {
             count_vars(f, m);
             args.iter().for_each(|a| count_vars(a, m))

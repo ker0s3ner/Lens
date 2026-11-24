@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Reference tracking, expression sizing, and variable-use counting now traverse owned casts.",
+    "Owned-cast handling is now consistent across decompiler copy and liveness visitors.",
     "Copy propagation now traverses owned casts used by typed pointer and function-pointer values.",
     "Dereference and liveness analysis now traverses owned casts consistently.",
     "Shift-scaled struct-pointer arrays now preserve variable-index nested field paths.",

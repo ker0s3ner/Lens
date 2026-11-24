@@ -1,3 +1,8 @@
+# Lens 0.6.410 — Fourier
+
+- Reference tracking, expression sizing, and variable-use counting now traverse owned casts.
+- Owned-cast handling is now consistent across decompiler copy and liveness visitors.
+
 # Lens 0.6.409 — Fourier
 
 - Copy propagation now traverses owned casts used by typed pointer and function-pointer values.
