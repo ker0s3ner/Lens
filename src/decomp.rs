@@ -400,6 +400,18 @@ fn propagate_adjacent_copy(o: &mut BlockOut) {
             i += 1;
         }
     }
+    if let Some((_, Stmt::Assign(Ex::Var(dst), Ex::Var(src)))) = o.stmts.last() {
+        let dst = dst.clone();
+        let src = Ex::Var(src.clone());
+        let replace = |e: &Ex| subst(e, &Ex::Var(dst.clone()), &src);
+        let changed = match &mut o.term {
+            Term::Ret(Some(e)) => { let n = replace(e); let changed = n != *e; *e = n; changed }
+            Term::Indirect(e) => { let n = replace(e); let changed = n != *e; *e = n; changed }
+            Term::Cond { cond, .. } => { let n = replace(cond); let changed = n != *cond; *cond = n; changed }
+            _ => false,
+        };
+        if changed { o.stmts.pop(); }
+    }
 }
 
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
@@ -2682,6 +2694,14 @@ mod tests {
         propagate_adjacent_copy(&mut out);
         assert_eq!(out.stmts.len(), 1);
         assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Var("rax".into())));
+
+        let mut ret = BlockOut {
+            stmts: vec![(0, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("rax".into())))],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v2".into()))), term_addr: 1,
+        };
+        propagate_adjacent_copy(&mut ret);
+        assert!(ret.stmts.is_empty());
+        assert!(matches!(ret.term, Term::Ret(Some(Ex::Var(ref v))) if v == "rax"));
     }
 
     #[test]

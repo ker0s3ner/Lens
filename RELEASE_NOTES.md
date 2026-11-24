@@ -1,3 +1,16 @@
+# Lens 0.6.187 — Fourier
+
+## What's new
+
+- Decompiler copy propagation now folds temporary register copies into return expressions.
+
+## Verification
+
+- `cargo test --locked --quiet` — 81 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.186 — Fourier
 
 ## What's new
