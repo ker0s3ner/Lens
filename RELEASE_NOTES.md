@@ -25,6 +25,20 @@
 # Lens 0.6.221 — Fourier
 # Lens 0.6.222 — Fourier
 # Lens 0.6.223 — Fourier
+# Lens 0.6.224 — Fourier
+
+## What's new
+
+- JSON library records now include the imported symbol names associated with each dependency.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.223 — Fourier
 
 ## What's new
 

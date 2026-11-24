@@ -314,6 +314,7 @@ fn cli(args: &[String]) -> bool {
             })).collect::<Vec<_>>(),
             "library_records": bin.libraries.iter().map(|library| serde_json::json!({
                 "name": library,
+                "imports": bin.imports.iter().filter(|import| import.library == *library).map(|import| import.name.clone()).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
             "data_records": an.data_size.iter().map(|(address, code)| serde_json::json!({
                 "address": address,
