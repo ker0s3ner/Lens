@@ -84,6 +84,12 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("*", _, Num(1)) | ("/", _, Num(1)) => a,
         ("*", Num(1), _) => b,
         ("*", _, Num(0)) | ("*", Num(0), _) | ("&", _, Num(0)) | ("&", Num(0), _) => Num(0),
+        ("&", x, Num(-1)) | ("&", Num(-1), x) => x.clone(),
+        ("|", _, Num(-1)) | ("|", Num(-1), _) => Num(-1),
+        ("&&", _, Num(0)) | ("&&", Num(0), _) => Num(0),
+        ("||", _, Num(1)) | ("||", Num(1), _) => Num(1),
+        ("&&", x, Num(1)) | ("&&", Num(1), x) => bin("!=", x.clone(), Num(0)),
+        ("||", x, Num(0)) | ("||", Num(0), x) => bin("!=", x.clone(), Num(0)),
         ("^", x, y) if x == y => Num(0),
         ("-", x, y) if x == y => Num(0),
         ("&", x, y) | ("|", x, y) if x == y => a.clone(),
@@ -2822,6 +2828,18 @@ mod tests {
         assert_eq!(un("-", Ex::Num(4)), Ex::Num(-4));
         assert_eq!(un("~", Ex::Num(0)), Ex::Num(-1));
         assert_eq!(un("!", Ex::Num(0)), Ex::Num(1));
+    }
+
+    #[test]
+    fn folds_boolean_and_bitmask_identities() {
+        let x = var("flag");
+        assert_eq!(bin("&&", x.clone(), Ex::Num(0)), Ex::Num(0));
+        assert_eq!(bin("||", x.clone(), Ex::Num(1)), Ex::Num(1));
+        assert_eq!(bin("&&", x.clone(), Ex::Num(1)), bin("!=", x.clone(), Ex::Num(0)));
+        assert_eq!(bin("||", x.clone(), Ex::Num(0)), bin("!=", x, Ex::Num(0)));
+        let bits = var("bits");
+        assert_eq!(bin("&", bits.clone(), Ex::Num(-1)), bits);
+        assert_eq!(bin("|", var("bits"), Ex::Num(-1)), Ex::Num(-1));
     }
 
     #[test]

@@ -1,3 +1,10 @@
+# Lens 0.6.267 — Fourier
+
+- Decompiler boolean identities now simplify constant truthiness around `&&` and `||`.
+- Decompiler bitmask identities now simplify `x & -1` and `x | -1` without changing semantics.
+
+Verification: `cargo test --locked --quiet` — 90 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.266 — Fourier
 
 - Call graph expansion now caps high-fanout neighborhoods to keep rendering responsive.
