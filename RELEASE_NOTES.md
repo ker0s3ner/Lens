@@ -1,3 +1,8 @@
+# Lens 0.6.391 — Fourier
+
+- Bitfield storage matching now normalizes redundant `const` qualifiers across equivalent signed integer declarations.
+- The Lists vtables view and all export/script surfaces now expose consistent source context.
+
 # Lens 0.6.390 — Fourier
 
 - The Lists vtables view now shows each table's owning segment beside entry and xref counts.

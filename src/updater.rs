@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Bitfield storage matching now normalizes redundant const qualifiers across equivalent signed integer declarations.",
+    "The Lists vtables view and all export/script surfaces now expose consistent source context.",
     "The Lists vtables view now shows each table's owning segment beside entry and xref counts.",
     "Vtable source context remains available consistently in reports, database exports, and Rhai scripts.",
     "Rhai vtables() records now expose optional owning segment and file-offset fields.",
