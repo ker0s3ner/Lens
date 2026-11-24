@@ -325,8 +325,28 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         }
         let s = s.trim_end_matches(|c: char| matches!(c, 'u' | 'U' | 'l' | 'L'));
         if let Some(value) = names.get(s) { return Some(*value); }
-        if let Some(ch) = s.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')).filter(|v| v.chars().count() == 1) {
-            return ch.chars().next().map(|c| c as i64);
+        if let Some(ch) = s.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')) {
+            let bytes = ch.as_bytes();
+            if bytes.len() == 1 && bytes[0] != b'\\' {
+                return Some(bytes[0] as i64);
+            }
+            let value = match ch {
+                "\\0" => 0,
+                "\\a" => 7,
+                "\\b" => 8,
+                "\\t" => 9,
+                "\\n" => 10,
+                "\\v" => 11,
+                "\\f" => 12,
+                "\\r" => 13,
+                "\\\\" => 92,
+                "\\'" => 39,
+                "\\\"" => 34,
+                _ if ch.starts_with("\\x") => i64::from_str_radix(&ch[2..], 16).ok()?,
+                _ if ch.starts_with('\\') && ch[1..].chars().all(|c| ('0'..='7').contains(&c)) => i64::from_str_radix(&ch[1..], 8).ok()?,
+                _ => return None,
+            };
+            return Some(value);
         }
         let (neg, s) = s.strip_prefix('-').map(|v| (true, v)).unwrap_or((false, s));
         let (radix, digits) = if let Some(v) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
@@ -589,9 +609,9 @@ mod tests {
 
     #[test]
     fn parses_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write, All = ~0u, Letter = 'A' }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Read = 1u << 0, Write = 01 << 1, Both = Read | Write, All = ~0u, Letter = 'A', Newline = '\\n', Hex = '\\x41', Octal = '\\101' }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
-        assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3), ("All", -1), ("Letter", 65)]);
+        assert_eq!(values, [("None", 0), ("Read", 1), ("Write", 2), ("Both", 3), ("All", -1), ("Letter", 65), ("Newline", 10), ("Hex", 65), ("Octal", 65)]);
     }
 
     #[test]

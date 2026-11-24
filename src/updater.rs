@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C enum parsing now decodes common escaped, hexadecimal, and octal character constants.",
+    "Character-valued enum members now match C literal semantics in the type database.",
     "Debugger shutdown now clears stale commands and trace state when LLDB exits unexpectedly.",
     "Debugger exit status is surfaced in the console and reconnects start from a clean session.",
     "C enum parsing now supports checked multiplication, division, and remainder expressions.",

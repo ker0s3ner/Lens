@@ -1,3 +1,8 @@
+# Lens 0.6.419 — Fourier
+
+- C enum parsing now decodes common escaped, hexadecimal, and octal character constants.
+- Character-valued enum members now match C literal semantics in the type database.
+
 # Lens 0.6.418 — Fourier
 
 - Debugger shutdown now clears stale commands and trace state when LLDB exits unexpectedly.
