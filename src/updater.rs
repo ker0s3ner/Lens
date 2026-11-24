@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 and Thumb BFI/BFC now render as explicit bitfield insertion and clearing expressions.",
+    "ARM-family bitfield support now covers extraction plus the corresponding update-in-place operations.",
     "ARM32 and Thumb UBFX/SBFX now render as explicit field-extraction expressions, matching the AArch64 path.",
     "ARM-family bitfield recovery now preserves unsigned and signed extraction intent instead of opaque mnemonics.",
     "RISC-V SH1ADD.UW, SH2ADD.UW, and SH3ADD.UW now preserve low-word zero-extension in scaled-index expressions.",

@@ -1196,6 +1196,20 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = if base_mn == "sbfx" { Ex::Cast("int32_t", Box::new(extracted)) } else { extracted };
             set(dc, st, 0, value);
         }
+        (Fam::A32, "bfi" | "bfc") if ops.len() >= 4 => {
+            let dst = dc.g_val(st, o(0), None);
+            let lsb = parse_imm(&ops[2]).unwrap_or(0).clamp(0, 31) as u32;
+            let width = parse_imm(&ops[3]).unwrap_or(32).clamp(1, i64::from(32 - lsb)) as u32;
+            let field = if width == 32 { u64::from(u32::MAX) } else { ((1u64 << width) - 1) << lsb };
+            let cleared = bin("&", dst, Ex::Num((!(field as u32)) as i64));
+            if base_mn == "bfi" {
+                let src = dc.g_val(st, o(1), None);
+                let inserted = bin("<<", bin("&", src, Ex::Num(((1u64 << width) - 1) as i64)), Ex::Num(lsb as i64));
+                set(dc, st, 0, bin("|", cleared, bin("&", inserted, Ex::Num(field as i64))));
+            } else {
+                set(dc, st, 0, cleared);
+            }
+        }
         (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") => arith(dc, st, "/", false),
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),

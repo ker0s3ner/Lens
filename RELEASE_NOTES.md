@@ -1,3 +1,8 @@
+# Lens 0.6.302 — Fourier
+
+- ARM32 and Thumb BFI/BFC now render as explicit bitfield insertion and clearing expressions.
+- ARM-family bitfield support now covers extraction plus the corresponding update-in-place operations.
+
 # Lens 0.6.301 — Fourier
 
 - ARM32 and Thumb UBFX/SBFX now render as explicit field-extraction expressions, matching the AArch64 path.
