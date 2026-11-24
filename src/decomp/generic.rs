@@ -1596,6 +1596,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, Ex::Tern(Box::new(bin(choose_a, a.clone(), b.clone())), Box::new(a), Box::new(b)));
         }
         // ---------------------------------------------------------- flags
+        (Fam::M68k, m) if m == "st" || m == "sf" || (m.starts_with('s') && m.len() == 3 && cc_of(&m[1..]).is_some()) => {
+            let cond = if m == "st" { Ex::Num(1) } else if m == "sf" { Ex::Num(0) } else { g_condition(dc, st, fm, &m[1..], ops) };
+            let value = if m == "st" { Ex::Num(1) } else if m == "sf" { Ex::Num(0) } else { Ex::Tern(Box::new(cond), Box::new(Ex::Num(1)), Box::new(Ex::Num(0))) };
+            set(dc, st, 0, value);
+        }
         (Fam::A64 | Fam::A32, "cmp") | (Fam::M68k, "cmp" | "cmpi") => {
             let (a, b) = (dc.g_val(st, o(0), None), shifted(dc, st, 1));
             st.flags = Flags::Cmp(a, b);

@@ -1,3 +1,8 @@
+# Lens 0.6.362 — Fourier
+
+- M68k condition-code set instructions now lift to readable boolean 0/1 expressions.
+- M68k set-condition forms now reuse the shared comparison flags for downstream boolean recovery.
+
 # Lens 0.6.361 — Fourier
 
 - M68k `tst` instructions now set zero-comparison flags for following conditional branches.

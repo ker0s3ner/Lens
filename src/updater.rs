@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k condition-code set instructions now lift to readable boolean 0/1 expressions.",
+    "M68k set-condition forms now reuse the shared comparison flags for downstream boolean recovery.",
     "M68k tst instructions now set zero-comparison flags for following conditional branches.",
     "M68k test-and-branch pseudocode can now structure common beq/bne paths instead of emitting opaque conditions.",
     "M68k comparisons now feed the shared condition model used by branch pseudocode.",
