@@ -179,6 +179,7 @@ fn cli(args: &[String]) -> bool {
                 "name": bin.symbols.iter().find(|(address, _)| *address == f.start).map(|(_, name)| name),
                 "kind": format!("{:?}", f.kind),
                 "segment": bin.segment_of(f.start).map(|segment| segment.name.clone()),
+                "has_symbol": f.has_symbol,
                 "blocks": f.blocks.len(),
                 "instructions": f.insn_count,
                 "calls": f.calls,

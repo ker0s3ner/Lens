@@ -21,6 +21,20 @@
 # Lens 0.6.217 — Fourier
 # Lens 0.6.218 — Fourier
 # Lens 0.6.219 — Fourier
+# Lens 0.6.220 — Fourier
+
+## What's new
+
+- JSON function records now distinguish symbol-backed functions from inferred boundaries.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.219 — Fourier
 
 ## What's new
 
