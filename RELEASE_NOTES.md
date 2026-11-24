@@ -1,6 +1,9 @@
-# Lens 0.6.88 — Fourier
+# Lens 0.6.89 — Fourier
 
 ## What's new
+
+- AArch64 NEON pairwise-long and absolute-difference accumulation families now remain visible as named pseudocode intrinsics.
+- Image/audio reduction kernels preserve their widening accumulation operands.
 
 - AArch64 NEON numeric min/max and horizontal reduction families now remain visible as named pseudocode intrinsics.
 - Vector aggregation operations preserve their operands instead of falling through to opaque generic handling.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 NEON pairwise-long and absolute-difference accumulation families now remain visible as named pseudocode intrinsics.",
+    "Image/audio reduction kernels preserve their widening accumulation operands.",
     "AArch64 NEON numeric min/max and horizontal reduction families now remain visible as named pseudocode intrinsics.",
     "Vector aggregation operations preserve their operands instead of falling through to opaque generic handling.",
     "AArch64 NEON saturating rounded multiply-accumulate/subtract families now remain visible as named pseudocode intrinsics.",
