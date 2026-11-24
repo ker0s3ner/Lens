@@ -1014,14 +1014,14 @@ impl<'a> Dc<'a> {
                 }
             }
         }
-        // Preserve an explicit pointer prototype when a constant is passed.
-        // This is deliberately limited to constants: casting arbitrary
-        // inferred variables would make uncertain recovery look authoritative.
+        // Preserve an explicit pointer prototype at known call boundaries. The
+        // prototype is authoritative here, so inferred values can retain their
+        // pointer type instead of losing it at the call expression.
         if let Some(p) = &proto {
             for (k, a) in args.iter_mut().enumerate() {
                 let Some(ty) = p.params.get(k).map(|(t, _)| t.as_str()) else { continue };
                 if ty.ends_with('*') {
-                    if let Ex::Num(_) = a {
+                    if matches!(a, Ex::Num(_) | Ex::Var(_)) {
                         let old = std::mem::replace(a, Ex::Num(0));
                         *a = Ex::CastOwned(ty.to_string(), Box::new(old));
                     }
