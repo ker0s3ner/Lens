@@ -1,3 +1,8 @@
+# Lens 0.6.396 — Fourier
+
+- Enum identity now propagates through matching enum branches in conditional expressions.
+- Enum identity now propagates through bitwise-not flag-mask expressions.
+
 # Lens 0.6.395 — Fourier
 
 - Enum identity now survives constant `<<` and `>>` transformations used by flag and bitfield code.

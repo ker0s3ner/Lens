@@ -1974,6 +1974,11 @@ impl Emit<'_> {
                 self.enum_constants.get(ty)?.values().any(|known| known == member).then(|| ty.to_string())
             }),
             Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
+            Ex::Tern(_, yes, no) => {
+                let yes_ty = self.enum_type(yes)?;
+                (self.enum_type(no).as_deref() == Some(yes_ty.as_str())).then_some(yes_ty)
+            }
+            Ex::Un("~", inner) => self.enum_type(inner),
             Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^" | "<<" | ">>") => {
                 if self.enum_type(left).is_some() && (enum_const_int(right).is_some() || self.enum_type(right).is_some()) {
                     self.enum_type(left)
@@ -2923,6 +2928,10 @@ mod tests {
         assert_eq!(emit.fmt.show(&flag_member), "(a1 | Color::One) == (Color::Two | Color::One)");
         let shifted_flag = emit.enumize(Ex::Bin("==", Box::new(Ex::Bin("<<", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1)))), Box::new(Ex::Num(2))));
         assert_eq!(emit.fmt.show(&shifted_flag), "a1 << Color::One == Color::Two");
+        let conditional_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Tern(Box::new(Ex::Var("cond".into())), Box::new(Ex::Var("a1".into())), Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
+        assert_eq!(emit.fmt.show(&conditional_member), "(cond ? a1 : a1) == Color::One");
+        let inverted_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Un("~", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
+        assert_eq!(emit.fmt.show(&inverted_member), "~a1 == Color::One");
     }
 
     #[test]
