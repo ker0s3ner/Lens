@@ -493,6 +493,7 @@ impl LensApp {
                     self.actions.push(Action::Select(x, line));
                 }
                 GraphAction::Follow(x) => self.actions.push(Action::Goto(x)),
+                GraphAction::Xrefs(x) => self.actions.push(Action::Xrefs(x)),
             }
         }
     }
