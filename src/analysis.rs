@@ -1396,7 +1396,11 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 } else {
                     other_prologue(bin.arch, b)
                 };
-                if hit && !covered(&insns, a) {
+                // Mach-O can mark literal pools embedded in executable
+                // sections. Never turn a recognizable byte sequence inside
+                // one of those ranges into a guessed function start.
+                let in_marked_data = bin.data_ranges.iter().any(|(start, end)| a >= *start && a < *end);
+                if hit && !in_marked_data && !covered(&insns, a) {
                     push(&mut queue, a);
                     found += 1;
                 }
@@ -1955,6 +1959,19 @@ mod tests {
         };
         let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert!(an.functions[&0x1000].noreturn);
+    }
+
+    #[test]
+    fn does_not_guess_functions_inside_marked_executable_data() {
+        let spec = RawSpec {
+            path: "marked-data".into(), name: "marked-data".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xC3, 0xF3, 0x0F, 0x1E, 0xFA, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.data_ranges.push((0x1001, 0x1006));
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions.contains_key(&0x1000));
+        assert!(!an.functions.contains_key(&0x1001));
     }
 
     #[test]

@@ -1,3 +1,8 @@
+# Lens 0.6.340 — Fourier
+
+- Function discovery now skips Mach-O-marked data ranges embedded inside executable sections.
+- Data-vs-code discrimination has regression coverage preventing recognizable prologues in literal pools from becoming functions.
+
 # Lens 0.6.339 — Fourier
 
 - Decompiler conditional type propagation now recognizes matching typed call and cast branches directly.
