@@ -457,62 +457,13 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - IDA-style stack slots in the listing for frame-pointer functions: `[rbp+var_8]`, `[rbp+arg_0]`; pseudocode variable renames show up in the listing too.
 
 ## Next implementation queue
-1. **Types:** validate bitfield layouts across compiler ABIs; expand remaining enum constant propagation through arithmetic and switch-value recovery.
-2. **Analysis quality:** improve tail-call and thunk classification; expand ARM/Thumb switch recovery beyond TBB/TBH; discover vtables and RTTI with confidence and source locations.
-   - No-return propagation now also follows conservative multi-instruction tail-call edges.
-   - JSON analysis reports expose exact direct and indirect call-site records.
-   - Tail-call no-return propagation has dedicated regression coverage.
-- JSON analysis reports expose top-level non-pointer array records.
-- JSON array records round-trip through database import as persistent data definitions.
-- Pseudocode lines show clickable incoming-xref markers backed by the existing xref panel.
-- Flow-graph rows show clickable incoming-xref markers backed by the existing xref panel.
-- Structure fields show clickable incoming-xref counts in the synchronized Types view.
-- Decompiler struct-array access now preserves the first element index with regression coverage.
-- Debugger instruction traces can be exported with step indexes and addresses.
-- Multi-file projects now expose their binaries as switchable inspector entries.
-- Portable project paths keep the active-file highlight correct after moving a project.
-- JSON analysis name and symbol records can be restored by database import.
-- JSON database import restores recovered debug type and prototype records.
-- JSON database import restores conservative scalar, pointer, and string data records.
-- JSON database import restores pointer-table records from both analysis and annotation schemas.
-- JSON database import restores vtable entries as persistent native pointers.
-- JSON database import restores RTTI-derived names from vtable records.
-- JSON database import restores analysis function records and mapped entry hints.
-- JSON database import restores discovered string records as persistent string definitions.
-- JSON database import restores legacy import and export record collections.
-- Search results can be copied as an address-and-text report for external triage and review.
-- Search can be scoped to the current function or the full program.
-- Function-scoped searches scan the full function before applying the result cap.
-- Function-scoped search results clear when navigation moves to another function.
-- Known pointer prototypes now propagate through inferred call arguments in pseudocode.
-- Decompiler call arguments now retain known pointer types for inferred variables.
-- Full Lens annotation JSON import now restores data, patches, types, breakpoints, prototypes, and variable renames.
-- Analysis JSON now round-trips patches, breakpoints, conditions, and variable renames.
-- Imported patch records are applied immediately to the in-memory binary.
-- Imported patches now trigger reanalysis of the patched in-memory binary.
-- Import summaries now report restored patch records.
-- Call graph layout is cached between frames to avoid repeated rescans and UI stalls.
-- Call graph caches now invalidate when analysis data changes.
-- Call graph construction memoizes callee scans within each build.
-- Lists now includes a synchronized Data tab for scalar, pointer, string, and array-backed definitions.
-- The Data tab also surfaces inferred scalar data that has not been manually overridden.
-- Data rows now show applied struct/type annotations.
-- Data rows now include analyst comments in their detail text.
-- Double-clicking a Data row now opens the synchronized Types pane.
-- Selected Data rows now expose a one-click address copy action.
-- Data double-click now selects the applied type for that address in Types.
-- Data double-click now pre-fills the Types apply address.
-- Objective-C `objc_msgSend` selector arguments now render as `@selector(...)` in pseudocode.
-- Objective-C `objc_getClass` arguments now render as `@class(...)` in pseudocode.
-- Decompiler copy propagation now crosses safe intervening statements.
-- Copy propagation stops when the source or temporary is reassigned, with regression coverage.
-- Call graph caller expansion now memoizes xref scans within each build.
-- Multi-level call graph construction now avoids duplicate caller traversal work.
-3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
-4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
-5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.
-6. **Projects and scale:** add user-managed multi-file projects, support large binaries with incremental analysis/listing, and expand repeatable corpus fixtures across formats and architectures.
-7. **Scripting and interchange:** document the expanded Rhai API, add plugin examples and compatibility management, and improve IDA/Ghidra database import for comments, data and types.
+1. **Reliability and scale:** expand the corpus beyond the current smoke targets, validate 100 MB+ binaries, and move expensive analysis/listing work toward incremental or background execution.
+2. **Analysis quality:** validate tail-call/thunk classification across optimized compilers; add more ARM/Thumb switch idioms; improve data-vs-code discrimination and malformed-table handling.
+3. **Decompiler depth:** broaden SSA-style propagation, loop/switch structuring, floating-point/SIMD semantics, calling-convention inference, and complex pointer/array reconstruction.
+4. **Type system:** validate bitfield layouts across compiler ABIs, expand compiler-specific packed layouts, and grow the versioned prototype/signature libraries.
+5. **Debugger:** deepen LLDB synchronization and reconnect behavior, add broader platform coverage, and investigate hardware trace integration.
+6. **Formats and CPUs:** add firmware/raw-dump workflows and additional processors (AVR, 6502, Z80, SuperH, SPARC, s390x, TriCore, eBPF) with real semantic lifting.
+7. **Projects and interchange:** promote per-file annotations into user-managed multi-file project databases; document Rhai/plugin compatibility; improve IDC/Ghidra database import beyond the current JSON interchange.
 
 ## Current boundaries
 - Lens is an analysis and disassembly workbench, not yet a replacement for IDA's mature debugger, decompiler, type system, processor modules or database ecosystem.
