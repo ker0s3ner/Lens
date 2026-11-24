@@ -220,6 +220,12 @@ fn cli(args: &[String]) -> bool {
             "library_records": bin.libraries.iter().map(|library| serde_json::json!({
                 "name": library,
             })).collect::<Vec<_>>(),
+            "data_records": an.data_size.iter().map(|(address, code)| serde_json::json!({
+                "address": address,
+                "code": code,
+                "kind": if *code == analysis::DEF_STRING { "string" } else if (*code & 0x80) != 0 { "pointer" } else { "scalar" },
+                "size": if *code == analysis::DEF_STRING { serde_json::Value::Null } else { serde_json::json!(code & 0x7f) },
+            })).collect::<Vec<_>>(),
             "symbol_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
                 "name": name,

@@ -4,6 +4,20 @@
 # Lens 0.6.200 — Fourier
 # Lens 0.6.201 — Fourier
 # Lens 0.6.202 — Fourier
+# Lens 0.6.203 — Fourier
+
+## What's new
+
+- JSON analysis reports now include conservative inferred scalar, pointer, and string data records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.202 — Fourier
 
 ## What's new
 
