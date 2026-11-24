@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Double-clicking a Data row now opens the synchronized Types pane.",
+    "Selected Data rows now expose a one-click address copy action.",
     "Data rows now show applied struct/type annotations.",
     "Data rows now include analyst comments in their detail text.",
     "Lists now includes a synchronized Data tab for scalar, pointer, string, and array-backed definitions.",

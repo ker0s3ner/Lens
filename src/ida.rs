@@ -154,6 +154,7 @@ pub struct ListState {
     /// 0 = address, 1 = name, 2 = detail (size / library / note)
     pub sort: u8,
     pub desc: bool,
+    pub selected: Option<u64>,
     cache: Option<((ListTab, String, u8, bool, u64), Vec<Row>)>,
 }
 
@@ -306,6 +307,7 @@ impl LensApp {
         let p = self.p;
         let mut open = true;
         let mut goto: Option<u64> = None;
+        let mut open_types = false;
         let State::Ready(l) = &self.state else {
             self.lists.open = false;
             return;
@@ -348,6 +350,16 @@ impl LensApp {
                 }
             });
             ui.separator();
+            if ls.tab == ListTab::Data {
+                ui.horizontal(|ui| {
+                    if let Some(addr) = ls.selected {
+                        ui.label(RichText::new(format!("Selected {addr:X}")).small().color(p.faint));
+                        if ui.small_button("Copy address").clicked() { ui.ctx().copy_text(format!("{addr:X}")); }
+                    } else {
+                        ui.label(RichText::new("Select a data row to copy its address.").small().color(p.faint));
+                    }
+                });
+            }
             let rows = ls.cache.as_ref().map(|c| &c.1[..]).unwrap_or(&[]);
             ScrollArea::vertical().auto_shrink([false, false]).show_rows(ui, 20.0, rows.len(), |ui, range| {
                 for r in &rows[range] {
@@ -357,12 +369,14 @@ impl LensApp {
                         ui.label(RichText::new(&r.detail).small().color(p.muted));
                     });
                     let resp = ui.interact(resp.response.rect, egui::Id::unique(("lrow", r.addr, &r.name)), egui::Sense::click());
-                    if resp.clicked() { goto = Some(r.addr); }
+                    if resp.clicked() { goto = Some(r.addr); ls.selected = Some(r.addr); }
+                    if resp.double_clicked() && ls.tab == ListTab::Data { open_types = true; }
                     if resp.hovered() { ui.painter().rect_filled(resp.rect, 2.0, p.accent.gamma_multiply(0.08)); }
                 }
             });
         });
         if let Some(a) = goto { self.actions.push(Action::Goto(a)); }
+        if open_types { self.actions.push(Action::Structs); }
         if !open { self.lists.open = false; }
     }
 }

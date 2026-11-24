@@ -27,7 +27,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview; recovered switch-case destinations also appear as graph edges.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.
-- Browse manual and inferred scalar, pointer, string, and array-backed definitions from the synchronized Data tab in Lists, including applied types and analyst comments.
+- Browse manual and inferred scalar, pointer, string, and array-backed definitions from the synchronized Data tab in Lists, including applied types and analyst comments. Double-click a row to open Types, or copy its selected address for scripts and notes.
 - Lists tabs can also be selected in automation with `LENS_TAB=arrays`, `pointer_tables`, or `vtables`.
 - Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`; scope searches to the current function or full program, and copy results as an address-and-text report for external triage. Function-scoped searches scan the full function before capping displayed results and clear when navigation moves to another function. Data rows can be explicitly marked as native-width pointers with the `O` action.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.

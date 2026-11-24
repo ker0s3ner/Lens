@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.261 — Fourier
+
+## What's new
+
+- Double-clicking a Data row now opens the synchronized Types pane.
+- Selected Data rows now expose a one-click address copy action.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.260 — Fourier
 
 ## What's new
