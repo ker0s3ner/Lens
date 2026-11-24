@@ -1,3 +1,8 @@
+# Lens 0.6.316 — Fourier
+
+- Call-graph edge rendering now handles coincident control points without producing invalid geometry.
+- Call-graph layer ordering now uses a total floating-point comparison, preventing malformed layout values from panicking the UI.
+
 # Lens 0.6.315 — Fourier
 
 - Raw Thumb entry points now normalize the low mode bit before analysis, so odd function pointers decode at the correct byte address.

@@ -723,7 +723,8 @@ impl LensApp {
                 })
                 .collect();
             painter.add(Shape::line(pts, Stroke::new(if hot { 2.0 } else { 1.2 }, col)));
-            let dir = (e - c2).normalized();
+            let tangent = e - c2;
+            let dir = if tangent.length_sq() > f32::EPSILON { tangent.normalized() } else { vec2(1.0, 0.0) };
             let sz = 7.0 * z.max(0.6);
             let nrm = vec2(-dir.y, dir.x);
             painter.add(Shape::convex_polygon(vec![e, e - dir * sz + nrm * sz * 0.5, e - dir * sz - nrm * sz * 0.5], col, Stroke::NONE));
@@ -1142,7 +1143,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
             if layer == 1 {
                 members.sort_by(|a, b| nodes[*a].name.cmp(&nodes[*b].name));
             } else {
-                members.sort_by(|a, b| key(*a, &nodes).partial_cmp(&key(*b, &nodes)).unwrap().then(nodes[*a].name.cmp(&nodes[*b].name)));
+                members.sort_by(|a, b| key(*a, &nodes).total_cmp(&key(*b, &nodes)).then(nodes[*a].name.cmp(&nodes[*b].name)));
             }
             let n = members.len() as f32;
             for (k, m) in members.iter().enumerate() {
