@@ -450,7 +450,7 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     if !raw.mnemonic.starts_with("ldr") || !raw.ops.to_ascii_lowercase().starts_with("pc,") {
         return vec![];
     }
-    if !ops.contains("[pc,") || !ops.contains("lsl #2") { return vec![]; }
+    if !ops.contains("lsl #2") { return vec![]; }
     let mut bound = None;
     for (&addr, _) in insns.range(..at).rev().take(24) {
         let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
@@ -461,8 +461,26 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         }
     }
     let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
-    // In ARM state the PC operand reads as address + 8.
-    let table = at.saturating_add(8);
+    // In ARM state the PC operand reads as address + 8. A table-base register
+    // form is also common: `add r3, pc, #imm; ldr pc, [r3, rN, lsl #2]`.
+    let table = if ops.contains("[pc,") {
+        at.saturating_add(8)
+    } else {
+        let mem = ops.split('[').nth(1).and_then(|s| s.split(',').next()).unwrap_or("").trim();
+        let mut found = None;
+        for (&addr, _) in insns.range(..at).rev().take(24) {
+            let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
+            let lower = prev.ops.to_ascii_lowercase();
+            let p = lower.split(", ").map(str::trim).collect::<Vec<_>>();
+            if prev.mnemonic == "add" && p.len() >= 3 && p[0] == mem && p[1] == "pc" {
+                let imm = p[2].trim_start_matches('#');
+                let value = imm.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| imm.parse().ok());
+                if let Some(v) = value { found = Some(addr.saturating_add(8).saturating_add(v)); break; }
+            }
+        }
+        let Some(table) = found else { return vec![] };
+        table
+    };
     let mut out = Vec::new();
     for k in 0..count {
         let b = bin.read(table + (k * 4) as u64, 4);

@@ -1,6 +1,9 @@
-# Lens 0.6.97 — Fourier
+# Lens 0.6.98 — Fourier
 
 ## What's new
+
+- ARM32 table-base switch idioms now recover bounded targets from `add pc, #imm` plus indexed loads.
+- Compiler-generated indirect branches through register-relative tables become real graph edges.
 
 - AArch64 direct 32/64-bit pointer switch tables now recover bounded targets alongside offset tables.
 - Common compiler-generated br-through-table cases become real graph edges and pseudocode cases.

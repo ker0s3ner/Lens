@@ -103,6 +103,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - RISC-V, MIPS and PowerPC jump-table recognizers are now connected to live indirect-branch traversal.
 - Lens JSON import now restores exported pointer-table entries as persistent native pointer definitions.
 - AArch64 direct 32/64-bit pointer switch tables now recover bounded targets alongside offset tables.
+- ARM32 register-relative jump tables now recover bounded targets alongside PC-relative tables.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
