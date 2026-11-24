@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k move lifting now respects Capstone’s source–destination operand order for immediate, register, and memory forms.",
+    "M68k $-prefixed hexadecimal immediates and a deterministic moveq/rts pseudocode golden regression now validate recovered return constants.",
     "The golden corpus now checks ARM64 pseudocode for a recovered constant return.",
     "ARM64 validation now covers both analysis metadata and decompiler output.",
     "The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis.",

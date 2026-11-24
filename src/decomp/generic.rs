@@ -156,7 +156,7 @@ fn parse_imm(s: &str) -> Option<i64> {
         Some(r) => (true, r),
         None => (false, t),
     };
-    let v = if let Some(h) = t.strip_prefix("0x") { i64::from_str_radix(h, 16).ok().or_else(|| u64::from_str_radix(h, 16).ok().map(|x| x as i64))? } else { t.parse::<i64>().ok()? };
+    let v = if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("$")) { i64::from_str_radix(h, 16).ok().or_else(|| u64::from_str_radix(h, 16).ok().map(|x| x as i64))? } else { t.parse::<i64>().ok()? };
     Some(if neg { v.wrapping_neg() } else { v })
 }
 
@@ -426,7 +426,7 @@ fn is_named_addr(dc: &Dc, a: u64) -> bool {
 
 impl<'a> Dc<'a> {
     fn g_rd_raw(&mut self, st: &mut St, r: R) -> Ex {
-        if r.i == ZERO {
+        if r.i == ZERO && !matches!(fam(self.bin.arch), Fam::M68k) {
             return Ex::Num(0);
         }
         if r.i == abi_sp() {
@@ -475,7 +475,7 @@ impl<'a> Dc<'a> {
     }
 
     fn g_wr(&mut self, st: &mut St, r: R, v: Ex, addr: u64) {
-        if r.i == ZERO || r.i == abi_sp() {
+        if (r.i == ZERO && !matches!(fam(self.bin.arch), Fam::M68k)) || r.i == abi_sp() {
             return;
         }
         let v = if ex_size(&v) > 16 {
@@ -939,12 +939,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::M68k, m) if m.starts_with("move") && ops.len() >= 2 => {
             let size = if m.ends_with(".b") { 1 } else if m.ends_with(".w") { 2 } else if m.ends_with(".q") { 8 } else { 4 };
             if let Some((mm, _)) = parse_mem(fm, ops, 0) {
-                let value = dc.g_val(st, o(1), None);
+                let value = dc.g_val(st, o(0), None);
                 dc.g_store(st, value, reg(1), &mm, size, addr);
             } else if let Some((mm, _)) = parse_mem(fm, ops, 1) {
-                dc.g_load(st, reg(0), &mm, size, false, addr);
-            } else if let Some(r) = reg(0) {
-                let value = dc.g_val(st, o(1), None);
+                dc.g_load(st, reg(1), &mm, size, false, addr);
+            } else if let Some(r) = reg(1) {
+                let value = dc.g_val(st, o(0), None);
                 dc.g_wr(st, r, value, addr);
             }
         }

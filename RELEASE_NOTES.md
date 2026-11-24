@@ -1,3 +1,8 @@
+# Lens 0.6.438 — Fourier
+
+- M68k move lifting now respects Capstone’s source–destination operand order, so immediate, register, and memory moves update the correct destination register.
+- M68k `$`-prefixed hexadecimal immediates and a deterministic `moveq #$2a,d0; rts` pseudocode golden regression now validate recovered return constants.
+
 # Lens 0.6.437 — Fourier
 
 - The golden corpus now checks ARM64 pseudocode for a recovered constant return.

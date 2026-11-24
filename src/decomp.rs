@@ -3317,6 +3317,20 @@ mod tests {
     }
 
     #[test]
+    fn m68k_moveq_return_has_stable_pseudocode_golden() {
+        let bin = raw_binary(&RawSpec {
+            path: "m68k-golden".into(), name: "m68k-golden".into(), arch: Arch::M68k, big: true,
+            segs: vec![(0x1000, vec![0x70, 0x2A, 0x4E, 0x75])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let raw = crate::multiarch::one(&bin, 0x1000).unwrap();
+        assert_eq!((raw.mnemonic.as_str(), raw.ops.as_str()), ("moveq", "#$2a, d0"));
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("return 0x2A;"), "unexpected M68k pseudocode:\n{text}");
+    }
+
+    #[test]
     fn scalar_sse_registers_get_float_declarations() {
         let bin = raw_binary(&RawSpec {
             path: "sse".into(), name: "sse".into(), arch: Arch::X64, big: false,
