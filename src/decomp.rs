@@ -12,6 +12,10 @@ use crate::analysis::{decode_at, display_symbol, is_noreturn_name, Analysis, Flo
 use crate::detect::CallConv;
 use crate::loader::Binary;
 use iced_x86::{ConditionCode, Instruction, Mnemonic, OpKind, Register};
+
+fn is_debug_noreturn(names: &[String], name: &str) -> bool {
+    names.iter().any(|candidate| candidate == name)
+}
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 mod generic;
@@ -755,14 +759,14 @@ impl<'a> Dc<'a> {
                 let n = self.callee_name(info.target);
                 let nr = self.an.functions.get(&info.target).map(|f| f.noreturn).unwrap_or(false)
                     || is_noreturn_name(&n)
-                    || self.bin.debug_noreturn.iter().any(|p| p == &n);
+                    || is_debug_noreturn(&self.bin.debug_noreturn, &n);
                 let skip = matches!(n.as_str(), "chkstk" | "alloca_probe" | "security_check_cookie" | "__chkstk" | "_alloca_probe" | "_chkstk" | "__security_check_cookie");
                 (Ex::Var(n), nr, skip)
             }
             _ => {
                 if info.mem != 0 && (self.names.contains_key(&info.mem) || self.an.import_slot.contains_key(&info.mem)) {
                     let n = self.callee_name(info.mem);
-                    let nr = is_noreturn_name(&n) || self.bin.debug_noreturn.iter().any(|p| p == &n);
+                    let nr = is_noreturn_name(&n) || is_debug_noreturn(&self.bin.debug_noreturn, &n);
                     (Ex::Var(n), nr, false)
                 } else if ins.op_kind(0) == OpKind::Register {
                     (self.rd_reg(st, ins.op_register(0)), false, false)
@@ -2276,6 +2280,13 @@ mod tests {
     use crate::analysis::{analyze, Settings};
     use crate::loader::{raw_binary, Arch, RawSpec};
     use std::sync::{atomic::AtomicU32, Arc};
+
+    #[test]
+    fn pdb_no_return_names_match_pseudocode_callees_exactly() {
+        let names = vec!["fatal_error".to_string(), "panic".to_string()];
+        assert!(is_debug_noreturn(&names, "fatal_error"));
+        assert!(!is_debug_noreturn(&names, "fatal_error_extra"));
+    }
 
     #[test]
     fn dereference_formatter_preserves_pointer_pointees() {

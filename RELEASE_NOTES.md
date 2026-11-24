@@ -1,6 +1,9 @@
-# Lens 0.6.117 — Fourier
+# Lens 0.6.118 — Fourier
 
 ## What's new
+
+- PDB no-return name matching in pseudocode is now exact and regression-tested.
+- Decompiler tests cover the boundary between CodeView metadata and terminating callees.
 
 - PDB-marked never-returning procedures now also terminate pseudocode call lifting.
 - Decompiler control flow now agrees with PE analysis for CodeView no-return metadata.

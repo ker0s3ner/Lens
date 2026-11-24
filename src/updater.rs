@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB no-return name matching in pseudocode is now exact and regression-tested.",
+    "Decompiler tests cover the boundary between CodeView metadata and terminating callees.",
     "PDB-marked never-returning procedures now also terminate pseudocode call lifting.",
     "Decompiler control flow now agrees with PE analysis for CodeView no-return metadata.",
     "CodeView never-returning procedure flags now terminate PE control-flow analysis conservatively.",
