@@ -1,3 +1,8 @@
+# Lens 0.6.408 — Fourier
+
+- Shift-scaled struct-pointer arrays now preserve variable-index nested field paths.
+- Variable-index struct reconstruction now accepts explicit power-of-two element strides.
+
 # Lens 0.6.407 — Fourier
 
 - Variable-index pointer reconstruction now recognizes power-of-two shift scaling such as `index << 2`.

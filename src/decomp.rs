@@ -357,10 +357,17 @@ impl Fmt<'_> {
             (Ex::Num(offset), Ex::Bin("+", base, scaled)) => (base, scaled, *offset),
             _ => return None,
         };
-        let Ex::Bin("*", left, right) = &**index else { return None };
-        let (index, element_size) = match (&**left, &**right) {
-            (index, Ex::Num(size)) => (index, *size),
-            (Ex::Num(size), index) => (index, *size),
+        let (index, element_size) = match &**index {
+            Ex::Bin("*", left, right) => match (&**left, &**right) {
+                (index, Ex::Num(size)) => (index, *size),
+                (Ex::Num(size), index) => (index, *size),
+                _ => return None,
+            },
+            Ex::Bin("<<", index, shift) => {
+                let Ex::Num(shift) = **shift else { return None };
+                if !(0..=6).contains(&shift) { return None; }
+                (&**index, 1_i64 << shift as u32)
+            }
             _ => return None,
         };
         if element_size <= 0 || stride < 0 { return None; }
@@ -3452,6 +3459,9 @@ mod tests {
         let address = Ex::Bin("+", Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(scaled))), Box::new(Ex::Num(4)));
         let expression = Ex::Deref(Box::new(address), 4);
         assert_eq!(fmt.show(&expression), "p[i].value");
+        let shifted = Ex::Bin("<<", Box::new(var("i")), Box::new(Ex::Num(3)));
+        let shifted_address = Ex::Bin("+", Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(shifted))), Box::new(Ex::Num(4)));
+        assert_eq!(fmt.show(&Ex::Deref(Box::new(shifted_address), 4)), "p[i].value");
     }
 
     #[test]

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Shift-scaled struct-pointer arrays now preserve variable-index nested field paths.",
+    "Variable-index struct reconstruction now accepts explicit power-of-two element strides.",
     "Variable-index pointer reconstruction now recognizes power-of-two shift scaling such as index << 2.",
     "Known struct-pointer arrays now render variable-index field accesses such as p[index].field.",
     "Known struct-pointer arrays now render variable-index field accesses such as p[index].field.",
