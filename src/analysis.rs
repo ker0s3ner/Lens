@@ -2100,6 +2100,13 @@ mod tests {
     }
 
     #[test]
+    fn parses_signed_riscv_switch_adjustments() {
+        assert_eq!(parse_riscv_signed("-0x20"), Some(-0x20));
+        assert_eq!(parse_riscv_signed("12"), Some(12));
+        assert_eq!(100_u64.wrapping_add_signed(parse_riscv_signed("-0x20").unwrap()), 68);
+    }
+
+    #[test]
     fn recovers_arm32_absolute_switch_table() {
         // cmp r0, #2; ldr pc, [pc, r0, lsl #2]; table at PC+8.
         let mut code = vec![0x02, 0x00, 0x50, 0xE3, 0x00, 0xF1, 0x9F, 0xE7];
