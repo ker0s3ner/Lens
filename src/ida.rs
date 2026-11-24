@@ -882,7 +882,7 @@ impl LensApp {
         let State::Ready(l) = &mut self.state else { return };
         let (mut n, mut c, mut f, mut d) = (0, 0, 0, 0);
         if text.trim_start().starts_with('{') {
-            let exported = serde_json::from_str::<serde_json::Value>(&text).ok().map(|v| v.get("schema").is_some() || v.get("file").is_some() || v.get("data_definitions").is_some()).unwrap_or(false);
+            let exported = serde_json::from_str::<serde_json::Value>(&text).ok().map(|v| v.get("schema").is_some() || v.get("file").is_some() || v.get("data_definitions").is_some() || v.get("array_records").is_some()).unwrap_or(false);
             let parsed = if exported {
                 Err(serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, "Lens analysis export")))
             } else {
@@ -929,6 +929,26 @@ impl LensApp {
                                 }
                             }
                             recognized = true;
+                        }
+                    }
+                    if let Some(arr) = v.get("array_records").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            let (Some(addr), Some(width), Some(count)) = (
+                                item.get("address").and_then(|x| x.as_u64()),
+                                item.get("element_size").and_then(|x| x.as_u64()),
+                                item.get("count").and_then(|x| x.as_u64()),
+                            ) else { continue };
+                            if !(1..=8).contains(&width) || !(2..=1_000_000).contains(&count) { continue; }
+                            let code = width as u8;
+                            let mut added = 0usize;
+                            for index in 0..count {
+                                let slot = addr.saturating_add(index.saturating_mul(width));
+                                if l.bin.is_mapped(slot) && !l.an.insns.contains_key(&slot) {
+                                    l.ann.data_defs.insert(slot, code);
+                                    added += 1;
+                                }
+                            }
+                            if added > 0 { d += added; recognized = true; }
                         }
                     }
                     if let Some(arr) = v.get("applied_types").and_then(|x| x.as_array()) {
