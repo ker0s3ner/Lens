@@ -1,6 +1,9 @@
-# Lens 0.6.133 — Fourier
+# Lens 0.6.134 — Fourier
 
 ## What's new
+
+- Enum constant propagation now recognizes transparent casts around typed parameters.
+- Compiler-generated enum comparisons remain readable after explicit scalar conversions.
 
 - Typed enum parameters now render named Enum::Member constants in decompiler comparisons.
 - Enum propagation now covers call arguments, return values, and conditional control flow.

@@ -1528,7 +1528,12 @@ impl Emit<'_> {
                 let left = self.enumize(*left);
                 let right = self.enumize(*right);
                 let named = |param: &Ex, value: &Ex| -> Option<Ex> {
-                    let Ex::Var(name) = param else { return None };
+                    let name = match param {
+                        Ex::Var(name) => name,
+                        Ex::Cast(_, inner) => match &**inner { Ex::Var(name) => name, _ => return None },
+                        Ex::CastOwned(_, inner) => match &**inner { Ex::Var(name) => name, _ => return None },
+                        _ => return None,
+                    };
                     let Ex::Num(value) = value else { return None };
                     let ty = self.enum_params.get(name)?;
                     let member = self.enum_constants.get(ty)?.get(value)?;
