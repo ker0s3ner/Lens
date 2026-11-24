@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Added scripts/smoke-corpus.sh for repeatable headless loader and analysis checks on host binaries.",
+    "The smoke corpus discovers available executables at runtime and fails on missing analysis reports.",
     "Enum-typed switch expressions now render recovered case labels as named Enum::Member values.",
     "Unknown and non-enum jump-table cases retain their numeric labels.",
     "Enum constant propagation now recognizes transparent casts around typed parameters.",

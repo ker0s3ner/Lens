@@ -1,6 +1,9 @@
-# Lens 0.6.135 — Fourier
+# Lens 0.6.136 — Fourier
 
 ## What's new
+
+- Added `scripts/smoke-corpus.sh` for repeatable headless loader and analysis checks on host binaries.
+- The smoke corpus discovers available executables at runtime and fails on missing analysis reports.
 
 - Enum-typed switch expressions now render recovered case labels as named Enum::Member values.
 - Unknown and non-enum jump-table cases retain their numeric labels.
