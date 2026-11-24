@@ -116,6 +116,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PDB discovery now honors a valid embedded absolute path before local executable-directory fallbacks.
 - PE analysis also imports procedure/public symbols from PDB module streams, not only the global symbol table.
 - PDB procedure records now contribute conservative primitive/pointer prototypes to the decompiler.
+- PDB prototypes are retained even when their symbol names were already known from PE exports.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
