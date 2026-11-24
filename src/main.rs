@@ -205,6 +205,15 @@ fn cli(args: &[String]) -> bool {
                 "writable": s.write,
                 "file_offset": s.file_offset,
             })).collect::<Vec<_>>(),
+            "import_records": bin.imports.iter().map(|i| serde_json::json!({
+                "slot": i.slot,
+                "name": i.name,
+                "library": i.library,
+            })).collect::<Vec<_>>(),
+            "export_records": bin.exports.iter().map(|e| serde_json::json!({
+                "address": e.addr,
+                "name": e.name,
+            })).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

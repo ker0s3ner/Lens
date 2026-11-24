@@ -1,4 +1,18 @@
 # Lens 0.6.197 — Fourier
+# Lens 0.6.198 — Fourier
+
+## What's new
+
+- JSON analysis reports now include detailed import slots and export symbol records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.197 — Fourier
 
 ## What's new
 
