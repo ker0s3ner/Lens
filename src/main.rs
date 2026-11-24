@@ -174,6 +174,8 @@ fn cli(args: &[String]) -> bool {
             "function_records": an.functions.values().map(|f| serde_json::json!({
                 "start": f.start,
                 "end": f.end,
+                "name": bin.symbols.iter().find(|(address, _)| *address == f.start).map(|(_, name)| name),
+                "kind": format!("{:?}", f.kind),
                 "blocks": f.blocks.len(),
                 "instructions": f.insn_count,
                 "calls": f.calls,

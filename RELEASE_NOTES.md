@@ -1,6 +1,20 @@
 # Lens 0.6.197 — Fourier
 # Lens 0.6.198 — Fourier
 # Lens 0.6.199 — Fourier
+# Lens 0.6.200 — Fourier
+
+## What's new
+
+- JSON function records now include matched symbol names and recovered function kinds.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.199 — Fourier
 
 ## What's new
 
