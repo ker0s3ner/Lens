@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in.",
+    "Exception entry points carry pointer-return and noreturn metadata for better control-flow recovery.",
     "C++ operator new[] and operator delete[] prototypes now resolve by their full names.",
     "Array allocation calls now share the existing pointer-return and typed-call recovery path.",
     "Built-in C++ operator new/delete prototypes now parse and resolve by their full names.",

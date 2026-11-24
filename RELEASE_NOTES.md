@@ -1,3 +1,8 @@
+# Lens 0.6.433 — Fourier
+
+- C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in.
+- Exception entry points carry pointer-return and noreturn metadata for better control-flow recovery.
+
 # Lens 0.6.432 — Fourier
 
 - C++ operator new[] and operator delete[] prototypes now resolve by their full names.
