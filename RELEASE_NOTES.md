@@ -1,3 +1,8 @@
+# Lens 0.6.423 — Fourier
+
+- Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.
+- Merge-block propagation remains conservative and requires matching incoming assignments before rewriting uses.
+
 # Lens 0.6.422 — Fourier
 
 - Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.
