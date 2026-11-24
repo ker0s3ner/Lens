@@ -1,6 +1,9 @@
-# Lens 0.6.124 — Fourier
+# Lens 0.6.125 — Fourier
 
 ## What's new
+
+- PDB fixed-array members now import supported element counts and storage sizes from CodeView dimensions.
+- Unknown array element layouts remain skipped instead of being assigned guessed sizes.
 
 - PDB LF_BITFIELD members now retain CodeView bit positions and widths in imported layouts.
 - Supported PDB bitfields no longer collapse into ordinary scalar fields during type recovery.

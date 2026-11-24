@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB fixed-array members now import supported element counts and storage sizes from CodeView dimensions.",
+    "Unknown array element layouts remain skipped instead of being assigned guessed sizes.",
     "PDB LF_BITFIELD members now retain CodeView bit positions and widths in imported layouts.",
     "Supported PDB bitfields no longer collapse into ordinary scalar fields during type recovery.",
     "PDB struct and union recovery now retains supported CodeView callback members as pointer-sized fields.",
