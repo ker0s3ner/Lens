@@ -901,6 +901,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
                 continue;
             }
             bin.slice = id.to_string();
+            bin.file_base = offset as u64;
             bin.notes.push(format!("Mach-O fileset: opened embedded entry '{id}' at file offset 0x{offset:X}."));
             load_macho(bin, &child, child_slice);
             return;
@@ -909,6 +910,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
             let Some(child_slice) = slice.get(offset..) else { return };
             let Ok(child) = goblin::mach::MachO::parse(child_slice, 0) else { return };
             bin.slice = id.clone();
+            bin.file_base = offset as u64;
             bin.notes.push(format!("Mach-O fileset: requested entry unavailable; opened fallback '{id}' at file offset 0x{offset:X}."));
             load_macho(bin, &child, child_slice);
             return;

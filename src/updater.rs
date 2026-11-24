@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Selected Mach-O fileset images now retain their embedded file base offset for patching and exported metadata.",
+    "Fileset diagnostics preserve both the entry name and original file location.",
     "Mach-O fileset loading now honors `--slice <entry-name>` for embedded images.",
     "When a requested fileset entry is unavailable, Lens records the miss and opens the first parseable fallback image.",
     "Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader.",

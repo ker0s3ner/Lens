@@ -1,3 +1,17 @@
+# Lens 0.6.156 — Fourier
+
+## What's new
+
+- Selected Mach-O fileset images now retain their embedded file base offset for patching and exported metadata.
+- Fileset diagnostics preserve both the entry name and original file location.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.155 — Fourier
 
 ## What's new
