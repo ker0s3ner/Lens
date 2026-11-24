@@ -101,11 +101,12 @@ fn cli(args: &[String]) -> bool {
             return true;
         }
     };
-    // Keep CLI decompilation and script reports aligned with the GUI: DWARF /
-    // CodeView prototypes recovered by the loader must be visible to the
-    // shared decompiler before any pseudocode is rendered.
-    protos::set_user(&bin.debug_protos);
-    let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+    // Keep CLI reports aligned with the GUI: load saved annotations before
+    // analysis so user-created functions, data definitions, prototypes, and
+    // names all participate in the same analysis/decompiler pass.
+    let ann = store::load_annotations(&bin.path, bin.file_size);
+    protos::set_user(&format!("{}\n{}", bin.debug_protos, ann.protos));
+    let an = analysis::analyze(&bin, &analysis::Settings { min_string_len: 5, extra_functions: ann.functions.clone(), data_defs: ann.data_defs.clone() }, std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
     let det = detect::detect(&bin, &an);
     if sig_apply {
         let m = sigs::apply(&bin, &an);
@@ -144,7 +145,6 @@ fn cli(args: &[String]) -> bool {
     }
     if let Some(sp) = &script {
         let src = std::fs::read_to_string(sp).unwrap_or_default();
-        let ann = store::load_annotations(&bin.path, bin.file_size);
         let names = app::build_names(&an, &ann, &det, &bin);
         let xrefs: std::collections::HashMap<u64, Vec<u64>> = an.xrefs_to.iter().map(|(a, v)| (*a, v.iter().map(|x| x.from).collect())).collect();
         let mut out_xrefs: std::collections::HashMap<u64, Vec<u64>> = std::collections::HashMap::new();
@@ -180,6 +180,7 @@ fn cli(args: &[String]) -> bool {
         for c in r.cmds { println!("cmd: {c:?}"); }
     }
     if json_report {
+        let names = app::build_names(&an, &ann, &det, &bin);
         let xrefs_to = &an.xrefs_to;
         let mut entry_records: Vec<u64> = bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).chain(bin.func_hints.iter().copied()).collect();
         entry_records.sort_unstable();
@@ -234,7 +235,7 @@ fn cli(args: &[String]) -> bool {
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),
             "pseudocode_records": an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|function| {
-                let code = decomp::decompile_with_types(&bin, &an, &an.names, function, det.conv, "", &bin.debug_structs);
+                let code = decomp::decompile_with_types(&bin, &an, &names, function, det.conv, "", &ann.structs);
                 serde_json::json!({
                     "address": function.start,
                     "name": bin.symbols.iter().find(|(address, _)| *address == function.start).map(|(_, name)| name),

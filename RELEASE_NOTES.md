@@ -1,3 +1,8 @@
+# Lens 0.6.344 — Fourier
+
+- CLI analysis now loads saved per-file annotations before discovery and pseudocode generation.
+- JSON reports and scripts now preserve user-defined functions, names, prototypes, data definitions, and structs like the GUI.
+
 # Lens 0.6.343 — Fourier
 
 - CLI JSON pseudocode now receives recovered DWARF and CodeView struct layouts instead of an empty type database.
