@@ -1,3 +1,8 @@
+# Lens 0.6.332 — Fourier
+
+- Chained pointer typedefs now resolve through named aliases such as `typedef FooAlias *FooPtr`.
+- Scalar-pointer indexing keeps its existing typed rendering while struct-pointer alias recovery gains dedicated regression coverage.
+
 # Lens 0.6.331 — Fourier
 
 - Pointer typedefs now preserve their struct targets instead of collapsing to `void *`.
