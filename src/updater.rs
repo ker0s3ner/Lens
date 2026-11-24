@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C++ operator new[] and operator delete[] prototypes now resolve by their full names.",
+    "Array allocation calls now share the existing pointer-return and typed-call recovery path.",
     "Built-in C++ operator new/delete prototypes now parse and resolve by their full names.",
     "Pointer-returning operator new calls now participate in existing typed-call propagation.",
     "ARM64 min/max helper selection now has direct regression coverage.",

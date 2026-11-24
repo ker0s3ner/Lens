@@ -170,7 +170,7 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
         let joined = head.join(" ").replace('*', " * ");
         let mut toks: Vec<&str> = joined.split_whitespace().collect();
         let Some(last) = toks.pop() else { errs.push(format!("No name in: {d}")); continue };
-        let operator_name = if last == "new" || last == "delete" {
+        let operator_name = if matches!(last, "new" | "delete" | "new[]" | "delete[]") {
             if toks.last() == Some(&"operator") { toks.pop(); Some(format!("operator {last}")) } else { None }
         } else { None };
         let name = operator_name.as_deref().unwrap_or(last);
@@ -272,7 +272,7 @@ char *strtok(char *s, const char *delim); size_t strspn(const char *s, const cha
 char *strerror(int errnum); char *strpbrk(const char *s, const char *accept); size_t strlcpy(char *dst, const char *src, size_t n); size_t strlcat(char *dst, const char *src, size_t n);
 // ---- stdlib
 void *malloc(size_t size); void *calloc(size_t n, size_t size); void *realloc(void *p, size_t size); void free(void *p);
-void *operator new(size_t size); void operator delete(void *p);
+void *operator new(size_t size); void operator delete(void *p); void *operator new[](size_t size); void operator delete[](void *p);
 void exit(int status) noreturn; void abort(void) noreturn; void _exit(int status) noreturn; int atexit(void (*fn)(void));
 int atoi(const char *s); long atol(const char *s); long strtol(const char *s, char **end, int base); unsigned long strtoul(const char *s, char **end, int base);
 double strtod(const char *s, char **end); double atof(const char *s); char *getenv(const char *name); int setenv(const char *name, const char *value, int overwrite);
@@ -392,6 +392,8 @@ mod tests {
         assert!(find("no_such_function_xyz").is_none());
         assert_eq!(find("operator new").unwrap().ret, "void *");
         assert_eq!(find("operator delete").unwrap().params.len(), 1);
+        assert_eq!(find("operator new[]").unwrap().ret, "void *");
+        assert_eq!(find("operator delete[]").unwrap().params.len(), 1);
     }
 
     #[test]

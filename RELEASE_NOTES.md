@@ -1,3 +1,8 @@
+# Lens 0.6.432 — Fourier
+
+- C++ operator new[] and operator delete[] prototypes now resolve by their full names.
+- Array allocation calls now share the existing pointer-return and typed-call recovery path.
+
 # Lens 0.6.431 — Fourier
 
 - Built-in C++ operator new/delete prototypes now parse and resolve by their full names.
