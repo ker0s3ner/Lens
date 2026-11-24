@@ -34,6 +34,12 @@ for target in "${targets[@]}"; do
     printf '%s\n' "$json" >&2
     exit 1
   }
+  for field in noreturn_functions forwarding_thunks switch_tables; do
+    grep -q "\"$field\":" <<<"$json" || {
+      echo "missing JSON field $field for $target" >&2
+      exit 1
+    }
+  done
 done
 
 echo "smoke corpus: ${#targets[@]} targets passed"

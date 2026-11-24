@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "CLI JSON reports now expose no-return, forwarding-thunk, and switch-table counts.",
     "Functions calling imported no-return slots now retain their termination metadata.",
     "Prototype parsing now accepts GNU and compiler-qualified no-return attribute spellings.",
     "No-return status now propagates through known wrapper and thunk call chains.",

@@ -1,3 +1,16 @@
+# Lens 0.6.184 — Fourier
+
+## What's new
+
+- CLI JSON reports now expose no-return, forwarding-thunk, and switch-table counts.
+
+## Verification
+
+- `cargo test --locked --quiet` — 79 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.183 — Fourier
 
 ## What's new
