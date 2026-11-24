@@ -1135,6 +1135,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             let mut local: BTreeSet<u64> = BTreeSet::new();
             let mut work = vec![fstart];
             let mut calls = vec![];
+            let mut local_noreturn = false;
             let mut leaders: BTreeSet<u64> = BTreeSet::new();
             leaders.insert(fstart);
             while let Some(mut a) = work.pop() {
@@ -1217,6 +1218,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                                 callee_name(t, &dec_only).map(|n| is_noreturn_name(&n) || bin.debug_noreturn.iter().any(|p| p == &n)).unwrap_or(false)
                             });
                             if nr {
+                                local_noreturn = true;
                                 break;
                             }
                             a = next;
@@ -1226,6 +1228,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                                 if let Some(ix) = import_slot.get(&info.mem) {
                                     calls.push(bin.imports[*ix].slot);
                                     if is_noreturn_name(&bin.imports[*ix].name) {
+                                        local_noreturn = true;
                                         break;
                                     }
                                 }
@@ -1316,7 +1319,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             // and has no recognizable symbol or prototype.
             let terminates = addrs.iter().filter_map(|a| insns.get(a).map(|i| (a, i))).max_by_key(|(a, _)| *a)
                 .map(|(_, i)| i.flow == Flow::Stop).unwrap_or(false);
-            let noreturn = terminates || callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n) || bin.debug_noreturn.iter().any(|p| p == &n)).unwrap_or(false);
+            let noreturn = terminates || local_noreturn || callee_name(fstart, &dec_only).map(|n| is_noreturn_name(&n) || bin.debug_noreturn.iter().any(|p| p == &n)).unwrap_or(false);
             calls.sort();
             calls.dedup();
             functions.insert(
@@ -2029,6 +2032,17 @@ mod tests {
         bin.imports.push(crate::loader::Import { slot: 0x1010, name: "puts".into(), library: "libc".into() });
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert!(an.functions[&0x1000].calls.contains(&0x1010));
+    }
+
+    #[test]
+    fn marks_import_slot_noreturn_calls() {
+        let mut code = vec![0xFF, 0x15, 0x0A, 0x00, 0x00, 0x00, 0xC3];
+        code.resize(0x20, 0);
+        let spec = RawSpec { path: "noret-import".into(), name: "noret-import".into(), arch: Arch::X64, big: false, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into() };
+        let mut bin = raw_binary(&spec);
+        bin.imports.push(crate::loader::Import { slot: 0x1010, name: "exit".into(), library: "libc".into() });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions[&0x1000].noreturn);
     }
 }
 

@@ -1,3 +1,16 @@
+# Lens 0.6.183 — Fourier
+
+## What's new
+
+- Functions calling imported no-return slots now retain their termination metadata.
+
+## Verification
+
+- `cargo test --locked --quiet` — 79 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.182 — Fourier
 
 ## What's new
