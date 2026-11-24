@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ELF analysis notes now report how many dynamic init/fini array roots were accepted.",
+    "Root-count diagnostics make stripped-binary constructor discovery and malformed-table handling visible in reports.",
     "ELF `DT_PREINIT_ARRAY` entries now seed bounded, executable-range-validated preinitialization function roots.",
     "The loader now covers preinit, init, and fini dynamic function arrays when section metadata is unavailable.",
     "ELF dynamic `DT_INIT_ARRAY` and `DT_FINI_ARRAY` tables now seed bounded, executable-range-validated function roots.",

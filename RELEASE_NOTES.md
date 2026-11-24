@@ -1,3 +1,17 @@
+# Lens 0.6.153 — Fourier
+
+## What's new
+
+- ELF analysis notes now report how many dynamic init/fini array roots were accepted.
+- Root-count diagnostics make stripped-binary constructor discovery and malformed-table handling visible in reports.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.152 — Fourier
 
 ## What's new

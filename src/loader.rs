@@ -466,6 +466,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
         let preinit_base = dynamic.dyns.iter().find(|d| d.d_tag == goblin::elf::dynamic::DT_PREINIT_ARRAY).map(|d| d.d_val).unwrap_or(0);
         let preinit_size = dynamic.dyns.iter().find(|d| d.d_tag == goblin::elf::dynamic::DT_PREINIT_ARRAYSZ).map(|d| d.d_val).unwrap_or(0);
         let arrays = arrays.into_iter().chain([(preinit_base, preinit_size, "__elf_preinit_array")]);
+        let mut dynamic_roots = 0usize;
         for (base, size, prefix) in arrays {
             if base == 0 || width == 0 { continue; }
             for index in 0..(size / width).min(4096) {
@@ -473,8 +474,12 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
                 let Some(addr) = bin.read_ptr(slot) else { continue };
                 if addr != 0 && bin.is_exec(addr) && !bin.symbols.iter().any(|(a, _)| *a == addr) {
                     bin.symbols.push((addr, format!("{prefix}_{index}")));
+                    dynamic_roots += 1;
                 }
             }
+        }
+        if dynamic_roots > 0 {
+            bin.notes.push(format!("ELF dynamic init/fini arrays: {dynamic_roots} executable function root(s) discovered."));
         }
     }
     for sym in elf.syms.iter().chain(elf.dynsyms.iter()) {
