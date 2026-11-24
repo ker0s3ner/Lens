@@ -458,6 +458,21 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
                 bin.symbols.push((addr, name.to_string()));
             }
         }
+        let width = (bin.bitness() / 8) as u64;
+        let arrays = [
+            (dynamic.info.init_array as u64, dynamic.info.init_arraysz as u64, "__elf_init_array"),
+            (dynamic.info.fini_array as u64, dynamic.info.fini_arraysz as u64, "__elf_fini_array"),
+        ];
+        for (base, size, prefix) in arrays {
+            if base == 0 || width == 0 { continue; }
+            for index in 0..(size / width).min(4096) {
+                let slot = base.saturating_add(index * width);
+                let Some(addr) = bin.read_ptr(slot) else { continue };
+                if addr != 0 && bin.is_exec(addr) && !bin.symbols.iter().any(|(a, _)| *a == addr) {
+                    bin.symbols.push((addr, format!("{prefix}_{index}")));
+                }
+            }
+        }
     }
     for sym in elf.syms.iter().chain(elf.dynsyms.iter()) {
         if sym.st_shndx == 0 {

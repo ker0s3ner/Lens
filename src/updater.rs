@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ELF dynamic `DT_INIT_ARRAY` and `DT_FINI_ARRAY` tables now seed bounded, executable-range-validated function roots.",
+    "Constructor and destructor discovery now works when section names are stripped but dynamic metadata remains.",
     "ELF dynamic `DT_INIT` and `DT_FINI` entry points now seed validated function discovery.",
     "The loader accepts these roots only when they fall inside executable mappings, preserving conservative analysis on malformed files.",
     "Pointer arithmetic propagation now remains available in the decompiler's earlier fixed-point type pass.",

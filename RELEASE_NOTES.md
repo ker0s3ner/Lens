@@ -1,3 +1,17 @@
+# Lens 0.6.151 — Fourier
+
+## What's new
+
+- ELF dynamic `DT_INIT_ARRAY` and `DT_FINI_ARRAY` tables now seed bounded, executable-range-validated function roots.
+- Constructor and destructor discovery now works when section names are stripped but dynamic metadata remains.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.150 — Fourier
 
 ## What's new
