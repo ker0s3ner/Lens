@@ -1,6 +1,9 @@
-# Lens 0.6.83 — Fourier
+# Lens 0.6.84 — Fourier
 
 ## What's new
+
+- AArch64 NEON dot-product and widening multiply-accumulate families now remain visible as named pseudocode intrinsics.
+- Common ML, image, and DSP vector accumulation operations no longer fall through to opaque generic handling.
 
 - AArch64 NEON bit-select and mask-combine families now remain visible as named pseudocode intrinsics.
 - Branchless vector mask operations no longer fall through to opaque generic handling.
