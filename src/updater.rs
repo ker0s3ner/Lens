@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB struct and union layouts now retain named enum members with their CodeView underlying widths.",
+    "Enum-typed fields are no longer dropped during conservative PDB layout recovery.",
     "PDB CodeView modifier records now preserve const and volatile qualifiers in recovered types.",
     "Qualified scalar fields continue to receive correct storage sizing during layout import.",
     "PDB fixed-array members now import supported element counts and storage sizes from CodeView dimensions.",

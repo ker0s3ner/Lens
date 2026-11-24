@@ -1,6 +1,9 @@
-# Lens 0.6.126 — Fourier
+# Lens 0.6.127 — Fourier
 
 ## What's new
+
+- PDB struct and union layouts now retain named enum members with their CodeView underlying widths.
+- Enum-typed fields are no longer dropped during conservative PDB layout recovery.
 
 - PDB CodeView modifier records now preserve const and volatile qualifiers in recovered types.
 - Qualified scalar fields continue to receive correct storage sizing during layout import.
