@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum identity now survives safe integer casts during decompiler local-copy propagation.",
+    "Enum propagation still invalidates on unrelated expressions, keeping cast-aware naming conservative.",
     "Enum propagation now invalidates a local when it is overwritten by a non-enum value.",
     "Decompiler enum naming remains conservative across reassignment, avoiding stale member labels.",
     "Enum type information now propagates through safe local variable copies in decompiled pseudocode.",

@@ -1,3 +1,8 @@
+# Lens 0.6.373 — Fourier
+
+- Enum identity now survives safe integer casts during decompiler local-copy propagation.
+- Enum propagation still invalidates on unrelated expressions, keeping cast-aware naming conservative.
+
 # Lens 0.6.372 — Fourier
 
 - Enum propagation now invalidates a local when it is overwritten by a non-enum value.

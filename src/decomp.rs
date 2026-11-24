@@ -724,8 +724,16 @@ fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap
         let mut changed = false;
         for block in outs {
             for (_, stmt) in &block.stmts {
-                if let Stmt::Assign(Ex::Var(dst), Ex::Var(src)) = stmt {
-                    if let Some(ty) = vars.get(src).cloned() {
+                if let Stmt::Assign(Ex::Var(dst), rhs) = stmt {
+                    let source = match rhs {
+                        Ex::Var(src) => vars.get(src).cloned(),
+                        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => match &**inner {
+                            Ex::Var(src) => vars.get(src).cloned(),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(ty) = source {
                         let old = vars.insert(dst.clone(), ty.clone());
                         changed |= old.as_ref() != Some(&ty);
                     } else {
@@ -2845,6 +2853,7 @@ mod tests {
                 (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("a1".into()))),
                 (1, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("v1".into()))),
                 (2, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("rax".into()))),
+                (3, Stmt::Assign(Ex::Var("v3".into()), Ex::Cast("int".into(), Box::new(Ex::Var("v1".into()))))),
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
         }];
@@ -2852,6 +2861,7 @@ mod tests {
         let vars = infer_enum_vars(&outs, &seed);
         assert_eq!(vars.get("v1").map(String::as_str), Some("Color"));
         assert!(!vars.contains_key("v2"));
+        assert_eq!(vars.get("v3").map(String::as_str), Some("Color"));
     }
 
     #[test]
