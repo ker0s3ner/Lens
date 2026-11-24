@@ -1,3 +1,8 @@
+# Lens 0.6.439 — Fourier
+
+- Rhai `call_graph` now builds function-level incoming and outgoing adjacency once per script run instead of rescanning every xref for each frontier node.
+- Graph edges are normalized, sorted, deduplicated, and still bounded by the existing 256-node safety cap, preserving deterministic results while reducing large-binary expansion cost.
+
 # Lens 0.6.438 — Fourier
 
 - M68k move lifting now respects Capstone’s source–destination operand order, so immediate, register, and memory moves update the correct destination register.

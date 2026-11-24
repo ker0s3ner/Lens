@@ -258,10 +258,26 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         callees.dedup();
         arr_u64(&callees)
     });
+    let normalize_graph_addr = |addr: u64| snap.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size)).map(|(start, _, _, _)| *start).unwrap_or(addr);
+    let mut graph_out: HashMap<u64, Vec<(u64, String)>> = HashMap::new();
+    for (from, refs) in &snap.out_xref_details {
+        let source = normalize_graph_addr(*from);
+        let out = graph_out.entry(source).or_default();
+        out.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, kind)| (normalize_graph_addr(*to), kind.clone())));
+    }
+    let mut graph_in: HashMap<u64, Vec<(u64, String)>> = HashMap::new();
+    for (target, refs) in &snap.xref_details {
+        let destination = normalize_graph_addr(*target);
+        let incoming = graph_in.entry(destination).or_default();
+        incoming.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(from, kind)| (normalize_graph_addr(*from), kind.clone())));
+    }
+    for refs in graph_out.values_mut().chain(graph_in.values_mut()) {
+        refs.sort_unstable();
+        refs.dedup();
+    }
     let s = snap.clone();
     e.register_fn("call_graph", move |a: INT, depth: INT| -> Array {
         let normalize = |addr: u64| s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(addr);
-        let outgoing = |source: u64| s.out_xref_details.iter().filter(move |(from, _)| normalize(**from) == source).flat_map(|(_, refs)| refs.iter()).filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump"));
         let center = normalize(a as u64);
         let max_depth = depth.clamp(0, 8) as usize;
         const MAX_GRAPH_NODES: usize = 256;
@@ -272,8 +288,8 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         for _ in 0..=max_depth {
             let mut next = Vec::new();
             for source in frontier {
-                for (target, kind) in outgoing(source) {
-                    let target = normalize(*target);
+                for (target, kind) in graph_out.get(&source).into_iter().flatten() {
+                    let target = *target;
                     if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&target) { continue; }
                     if seen.insert((source, target, kind.clone())) {
                         let mut row = Map::new();
@@ -285,10 +301,8 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                         if visited.insert(target) { next.push(target); }
                     }
                 }
-                for (from, kind) in s.xref_details.iter().filter_map(|(target, refs)| {
-                    (normalize(*target) == source).then_some(refs)
-                }).flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")) {
-                    let from = normalize(*from);
+                for (from, kind) in graph_in.get(&source).into_iter().flatten() {
+                    let from = *from;
                     if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&from) { continue; }
                     if seen.insert((from, source, kind.clone())) {
                         let mut row = Map::new();
