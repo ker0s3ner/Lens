@@ -412,8 +412,13 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
                 let operands = lowered.split(", ").map(str::trim).collect::<Vec<_>>();
                 if prev.mnemonic == "add" && operands.len() >= 3 && operands[0] == base && operands[1] == "pc" {
                     let imm = operands[2].trim_start_matches('#');
-                    let value = imm.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| imm.parse().ok());
-                    if let Some(value) = value { found = Some(((addr + 4) & !3).saturating_add(value)); break; }
+                    let (negative, digits) = imm.strip_prefix('-').map_or((false, imm), |digits| (true, digits));
+                    let value = digits.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| digits.parse().ok());
+                    if let Some(value) = value {
+                        let base = (addr + 4) & !3;
+                        found = Some(if negative { base.saturating_sub(value) } else { base.saturating_add(value) });
+                        break;
+                    }
                 }
             }
             let Some(table) = found else { return vec![] };

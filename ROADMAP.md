@@ -233,6 +233,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Enum-typed switch expressions now render named members for recovered jump-table cases.
 - Enum-aware constant propagation now folds multiplication, division, and remainder in typed comparisons.
 - Thumb indexed `ldr pc` tables can now recover a table base prepared by `add reg, pc, #imm`.
+- Thumb register-based switch tables accept signed PC-relative base immediates.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
 - Enum comparison rendering through transparent casts now has direct expression-level regression coverage.
