@@ -45,6 +45,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
     let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, bool)> = HashMap::new();
     let mut bitfields: HashMap<pdb::TypeIndex, (u8, u8)> = HashMap::new();
     let mut enum_sizes: HashMap<pdb::TypeIndex, u32> = HashMap::new();
+    let mut layout_sizes: HashMap<String, u32> = HashMap::new();
     let mut records = Vec::new();
     while let Ok(Some(item)) = iter.next() {
         let Ok(data) = item.parse() else { continue };
@@ -58,6 +59,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 lists.insert(item.index(), (fields, list.continuation, has_base));
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct | pdb::ClassKind::Class | pdb::ClassKind::Interface) => {
+                if class.size <= u32::MAX as u64 { layout_sizes.insert(format!("struct {}", class.name), class.size as u32); }
                 if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
             }
             pdb::TypeData::Bitfield(bitfield) => {
@@ -75,6 +77,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 if size != 0 { enum_sizes.insert(item.index(), size); }
             }
             pdb::TypeData::Union(union) => {
+                if union.size <= u32::MAX as u64 { layout_sizes.insert(format!("union {}", union.name), union.size as u32); }
                 records.push((union.name.to_string().into_owned(), union.fields, union.size, true));
             }
             _ => {}
@@ -94,7 +97,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
             let ty = types.get(&field_type)?.clone();
-            let field_size = if let Some(size) = enum_sizes.get(&field_type) { *size } else if ty.ends_with('*') || ty.starts_with("fn(") { ptr } else if let Some((base, count)) = ty.strip_suffix(']').and_then(|t| t.rsplit_once('[')) {
+            let field_size = if let Some(size) = enum_sizes.get(&field_type) { *size } else if let Some(size) = layout_sizes.get(&ty) { *size } else if ty.ends_with('*') || ty.starts_with("fn(") { ptr } else if let Some((base, count)) = ty.strip_suffix(']').and_then(|t| t.rsplit_once('[')) {
                 let element = match base { "char" | "int8_t" | "uint8_t" | "bool" => 1, "short" | "int16_t" | "uint16_t" => 2, "int" | "int32_t" | "uint32_t" | "float" => 4, "long" | "int64_t" | "uint64_t" | "double" => 8, _ if base.ends_with('*') => ptr, _ => 0 };
                 if element == 0 { return None; }
                 element.saturating_mul(count.parse::<u32>().ok()?)

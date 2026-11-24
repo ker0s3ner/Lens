@@ -134,6 +134,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Enum-typed CodeView members now retain their underlying storage widths in imported PDB layouts.
 - CodeView C++ class/interface records now contribute supported explicit data members to imported layouts.
 - PDB class layouts with unsupported base-class records now fail closed rather than exposing partial types.
+- Direct nested struct/union members now use recovered PDB record sizes during layout import.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

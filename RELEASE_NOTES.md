@@ -1,6 +1,9 @@
-# Lens 0.6.129 — Fourier
+# Lens 0.6.130 — Fourier
 
 ## What's new
+
+- PDB layouts now retain direct nested struct and union members using recovered record sizes.
+- Nested data members are no longer discarded solely because their enclosing record is another CodeView type.
 
 - PDB class layouts containing unsupported base-class records are now skipped instead of partially imported.
 - Direct-member-only C++ class and interface layouts remain available through the Types database.
