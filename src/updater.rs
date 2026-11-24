@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "README decompiler capability documentation now includes the latest AArch64 NEON reciprocal, complex, dot-product, and mask semantics.",
+    "User-facing architecture coverage is synchronized with the shipped implementation.",
     "AArch64 NEON dot-product and widening multiply-accumulate families now remain visible as named pseudocode intrinsics.",
     "Common ML, image, and DSP vector accumulation operations no longer fall through to opaque generic handling.",
     "AArch64 NEON bit-select and mask-combine families now remain visible as named pseudocode intrinsics.",
