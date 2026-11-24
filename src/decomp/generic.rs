@@ -1187,6 +1187,15 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 .unwrap_or_else(|| Ex::Call(Box::new(var(if base_mn == "mflo" { "__mips_lo" } else { "__mips_hi" })), vec![]));
             set(dc, st, 0, v);
         }
+        (Fam::A32, "ubfx" | "sbfx") if ops.len() >= 4 => {
+            let src = dc.g_val(st, o(1), None);
+            let lsb = parse_imm(&ops[2]).unwrap_or(0).clamp(0, 31) as u32;
+            let width = parse_imm(&ops[3]).unwrap_or(32).clamp(1, i64::from(32 - lsb)) as u32;
+            let mask = if width == 32 { u64::from(u32::MAX) } else { (1u64 << width) - 1 };
+            let extracted = bin("&", bin(">>", src, Ex::Num(lsb as i64)), Ex::Num(mask as i64));
+            let value = if base_mn == "sbfx" { Ex::Cast("int32_t", Box::new(extracted)) } else { extracted };
+            set(dc, st, 0, value);
+        }
         (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") => arith(dc, st, "/", false),
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),

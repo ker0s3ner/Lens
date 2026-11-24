@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 and Thumb UBFX/SBFX now render as explicit field-extraction expressions, matching the AArch64 path.",
+    "ARM-family bitfield recovery now preserves unsigned and signed extraction intent instead of opaque mnemonics.",
     "RISC-V SH1ADD.UW, SH2ADD.UW, and SH3ADD.UW now preserve low-word zero-extension in scaled-index expressions.",
     "The roadmap now tracks the current 0.6.300 Fourier build and its expanded RISC-V address-generation coverage.",
     "RISC-V ADD.UW and SUB.UW now preserve their low-word zero-extension semantics in pseudocode.",

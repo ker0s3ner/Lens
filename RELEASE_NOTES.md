@@ -1,3 +1,8 @@
+# Lens 0.6.301 — Fourier
+
+- ARM32 and Thumb UBFX/SBFX now render as explicit field-extraction expressions, matching the AArch64 path.
+- ARM-family bitfield recovery now preserves unsigned and signed extraction intent instead of opaque mnemonics.
+
 # Lens 0.6.300 — Fourier
 
 - RISC-V SH1ADD.UW, SH2ADD.UW, and SH3ADD.UW now preserve low-word zero-extension in scaled-index expressions.
