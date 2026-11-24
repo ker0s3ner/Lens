@@ -1,3 +1,17 @@
+# Lens 0.6.167 — Fourier
+
+## What's new
+
+- Packed pointer tables can now be discovered and promoted even when their first entry is unaligned.
+- Unaligned table detection requires a complete native-stride run, keeping isolated packed pointers out of Lists.
+
+## Verification
+
+- `cargo test --locked --quiet` — 68 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.166 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 67 passed
+- `cargo test --locked --quiet` — 68 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

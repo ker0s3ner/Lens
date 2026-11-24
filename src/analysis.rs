@@ -1452,6 +1452,28 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         }
         flush(&mut run_start, &mut run, &mut pointer_tables, &mut vtables, s.start);
 
+        // Packed tables may begin between native-word boundaries. Discover only
+        // complete runs of the native stride so isolated unaligned pointers do
+        // not become tables.
+        for start in 1..s.data.len() {
+            if start % w == 0 || start + 2 * w > s.data.len() { continue; }
+            let mut entries = Vec::new();
+            let mut pos = start;
+            while pos + w <= s.data.len() {
+                let value = bin.read_ptr(s.start + pos as u64).unwrap_or(0);
+                if value == 0 || !bin.is_mapped(value) { break; }
+                entries.push(value);
+                pos += w;
+            }
+            if entries.len() >= 2 {
+                let addr = s.start + start as u64;
+                pointer_tables.entry(addr).or_insert_with(|| entries.clone());
+                if entries.iter().all(|value| bin.is_exec(*value)) {
+                    vtables.entry(addr).or_insert(entries);
+                }
+            }
+        }
+
         // Itanium C++ vtables normally begin with two non-function metadata
         // slots: offset-to-top and a pointer to the typeinfo object. The
         // function-pointer run starts after that header, so the conservative
@@ -2057,6 +2079,17 @@ mod idea_tests {
         bin.segments[1].exec = false;
         let an = run(&bin, Default::default());
         assert!(an.xrefs_to.get(&0x1000).unwrap_or(&vec![]).iter().any(|x| x.from == 0x2001 && x.kind == XrefKind::Data));
+    }
+
+    #[test]
+    fn discovers_unaligned_pointer_table() {
+        let code = vec![0xC3, 0xC3];
+        let mut data = vec![0x7F];
+        for target in [0x1000u64, 0x1001] { data.extend_from_slice(&target.to_le_bytes()); }
+        let mut bin = bin_of(code, data);
+        bin.segments[1].exec = false;
+        let an = run(&bin, Default::default());
+        assert_eq!(an.pointer_tables.get(&0x2001), Some(&vec![0x1000, 0x1001]));
     }
 
     #[test]

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Packed pointer tables can now be discovered and promoted even when their first entry is unaligned.",
+    "Unaligned table detection requires a complete native-stride run, keeping isolated packed pointers out of Lists.",
     "Data-reference recovery now detects validated native pointers at unaligned offsets in packed data.",
     "Added regression coverage for unaligned pointer xrefs without broadening pointer-table classification.",
     "Added deterministic ARM32 relative-offset switch regression coverage to protect cross-architecture control-flow recovery.",
