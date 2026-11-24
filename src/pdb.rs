@@ -76,7 +76,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
             let ty = types.get(&field_type)?.clone();
-            let field_size = if ty.ends_with('*') { ptr } else { match ty.as_str() {
+            let field_size = if ty.ends_with('*') || ty.starts_with("fn(") { ptr } else { match ty.as_str() {
                 "char" | "int8_t" | "uint8_t" | "bool" => 1,
                 "short" | "int16_t" | "uint16_t" => 2,
                 "int" | "int32_t" | "uint32_t" | "float" => 4,

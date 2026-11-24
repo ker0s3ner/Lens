@@ -1,6 +1,9 @@
-# Lens 0.6.122 — Fourier
+# Lens 0.6.123 — Fourier
 
 ## What's new
+
+- PDB struct and union recovery now retains supported CodeView callback members as pointer-sized fields.
+- Procedure-type members are routed through Lens callback declarations instead of being discarded.
 
 - Split CodeView field lists are now reconstructed across continuation records.
 - Large PDB structs, unions, and enums no longer lose members at field-list boundaries.

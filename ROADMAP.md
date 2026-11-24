@@ -127,6 +127,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CodeView/PDB struct records now import conservative scalar/pointer member layouts with compiler offsets.
 - CodeView/PDB union records now import supported overlapping scalar/pointer members.
 - CodeView field-list continuation records are reconstructed for large PDB structs, unions, and enums.
+- CodeView procedure-type members in PDB layouts now survive as pointer-sized callback fields.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

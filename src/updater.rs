@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB struct and union recovery now retains supported CodeView callback members as pointer-sized fields.",
+    "Procedure-type members are routed through Lens callback declarations instead of being discarded.",
     "Split CodeView field lists are now reconstructed across continuation records.",
     "Large PDB structs, unions, and enums no longer lose members at field-list boundaries.",
     "PE/PDB union records now import supported overlapping members through the Types database.",
