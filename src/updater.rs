@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PE .pdata hints now reject records outside executable image ranges before they reach analysis.",
+    "PE function-start hints are now sorted and deduplicated, with regression coverage for duplicate and invalid records.",
     "PE ARM64 loading now seeds stripped function discovery from .pdata runtime-function records.",
     "PE unwind-based function hints now cover both x64 and ARM64 images through the shared bounded table parser.",
     "MIPS madd/maddu now preserve multiply-accumulate updates through the implicit HI/LO pair.",

@@ -1,3 +1,8 @@
+# Lens 0.6.335 — Fourier
+
+- PE `.pdata` hints now reject records outside executable image ranges before they reach analysis.
+- PE function-start hints are now sorted and deduplicated, with regression coverage for duplicate and invalid records.
+
 # Lens 0.6.334 — Fourier
 
 - PE ARM64 loading now seeds stripped function discovery from `.pdata` runtime-function records.
