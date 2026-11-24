@@ -1,7 +1,12 @@
+# Lens 0.6.400 — Fourier
+
+- Enum constant propagation now folds constant ternary expressions in typed comparisons.
+- C enum declarations now accept constant ternary expressions, including parenthesized branches.
+
 # Lens 0.6.399 — Fourier
 
-- Enum constant propagation now folds C-style logical `&&` and `||` expressions.
-- Enum constant propagation now folds unary logical-not expressions.
+- Enum constant propagation now folds C-style logical `&&`, `||`, and unary logical-not expressions.
+- C enum declarations now accept logical `&&`, `||`, and unary `!` constant expressions, including parenthesized forms.
 
 # Lens 0.6.398 — Fourier
 

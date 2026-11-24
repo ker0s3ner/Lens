@@ -352,6 +352,20 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         if let Some(rest) = s.strip_prefix('!') {
             return Some((eval(rest, names)? == 0) as i64);
         }
+        let mut depth = 0i32;
+        let mut question = None;
+        for (i, c) in s.char_indices() {
+            match c { '(' => depth += 1, ')' => depth -= 1, '?' if depth == 0 => { question = Some(i); break; }, _ => {} }
+        }
+        if let Some(q) = question {
+            depth = 0;
+            for (i, c) in s[q + 1..].char_indices() {
+                match c { '(' => depth += 1, ')' => depth -= 1, ':' if depth == 0 => {
+                    let colon = q + 1 + i;
+                    return if eval(&s[..q], names)? != 0 { eval(&s[q + 1..colon], names) } else { eval(&s[colon + 1..], names) };
+                }, _ => {} }
+            }
+        }
         for op in ["||", "&&", "|", "^", "&", "<<", ">>", "+", "-"] {
             let mut depth = 0i32;
             for (i, c) in s.char_indices().rev() {
@@ -574,9 +588,9 @@ mod tests {
 
     #[test]
     fn parses_logical_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0 }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0, Choice = 1 ? 2 : 3 }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
-        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1)]);
+        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1), ("Choice", 2)]);
     }
 
     #[test]

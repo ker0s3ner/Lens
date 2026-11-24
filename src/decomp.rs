@@ -724,6 +724,7 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
         Ex::Un("-", value) => enum_const_int(value)?.checked_neg(),
         Ex::Un("~", value) => Some(!enum_const_int(value)?),
         Ex::Un("!", value) => Some((enum_const_int(value)? == 0) as i64),
+        Ex::Tern(condition, yes, no) => if enum_const_int(condition)? != 0 { enum_const_int(yes) } else { enum_const_int(no) },
         Ex::Bin(op, left, right) => {
             let (left, right) = (enum_const_int(left)?, enum_const_int(right)?);
             match *op {
@@ -2939,6 +2940,8 @@ mod tests {
         assert_eq!(emit.fmt.show(&logical_member), "a1 == Color::One");
         let not_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Un("!", Box::new(Ex::Num(0))))));
         assert_eq!(emit.fmt.show(&not_member), "a1 == Color::One");
+        let ternary_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Tern(Box::new(Ex::Num(1)), Box::new(Ex::Num(2)), Box::new(Ex::Num(1))))));
+        assert_eq!(emit.fmt.show(&ternary_member), "a1 == Color::Two");
     }
 
     #[test]

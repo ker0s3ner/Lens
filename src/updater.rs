@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum constant propagation now folds constant ternary expressions in typed comparisons.",
+    "C enum declarations now accept constant ternary expressions, including parenthesized branches.",
     "C enum declarations now accept logical &&, ||, and unary ! constant expressions, including parenthesized forms.",
     "Enum constant propagation now folds logical &&, ||, and unary ! expressions in typed comparisons.",
     "Enum constant propagation now folds C-style logical && and || expressions.",
