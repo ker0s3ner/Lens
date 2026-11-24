@@ -29,6 +29,20 @@
 # Lens 0.6.225 — Fourier
 # Lens 0.6.226 — Fourier
 # Lens 0.6.227 — Fourier
+# Lens 0.6.228 — Fourier
+
+## What's new
+
+- No-return propagation now follows conservative multi-instruction tail-call edges.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.227 — Fourier
 
 ## What's new
 

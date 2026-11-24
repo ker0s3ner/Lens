@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "No-return propagation now follows conservative multi-instruction tail-call edges.",
     "Static analysis now records conservative multi-instruction tail calls in the call graph.",
     "JSON entry records are now deterministically sorted and deduplicated.",
     "JSON entry records now include loader-provided function-start hints.",

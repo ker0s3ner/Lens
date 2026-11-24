@@ -1586,6 +1586,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         v.sort_by_key(|x| x.from);
         v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
     }
+    propagate_noreturn(&mut functions);
 
     // ---- names ----
     let mut names: HashMap<u64, (String, NameKind)> = HashMap::new();
