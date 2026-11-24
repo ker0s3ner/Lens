@@ -1,3 +1,10 @@
+# Lens 0.6.270 — Fourier
+
+- Rhai scripts can now query normalized function callers and callees directly.
+- Caller/callee script results collapse instruction-level xrefs to containing functions when available.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.269 — Fourier
 
 - Decompiler now distinguishes logical `SHR` from arithmetic `SAR` shifts.

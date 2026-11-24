@@ -239,6 +239,26 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         }).collect()).unwrap_or_default()
     });
     let s = snap.clone();
+    e.register_fn("callers", move |a: INT| -> Array {
+        let target = a as u64;
+        let mut callers: Vec<u64> = s.xrefs.get(&target).into_iter().flatten().map(|from| {
+            s.funcs.iter().find(|(start, _, size, _)| *from >= *start && *from < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(*from)
+        }).collect();
+        callers.sort_unstable();
+        callers.dedup();
+        arr_u64(&callers)
+    });
+    let s = snap.clone();
+    e.register_fn("callees", move |a: INT| -> Array {
+        let start = a as u64;
+        let mut callees: Vec<u64> = s.out_xrefs.get(&start).into_iter().flatten().map(|to| {
+            s.funcs.iter().find(|(candidate, _, size, _)| *to >= *candidate && *to < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(*to)
+        }).collect();
+        callees.sort_unstable();
+        callees.dedup();
+        arr_u64(&callees)
+    });
+    let s = snap.clone();
     e.register_fn("decompile", move |a: INT| -> String {
         s.pseudocode.get(&(a as u64)).cloned().unwrap_or_default()
     });
@@ -648,12 +668,12 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: [(0x1000, "needle_name".into())].into_iter().collect(), strings: vec![(0x2000, "needle string".into())],
-            comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: HashMap::new(), xref_details: HashMap::new(), out_xrefs: HashMap::new(), out_xref_details: HashMap::new(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
+            comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: [(0x1000, vec![0x1100])].into_iter().collect(), xref_details: HashMap::new(), out_xrefs: [(0x1100, vec![0x1000])].into_iter().collect(), out_xref_details: HashMap::new(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
-        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
-        assert!(out.text.contains("1") && out.text.contains("4"), "unexpected output: {}", out.text);
+        assert!(out.text.contains("1") && out.text.contains("4") && out.text.contains("1\n1"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
         let _ = an;
     }
