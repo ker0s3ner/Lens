@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now include recovered debug struct, union, enum, and alias layouts.",
     "JSON analysis reports now include compact classified listing-line records.",
     "JSON pointer-table and vtable records now include their incoming references.",
     "JSON function records now include their incoming reference addresses.",

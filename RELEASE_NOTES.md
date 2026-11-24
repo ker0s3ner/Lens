@@ -18,6 +18,20 @@
 # Lens 0.6.214 — Fourier
 # Lens 0.6.215 — Fourier
 # Lens 0.6.216 — Fourier
+# Lens 0.6.217 — Fourier
+
+## What's new
+
+- JSON analysis reports now include recovered debug struct, union, enum, and alias layouts.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.216 — Fourier
 
 ## What's new
 
