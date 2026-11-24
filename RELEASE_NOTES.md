@@ -1,3 +1,8 @@
+# Lens 0.6.309 — Fourier
+
+- The deterministic golden gate now covers x64, ARM64, and RISC-V 64 raw instruction fixtures.
+- Cross-architecture metadata and one-function decoding counts are now checked on three representative CPU families.
+
 # Lens 0.6.308 — Fourier
 
 - The deterministic golden gate now covers both a real x64 function and a one-instruction ARM64 return fixture.
