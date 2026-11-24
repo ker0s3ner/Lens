@@ -37,6 +37,28 @@ mod visuals;
 
 use eframe::egui;
 
+fn array_records(an: &analysis::Analysis) -> Vec<serde_json::Value> {
+    let mut cells: Vec<(u64, u8)> = an.data_size.iter().filter_map(|(address, code)| {
+        let width = code & 0x7f;
+        if *code == analysis::DEF_STRING || (*code & 0x80) != 0 || !(1..=8).contains(&width) { None } else { Some((*address, width)) }
+    }).collect();
+    cells.sort_unstable();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < cells.len() {
+        let (start, width) = cells[i];
+        let mut count = 1usize;
+        while i + count < cells.len() && cells[i + count].0 == start + width as u64 * count as u64 && cells[i + count].1 == width { count += 1; }
+        if count >= 2 {
+            let end = start + width as u64 * count as u64;
+            out.push(serde_json::json!({"address": start, "element_size": width, "count": count, "size": end - start,
+                "references": an.xrefs_to.get(&start).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default()}));
+        }
+        i += count;
+    }
+    out
+}
+
 fn cli(args: &[String]) -> bool {
     if let Some(a) = args.iter().position(|a| a == "--arch").and_then(|i| args.get(i + 1)) {
         let want = a.to_lowercase().replace(['-', ' '], "");
@@ -335,6 +357,7 @@ fn cli(args: &[String]) -> bool {
                 "size": if *code == analysis::DEF_STRING { serde_json::Value::Null } else { serde_json::json!(code & 0x7f) },
                 "references": an.xrefs_to.get(address).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
+            "array_records": array_records(&an),
             "pointer_table_records": an.pointer_tables.iter().map(|(address, targets)| serde_json::json!({
                 "address": address,
                 "targets": targets,
