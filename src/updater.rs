@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 register-relative switch recovery now has a raw-binary regression fixture.",
+    "The analyzer test suite now covers 55 deterministic cases across architecture and interchange paths.",
     "ARM32 table-base switch idioms now recover bounded targets from `add pc, #imm` plus indexed loads.",
     "Compiler-generated indirect branches through register-relative tables become real graph edges.",
     "AArch64 direct 32/64-bit pointer switch tables now recover bounded targets alongside offset tables.",

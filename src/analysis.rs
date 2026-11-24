@@ -1827,6 +1827,23 @@ mod tests {
     }
 
     #[test]
+    fn recovers_arm32_register_relative_switch_table() {
+        // add r3, pc, #8; cmp r0, #2; ldr pc, [r3, r0, lsl #2].
+        let mut code = vec![
+            0x08, 0x30, 0x8F, 0xE2, // add r3, pc, #8 -> table at 0x1010
+            0x02, 0x00, 0x50, 0xE3, // cmp r0, #2
+            0x00, 0xF1, 0x93, 0xE7, // ldr pc, [r3, r0, lsl #2]
+            0, 0, 0, 0, // alignment padding
+        ];
+        for target in [0x1020_u32, 0x1024, 0x1028] { code.extend_from_slice(&target.to_le_bytes()); }
+        code.extend_from_slice(&[0; 4]);
+        code.extend_from_slice(&[0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1]);
+        let spec = RawSpec { path: "arm-base".into(), name: "arm-base".into(), arch: Arch::Arm32, big: false, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into() };
+        let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert_eq!(an.switches.get(&0x1008), Some(&vec![0x1020, 0x1024, 0x1028]));
+    }
+
+    #[test]
     fn classifies_direct_forwarding_thunks() {
         let spec = RawSpec {
             path: "t".into(), name: "t".into(), arch: Arch::X64, big: false,

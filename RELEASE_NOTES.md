@@ -1,6 +1,9 @@
-# Lens 0.6.98 — Fourier
+# Lens 0.6.99 — Fourier
 
 ## What's new
+
+- ARM32 register-relative switch recovery now has a raw-binary regression fixture.
+- The analyzer test suite now covers 55 deterministic cases across architecture and interchange paths.
 
 - ARM32 table-base switch idioms now recover bounded targets from `add pc, #imm` plus indexed loads.
 - Compiler-generated indirect branches through register-relative tables become real graph edges.
