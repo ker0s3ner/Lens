@@ -953,6 +953,9 @@ fn other_prologue(arch: Arch, b: &[u8]) -> bool {
         Arch::Arm64 => (w & 0xFFC0_7FFF) == 0xA980_7BFD || (w & 0xFF00_03FF) == 0xD100_03FF || w == 0xD503_237F || w == 0xD503_245F,
         // push {.., lr}
         Arch::Arm32 => (w & 0xFFFF_4000) == 0xE92D_4000,
+        // Thumb push {low registers, lr}; the 16-bit encoding is stored
+        // little-endian in the raw bytes, with bit 8 selecting lr.
+        Arch::Thumb => (w as u16 & 0xFE00) == 0xB400,
         Arch::RiscV64 | Arch::RiscV32 => (w & 0x000F_FFFF) == 0x0001_0113 && (w >> 31) == 1,
         _ => false,
     }
@@ -1896,6 +1899,13 @@ mod tests {
         assert!(is_noreturn_name("runtime.panicSliceAlen"));
         assert!(is_noreturn_name("runtime.goexit"));
         assert!(is_noreturn_name("core::panicking::panic_bounds_check"));
+    }
+
+    #[test]
+    fn recognises_thumb_push_link_register_prologue() {
+        assert!(other_prologue(Arch::Thumb, &[0x80, 0xB5, 0x00, 0xBF]));
+        assert!(other_prologue(Arch::Thumb, &[0xF0, 0xB5, 0x00, 0xBF]));
+        assert!(!other_prologue(Arch::Thumb, &[0x00, 0xBF, 0x00, 0xBF]));
     }
 
     #[test]

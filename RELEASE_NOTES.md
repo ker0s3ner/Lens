@@ -1,3 +1,8 @@
+# Lens 0.6.317 — Fourier
+
+- Thumb function-boundary scanning now recognizes common `push {…, lr}` prologues when discovering unreachable functions.
+- Added regression coverage for narrow and wide Thumb register-save prologues, preventing missed function starts in stripped code.
+
 # Lens 0.6.316 — Fourier
 
 - Call-graph edge rendering now handles coincident control points without producing invalid geometry.

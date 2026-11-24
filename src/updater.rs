@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Thumb function-boundary scanning now recognizes common push {…, lr} prologues when discovering unreachable functions.",
+    "Added regression coverage for narrow and wide Thumb register-save prologues, preventing missed function starts in stripped code.",
     "Call-graph edge rendering now handles coincident control points without producing invalid geometry.",
     "Call-graph layer ordering now uses a total floating-point comparison, preventing malformed layout values from panicking the UI.",
     "Raw Thumb entry points now normalize the low mode bit before analysis, so odd function pointers decode at the correct byte address.",
