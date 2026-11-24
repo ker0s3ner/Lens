@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Rhai scripts can now retrieve bounded structured call-graph edges with call_graph(addr, depth).",
+    "Call-graph script results include normalized from/to function addresses and relationship kinds.",
     "Script caller/callee queries now accept any address inside a function.",
     "Script caller/callee results now exclude data and switch-only xrefs, keeping call relationships precise.",
     "Rhai scripts can now query normalized function callers and callees directly.",

@@ -259,6 +259,34 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         arr_u64(&callees)
     });
     let s = snap.clone();
+    e.register_fn("call_graph", move |a: INT, depth: INT| -> Array {
+        let normalize = |addr: u64| s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(addr);
+        let center = normalize(a as u64);
+        let max_depth = depth.clamp(0, 8) as usize;
+        let mut seen = std::collections::HashSet::new();
+        let mut frontier = vec![center];
+        let mut edges = Vec::new();
+        for _ in 0..=max_depth {
+            let mut next = Vec::new();
+            for source in frontier {
+                for (target, kind) in s.out_xref_details.get(&source).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")) {
+                    let target = normalize(*target);
+                    if seen.insert((source, target, kind.clone())) {
+                        let mut row = Map::new();
+                        row.insert("from".into(), Dynamic::from(source as INT));
+                        row.insert("to".into(), Dynamic::from(target as INT));
+                        row.insert("kind".into(), Dynamic::from(kind.clone()));
+                        edges.push(Dynamic::from_map(row));
+                        next.push(target);
+                    }
+                }
+            }
+            frontier = next;
+            if frontier.is_empty() { break; }
+        }
+        edges
+    });
+    let s = snap.clone();
     e.register_fn("decompile", move |a: INT| -> String {
         s.pseudocode.get(&(a as u64)).cloned().unwrap_or_default()
     });
@@ -671,7 +699,7 @@ mod tests {
             comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: [(0x1000, vec![0x1100])].into_iter().collect(), xref_details: [(0x1000, vec![(0x1100, "call".into())])].into_iter().collect(), out_xrefs: [(0x1100, vec![0x1000])].into_iter().collect(), out_xref_details: [(0x1100, vec![(0x1000, "call".into())])].into_iter().collect(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
-        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); print(call_graph(0x1100, 1).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
         assert!(out.text.contains("1") && out.text.contains("4") && out.text.contains("1\n1"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);

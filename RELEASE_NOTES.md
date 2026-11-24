@@ -1,3 +1,10 @@
+# Lens 0.6.272 — Fourier
+
+- Rhai scripts can now retrieve bounded structured call-graph edges with `call_graph(addr, depth)`.
+- Call-graph script results include normalized from/to function addresses and relationship kinds.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.271 — Fourier
 
 - Script caller/callee queries now accept any address inside a function.
