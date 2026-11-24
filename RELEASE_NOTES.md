@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.255 — Fourier
+
+## What's new
+
+- Full Lens annotation JSON import now restores data, patches, types, breakpoints, prototypes, and variable renames.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.254 — Fourier
 
 ## What's new

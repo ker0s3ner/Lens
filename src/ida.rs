@@ -918,6 +918,24 @@ impl LensApp {
                     for (k, v) in a.comments { l.ann.comments.insert(k, v); c += 1; }
                     for k in a.marks { if !l.ann.marks.contains(&k) { l.ann.marks.push(k); } }
                     for k in a.functions { if !l.ann.functions.contains(&k) { l.ann.functions.push(k); f += 1; } }
+                    for (k, v) in a.data_defs { l.ann.data_defs.insert(k, v); d += 1; }
+                    for patch in a.patches { if !l.ann.patches.iter().any(|old| old.addr == patch.addr && old.old == patch.old && old.new == patch.new) { l.ann.patches.push(patch); } }
+                    for def in a.structs {
+                        if let Some(existing) = l.ann.structs.iter_mut().find(|old| old.name == def.name) { *existing = def; }
+                        else { l.ann.structs.push(def); }
+                    }
+                    for (addr, ty) in a.applied {
+                        if let Some(existing) = l.ann.applied.iter_mut().find(|(old, _)| *old == addr) { existing.1 = ty; }
+                        else { l.ann.applied.push((addr, ty)); }
+                    }
+                    for addr in a.breakpoints { if !l.ann.breakpoints.contains(&addr) { l.ann.breakpoints.push(addr); } }
+                    l.ann.bp_conditions.extend(a.bp_conditions);
+                    if !a.protos.trim().is_empty() {
+                        if !l.ann.protos.trim().is_empty() { l.ann.protos.push('\n'); }
+                        l.ann.protos.push_str(&a.protos);
+                        crate::protos::set_user(&l.ann.protos);
+                    }
+                    l.ann.vars.extend(a.vars);
                 }
                 Err(e) => {
                     let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
