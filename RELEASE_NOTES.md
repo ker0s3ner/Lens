@@ -1,3 +1,10 @@
+# Lens 0.6.280 — Fourier
+
+- Roadmap and README status now track the current Fourier build and JSON graph fields.
+- Release documentation now records the 50% target status and current 38.3% weighted estimate consistently.
+
+Verification: `cargo test --locked --quiet` — 93 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.279 — Fourier
 
 - Script `call_graph` now caps expansion at 256 functions to protect large-binary automation.
