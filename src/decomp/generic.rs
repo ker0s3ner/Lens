@@ -883,7 +883,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
     match (fm, base_mn) {
         // ---------------------------------------------------------- moves
         (_, "nop" | "pacibsp" | "paciasp" | "autiasp" | "autibsp" | "bti" | "hint" | "c.nop" | "dmb" | "dsb" | "isb" | "fence" | "sync" | "isync") => {}
-        (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") => {
+        (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") | (Fam::M68k, "move" | "moveq") => {
             let mut v = dc.g_val(st, o(1), None);
             if base_mn == "lis" {
                 v = bin("<<", v, Ex::Num(16));
@@ -1052,7 +1052,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             }
         }
         // ---------------------------------------------------------- arithmetic
-        (Fam::A64 | Fam::A32, "add") | (Fam::Rv, "add" | "addi" | "addw" | "addiw" | "c.add" | "c.addi") | (Fam::Mips, "add" | "addu" | "addi" | "addiu" | "daddu" | "daddiu") | (Fam::Ppc, "add" | "addi" | "addis" | "addic" | "addic.") => {
+        (Fam::A64 | Fam::A32, "add") | (Fam::Rv, "add" | "addi" | "addw" | "addiw" | "c.add" | "c.addi") | (Fam::Mips, "add" | "addu" | "addi" | "addiu" | "daddu" | "daddiu") | (Fam::Ppc, "add" | "addi" | "addis" | "addic" | "addic.") | (Fam::M68k, "add" | "adda" | "addq") => {
             if fm == Fam::Ppc && base_mn == "addis" {
                 let a = dc.g_val(st, o(1), None);
                 let b = dc.g_val(st, o(2), None);
@@ -1081,7 +1081,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, bin(op, left, right));
         }
         (Fam::A64 | Fam::A32, "adds") => arith(dc, st, "+", true),
-        (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") => arith(dc, st, "-", false),
+        (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") | (Fam::M68k, "sub" | "suba" | "subq") => arith(dc, st, "-", false),
         (Fam::A64 | Fam::A32, "subs") => arith(dc, st, "-", true),
         (Fam::Ppc, "subf") => {
             let a = dc.g_val(st, o(1), None);

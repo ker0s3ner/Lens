@@ -1,3 +1,8 @@
+# Lens 0.6.357 — Fourier
+
+- M68k decompilation now lifts common move and arithmetic instructions into readable expressions.
+- M68k arithmetic-family coverage now includes address and quick forms with the dedicated ABI path.
+
 # Lens 0.6.356 — Fourier
 
 - M68k now has a dedicated generic-decompiler register and ABI family instead of being routed through PowerPC semantics.

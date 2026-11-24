@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k decompilation now lifts common move and arithmetic instructions into readable expressions.",
+    "M68k arithmetic-family coverage now includes address and quick forms with the dedicated ABI path.",
     "M68k now has a dedicated generic-decompiler register and ABI family instead of being routed through PowerPC semantics.",
     "M68k data/address registers, stack-pointer handling, return register, and frame-pointer recognition now have regression coverage.",
     "Objective-C class-name metadata sections now produce stable objc_class_ names for navigation and reports.",
