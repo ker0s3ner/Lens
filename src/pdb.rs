@@ -5,6 +5,17 @@ use std::collections::HashMap;
 use std::path::Path;
 
 fn type_name(index: pdb::TypeIndex, types: &HashMap<pdb::TypeIndex, String>) -> String {
+    if index.0 < 0x1000 {
+        let base = match index.0 & 0xff {
+            0x03 => "void", 0x10 | 0x70 => "char", 0x20 => "unsigned char",
+            0x68 => "int8_t", 0x69 => "uint8_t", 0x11 | 0x72 => "int16_t", 0x21 | 0x73 => "uint16_t",
+            0x12 | 0x74 => "int32_t", 0x22 | 0x75 => "uint32_t", 0x13 | 0x76 => "int64_t", 0x23 | 0x77 => "uint64_t",
+            0x40 | 0x45 => "float", 0x41 => "double", 0x50 => "complex64", 0x51 => "complex128",
+            0x08 => "HRESULT", _ => "void",
+        };
+        let indirect = (index.0 & 0xf00) != 0;
+        return if indirect { format!("{base} *") } else { base.into() };
+    }
     types.get(&index).cloned().unwrap_or_else(|| "void".into())
 }
 
