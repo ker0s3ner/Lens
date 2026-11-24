@@ -5,13 +5,13 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 26% | 5.2% |
-| Static analysis and navigation | 20% | 51% | 10.2% |
+| Static analysis and navigation | 20% | 52% | 10.4% |
 | Decompiler and type recovery | 20% | 22% | 4.4% |
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 27% | 2.7% |
-| **Total** | **100%** |  | **35.5%** |
+| **Total** | **100%** |  | **35.7%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -70,6 +70,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Mach-O fileset entries can be selected by name with `--slice`, with a recorded fallback when the requested entry is unavailable.
 - The runtime smoke corpus now includes discovered shared-library/dylib candidates alongside executable programs.
 - CLI reports expose selected image slices and embedded file bases for universal binaries and filesets.
+- RISC-V switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V switch recovery now accepts validated signed 32-bit relative-offset tables in addition to absolute pointer tables.",
+    "Relative cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",
     "JSON and human-readable reports now expose the selected image slice and embedded file base offset.",
     "Fileset and universal-binary automation can distinguish the analyzed child image from its outer container.",
     "The analysis smoke corpus now discovers representative shared libraries and dylibs in addition to executable programs.",

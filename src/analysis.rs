@@ -641,16 +641,29 @@ fn riscv_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     if !bin.is_mapped(table) { return vec![]; }
     let width = (bin.bitness() / 8) as usize;
     let count = bound.unwrap_or(256).clamp(2, 1024);
-    let mut out = Vec::new();
+    let mut raw_entries = Vec::new();
     for k in 0..count {
         let b = bin.read(table + (k * width) as u64, width);
         if b.len() != width { break; }
-        let target = if width == 8 {
+        let raw = if width == 8 {
             if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
         } else if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 };
-        if !bin.is_exec(target) || target.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, target).is_none() { break; }
-        out.push(target);
+        raw_entries.push(raw);
     }
+    let valid = |target: u64| bin.is_exec(target) && target.abs_diff(fstart) < 0x40_0000 && decode_info(bin, target).is_some();
+    let absolute: Vec<u64> = raw_entries.iter().copied().take_while(|target| valid(*target)).collect();
+    let out = if absolute.len() >= 2 {
+        absolute
+    } else {
+        raw_entries.into_iter().map(|raw| {
+            let offset = raw as u32 as i32 as i64;
+            let from_table = table.wrapping_add_signed(offset);
+            if valid(from_table) { Some(from_table) } else {
+                let from_function = fstart.wrapping_add_signed(offset);
+                valid(from_function).then_some(from_function)
+            }
+        }).collect::<Option<Vec<_>>>().unwrap_or_default()
+    };
     if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
 }
 

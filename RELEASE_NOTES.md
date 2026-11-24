@@ -1,3 +1,17 @@
+# Lens 0.6.159 — Fourier
+
+## What's new
+
+- RISC-V switch recovery now accepts validated signed 32-bit relative-offset tables in addition to absolute pointer tables.
+- Relative cases are checked against both table-relative and function-relative bases before becoming control-flow edges.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.158 — Fourier
 
 ## What's new
