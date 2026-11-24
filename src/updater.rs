@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON database import now restores conservative scalar, pointer, and string data records.",
     "JSON database import now restores recovered debug type and prototype records.",
     "JSON analysis name and symbol records can now be restored by database import.",
     "Portable project paths now keep the active-file highlight correct after moving a project.",

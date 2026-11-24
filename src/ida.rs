@@ -924,6 +924,26 @@ impl LensApp {
                             }
                         }
                     }
+                    if let Some(arr) = v.get("data_records").and_then(|x| x.as_array()) {
+                        let pointer_width = (l.bin.bitness() / 8) as u8;
+                        for item in arr {
+                            let Some(addr) = item.get("address").and_then(|x| x.as_u64()) else { continue };
+                            let Some(kind) = item.get("kind").and_then(|x| x.as_str()) else { continue };
+                            let code = match kind {
+                                "string" => Some(crate::analysis::DEF_STRING),
+                                "pointer" => Some(item.get("size").and_then(|x| x.as_u64()).filter(|size| (1..=8).contains(size)).map(|size| size as u8).unwrap_or(pointer_width) | 0x80),
+                                "scalar" => item.get("size").and_then(|x| x.as_u64()).filter(|size| (1..=8).contains(size)).map(|size| size as u8),
+                                _ => None,
+                            };
+                            if let Some(code) = code {
+                                if l.bin.is_mapped(addr) && !l.an.insns.contains_key(&addr) {
+                                    l.ann.data_defs.insert(addr, code);
+                                    d += 1;
+                                    recognized = true;
+                                }
+                            }
+                        }
+                    }
                     if let Some(arr) = v.get("pointer_tables").and_then(|x| x.as_array()) {
                         let width = (l.bin.bitness() / 8) as u64;
                         let code = width as u8 | 0x80;
