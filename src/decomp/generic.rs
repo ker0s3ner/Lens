@@ -1023,7 +1023,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             }
         }
         // ---------------------------------------------------------- arithmetic
-        (Fam::A64 | Fam::A32, "add") | (Fam::Rv, "add" | "addi" | "addw" | "addiw" | "c.add" | "c.addi") | (Fam::Mips, "add" | "addu" | "addi" | "addiu" | "daddu" | "daddiu") | (Fam::Ppc, "add" | "addi" | "addis") => {
+        (Fam::A64 | Fam::A32, "add") | (Fam::Rv, "add" | "addi" | "addw" | "addiw" | "c.add" | "c.addi") | (Fam::Mips, "add" | "addu" | "addi" | "addiu" | "daddu" | "daddiu") | (Fam::Ppc, "add" | "addi" | "addis" | "addic" | "addic.") => {
             if fm == Fam::Ppc && base_mn == "addis" {
                 let a = dc.g_val(st, o(1), None);
                 let b = dc.g_val(st, o(2), None);
@@ -1058,6 +1058,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
             set(dc, st, 0, bin("-", b, a));
+        }
+        (Fam::Ppc, "subfic") if ops.len() >= 3 => {
+            let imm = dc.g_val(st, o(2), None);
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, bin("-", imm, value));
         }
         (Fam::Ppc, "sub") => arith(dc, st, "-", false),
         (Fam::A32, "rsb") => {

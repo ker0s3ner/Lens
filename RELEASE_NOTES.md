@@ -1,3 +1,8 @@
+# Lens 0.6.322 — Fourier
+
+- PowerPC `addic`/`addic.` now preserve immediate-add value semantics in pseudocode.
+- PowerPC `subfic` now renders the correct immediate-minus-register operand order; XER carry state remains intentionally conservative.
+
 # Lens 0.6.321 — Fourier
 
 - PowerPC `rlwnm` now preserves register-count rotate-left-and-mask semantics in pseudocode.

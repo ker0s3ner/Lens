@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC addic/addic. now preserve immediate-add value semantics in pseudocode.",
+    "PowerPC subfic now renders the correct immediate-minus-register operand order; XER carry state remains intentionally conservative.",
     "PowerPC rlwnm now preserves register-count rotate-left-and-mask semantics in pseudocode.",
     "The PowerPC rotate/mask family now covers immediate, register-count, and mask-insert forms with shared bit-range handling.",
     "PowerPC rlwimi now preserves rotate-left-and-mask-insert semantics in pseudocode.",
