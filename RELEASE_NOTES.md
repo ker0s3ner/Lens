@@ -1,3 +1,8 @@
+# Lens 0.6.434 — Fourier
+
+- C++ thread-safe static-initialization guard prototypes are now built in.
+- Guard acquire/release/abort calls now carry typed signatures for clearer decompiler output.
+
 # Lens 0.6.433 — Fourier
 
 - C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in.
