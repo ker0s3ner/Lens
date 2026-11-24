@@ -718,6 +718,28 @@ struct BlockOut {
     term_addr: u64,
 }
 
+fn enum_const_int(e: &Ex) -> Option<i64> {
+    match e {
+        Ex::Num(value) => Some(*value),
+        Ex::Un("-", value) => enum_const_int(value)?.checked_neg(),
+        Ex::Un("~", value) => Some(!enum_const_int(value)?),
+        Ex::Bin(op, left, right) => {
+            let (left, right) = (enum_const_int(left)?, enum_const_int(right)?);
+            match *op {
+                "+" => left.checked_add(right),
+                "-" => left.checked_sub(right),
+                "|" => Some(left | right),
+                "&" => Some(left & right),
+                "^" => Some(left ^ right),
+                "<<" => left.checked_shl(right.try_into().ok()?),
+                ">>" => left.checked_shr(right.try_into().ok()?),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap<String, String> {
     let mut vars = seed.clone();
     for _ in 0..outs.len().max(1) {
@@ -1899,19 +1921,19 @@ impl Emit<'_> {
                 let left = self.enumize(*left);
                 let right = self.enumize(*right);
                 let named = |param: &Ex, value: &Ex| -> Option<Ex> {
-                    let Ex::Num(value) = value else { return None };
+                    let value = enum_const_int(value)?;
                     let ty = self.enum_type(param)?;
                     let values = self.enum_constants.get(&ty)?;
-                    if let Some(member) = values.get(value) {
+                    if let Some(member) = values.get(&value) {
                         return Some(Ex::Var(format!("{ty}::{member}")));
                     }
-                    if *value <= 0 { return None; }
+                    if value <= 0 { return None; }
                     let mut parts: Vec<(i64, Ex)> = values.iter()
-                        .filter(|(candidate, _)| **candidate > 0 && (**candidate & (**candidate - 1)) == 0 && (**candidate & *value) != 0)
+                        .filter(|(candidate, _)| **candidate > 0 && (**candidate & (**candidate - 1)) == 0 && (**candidate & value) != 0)
                         .map(|(candidate, member)| (*candidate, Ex::Var(format!("{ty}::{member}"))))
                         .collect();
                     parts.sort_by_key(|(candidate, _)| std::cmp::Reverse(*candidate));
-                    let mut remaining = *value;
+                    let mut remaining = value;
                     let mut named = vec![];
                     for (candidate, member) in parts {
                         if remaining & candidate == candidate {
@@ -2867,6 +2889,8 @@ mod tests {
         assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
         let flags = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(3))));
         assert_eq!(emit.fmt.show(&flags), "a1 == (Color::Two | Color::One)");
+        let folded = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("<<", Box::new(Ex::Num(1)), Box::new(Ex::Num(1))))));
+        assert_eq!(emit.fmt.show(&folded), "a1 == Color::Two");
     }
 
     #[test]

@@ -1,3 +1,8 @@
+# Lens 0.6.378 — Fourier
+
+- Enum comparisons now fold safe integer constant expressions such as shifts and bitwise combinations.
+- Exact enum members and decomposed flag names remain preferred over raw numeric literals when folding succeeds.
+
 # Lens 0.6.377 — Fourier
 
 - Flag-style enum comparisons now decompose known power-of-two values into named members.

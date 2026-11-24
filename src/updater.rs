@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum comparisons now fold safe integer constant expressions such as shifts and bitwise combinations.",
+    "Exact enum members and decomposed flag names remain preferred over raw numeric literals when folding succeeds.",
     "Flag-style enum comparisons now decompose known power-of-two values into named members.",
     "Exact enum constants remain preferred, with conservative fallback when a value cannot be represented safely.",
     "Known enum-returning calls now retain their enum type during numeric comparisons in pseudocode.",
