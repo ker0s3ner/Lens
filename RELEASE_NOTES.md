@@ -1,3 +1,8 @@
+# Lens 0.6.324 — Fourier
+
+- PowerPC `andc` now decompiles as an AND with an inverted operand.
+- PowerPC `orc` now decompiles as an OR with an inverted operand, completing the common complementing boolean forms.
+
 # Lens 0.6.323 — Fourier
 
 - PowerPC `nor` and `nand` now decompile as explicit inverted OR/AND expressions.
