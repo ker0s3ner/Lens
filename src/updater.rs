@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Script caller/callee queries now accept any address inside a function.",
+    "Script caller/callee results now exclude data and switch-only xrefs, keeping call relationships precise.",
     "Rhai scripts can now query normalized function callers and callees directly.",
     "Caller/callee script results collapse instruction-level xrefs to containing functions when available.",
     "Decompiler now distinguishes logical SHR from arithmetic SAR shifts.",

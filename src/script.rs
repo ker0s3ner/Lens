@@ -240,8 +240,8 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     });
     let s = snap.clone();
     e.register_fn("callers", move |a: INT| -> Array {
-        let target = a as u64;
-        let mut callers: Vec<u64> = s.xrefs.get(&target).into_iter().flatten().map(|from| {
+        let target = s.funcs.iter().find(|(start, _, size, _)| (a as u64) >= *start && (a as u64) < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(a as u64);
+        let mut callers: Vec<u64> = s.xref_details.get(&target).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(from, _)| {
             s.funcs.iter().find(|(start, _, size, _)| *from >= *start && *from < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(*from)
         }).collect();
         callers.sort_unstable();
@@ -250,8 +250,8 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     });
     let s = snap.clone();
     e.register_fn("callees", move |a: INT| -> Array {
-        let start = a as u64;
-        let mut callees: Vec<u64> = s.out_xrefs.get(&start).into_iter().flatten().map(|to| {
+        let start = s.funcs.iter().find(|(candidate, _, size, _)| (a as u64) >= *candidate && (a as u64) < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(a as u64);
+        let mut callees: Vec<u64> = s.out_xref_details.get(&start).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, _)| {
             s.funcs.iter().find(|(candidate, _, size, _)| *to >= *candidate && *to < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(*to)
         }).collect();
         callees.sort_unstable();
@@ -668,7 +668,7 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 4, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: [(0x1000, "needle_name".into())].into_iter().collect(), strings: vec![(0x2000, "needle string".into())],
-            comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: [(0x1000, vec![0x1100])].into_iter().collect(), xref_details: HashMap::new(), out_xrefs: [(0x1100, vec![0x1000])].into_iter().collect(), out_xref_details: HashMap::new(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
+            comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: [(0x1000, vec![0x1100])].into_iter().collect(), xref_details: [(0x1000, vec![(0x1100, "call".into())])].into_iter().collect(), out_xrefs: [(0x1100, vec![0x1000])].into_iter().collect(), out_xref_details: [(0x1100, vec![(0x1000, "call".into())])].into_iter().collect(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
             applied_types: HashMap::new(), types: vec![],
         };
         let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);

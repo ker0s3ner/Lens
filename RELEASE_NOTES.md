@@ -1,3 +1,10 @@
+# Lens 0.6.271 — Fourier
+
+- Script caller/callee queries now accept any address inside a function.
+- Script caller/callee results now exclude data and switch-only xrefs, keeping call relationships precise.
+
+Verification: `cargo test --locked --quiet` — 91 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.270 — Fourier
 
 - Rhai scripts can now query normalized function callers and callees directly.

@@ -374,6 +374,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Rhai scripts can query typed incoming xrefs with `xrefs_to_details(addr)` without losing the relationship kind.
 - Rhai scripts can query typed outgoing xrefs with `xrefs_from_details(addr)` for symmetric call, jump, switch-case, data, and pointer analysis.
 - Rhai scripts can query normalized function-level callers and callees with `callers(addr)` and `callees(addr)`.
+- Script call queries normalize interior addresses and filter to call/jump relationships rather than data-only xrefs.
 - Recovered switch-case xrefs now feed the call graph as outgoing control-flow edges, keeping graph navigation aligned with the listing.
 - Rhai scripts can retrieve typed C-like pseudocode with `decompile(addr)` for automated audits and reports.
 - The Rhai API exposes a compatibility version through `script_api_version()`, allowing plugins to guard newer capabilities.
