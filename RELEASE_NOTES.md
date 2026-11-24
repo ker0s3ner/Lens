@@ -1,6 +1,9 @@
-# Lens 0.6.104 — Fourier
+# Lens 0.6.105 — Fourier
 
 ## What's new
+
+- Named DWARF callback parameters are retained in imported function-pointer signatures when available.
+- Type recovery now preserves both callback shapes and analyst-useful parameter names.
 
 - DWARF callback types now retain return and formal-parameter types in imported function-pointer fields.
 - Typed callbacks no longer collapse to opaque `void *` declarations in the Types tool.

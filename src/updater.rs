@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Named DWARF callback parameters are retained in imported function-pointer signatures when available.",
+    "Type recovery now preserves both callback shapes and analyst-useful parameter names.",
     "DWARF callback types now retain return and formal-parameter types in imported function-pointer fields.",
     "Typed callbacks no longer collapse to opaque `void *` declarations in the Types tool.",
     "Supported DWARF bitfields now import with their native storage offsets and widths.",

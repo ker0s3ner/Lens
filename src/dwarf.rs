@@ -96,7 +96,8 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
                             Some(AttributeValue::UnitRef(o)) => type_name(c, unit, Some(o), depth + 1),
                             _ => "void".into(),
                         };
-                        params.push(p);
+                        let pname = child.attr_value(gimli::DW_AT_name).ok().flatten().and_then(|v| attr_string(c, unit, v));
+                        params.push(pname.map(|n| format!("{p} {n}")).unwrap_or(p));
                     }
                 }
             }
