@@ -388,6 +388,8 @@ fn cli(args: &[String]) -> bool {
             "vtable_records": an.vtables.iter().map(|(address, targets)| serde_json::json!({
                 "address": address,
                 "name": an.vtable_names.get(address),
+                "segment": bin.segment_of(*address).map(|segment| segment.name.clone()),
+                "file_offset": bin.segment_of(*address).and_then(|segment| segment.file_offset.map(|offset| offset + address.saturating_sub(segment.start))),
                 "targets": targets,
                 "references": an.xrefs_to.get(address).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),

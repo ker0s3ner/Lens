@@ -54,6 +54,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Rhai snapshots expose `pointer_tables()` and `vtables()` for scripted inspection; vtable records include an optional recovered RTTI `type`, and scripts can promote entries with `define_pointer_table(addr)` or `define_array(addr)`.
 - `xrefs_to_details(addr)` exposes incoming xrefs as `{from, kind}` records, preserving distinctions such as `call`, `switch case`, `read`, `write`, and `pointer`.
 - `xrefs_from_details(addr)` exposes outgoing xrefs as `{to, kind}` records with the same relationship labels.
+- JSON vtable records include their owning segment and file offset when the recovered table maps to file-backed data.
 - `decompile(addr)` returns the typed C-like pseudocode for a recovered function, using the same decompiler path as the UI.
 - `script_api_version()` returns the current compatible Rhai API version (`1`); plugins can check it before using newer functions or record fields.
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
