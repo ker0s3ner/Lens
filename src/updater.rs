@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Test-only user prototypes are now isolated per test thread instead of racing through shared global state.",
+    "Parallel release-gate runs now keep prototype-dependent decompiler regressions deterministic.",
     "x86 switch recovery now recognizes bounded subtract-before-index patterns and preserves their non-zero case base.",
     "Other architectures retain conservative zero-based indices until their compiler-specific lowering is identified.",
     "Recovered switch analysis now preserves zero-based case indices alongside each destination.",

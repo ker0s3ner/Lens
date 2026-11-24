@@ -1,3 +1,8 @@
+# Lens 0.6.381 — Fourier
+
+- Test-only user prototypes are now isolated per test thread instead of racing through shared global state.
+- Parallel release-gate runs now keep prototype-dependent decompiler regressions deterministic.
+
 # Lens 0.6.380 — Fourier
 
 - x86 switch recovery now recognizes bounded subtract-before-index patterns and preserves their non-zero case base.

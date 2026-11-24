@@ -4,6 +4,8 @@
 
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
+#[cfg(test)]
+use std::cell::RefCell;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Proto {
@@ -187,6 +189,8 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
 
 static BUILTIN: OnceLock<HashMap<String, Proto>> = OnceLock::new();
 static USER: RwLock<Option<HashMap<String, Proto>>> = RwLock::new(None);
+#[cfg(test)]
+thread_local! { static TEST_USER: RefCell<Option<HashMap<String, Proto>>> = const { RefCell::new(None) }; }
 
 fn builtin() -> &'static HashMap<String, Proto> {
     BUILTIN.get_or_init(|| parse(LIBRARY).0.into_iter().map(|p| (p.name.clone(), p)).collect())
@@ -199,6 +203,12 @@ pub fn builtin_count() -> usize {
 /// Installs the person's own prototypes (called whenever they change).
 pub fn set_user(text: &str) {
     let m: HashMap<String, Proto> = parse(text).0.into_iter().map(|p| (p.name.clone(), p)).collect();
+    #[cfg(test)]
+    {
+        TEST_USER.with(|user| *user.borrow_mut() = Some(m));
+        return;
+    }
+    #[cfg(not(test))]
     if let Ok(mut g) = USER.write() {
         *g = Some(m);
     }
@@ -212,6 +222,10 @@ fn norm(name: &str) -> String {
 
 pub fn find(name: &str) -> Option<Proto> {
     let n = norm(name);
+    #[cfg(test)]
+    if let Some(p) = TEST_USER.with(|user| user.borrow().as_ref().and_then(|m| m.get(name).or_else(|| m.get(&n)).cloned())) {
+        return Some(p);
+    }
     if let Ok(g) = USER.read() {
         if let Some(m) = g.as_ref() {
             if let Some(p) = m.get(name).or_else(|| m.get(&n)) {
