@@ -21,6 +21,7 @@ grep -q '"format": "Raw binary"' <<<"$json" || { echo "golden: format mismatch" 
 grep -q '"functions": 1' <<<"$json" || { echo "golden: function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 5' <<<"$json" || { echo "golden: instruction count mismatch" >&2; exit 1; }
 grep -q '"blocks": 1' <<<"$json" || { echo "golden: block count mismatch" >&2; exit 1; }
+grep -q 'return 0x2A;' <<<"$json" || { echo "golden: pseudocode return mismatch" >&2; exit 1; }
 for field in function_records pseudocode_records instruction_records block_records call_records; do
   grep -q "\"$field\":" <<<"$json" || { echo "golden: missing $field" >&2; exit 1; }
 done

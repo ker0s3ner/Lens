@@ -1,3 +1,8 @@
+# Lens 0.6.310 — Fourier
+
+- The x64 golden fixture now verifies decompiler text as well as loader, instruction, and basic-block metadata.
+- Golden regression coverage now detects pseudocode changes to a deterministic return-value function.
+
 # Lens 0.6.309 — Fourier
 
 - The deterministic golden gate now covers x64, ARM64, and RISC-V 64 raw instruction fixtures.
