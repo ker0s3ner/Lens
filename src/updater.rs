@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Import-slot tail jumps now contribute explicit call-graph edges to their imported targets.",
+    "Forwarding-thunk regression coverage now verifies both thunk classification and caller relationships.",
     "Typed enum return values now render as named Enum::Member constants in pseudocode.",
     "A decompiler golden test covers enum-return propagation from prototype through return lifting.",
     "PDB layouts now retain direct nested struct and union members using recovered record sizes.",

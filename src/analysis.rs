@@ -1086,6 +1086,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         Flow::Normal => a = next,
                         Flow::Ret | Flow::Stop => break,
                         Flow::IndirectJump => {
+                            if let Some(ix) = import_slot.get(&info.mem) {
+                                calls.push(bin.imports[*ix].slot);
+                            }
                             if (bin.arch.is_x86() || matches!(bin.arch, Arch::Arm64 | Arch::Arm32 | Arch::Thumb | Arch::RiscV32 | Arch::RiscV64 | Arch::Mips32 | Arch::Mips64 | Arch::Ppc32 | Arch::Ppc64)) && (info.mem == 0 || !import_slot.contains_key(&info.mem)) {
                                 let ts = switch_targets(bin, &insns, a, fstart);
                                 for t in &ts {
@@ -1865,6 +1868,7 @@ mod tests {
         bin.symbols.push((0x1006, "target".into()));
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
+        assert!(an.functions[&0x1000].calls.contains(&0x1006));
     }
 
     #[test]
@@ -1879,6 +1883,7 @@ mod tests {
         bin.imports.push(crate::loader::Import { slot: 0x1006, name: "puts".into(), library: "libc".into() });
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
+        assert!(an.functions[&0x1000].calls.contains(&0x1006));
     }
 }
 

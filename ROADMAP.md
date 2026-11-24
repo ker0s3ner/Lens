@@ -136,6 +136,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PDB class layouts with unsupported base-class records now fail closed rather than exposing partial types.
 - Direct nested struct/union members now use recovered PDB record sizes during layout import.
 - Typed enum return values now propagate into named constants in pseudocode.
+- Import-slot forwarding thunks now contribute caller edges to the call graph.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

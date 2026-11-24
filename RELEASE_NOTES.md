@@ -1,6 +1,9 @@
-# Lens 0.6.131 — Fourier
+# Lens 0.6.132 — Fourier
 
 ## What's new
+
+- Import-slot tail jumps now contribute explicit call-graph edges to their imported targets.
+- Forwarding-thunk regression coverage now verifies both thunk classification and caller relationships.
 
 - Typed enum return values now render as named Enum::Member constants in pseudocode.
 - A decompiler golden test covers enum-return propagation from prototype through return lifting.
