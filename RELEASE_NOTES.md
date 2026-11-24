@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.259 — Fourier
+
+## What's new
+
+- Lists now includes a synchronized Data tab for scalar, pointer, string, and array-backed definitions.
+- The Data tab also surfaces inferred scalar data that has not been manually overridden.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.258 — Fourier
 
 ## What's new

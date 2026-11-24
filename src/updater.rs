@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Lists now includes a synchronized Data tab for scalar, pointer, string, and array-backed definitions.",
+    "The Data tab also surfaces inferred scalar data that has not been manually overridden.",
     "Call graph caches now invalidate when analysis data changes.",
     "Call graph construction now memoizes callee scans within each build.",
     "Imported patches now trigger reanalysis of the patched in-memory binary.",

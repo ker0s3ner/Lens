@@ -121,11 +121,12 @@ pub enum ListTab {
     Vtables,
     PointerTables,
     Arrays,
+    Data,
     Bookmarks,
 }
 
 impl ListTab {
-    const ALL: [ListTab; 12] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Findings, ListTab::Vtables, ListTab::PointerTables, ListTab::Arrays, ListTab::Bookmarks];
+    const ALL: [ListTab; 13] = [ListTab::Functions, ListTab::Names, ListTab::Imports, ListTab::Exports, ListTab::Entries, ListTab::Strings, ListTab::Sections, ListTab::Findings, ListTab::Vtables, ListTab::PointerTables, ListTab::Arrays, ListTab::Data, ListTab::Bookmarks];
     fn label(self) -> &'static str {
         match self {
             ListTab::Functions => "Functions",
@@ -139,6 +140,7 @@ impl ListTab {
             ListTab::Vtables => "Vtables",
             ListTab::PointerTables => "Pointer tables",
             ListTab::Arrays => "Arrays",
+            ListTab::Data => "Data",
             ListTab::Bookmarks => "Bookmarks",
         }
     }
@@ -263,6 +265,28 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             }
             out
         }
+        ListTab::Data => {
+            let mut out = Vec::new();
+            for (addr, code) in &l.ann.data_defs {
+                if *code == crate::analysis::DEF_UNDEFINE { continue; }
+                let (kind, size) = if *code == crate::analysis::DEF_STRING {
+                    ("string", 0)
+                } else if *code & 0x80 != 0 {
+                    ("pointer", (*code & 0x7f).max(1) as u64)
+                } else {
+                    ("scalar", (*code & 0x7f).max(1) as u64)
+                };
+                let xrefs = l.an.xrefs_to.get(addr).map(|refs| refs.len()).unwrap_or(0);
+                let detail = if size == 0 { format!("{kind} · {xrefs} xrefs") } else { format!("{kind} · {size} bytes · {xrefs} xrefs") };
+                out.push(Row { addr: *addr, name: name_of(*addr), detail, num: size });
+            }
+            for (addr, size) in &l.an.data_size {
+                if l.ann.data_defs.contains_key(addr) || *size == 0 { continue; }
+                let xrefs = l.an.xrefs_to.get(addr).map(|refs| refs.len()).unwrap_or(0);
+                out.push(Row { addr: *addr, name: name_of(*addr), detail: format!("inferred scalar · {} bytes · {xrefs} xrefs", size), num: *size as u64 });
+            }
+            out
+        }
         ListTab::Bookmarks => l
             .ann
             .marks
@@ -288,14 +312,14 @@ impl LensApp {
             let mut r: Vec<Row> = rows(l, ls.tab).into_iter().filter(|r| q.is_empty() || r.name.to_lowercase().contains(&q) || r.detail.to_lowercase().contains(&q) || format!("{:x}", r.addr).contains(&q)).collect();
             match ls.sort {
                 1 => r.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
-                2 => if matches!(ls.tab, ListTab::Functions | ListTab::Strings | ListTab::Sections | ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays) { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
+                2 => if matches!(ls.tab, ListTab::Functions | ListTab::Strings | ListTab::Sections | ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays | ListTab::Data) { r.sort_by_key(|x| x.num) } else { r.sort_by(|a, b| a.detail.cmp(&b.detail)) },
                 _ => r.sort_by_key(|x| x.addr),
             }
             if ls.desc { r.reverse(); }
             ls.cache = Some((key, r));
         }
         let digits = l.digits;
-        let detail_head = match ls.tab { ListTab::Functions | ListTab::Sections => "Size", ListTab::Strings => "Uses", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays => "Entries", _ => "Kind" };
+        let detail_head = match ls.tab { ListTab::Functions | ListTab::Sections => "Size", ListTab::Strings => "Uses", ListTab::Imports => "Library", ListTab::Bookmarks => "Note", ListTab::Vtables | ListTab::PointerTables | ListTab::Arrays => "Entries", ListTab::Data => "Definition", _ => "Kind" };
         egui::Window::new("Lists").open(&mut open).default_size([640.0, 520.0]).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 for t in ListTab::ALL {
