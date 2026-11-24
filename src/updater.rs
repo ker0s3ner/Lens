@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The deterministic golden gate now covers both a real x64 function and a one-instruction ARM64 return fixture.",
+    "Cross-architecture golden checks now pin ARM64 decoding metadata and function/instruction counts.",
     "The golden raw x64 fixture now contains a real five-instruction function rather than an empty one-byte input.",
     "Golden assertions now pin function, instruction, and basic-block counts in addition to JSON schema and metadata.",
     "Added a deterministic golden-analysis gate for raw x64 JSON output, covering schema, entry metadata, and graph record shape.",

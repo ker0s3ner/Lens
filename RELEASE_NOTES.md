@@ -1,3 +1,8 @@
+# Lens 0.6.308 — Fourier
+
+- The deterministic golden gate now covers both a real x64 function and a one-instruction ARM64 return fixture.
+- Cross-architecture golden checks now pin ARM64 decoding metadata and function/instruction counts.
+
 # Lens 0.6.307 — Fourier
 
 - The golden raw x64 fixture now contains a real five-instruction function rather than an empty one-byte input.
