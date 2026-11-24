@@ -158,7 +158,7 @@ impl Fmt<'_> {
             offset >= field.off as i64 && offset < end
         })?;
         let relative = offset - field.off as i64;
-        if relative == 0 { return Some(field.name.clone()); }
+        if relative == 0 && !field.ty.contains('[') { return Some(field.name.clone()); }
         let ty = field.ty.trim().trim_start_matches("const ").trim();
         let named = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         if !named.contains('[') {
@@ -2776,6 +2776,16 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(6)))), 2);
         assert_eq!(fmt.show(&expression), "p->items[1]");
+    }
+
+    #[test]
+    fn renders_first_element_of_known_struct_array() {
+        let def = crate::types::parse_c("struct Packet { uint16_t items[4]; }", 8, &[]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Packet *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(0)))), 2);
+        assert_eq!(fmt.show(&expression), "p->items[0]");
     }
 
     #[test]

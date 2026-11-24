@@ -399,6 +399,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Pseudocode lines show clickable incoming-xref markers backed by the existing xref panel.
 - Flow-graph rows show clickable incoming-xref markers backed by the existing xref panel.
 - Structure fields show clickable incoming-xref counts in the synchronized Types view.
+- Decompiler struct-array access now preserves the first element index with regression coverage.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.
