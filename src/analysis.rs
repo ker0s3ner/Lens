@@ -1553,10 +1553,19 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     // are also forwarding thunks even though their branch target is indirect.
     let function_starts: HashSet<u64> = functions.keys().copied().collect();
     let import_starts: HashSet<u64> = functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
+    let mut tail_calls: Vec<(u64, u64)> = vec![];
     for f in functions.values_mut() {
         let ordered: Vec<u64> = f.blocks.iter().flat_map(|b| b.insns.iter().copied()).collect();
         let Some(&last_addr) = ordered.last() else { continue };
         let Some(last) = insns.get(&last_addr) else { continue };
+        if last.flow == Flow::Jump && last.target != f.start && function_starts.contains(&last.target)
+            && !f.blocks.iter().any(|b| b.insns.contains(&last.target)) {
+            if !f.calls.contains(&last.target) {
+                f.calls.push(last.target);
+                f.calls.sort_unstable();
+            }
+            tail_calls.push((last_addr, last.target));
+        }
         let padding = |addr: u64| {
             let Some((decoded, _)) = decode_at(bin, addr) else { return false };
             matches!(decoded.mnemonic(), Mnemonic::Nop | Mnemonic::Endbr32 | Mnemonic::Endbr64)
@@ -1569,6 +1578,13 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             else if last.flow == Flow::IndirectJump && import_slot.contains_key(&last.mem)
             { f.thunk_target = Some(last.mem); }
         }
+    }
+    for (from, to) in tail_calls {
+        xrefs_to.entry(to).or_default().push(Xref { from, kind: XrefKind::Call });
+    }
+    for v in xrefs_to.values_mut() {
+        v.sort_by_key(|x| x.from);
+        v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
     }
 
     // ---- names ----
@@ -2002,6 +2018,20 @@ mod tests {
         let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
         assert_eq!(an.functions[&0x1000].thunk_target, Some(0x1006));
         assert!(an.functions[&0x1000].calls.contains(&0x1006));
+    }
+
+    #[test]
+    fn records_multi_instruction_tail_calls() {
+        let spec = RawSpec {
+            path: "tail".into(), name: "tail".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x55, 0x48, 0x89, 0xE5, 0xE9, 0x03, 0x00, 0x00, 0x00, 0xC3, 0xC3, 0xC3, 0xC3])],
+            entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.symbols.push((0x100C, "tail_target".into()));
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions[&0x1000].calls.contains(&0x100C));
+        assert!(an.xrefs_to[&0x100C].iter().any(|xref| xref.kind == XrefKind::Call));
     }
 
     #[test]

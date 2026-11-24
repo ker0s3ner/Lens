@@ -28,6 +28,20 @@
 # Lens 0.6.224 — Fourier
 # Lens 0.6.225 — Fourier
 # Lens 0.6.226 — Fourier
+# Lens 0.6.227 — Fourier
+
+## What's new
+
+- Static analysis now records conservative multi-instruction tail calls in the call graph.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.226 — Fourier
 
 ## What's new
 
