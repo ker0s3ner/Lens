@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum propagation now invalidates a local when it is overwritten by a non-enum value.",
+    "Decompiler enum naming remains conservative across reassignment, avoiding stale member labels.",
     "Enum type information now propagates through safe local variable copies in decompiled pseudocode.",
     "Enum-aware comparisons and switch recovery can retain named members after parameter-to-temporary moves.",
     "C-like type parsing now rejects named zero-width bitfields instead of treating them as alignment separators.",

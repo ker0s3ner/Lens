@@ -1,3 +1,8 @@
+# Lens 0.6.372 — Fourier
+
+- Enum propagation now invalidates a local when it is overwritten by a non-enum value.
+- Decompiler enum naming remains conservative across reassignment, avoiding stale member labels.
+
 # Lens 0.6.371 — Fourier
 
 - Enum type information now propagates through safe local variable copies in decompiled pseudocode.
