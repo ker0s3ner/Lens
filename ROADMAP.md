@@ -108,6 +108,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Go runtime panic/throw and additional Rust bounds-panic symbols are recognized as no-return functions.
 - Version-specific Go runtime panic helpers now match by family, including `runtime.panicIndex` and `runtime.panicSlice*`.
 - No-return regression coverage now includes Go bounds/slice panic and goroutine-exit helpers.
+- DWARF structs with supported `DW_AT_data_bit_offset` bitfields now import into the native type database.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

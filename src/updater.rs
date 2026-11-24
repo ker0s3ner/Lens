@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Supported DWARF bitfields now import with their native storage offsets and widths.",
+    "The Types tool can preserve compiler-emitted bitfield layouts instead of skipping those structs.",
     "Go runtime panic symbol matching now covers versioned panic and throw families without exact-name tables.",
     "No-return regression coverage includes bounds, slice, and goroutine-exit helpers.",
     "Go runtime.panic* and runtime.goexit symbol families are recognized as no-return functions.",

@@ -144,17 +144,23 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
                     let type_off = match child.attr_value(gimli::DW_AT_type)? { Some(AttributeValue::UnitRef(o)) => Some(o), _ => None };
                     let t = type_name(c, unit, type_off, 0);
                     body.push(format!("  {} {};", tidy(&t), n).replace("* ", "*"));
-                    if child.attr_value(gimli::DW_AT_bit_size)?.is_some() || child.attr_value(gimli::DW_AT_data_bit_offset)?.is_some() {
-                        layout_ok = false;
-                        continue;
-                    }
+                    let bit_width = child.attr_value(gimli::DW_AT_bit_size)?.and_then(|v| v.udata_value()).and_then(|n| u8::try_from(n).ok());
+                    let bit_offset = child.attr_value(gimli::DW_AT_data_bit_offset)?.and_then(|v| v.udata_value());
                     let member_offset = if tag == gimli::DW_TAG_union_type { Some(0) } else {
                         child.attr_value(gimli::DW_AT_data_member_location)?.and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok())))
                     };
-                    let Some(off) = member_offset.and_then(|n| u32::try_from(n).ok()) else { layout_ok = false; continue };
                     let Some(size) = type_size(unit, type_off, 0) else { layout_ok = false; continue };
                     if n.is_empty() { layout_ok = false; continue; }
-                    fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: None, bit_width: None });
+                    if let Some(width) = bit_width {
+                        if width == 0 || (width as u32) > size.saturating_mul(8) { layout_ok = false; continue; }
+                        let Some(bits) = bit_offset else { layout_ok = false; continue };
+                        let Some(off) = u32::try_from(bits / 8).ok() else { layout_ok = false; continue };
+                        let Some(bit) = u8::try_from(bits % 8).ok() else { layout_ok = false; continue };
+                        fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: Some(bit), bit_width: Some(width) });
+                    } else {
+                        let Some(off) = member_offset.and_then(|n| u32::try_from(n).ok()) else { layout_ok = false; continue };
+                        fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: None, bit_width: None });
+                    }
                 }
                 gimli::DW_TAG_enumerator => {
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();

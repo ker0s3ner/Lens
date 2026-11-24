@@ -1,6 +1,9 @@
-# Lens 0.6.102 — Fourier
+# Lens 0.6.103 — Fourier
 
 ## What's new
+
+- Supported DWARF bitfields now import with their native storage offsets and widths.
+- The Types tool can preserve compiler-emitted bitfield layouts instead of skipping those structs.
 
 - Go runtime panic symbol matching now covers versioned panic and throw families without exact-name tables.
 - No-return regression coverage includes bounds, slice, and goroutine-exit helpers.
