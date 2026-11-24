@@ -1,3 +1,8 @@
+# Lens 0.6.402 — Fourier
+
+- Enum local type recovery now survives typed prototype call returns.
+- Enum local type recovery now survives conditional merges and safe constant transformations.
+
 # Lens 0.6.401 — Fourier
 
 - Enum local type recovery now survives conditional branch merges.

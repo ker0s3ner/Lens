@@ -747,33 +747,37 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
     }
 }
 
-fn enum_var_source(e: &Ex, vars: &HashMap<String, String>) -> Option<String> {
+fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, enum_return: Option<&str>) -> Option<String> {
     match e {
         Ex::Var(name) => vars.get(name).cloned(),
-        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars),
+        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars, enum_return),
         Ex::Tern(_, yes, no) => {
-            let ty = enum_var_source(yes, vars)?;
-            (enum_var_source(no, vars).as_deref() == Some(ty.as_str())).then_some(ty)
+            let ty = enum_var_source(yes, vars, enum_return)?;
+            (enum_var_source(no, vars, enum_return).as_deref() == Some(ty.as_str())).then_some(ty)
         }
         Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^" | "<<" | ">>") => {
-            if let Some(ty) = enum_var_source(left, vars) {
+            if let Some(ty) = enum_var_source(left, vars, enum_return) {
                 enum_const_int(right).is_some().then_some(ty)
-            } else if let Some(ty) = enum_var_source(right, vars) {
+            } else if let Some(ty) = enum_var_source(right, vars, enum_return) {
                 enum_const_int(left).is_some().then_some(ty)
             } else { None }
         }
+        Ex::Call(function, _) => match &**function {
+            Ex::Var(name) => crate::protos::find(name).and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string)),
+            _ => None,
+        },
         _ => None,
     }
 }
 
-fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap<String, String> {
+fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>, enum_return: Option<&str>) -> HashMap<String, String> {
     let mut vars = seed.clone();
     for _ in 0..outs.len().max(1) {
         let mut changed = false;
         for block in outs {
             for (_, stmt) in &block.stmts {
                 if let Stmt::Assign(Ex::Var(dst), rhs) = stmt {
-                    let source = enum_var_source(rhs, &vars);
+                    let source = enum_var_source(rhs, &vars, enum_return);
                     if let Some(ty) = source {
                         let old = vars.insert(dst.clone(), ty.clone());
                         changed |= old.as_ref() != Some(&ty);
@@ -2494,7 +2498,7 @@ fn decompile_inner(
     let own_proto = crate::protos::find(&name);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
-    let enum_vars = infer_enum_vars(&outs, &enum_params);
+    let enum_vars = infer_enum_vars(&outs, &enum_params, enum_return.as_deref());
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
@@ -2970,7 +2974,7 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
         }];
         let seed = HashMap::from([(String::from("a1"), String::from("Color"))]);
-        let vars = infer_enum_vars(&outs, &seed);
+        let vars = infer_enum_vars(&outs, &seed, Some("Color"));
         assert_eq!(vars.get("v1").map(String::as_str), Some("Color"));
         assert!(!vars.contains_key("v2"));
         assert_eq!(vars.get("v3").map(String::as_str), Some("Color"));
