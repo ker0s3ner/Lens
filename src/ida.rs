@@ -950,6 +950,16 @@ impl LensApp {
                             }
                         }
                     }
+                    if let Some(arr) = v.get("string_records").and_then(|x| x.as_array()) {
+                        for item in arr {
+                            let Some(addr) = item.get("address").and_then(|x| x.as_u64()) else { continue };
+                            if l.bin.is_mapped(addr) && !l.an.insns.contains_key(&addr) {
+                                l.ann.data_defs.insert(addr, crate::analysis::DEF_STRING);
+                                d += 1;
+                                recognized = true;
+                            }
+                        }
+                    }
                     if let Some(arr) = v.get("pointer_tables").or_else(|| v.get("pointer_table_records")).or_else(|| v.get("vtable_records")).and_then(|x| x.as_array()) {
                         let width = (l.bin.bitness() / 8) as u64;
                         let code = width as u8 | 0x80;
