@@ -1169,7 +1169,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 .unwrap_or_else(|| Ex::Call(Box::new(var(if base_mn == "mflo" { "__mips_lo" } else { "__mips_hi" })), vec![]));
             set(dc, st, 0, v);
         }
-        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd") => arith(dc, st, "/", false),
+        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") => arith(dc, st, "/", false),
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),
         (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") => arith(dc, st, "&", false),

@@ -1,3 +1,8 @@
+# Lens 0.6.290 — Fourier
+
+- PowerPC unsigned 64-bit DIVDU instructions now lift to readable division expressions alongside DIVD.
+- PowerPC division coverage now includes the common 32-bit and 64-bit signed/unsigned forms used by compiled code.
+
 # Lens 0.6.289 — Fourier
 
 - PowerPC integer remainder instructions (MODSW/MODUW/MODSD/MODUD) now render as readable remainder expressions.
