@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C-like type parsing now rejects named zero-width bitfields instead of treating them as alignment separators.",
+    "Zero-width storage separators continue to honor packed and pragma-pack alignment rules with regression coverage.",
     "Call graph nodes now identify forwarding thunks and show their analyzed target address.",
     "Thunk context is preserved alongside normal function size and block details for quick navigation decisions.",
     "Call graphs now reuse canonical analyzed call targets instead of rescanning every function's instructions.",

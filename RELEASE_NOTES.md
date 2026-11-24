@@ -1,3 +1,8 @@
+# Lens 0.6.370 — Fourier
+
+- C-like type parsing now rejects named zero-width bitfields instead of treating them as alignment separators.
+- Zero-width storage separators continue to honor packed and pragma-pack alignment rules with regression coverage.
+
 # Lens 0.6.369 — Fourier
 
 - Call graph nodes now identify forwarding thunks and show their analyzed target address.
