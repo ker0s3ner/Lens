@@ -101,7 +101,7 @@ lens program --screenshot out.png --view graph --dark
 lens program --report --extract ./asar-source
 ```
 
-`--decompile` accepts `main`, `all`, a function name or an address. `--lang` accepts `c`, `rust`, `python`, `go` or `js`. Raw input also accepts `--big` for big-endian data. Other CLI tools include `--learn-sigs`, `--sigs`, `--run-script`, `--patch ADDR:HEX --save FILE`, and `--report --extract DIR` for detected Electron archives. Use `--json` with a file to emit a stable `lens.analysis.v1` machine-readable analysis summary containing format, architecture, entry point, counts, hashes, and loader notes.
+`--decompile` accepts `main`, `all`, a function name or an address. `--lang` accepts `c`, `rust`, `python`, `go` or `js`. Raw input also accepts `--big` for big-endian data. Other CLI tools include `--learn-sigs`, `--sigs`, `--run-script`, `--patch ADDR:HEX --save FILE`, and `--report --extract DIR` for detected Electron archives. Use `--json` with a file to emit a stable `lens.analysis.v1` machine-readable analysis summary containing format, architecture, entry point, counts, hashes, and loader notes. Desktop JSON database exports carry the same identifier in `schema_id` while retaining their legacy numeric `schema` field.
 
 ## Build and release
 

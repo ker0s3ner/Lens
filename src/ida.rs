@@ -714,6 +714,7 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
         ExportKind::Json => {
             let v = serde_json::json!({
                 "schema": 2,
+                "schema_id": "lens.analysis.v1",
                 "file": l.bin.file_name, "format": l.bin.format, "arch": l.bin.arch_name, "entry": l.bin.entry,
                 "sha256": l.det.sha256,
                 "segments": l.bin.segments.iter().map(|s| serde_json::json!({"name": s.name, "start": s.start, "end": s.end()})).collect::<Vec<_>>(),

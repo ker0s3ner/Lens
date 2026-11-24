@@ -1,3 +1,17 @@
+# Lens 0.6.142 — Fourier
+
+## What's new
+
+- Desktop JSON database exports now include the shared `lens.analysis.v1` schema identifier.
+- The legacy numeric JSON schema field remains intact for backward compatibility.
+
+## Verification
+
+- `cargo test --locked --quiet` — 61 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.141 — Fourier
 
 ## What's new
