@@ -1,3 +1,8 @@
+# Lens 0.6.304 — Fourier
+
+- ARM32 and Thumb UXTAB/UXTAH now render as explicit zero-extend-and-add expressions.
+- ARM byte and halfword accumulation idioms now remain readable in the shared non-x86 decompiler.
+
 # Lens 0.6.303 — Fourier
 
 - ARM32/Thumb BFC now uses its distinct three-operand form, correctly clearing the requested field in place.

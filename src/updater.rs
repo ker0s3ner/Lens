@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 and Thumb UXTAB/UXTAH now render as explicit zero-extend-and-add expressions.",
+    "ARM byte and halfword accumulation idioms now remain readable in the shared non-x86 decompiler.",
     "ARM32/Thumb BFC now uses its distinct three-operand form, correctly clearing the requested field in place.",
     "ARM bitfield insertion and clearing paths now separate source-bearing BFI operands from BFC operands.",
     "ARM32 and Thumb BFI/BFC now render as explicit bitfield insertion and clearing expressions.",
