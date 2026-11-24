@@ -982,6 +982,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let op = match base_mn { "fadd" => "+", "fsub" => "-", "fmul" => "*", _ => "/" };
             arith(dc, st, op, false);
         }
+        (Fam::A64, "fmin" | "fmax") => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let helper = if base_mn == "fmin" { "fmin" } else { "fmax" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
+        }
         (Fam::A64, "fneg" | "fabs" | "fsqrt") => {
             let a = dc.g_val(st, o(1), None);
             let v = match base_mn {

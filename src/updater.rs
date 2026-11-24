@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers.",
+    "Floating-point min/max no longer fall through to generic arithmetic, preserving readable pseudocode.",
     "x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls.",
     "Min/max no longer fall through to the generic division fallback, improving floating-point pseudocode fidelity.",
     "Pseudocode now collapses identical conditional branches instead of printing redundant ternaries.",

@@ -1,3 +1,8 @@
+# Lens 0.6.429 — Fourier
+
+- ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers.
+- Floating-point min/max no longer fall through to generic arithmetic, preserving readable pseudocode.
+
 # Lens 0.6.428 — Fourier
 
 - x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls.
