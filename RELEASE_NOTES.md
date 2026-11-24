@@ -1,6 +1,9 @@
-# Lens 0.6.91 — Fourier
+# Lens 0.6.92 — Fourier
 
 ## What's new
+
+- AArch64 SHA-512 round and schedule instructions now remain visible as named pseudocode intrinsics.
+- SHA-512 cryptographic operand groups are preserved alongside existing SHA-1/SHA-256 coverage.
 
 - AVX-512 ternary-logic instructions now remain visible as named pseudocode intrinsics.
 - Three-input Boolean operand groups are preserved for crypto and bit-manipulation code.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 SHA-512 round and schedule instructions now remain visible as named pseudocode intrinsics.",
+    "SHA-512 cryptographic operand groups are preserved alongside existing SHA-1/SHA-256 coverage.",
     "AVX-512 ternary-logic instructions now remain visible as named pseudocode intrinsics.",
     "Three-input Boolean operand groups are preserved for crypto and bit-manipulation code.",
     "x86/x64 VNNI and 4-way fused multiply-add dot-product families now remain visible as named pseudocode intrinsics.",

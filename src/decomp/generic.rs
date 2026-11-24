@@ -1232,7 +1232,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             if let Some(k) = key { args.push(k); }
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
-        (Fam::A64, "sha1c" | "sha1p" | "sha1m" | "sha1h" | "sha1su0" | "sha1su1" | "sha256h" | "sha256h2" | "sha256su0" | "sha256su1") if ops.len() >= 2 => {
+        (Fam::A64, "sha1c" | "sha1p" | "sha1m" | "sha1h" | "sha1su0" | "sha1su1" | "sha256h" | "sha256h2" | "sha256su0" | "sha256su1" | "sha512h" | "sha512h2" | "sha512su0" | "sha512su1") if ops.len() >= 2 => {
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }

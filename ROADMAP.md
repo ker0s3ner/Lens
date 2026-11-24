@@ -97,6 +97,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON reciprocal and reciprocal-square-root estimate/refinement families remain visible as named intrinsics.
 - AArch64 NEON complex add/multiply families remain visible as named intrinsics.
 - AArch64 NEON bit-select and mask-combine families remain visible as named intrinsics.
+- AArch64 SHA-512 round and schedule instructions remain visible as named intrinsics.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
