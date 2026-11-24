@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Objective-C class-name metadata sections now produce stable objc_class_ names for navigation and reports.",
+    "Objective-C selector and property naming remains separate, preserving readable runtime metadata categories.",
     "Known pointer-returning prototypes now preserve their return type in decompiler expressions.",
     "Pointer-return type propagation now continues into downstream struct and array field recovery.",
     "Call-graph expansion now bounds instruction scans and incoming-xref collection for pathological functions.",

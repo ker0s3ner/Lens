@@ -1681,11 +1681,13 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             continue;
         }
         let metadata_kind = bin.segments.iter().find(|seg| seg.contains(s.addr)).and_then(|seg| {
-            if seg.name.contains("__objc_methname") || seg.name.contains("__objc_propname") { Some("sel") }
+            if seg.name.contains("__objc_classname") { Some("objc_class") }
+            else if seg.name.contains("__objc_methname") || seg.name.contains("__objc_propname") { Some("sel") }
             else if seg.name.contains("__swift5_reflstr") || seg.name.contains("__swift5_typeref") { Some("swift") }
             else { None }
         });
         let base = match metadata_kind {
+            Some("objc_class") => format!("objc_class_{}", string_name(&s.text)),
             Some("sel") => format!("sel_{}", string_name(&s.text)),
             Some("swift") => format!("swift_{}", string_name(&s.text)),
             _ => string_name(&s.text),

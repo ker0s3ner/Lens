@@ -1,3 +1,8 @@
+# Lens 0.6.355 — Fourier
+
+- Objective-C class-name metadata sections now produce stable `objc_class_` names for navigation and reports.
+- Objective-C selector and property naming remains separate, preserving readable runtime metadata categories.
+
 # Lens 0.6.354 — Fourier
 
 - Known pointer-returning prototypes now preserve their return type in decompiler expressions.
