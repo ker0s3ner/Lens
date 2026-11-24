@@ -1,6 +1,9 @@
-# Lens 0.6.76 — Fourier
+# Lens 0.6.77 — Fourier
 
 ## What's new
+
+- Common AVX2 high-half, multiply-add, and saturating multiply families now remain visible as named pseudocode intrinsics.
+- Fixed-point and crypto-oriented packed multiply operand groups are preserved in decompiler output.
 
 - Common AVX2 packed absolute-value and signed/unsigned min/max families now remain visible as named pseudocode intrinsics.
 - Vector bounds and absolute-value operations preserve their operand groups in decompiler output.
