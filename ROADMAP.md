@@ -67,6 +67,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ELF dynamic init/fini arrays now seed bounded executable-range-validated constructor and destructor roots when section names are unavailable.
 - ELF `DT_PREINIT_ARRAY` entries now seed the same bounded executable-range-validated function discovery path.
 - Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader and fail closed when none is parseable.
+- Mach-O fileset entries can be selected by name with `--slice`, with a recorded fallback when the requested entry is unavailable.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

@@ -884,12 +884,32 @@ fn load_mach(bin: &mut Binary, mach: goblin::mach::Mach, bytes: &[u8]) -> Result
 
 fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     if m.header.filetype == goblin::mach::header::MH_FILESET {
+        let wanted = SLICE_PREF.lock().ok().and_then(|g| g.clone());
+        let mut fallback: Option<(String, usize)> = None;
         for command in &m.load_commands {
             let goblin::mach::load_command::CommandVariant::FilesetEntry(entry) = command.command else { continue };
+            let id_start = command.offset.saturating_add(entry.entry_id as usize);
+            let id = slice.get(id_start..).and_then(|b| b.iter().position(|x| *x == 0).map(|end| &b[..end])).and_then(|b| std::str::from_utf8(b).ok()).unwrap_or("");
+            if let Some(want) = wanted.as_deref() {
+                if id != want { continue; }
+            }
             let offset = entry.fileoff as usize;
             let Some(child_slice) = slice.get(offset..) else { continue };
             let Ok(child) = goblin::mach::MachO::parse(child_slice, 0) else { continue };
-            bin.notes.push(format!("Mach-O fileset: opened embedded entry at file offset 0x{offset:X}."));
+            if wanted.as_deref().is_some_and(|want| id != want) {
+                if fallback.is_none() { fallback = Some((id.to_string(), offset)); }
+                continue;
+            }
+            bin.slice = id.to_string();
+            bin.notes.push(format!("Mach-O fileset: opened embedded entry '{id}' at file offset 0x{offset:X}."));
+            load_macho(bin, &child, child_slice);
+            return;
+        }
+        if let Some((id, offset)) = fallback {
+            let Some(child_slice) = slice.get(offset..) else { return };
+            let Ok(child) = goblin::mach::MachO::parse(child_slice, 0) else { return };
+            bin.slice = id.clone();
+            bin.notes.push(format!("Mach-O fileset: requested entry unavailable; opened fallback '{id}' at file offset 0x{offset:X}."));
             load_macho(bin, &child, child_slice);
             return;
         }

@@ -1,3 +1,17 @@
+# Lens 0.6.155 — Fourier
+
+## What's new
+
+- Mach-O fileset loading now honors `--slice <entry-name>` for embedded images.
+- When a requested fileset entry is unavailable, Lens records the miss and opens the first parseable fallback image.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.154 — Fourier
 
 ## What's new
