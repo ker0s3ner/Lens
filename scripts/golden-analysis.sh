@@ -9,12 +9,14 @@ fixture_arm="$(mktemp -t lens-golden-arm.XXXXXX)"
 fixture_rv="$(mktemp -t lens-golden-rv.XXXXXX)"
 fixture_arm32="$(mktemp -t lens-golden-arm32.XXXXXX)"
 fixture_ppc="$(mktemp -t lens-golden-ppc.XXXXXX)"
-trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32" "$fixture_ppc"' EXIT
+fixture_mips="$(mktemp -t lens-golden-mips.XXXXXX)"
+trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32" "$fixture_ppc" "$fixture_mips"' EXIT
 printf '\x55\x48\x89\xE5\xB8\x2A\x00\x00\x00\x5D\xC3' > "$fixture"
 printf '\xC0\x03\x5F\xD6' > "$fixture_arm"
 printf '\x67\x80\x00\x00' > "$fixture_rv"
 printf '\x1E\xFF\x2F\xE1' > "$fixture_arm32"
 printf '\x4E\x80\x00\x20' > "$fixture_ppc"
+printf '\x03\xE0\x00\x08' > "$fixture_mips"
 
 json="$(cd "$root" && cargo run --quiet -- "$fixture" --arch x64 --base 0x1000 --entry 0x1234 --json 2>/dev/null)"
 
@@ -53,5 +55,11 @@ grep -q '"architecture": "PowerPC 64"' <<<"$ppc_json" || { echo "golden: PowerPC
 grep -q '"entry_point": 4096' <<<"$ppc_json" || { echo "golden: PowerPC entry point mismatch" >&2; exit 1; }
 grep -q '"functions": 1' <<<"$ppc_json" || { echo "golden: PowerPC function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$ppc_json" || { echo "golden: PowerPC instruction count mismatch" >&2; exit 1; }
+
+mips_json="$(cd "$root" && cargo run --quiet -- "$fixture_mips" --arch mips32 --big --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
+grep -q '"architecture": "MIPS32"' <<<"$mips_json" || { echo "golden: MIPS architecture mismatch" >&2; exit 1; }
+grep -q '"entry_point": 4096' <<<"$mips_json" || { echo "golden: MIPS entry point mismatch" >&2; exit 1; }
+grep -q '"functions": 1' <<<"$mips_json" || { echo "golden: MIPS function count mismatch" >&2; exit 1; }
+grep -q '"instructions": 1' <<<"$mips_json" || { echo "golden: MIPS instruction count mismatch" >&2; exit 1; }
 
 echo "golden analysis: deterministic raw x64 fixture passed"
