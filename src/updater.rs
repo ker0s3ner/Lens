@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Built-in C++ operator new/delete prototypes now parse and resolve by their full names.",
+    "Pointer-returning operator new calls now participate in existing typed-call propagation.",
     "ARM64 min/max helper selection now has direct regression coverage.",
     "The generic dispatcher and test share one named-helper mapping, preventing future drift.",
     "ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers.",

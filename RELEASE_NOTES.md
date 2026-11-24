@@ -1,3 +1,8 @@
+# Lens 0.6.431 — Fourier
+
+- Built-in C++ operator new/delete prototypes now parse and resolve by their full names.
+- Pointer-returning operator new calls now participate in existing typed-call propagation.
+
 # Lens 0.6.430 — Fourier
 
 - ARM64 min/max helper selection now has direct regression coverage.
