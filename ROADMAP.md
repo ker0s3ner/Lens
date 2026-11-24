@@ -36,7 +36,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Type recovery and propagation across calls; struct and array access reconstruction.
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, calling-convention inference.
-- Thumb/Thumb-2 in the main loader, MIPS delay slots, PPC extras.
+- Thumb/Thumb-2 in the main loader and additional PPC extras.
 - Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
 
 ## Phase 4 - Type system and libraries
@@ -161,6 +161,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PowerPC signed and unsigned high-half multiply instructions preserve their semantic result.
 - ARM/Thumb multiply-accumulate and multiply-subtract instructions lift to readable arithmetic.
 - MIPS conditional moves preserve register-dependent selections in pseudocode.
+- MIPS branch, jump, call, and return delay slots now remain in the current basic block during control-flow analysis.
 - ARM/Thumb count-leading-zero and byte-reversal idioms decompile to named operations.
 - PowerPC conditional selection preserves both candidate values and the condition operand.
 - x86/x64 BMI2 `mulx` and flag-independent `rorx` preserve their wide arithmetic semantics.
