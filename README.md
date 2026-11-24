@@ -22,7 +22,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 ### Analyze and navigate
 
 - Decode x86 16/32/64-bit, ARM, Thumb, ARM64, RISC-V 32/64, MIPS 32/64, PowerPC 32/64 and Motorola 68000. Decoder-backed analysis depth varies by architecture.
-- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86, ARM32 PC-indexed/literal tables, ARM64, RISC-V, MIPS, PowerPC and bounded Thumb PC-indexed/register-based (including signed PC-relative bases)/TBB/TBH patterns; switch-case xrefs are labeled separately from direct jumps.
+- Find functions, basic blocks, imports, exports, strings and code/data cross-references. Recover switch edges for supported x86, ARM32 PC-indexed/literal tables and register-based tables (including signed PC-relative bases), ARM64, RISC-V, MIPS, PowerPC and bounded Thumb PC-indexed/register-based/TBB/TBH patterns; switch-case xrefs are labeled separately from direct jumps.
 - Discovered pointer tables can be promoted to persistent native-pointer data from the context menu or command palette.
 - Contiguous matching data elements can be promoted to a persistent inferred array from the same workflow.
 - Control-flow analysis recognizes additional C++, Rust and Swift panic/trap entry points as non-returning.

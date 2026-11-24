@@ -546,8 +546,13 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
             let p = lower.split(", ").map(str::trim).collect::<Vec<_>>();
             if prev.mnemonic == "add" && p.len() >= 3 && p[0] == mem && p[1] == "pc" {
                 let imm = p[2].trim_start_matches('#');
-                let value = imm.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| imm.parse().ok());
-                if let Some(v) = value { found = Some(addr.saturating_add(8).saturating_add(v)); break; }
+                let (negative, digits) = imm.strip_prefix('-').map_or((false, imm), |digits| (true, digits));
+                let value = digits.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| digits.parse().ok());
+                if let Some(v) = value {
+                    let base = addr.saturating_add(8);
+                    found = Some(if negative { base.saturating_sub(v) } else { base.saturating_add(v) });
+                    break;
+                }
             }
         }
         let Some(table) = found else { return vec![] };
