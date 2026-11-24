@@ -1,3 +1,8 @@
+# Lens 0.6.385 — Fourier
+
+- ARM64 switch-table reconstruction now accepts signed `adrp`/`adr` and immediate `add` adjustments.
+- RISC-V switch-table reconstruction now accepts signed `auipc` and load offsets, with dedicated regression coverage.
+
 # Lens 0.6.384 — Fourier
 
 - RISC-V switch-table reconstruction now accepts signed `auipc` and load offsets.
