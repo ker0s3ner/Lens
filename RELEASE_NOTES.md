@@ -1,3 +1,16 @@
+# Lens 0.6.197 — Fourier
+
+## What's new
+
+- JSON analysis reports now include mapped segment ranges, permissions, file sizes, and offsets.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.196 — Fourier
 
 ## What's new
