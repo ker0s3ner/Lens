@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "GitHub Pages now links every Fourier patch from 0.6.314 through 0.6.346 in the release archive.",
+    "The roadmap audit marker now matches the latest shipped build and its current evidence date.",
     "JSON function and pseudocode records now use the merged annotation-aware name table instead of raw symbols only.",
     "Saved user renames now survive into machine-readable reports alongside GUI and direct CLI decompilation.",
     "Direct --decompile output now uses saved annotations and the typed decompiler instead of resetting to an empty database.",

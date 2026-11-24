@@ -1,3 +1,8 @@
+# Lens 0.6.347 — Fourier
+
+- GitHub Pages now links every Fourier patch from 0.6.314 through 0.6.346 in the release archive.
+- The roadmap audit marker now matches the latest shipped build and its current evidence date.
+
 # Lens 0.6.346 — Fourier
 
 - JSON function and pseudocode records now use the merged annotation-aware name table instead of raw symbols only.
