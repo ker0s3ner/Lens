@@ -98,6 +98,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON complex add/multiply families remain visible as named intrinsics.
 - AArch64 NEON bit-select and mask-combine families remain visible as named intrinsics.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
+- AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - README decompiler coverage now reflects the latest AArch64 NEON semantic families.
 - x86/x64 AVX2 packed logical, arithmetic, and variable shift families remain visible as named intrinsics.
 - x86/x64 AVX2 packed absolute-value and signed/unsigned min/max families remain visible as named intrinsics.

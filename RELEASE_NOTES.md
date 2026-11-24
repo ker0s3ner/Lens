@@ -1,6 +1,9 @@
-# Lens 0.6.85 — Fourier
+# Lens 0.6.86 — Fourier
 
 ## What's new
+
+- AArch64 NEON fixed-point saturating, rounded, and high-half multiply families now remain visible as named pseudocode intrinsics.
+- Codec and DSP-oriented widening multiply-accumulate operations preserve their operand groups.
 
 - README decompiler capability documentation now includes the latest AArch64 NEON reciprocal, complex, dot-product, and mask semantics.
 - User-facing architecture coverage is synchronized with the shipped implementation.
