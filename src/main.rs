@@ -189,6 +189,12 @@ fn cli(args: &[String]) -> bool {
                 "to": target,
                 "kind": xref.kind.label(),
             }))).collect::<Vec<_>>(),
+            "string_records": an.strings.iter().map(|s| serde_json::json!({
+                "address": s.addr,
+                "length": s.len,
+                "wide": s.wide,
+                "text": s.text,
+            })).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

@@ -1,3 +1,16 @@
+# Lens 0.6.196 — Fourier
+
+## What's new
+
+- JSON analysis reports now include address, length, encoding, and text records for every discovered string.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.195 — Fourier
 
 ## What's new
@@ -10,7 +23,6 @@
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries plus raw-entry regression passed
 
 ---
-
 # Lens 0.6.194 — Fourier
 
 ## What's new

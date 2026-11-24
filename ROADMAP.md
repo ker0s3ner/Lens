@@ -102,6 +102,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Raw-binary CLI analysis now supports an explicit entry address separate from the load base.
 - Raw-binary JSON entry-point reporting is regression-tested end-to-end by the smoke corpus.
 - Raw-binary architecture selection accepts common x64/amd64 and i386/i686 aliases.
+- JSON analysis reports expose address, length, encoding, and text records for discovered strings.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.
