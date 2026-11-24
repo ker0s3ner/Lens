@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum identity now survives constant left and right shifts used by flag and bitfield code.",
+    "Enum identity now survives safe constant bitwise transformations in typed comparisons.",
     "x86 switch normalization now preserves case bases for add-before-index idioms as well as subtraction.",
     "Enum arithmetic and CV-qualified bitfield improvements are included in this Fourier patch.",
     "Enum identity now survives safe constant + and - arithmetic in typed comparisons.",

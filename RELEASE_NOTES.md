@@ -1,3 +1,8 @@
+# Lens 0.6.395 — Fourier
+
+- Enum identity now survives constant `<<` and `>>` transformations used by flag and bitfield code.
+- Enum identity now survives safe constant bitwise `|`, `&`, and `^` transformations in typed comparisons.
+
 # Lens 0.6.394 — Fourier
 
 - x86 switch normalization now preserves case bases for add-before-index idioms as well as subtraction.
