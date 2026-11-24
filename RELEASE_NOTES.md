@@ -1,6 +1,9 @@
-# Lens 0.6.108 — Fourier
+# Lens 0.6.109 — Fourier
 
 ## What's new
+
+- PE analysis now imports procedure/public symbols from PDB module streams in addition to global symbols.
+- Static and compiler-generated module procedures are available to function discovery when PDB data is present.
 
 - PDB discovery now honors a valid embedded CodeView path before local executable-directory fallbacks.
 - Malformed individual PDB symbol records no longer discard the rest of the symbol import.
