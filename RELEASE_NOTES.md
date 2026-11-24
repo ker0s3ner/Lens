@@ -1,3 +1,8 @@
+# Lens 0.6.326 — Fourier
+
+- ARM32, Thumb, and ARM64 `bic` now decompile as explicit AND-with-inverted-operand expressions.
+- ARM/ARM64 `orn` now decompiles as explicit OR-with-inverted-operand logic instead of an opaque intrinsic.
+
 # Lens 0.6.325 — Fourier
 
 - MIPS `nor` now decompiles as an explicit inverted OR expression.
