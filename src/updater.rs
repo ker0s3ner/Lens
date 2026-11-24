@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call-graph switch edges now use the analyzer's indexed jump-table map instead of rescanning every xref in the binary.",
+    "Large call graphs now avoid a quadratic per-function xref scan, reducing graph-open latency on binaries with many data references.",
     "Stripped Itanium C++ vtables now recover class names from the typeinfo object when symbols are absent.",
     "RTTI name recovery is bounded and validates mapped, non-executable name storage before demangling.",
     "PE .pdata hints now reject records outside executable image ranges before they reach analysis.",

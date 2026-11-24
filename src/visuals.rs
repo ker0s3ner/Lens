@@ -1043,13 +1043,13 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
             }
         }
     }
-    // Indirect switch cases have no single instruction target, but analysis retains
-    // their typed xrefs. Include those destinations so the call graph and listing
-    // present the same recovered control-flow edges.
-    let insns: std::collections::HashSet<u64> = func.blocks.iter().flat_map(|b| b.insns.iter().copied()).collect();
-    for (target, refs) in &l.an.xrefs_to {
-        if l.an.functions.contains_key(target) && refs.iter().any(|x| matches!(x.kind, crate::analysis::XrefKind::Switch) && insns.contains(&x.from)) {
-            v.push(*target);
+    // Indirect switch cases have no single instruction target. Walk only this
+    // function's instructions and consult the analyzer's indexed switch map;
+    // scanning every xref destination here made opening a graph quadratic in
+    // the size of a large binary.
+    for a in func.blocks.iter().flat_map(|b| b.insns.iter().copied()) {
+        if let Some(targets) = l.an.switches.get(&a) {
+            v.extend(targets.iter().copied().filter(|target| l.an.functions.contains_key(target)));
         }
     }
     v.sort();

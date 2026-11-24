@@ -1,3 +1,8 @@
+# Lens 0.6.337 — Fourier
+
+- Call-graph switch edges now use the analyzer's indexed jump-table map instead of rescanning every xref in the binary.
+- Large call graphs now avoid a quadratic per-function xref scan, reducing graph-open latency on binaries with many data references.
+
 # Lens 0.6.336 — Fourier
 
 - Stripped Itanium C++ vtables now recover class names from the typeinfo object when symbols are absent.

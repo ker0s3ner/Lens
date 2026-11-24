@@ -1,8 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Latest shipped build: **Lens 0.6.336 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; stripped Itanium vtables can now recover bounded RTTI class names; the 50% target remains unmet.
+Latest shipped build: **Lens 0.6.337 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; call-graph switch edges now use indexed jump-table lookup to avoid large-binary xref rescans; the 50% target remains unmet.
 
-Current audit marker: **0.6.336 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
+Current audit marker: **0.6.337 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
 
 Status checked against the repository on 2026-11-24, at **Lens 0.6.309 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.7% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
@@ -21,7 +21,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Phase 1 - Reliability (first, everything else depends on it)
 - Expand the existing 200-program system-binary run into a repeatable corpus covering ELF, PE, Mach-O, stripped files, dylibs, and Go/Rust/Swift; fix crashes and incorrect results found by it.
-- Performance on 100 MB+ files: background analysis, incremental listing, memory limits. Call-graph expansion now bounds high-fanout neighborhoods and surfaces truncation instead of allowing oversized graphs to stall rendering.
+- Performance on 100 MB+ files: background analysis, incremental listing, memory limits. Call-graph expansion now bounds high-fanout neighborhoods, uses indexed switch edges, and surfaces truncation instead of allowing oversized graphs to stall rendering.
 - Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
