@@ -1,3 +1,8 @@
+# Lens 0.6.384 — Fourier
+
+- RISC-V switch-table reconstruction now accepts signed `auipc` and load offsets.
+- Dedicated regression coverage verifies signed hexadecimal and decimal RISC-V switch adjustments.
+
 # Lens 0.6.383 — Fourier
 
 - ARM32 register-based switch tables now accept signed PC-relative table bases.
