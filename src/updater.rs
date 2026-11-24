@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ELF `DT_PREINIT_ARRAY` entries now seed bounded, executable-range-validated preinitialization function roots.",
+    "The loader now covers preinit, init, and fini dynamic function arrays when section metadata is unavailable.",
     "ELF dynamic `DT_INIT_ARRAY` and `DT_FINI_ARRAY` tables now seed bounded, executable-range-validated function roots.",
     "Constructor and destructor discovery now works when section names are stripped but dynamic metadata remains.",
     "ELF dynamic `DT_INIT` and `DT_FINI` entry points now seed validated function discovery.",

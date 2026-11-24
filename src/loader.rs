@@ -463,6 +463,9 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             (dynamic.info.init_array as u64, dynamic.info.init_arraysz as u64, "__elf_init_array"),
             (dynamic.info.fini_array as u64, dynamic.info.fini_arraysz as u64, "__elf_fini_array"),
         ];
+        let preinit_base = dynamic.dyns.iter().find(|d| d.d_tag == goblin::elf::dynamic::DT_PREINIT_ARRAY).map(|d| d.d_val).unwrap_or(0);
+        let preinit_size = dynamic.dyns.iter().find(|d| d.d_tag == goblin::elf::dynamic::DT_PREINIT_ARRAYSZ).map(|d| d.d_val).unwrap_or(0);
+        let arrays = arrays.into_iter().chain([(preinit_base, preinit_size, "__elf_preinit_array")]);
         for (base, size, prefix) in arrays {
             if base == 0 || width == 0 { continue; }
             for index in 0..(size / width).min(4096) {

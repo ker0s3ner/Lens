@@ -65,6 +65,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Imported indirect calls now contribute explicit call-graph edges, with regression coverage separate from forwarding-thunk analysis.
 - ELF dynamic `DT_INIT` and `DT_FINI` entries now seed executable-range-validated function discovery.
 - ELF dynamic init/fini arrays now seed bounded executable-range-validated constructor and destructor roots when section names are unavailable.
+- ELF `DT_PREINIT_ARRAY` entries now seed the same bounded executable-range-validated function discovery path.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

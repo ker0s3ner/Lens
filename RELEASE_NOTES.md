@@ -1,3 +1,17 @@
+# Lens 0.6.152 — Fourier
+
+## What's new
+
+- ELF `DT_PREINIT_ARRAY` entries now seed bounded, executable-range-validated preinitialization function roots.
+- The loader now covers preinit, init, and fini dynamic function arrays when section metadata is unavailable.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.151 — Fourier
 
 ## What's new
