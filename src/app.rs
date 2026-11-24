@@ -74,6 +74,7 @@ pub enum Action {
     OpenDialog,
     SaveProject,
     AddProjectFile,
+    RemoveProjectFile(String),
     Close,
     Rename(u64),
     Comment(u64),
@@ -642,6 +643,31 @@ impl LensApp {
         }
     }
 
+    fn remove_project_file(&mut self, file: &str) {
+        let (Some(project), Some(project_path), Some(binary)) = (self.project.clone(), self.project_path.clone(), self.loaded().map(|l| l.bin.path.clone())) else {
+            self.logm("Open a project before removing a file.");
+            return;
+        };
+        let is_active = project.files.iter().find(|candidate| candidate.as_str() == file)
+            .map(|candidate| store::resolve_project_file(&project_path, candidate) == Path::new(&binary)).unwrap_or(false);
+        if is_active {
+            self.logm("Open another project file before removing the active file.");
+            return;
+        }
+        let files: Vec<String> = project.files.into_iter().filter(|candidate| candidate != file).collect();
+        if files.is_empty() {
+            self.logm("A project needs at least one file.");
+            return;
+        }
+        match store::save_project(&project_path, &project.name, &files, project.active_file.as_deref()) {
+            Ok(()) => {
+                self.project = Some(store::ProjectManifest { schema_version: project.schema_version, name: project.name, files, active_file: project.active_file });
+                self.logm(format!("Removed {file} from the project."));
+            }
+            Err(e) => self.modal = Some(Modal::Message { title: "Couldn't update project".into(), text: e }),
+        }
+    }
+
     pub fn goto(&mut self, addr: u64, push: bool) {
         let Some(l) = self.loaded() else { return };
         if !l.bin.is_mapped(addr) {
@@ -693,6 +719,7 @@ impl LensApp {
                 }
                 Action::SaveProject => self.save_project(),
                 Action::AddProjectFile => self.add_project_file(),
+                Action::RemoveProjectFile(file) => self.remove_project_file(&file),
                 Action::Close => {
                     self.state = State::Empty;
                     self.logm("Closed the file.");

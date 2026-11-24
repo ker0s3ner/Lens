@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Project members can now be removed directly from the workspace inspector.",
+    "Active and last project files are protected so removal cannot strand the session or empty the manifest.",
     "C enum parsing now decodes common escaped, hexadecimal, and octal character constants.",
     "Character-valued enum members now match C literal semantics in the type database.",
     "Debugger shutdown now clears stale commands and trace state when LLDB exits unexpectedly.",

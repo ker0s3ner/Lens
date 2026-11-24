@@ -175,9 +175,14 @@ impl LensApp {
                     let active = project.active_file.as_deref() == Some(file.as_str())
                         || project_path.as_ref().map(|path| crate::store::resolve_project_file(path, file) == std::path::Path::new(&l.bin.path)).unwrap_or(false);
                     let label = std::path::Path::new(file).file_name().and_then(|name| name.to_str()).unwrap_or(file);
-                    if ui.add(egui::Button::selectable(active, RichText::new(label).monospace()).wrap_mode(egui::TextWrapMode::Truncate)).on_hover_text(file).clicked() && !active {
-                        acts.push(Action::Open(file.clone()));
-                    }
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::selectable(active, RichText::new(label).monospace()).wrap_mode(egui::TextWrapMode::Truncate)).on_hover_text(file).clicked() && !active {
+                            acts.push(Action::Open(file.clone()));
+                        }
+                        if !active && ui.small_button("Remove").on_hover_text("Remove this binary from the project").clicked() {
+                            acts.push(Action::RemoveProjectFile(file.clone()));
+                        }
+                    });
                 }
                 ui.separator();
             }

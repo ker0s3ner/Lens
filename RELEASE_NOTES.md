@@ -1,3 +1,8 @@
+# Lens 0.6.420 — Fourier
+
+- Project members can now be removed directly from the workspace inspector.
+- Active and last project files are protected so removal cannot strand the session or empty the manifest.
+
 # Lens 0.6.419 — Fourier
 
 - C enum parsing now decodes common escaped, hexadecimal, and octal character constants.
