@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Recovered switch analysis now preserves zero-based case indices alongside each destination.",
+    "CLI JSON switch records expose aligned case_indices for typed tooling and future enum-value recovery.",
     "Enum comparisons now fold safe integer constant expressions such as shifts and bitwise combinations.",
     "Exact enum members and decomposed flag names remain preferred over raw numeric literals when folding succeeds.",
     "Flag-style enum comparisons now decompose known power-of-two values into named members.",

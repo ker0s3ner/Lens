@@ -1862,6 +1862,7 @@ struct Emit<'a> {
     loops: HashMap<usize, Vec<usize>>,
     done: HashSet<usize>,
     switches: &'a HashMap<u64, Vec<u64>>,
+    switch_case_indices: &'a HashMap<u64, Vec<i64>>,
     enum_constants: &'a HashMap<String, HashMap<i64, String>>,
     enum_return: Option<String>,
     enum_vars: HashMap<String, String>,
@@ -2105,9 +2106,11 @@ impl Emit<'_> {
                 if let Some(ts) = self.switches.get(&ta).cloned() {
                     let enum_ty = self.enum_type(&e);
                     self.line(ind, ta, format!("switch ({}) {{ // jump table, {} targets", self.fmt.at(&e, 3), ts.len()));
+                    let indices = self.switch_case_indices.get(&ta);
                     for (k, t) in ts.iter().enumerate() {
                         self.labels.insert(*t);
-                        let label = enum_ty.as_ref().and_then(|ty| self.enum_constants.get(ty).and_then(|values| values.get(&(k as i64)).map(|member| format!("{ty}::{member}")))).unwrap_or_else(|| k.to_string());
+                        let case_value = indices.and_then(|values| values.get(k).copied()).unwrap_or(k as i64);
+                        let label = enum_ty.as_ref().and_then(|ty| self.enum_constants.get(ty).and_then(|values| values.get(&case_value).map(|member| format!("{ty}::{member}")))).unwrap_or_else(|| case_value.to_string());
                         self.line(ind + 1, ta, format!("case {label}: goto L_{t:X};"));
                     }
                     self.line(ind, ta, "}".into());
@@ -2469,6 +2472,7 @@ fn decompile_inner(
         loops: loops.clone(),
         done: HashSet::new(),
         switches: &an.switches,
+        switch_case_indices: &an.switch_case_indices,
         enum_constants,
         enum_return: enum_return.clone(),
         enum_vars: enum_vars.clone(),
@@ -2884,7 +2888,8 @@ mod tests {
         let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One")), (2_i64, String::from("Two"))]))]);
         let params = HashMap::from([(String::from("a1"), String::from("Color"))]);
         let switches = HashMap::new();
-        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_vars: params };
+        let switch_case_indices = HashMap::new();
+        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, switch_case_indices: &switch_case_indices, enum_constants: &constants, enum_return: None, enum_vars: params };
         let expression = emit.enumize(Ex::Bin("==", Box::new(Ex::Cast("int", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
         let flags = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(3))));

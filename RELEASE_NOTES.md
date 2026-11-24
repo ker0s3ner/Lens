@@ -1,3 +1,8 @@
+# Lens 0.6.379 — Fourier
+
+- Recovered switch analysis now preserves zero-based case indices alongside each destination.
+- CLI JSON switch records expose aligned `case_indices` for typed tooling and future enum-value recovery.
+
 # Lens 0.6.378 — Fourier
 
 - Enum comparisons now fold safe integer constant expressions such as shifts and bitwise combinations.

@@ -184,6 +184,8 @@ pub struct Analysis {
     pub stats: String,
     /// Recovered jump tables: address of the indirect jump -> its case targets.
     pub switches: HashMap<u64, Vec<u64>>,
+    /// Zero-based case indices aligned with each recovered switch target.
+    pub switch_case_indices: HashMap<u64, Vec<i64>>,
     /// Conservative vtable-like tables: table address -> consecutive code pointers.
     /// Only runs with at least two executable, mapped targets are reported.
     pub vtables: HashMap<u64, Vec<u64>>,
@@ -1141,6 +1143,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
 
     let mut noret_cache: HashMap<u64, bool> = HashMap::new();
     let mut switches: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut switch_case_indices: HashMap<u64, Vec<i64>> = HashMap::new();
     let mut total = 0usize;
     let max_total = 6_000_000usize;
     let mut round = 0;
@@ -1213,6 +1216,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                                 }
                                 if !ts.is_empty() {
                                     switches.insert(a, ts);
+                                    if let Some(targets) = switches.get(&a) {
+                                        switch_case_indices.insert(a, (0..targets.len() as i64).collect());
+                                    }
                                 } else if std::env::var("LENS_TRACE3").is_ok() && bin.arch == Arch::Arm64 {
                                     eprintln!("-- unresolved br at {a:X}");
                                     for (pa, _) in insns.range(..=a).rev().take(9).collect::<Vec<_>>().into_iter().rev() {
@@ -1726,6 +1732,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         data_size,
         stats: String::new(),
         switches,
+        switch_case_indices,
         vtables,
         vtable_names,
         pointer_tables,
