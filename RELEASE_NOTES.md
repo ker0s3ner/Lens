@@ -1,7 +1,12 @@
+# Lens 0.6.404 — Fourier
+
+- Typed pointer dereferences now reconstruct variable-index scalar accesses when the element stride is known.
+- Enum local type recovery continues through typed call returns and recursive enum-return calls.
+
 # Lens 0.6.403 — Fourier
 
-- Enum local type recovery now survives typed prototype call returns.
-- Enum local type recovery now survives conditional merges and safe constant transformations.
+- Enum local type recovery now recognizes typed prototype call returns and recursive enum-return calls.
+- Enum local type inference now carries call-return types into subsequent local assignments.
 
 # Lens 0.6.402 — Fourier
 

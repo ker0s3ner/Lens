@@ -324,6 +324,21 @@ impl Fmt<'_> {
             .unwrap_or_else(|| int_type(size).to_string())
     }
 
+    fn pointer_index(&self, address: &Ex) -> Option<(String, String)> {
+        let Ex::Bin("+", base, offset) = address else { return None };
+        let Ex::Bin("*", index, scale) = &**offset else { return None };
+        let Ex::Num(stride) = **scale else { return None };
+        if stride <= 0 || stride > u8::MAX as i64 { return None; }
+        let pointer = match &**base {
+            Ex::Var(name) => self.types.get(name).is_some_and(|ty| ty.trim().ends_with('*')),
+            Ex::Call(callee, _) => call_return_type(callee).is_some_and(|ty| ty.trim().ends_with('*')),
+            Ex::Cast(ty, _) => ty.trim().ends_with('*'),
+            Ex::CastOwned(ty, _) => ty.trim().ends_with('*'),
+            _ => false,
+        };
+        pointer.then(|| (self.at(base, 3), self.at(index, 99)))
+    }
+
     fn at(&self, e: &Ex, ctx: u8) -> String {
         let s = match e {
             Ex::Num(n) => Self::num(*n),
@@ -335,6 +350,9 @@ impl Fmt<'_> {
             Ex::Deref(a, sz) => {
                 if let Some(field) = self.struct_field(a) {
                     return field;
+                }
+                if let Some((base, index)) = self.pointer_index(a) {
+                    return format!("{base}[{index}]");
                 }
                 let address = match &**a {
                     Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.at(inner, 3),
@@ -3284,6 +3302,15 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(8)))), 4);
         assert_eq!(fmt.show(&expression), "p[2]");
+    }
+
+    #[test]
+    fn renders_variable_scalar_pointer_index() {
+        let types = HashMap::from([(String::from("p"), String::from("uint32_t *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("*", Box::new(var("i")), Box::new(Ex::Num(4)))))), 4);
+        assert_eq!(fmt.show(&expression), "p[i]");
     }
 
     #[test]
