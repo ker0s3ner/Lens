@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now include named internal function and data symbol records.",
     "JSON analysis reports now include detailed import slots and export symbol records.",
     "JSON analysis reports now include mapped segment ranges, permissions, file sizes, and offsets.",
     "JSON analysis reports now include address, length, encoding, and text records for every discovered string.",

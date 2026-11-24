@@ -214,6 +214,15 @@ fn cli(args: &[String]) -> bool {
                 "address": e.addr,
                 "name": e.name,
             })).collect::<Vec<_>>(),
+            "symbol_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
+                "address": address,
+                "name": name,
+                "kind": "function",
+            })).chain(bin.data_symbols.iter().map(|(address, name)| serde_json::json!({
+                "address": address,
+                "name": name,
+                "kind": "data",
+            }))).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

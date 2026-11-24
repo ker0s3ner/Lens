@@ -1,5 +1,19 @@
 # Lens 0.6.197 — Fourier
 # Lens 0.6.198 — Fourier
+# Lens 0.6.199 — Fourier
+
+## What's new
+
+- JSON analysis reports now include named internal function and data symbol records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.198 — Fourier
 
 ## What's new
 
