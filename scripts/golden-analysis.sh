@@ -10,14 +10,16 @@ fixture_rv="$(mktemp -t lens-golden-rv.XXXXXX)"
 fixture_arm32="$(mktemp -t lens-golden-arm32.XXXXXX)"
 fixture_ppc="$(mktemp -t lens-golden-ppc.XXXXXX)"
 fixture_mips="$(mktemp -t lens-golden-mips.XXXXXX)"
+fixture_mips_branch="$(mktemp -t lens-golden-mips-branch.XXXXXX)"
 fixture_thumb="$(mktemp -t lens-golden-thumb.XXXXXX)"
-trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32" "$fixture_ppc" "$fixture_mips" "$fixture_thumb"' EXIT
+trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32" "$fixture_ppc" "$fixture_mips" "$fixture_mips_branch" "$fixture_thumb"' EXIT
 printf '\x55\x48\x89\xE5\xB8\x2A\x00\x00\x00\x5D\xC3' > "$fixture"
 printf '\xC0\x03\x5F\xD6' > "$fixture_arm"
 printf '\x67\x80\x00\x00' > "$fixture_rv"
 printf '\x1E\xFF\x2F\xE1' > "$fixture_arm32"
 printf '\x4E\x80\x00\x20' > "$fixture_ppc"
 printf '\x03\xE0\x00\x08' > "$fixture_mips"
+printf '\x10\x00\x00\x01\x00\x00\x00\x00\x03\xE0\x00\x08' > "$fixture_mips_branch"
 printf '\x70\x47' > "$fixture_thumb"
 
 json="$(cd "$root" && cargo run --quiet -- "$fixture" --arch x64 --base 0x1000 --entry 0x1234 --json 2>/dev/null)"
@@ -63,6 +65,11 @@ grep -q '"architecture": "MIPS32"' <<<"$mips_json" || { echo "golden: MIPS archi
 grep -q '"entry_point": 4096' <<<"$mips_json" || { echo "golden: MIPS entry point mismatch" >&2; exit 1; }
 grep -q '"functions": 1' <<<"$mips_json" || { echo "golden: MIPS function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$mips_json" || { echo "golden: MIPS instruction count mismatch" >&2; exit 1; }
+
+mips_branch_json="$(cd "$root" && cargo run --quiet -- "$fixture_mips_branch" --arch mips32 --big --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
+grep -q '"architecture": "MIPS32"' <<<"$mips_branch_json" || { echo "golden: MIPS branch architecture mismatch" >&2; exit 1; }
+grep -q '"functions": 1' <<<"$mips_branch_json" || { echo "golden: MIPS branch function count mismatch" >&2; exit 1; }
+grep -q '"instructions": 3' <<<"$mips_branch_json" || { echo "golden: MIPS delay-slot instruction count mismatch" >&2; exit 1; }
 
 thumb_json="$(cd "$root" && cargo run --quiet -- "$fixture_thumb" --arch thumb --base 0x1000 --entry 0x1001 --json 2>/dev/null)"
 grep -q '"architecture": "ARM Thumb"' <<<"$thumb_json" || { echo "golden: Thumb architecture mismatch" >&2; exit 1; }

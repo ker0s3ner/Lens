@@ -1,3 +1,8 @@
+# Lens 0.6.318 — Fourier
+
+- MIPS control-flow analysis now keeps the architectural delay-slot instruction in the current basic block before following branch, jump, call, and return edges.
+- Golden analysis now verifies a big-endian MIPS conditional branch with its delay slot and return instruction.
+
 # Lens 0.6.317 — Fourier
 
 - Thumb function-boundary scanning now recognizes common `push {…, lr}` prologues when discovering unreachable functions.

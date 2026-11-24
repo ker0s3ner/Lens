@@ -1161,7 +1161,26 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         },
                     };
                     local.insert(a);
-                    let next = a + info.len as u64;
+                    let mut next = a + info.len as u64;
+                    // Classic MIPS executes one instruction in the branch delay
+                    // slot before taking a call, jump, return, or conditional
+                    // branch. Keep that instruction in the current basic block
+                    // and advance fall-through past it so it is not decoded as
+                    // an unrelated successor.
+                    if matches!(bin.arch, Arch::Mips32 | Arch::Mips64)
+                        && !matches!(info.flow, Flow::Normal | Flow::Stop)
+                        && bin.is_exec(next)
+                    {
+                        if let Some(delay) = insns.get(&next).copied().or_else(|| {
+                            let decoded = decode_info(bin, next)?;
+                            insns.insert(next, decoded);
+                            total += 1;
+                            Some(decoded)
+                        }) {
+                            local.insert(next);
+                            next += delay.len as u64;
+                        }
+                    }
                     match info.flow {
                         Flow::Normal => a = next,
                         Flow::Ret | Flow::Stop => break,

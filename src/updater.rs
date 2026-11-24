@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS control-flow analysis now keeps the architectural delay-slot instruction in the current basic block before following branch, jump, call, and return edges.",
+    "Golden analysis now verifies a big-endian MIPS conditional branch with its delay slot and return instruction.",
     "Thumb function-boundary scanning now recognizes common push {…, lr} prologues when discovering unreachable functions.",
     "Added regression coverage for narrow and wide Thumb register-save prologues, preventing missed function starts in stripped code.",
     "Call-graph edge rendering now handles coincident control points without producing invalid geometry.",
