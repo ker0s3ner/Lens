@@ -670,6 +670,13 @@ pub(super) fn exec(dc: &mut Dc, f: &Function, bi: usize, sp_in: i64, bp_in: Opti
             st.bp = Some(st.sp + n);
             continue;
         }
+        if fm == Fam::M68k && mn == "unlk" {
+            if let Some(bp) = st.bp {
+                st.sp = bp;
+            }
+            st.bp = None;
+            continue;
+        }
         let spd = sp_delta(fm, mn, &ops);
         let adjusts = spd != 0 && matches!(mn, "sub" | "add" | "addi" | "addiu" | "addiw" | "addw" | "sub.w" | "add.w" | "subw" | "c.addi" | "c.addi16sp" | "push" | "pop" | "push.w" | "pop.w");
         if adjusts {

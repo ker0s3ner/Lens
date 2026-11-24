@@ -1,3 +1,8 @@
+# Lens 0.6.365 — Fourier
+
+- M68k `unlk` instructions now restore the tracked stack from `a6` and clear frame state before return.
+- M68k frame teardown no longer leaves stale local-address state in generic pseudocode recovery.
+
 # Lens 0.6.364 — Fourier
 
 - M68k link/unlink-style frame setup now recognizes `a6` as the frame pointer.

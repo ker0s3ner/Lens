@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k unlk instructions now restore the tracked stack from a6 and clear frame state before return.",
+    "M68k frame teardown no longer leaves stale local-address state in generic pseudocode recovery.",
     "M68k link/unlink-style frame setup now recognizes a6 as the frame pointer.",
     "M68k lea instructions now preserve computed address expressions for pointer and local recovery.",
     "M68k memory-form move instructions now use the shared typed load/store path.",
