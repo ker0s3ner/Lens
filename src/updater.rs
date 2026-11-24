@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON export records now include incoming references to each exported symbol.",
     "JSON import records now include incoming references to each imported API slot.",
     "JSON function records now distinguish symbol-backed functions from inferred boundaries.",
     "JSON switch-table records now include references to their indirect-branch instructions.",

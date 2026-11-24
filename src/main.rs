@@ -308,6 +308,7 @@ fn cli(args: &[String]) -> bool {
             "export_records": bin.exports.iter().map(|e| serde_json::json!({
                 "address": e.addr,
                 "name": e.name,
+                "references": an.xrefs_to.get(&e.addr).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "library_records": bin.libraries.iter().map(|library| serde_json::json!({
                 "name": library,

@@ -23,6 +23,20 @@
 # Lens 0.6.219 — Fourier
 # Lens 0.6.220 — Fourier
 # Lens 0.6.221 — Fourier
+# Lens 0.6.222 — Fourier
+
+## What's new
+
+- JSON export records now include incoming references to each exported symbol.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.221 — Fourier
 
 ## What's new
 
