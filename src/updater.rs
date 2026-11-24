@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Desktop JSON database exports now preserve vtable owning segments and file offsets.",
+    "Analysis-report vtable records retain source context consistently with database exports.",
     "JSON vtable records now include owning segment and file-offset source context.",
     "Call-graph caller deduplication and signed ARM64/RISC-V switch recovery are included in this Fourier patch.",
     "Call-graph caller neighborhoods now deduplicate functions before responsiveness caps are applied.",

@@ -1,3 +1,8 @@
+# Lens 0.6.388 — Fourier
+
+- Desktop JSON database exports now preserve vtable owning segments and file offsets.
+- Analysis-report vtable records retain source context consistently with database exports.
+
 # Lens 0.6.387 — Fourier
 
 - JSON vtable records now include owning segment and file-offset source context.
