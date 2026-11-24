@@ -154,10 +154,18 @@ impl Fmt<'_> {
     fn struct_field(&self, address: &Ex) -> Option<String> {
         let Ex::Bin(op, base, offset) = address else { return None };
         if *op != "+" && *op != "-" { return None; }
-        let (Ex::Var(name), Ex::Num(raw)) = (&**base, &**offset) else { return None };
+        let Ex::Num(raw) = &**offset else { return None };
         let byte_offset = if *op == "+" { *raw } else { raw.wrapping_neg() };
         if byte_offset < 0 { return None; }
-        let ty = self.types.get(name)?.trim();
+        let ty_owned = match &**base {
+            Ex::Var(name) => self.types.get(name).cloned(),
+            Ex::Call(callee, _) => match &**callee {
+                Ex::Var(name) => crate::protos::find(name).map(|proto| proto.ret),
+                _ => None,
+            },
+            _ => None,
+        }?;
+        let ty = ty_owned.trim();
         let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
         if !ty.starts_with("struct ") && !ty.starts_with("union ") {
             let element_size = match ty {
@@ -2607,6 +2615,18 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(8)))), 4);
         assert_eq!(fmt.show(&expression), "p[2]");
+    }
+
+    #[test]
+    fn renders_struct_field_from_typed_call_return() {
+        crate::protos::set_user("struct Pair *make_pair(void);");
+        let def = crate::types::parse_c("struct Pair { uint32_t first; uint32_t second; }", 8, &[]).unwrap();
+        let empty_types = HashMap::new();
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty_types, structs: &[def] };
+        let call = Ex::Call(Box::new(var("make_pair")), vec![]);
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "make_pair()->second");
     }
 
     #[test]

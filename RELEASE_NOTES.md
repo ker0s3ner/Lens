@@ -1,3 +1,17 @@
+# Lens 0.6.174 — Fourier
+
+## What's new
+
+- Known struct layouts now propagate through typed pointer-returning calls when rendering field accesses.
+- Prototype return types participate in conservative nested field and array resolution.
+
+## Verification
+
+- `cargo test --locked --quiet` — 74 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.173 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 73 passed
+- `cargo test --locked --quiet` — 74 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

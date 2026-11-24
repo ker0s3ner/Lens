@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Known struct layouts now propagate through typed pointer-returning calls when rendering field accesses.",
+    "Prototype return types participate in conservative nested field and array resolution.",
     "Known scalar pointer arithmetic now renders indexed accesses such as `p[2]` in pseudocode.",
     "Pointer indices are emitted only for known scalar element sizes and aligned offsets.",
     "Arrays of known nested records now render chained accesses such as `p->items[1].value`.",
