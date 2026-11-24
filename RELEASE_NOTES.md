@@ -1,3 +1,10 @@
+# Lens 0.6.286 — Fourier
+
+- Roadmap status now tracks the shipped 0.6.285 Fourier type-recovery build.
+- README documentation now calls out typed fields through explicit indirect-call returns.
+
+Verification: `cargo test --locked --quiet` — 96 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.285 — Fourier
 
 - Typed struct-field rendering now follows cast function-pointer returns.

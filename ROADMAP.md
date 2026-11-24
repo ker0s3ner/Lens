@@ -1,6 +1,6 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Status checked against the repository on 2026-11-24, at **Lens 0.6.281 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.3% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-24, at **Lens 0.6.285 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.3% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
@@ -104,6 +104,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Decompiler folds constant conditional terminators into direct jumps, removing impossible branches.
 - Decompiler type inference now propagates return and pointee types through cast function-pointer calls.
 - Typed field rendering now follows those indirect pointer-returning calls into known struct members.
+- Roadmap status is maintained against the latest shipped Fourier patch and its verified regression suite.
 - Script call-graph expansion is bounded and deterministic for large-binary automation.
 - Decompiler lifting now distinguishes logical and arithmetic right shifts, including rotate expressions.
 - Return expressions now also fold safe adjacent temporary-to-register copies.
