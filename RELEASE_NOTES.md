@@ -1,3 +1,8 @@
+# Lens 0.6.303 — Fourier
+
+- ARM32/Thumb BFC now uses its distinct three-operand form, correctly clearing the requested field in place.
+- ARM bitfield insertion and clearing paths now separate source-bearing BFI operands from BFC operands.
+
 # Lens 0.6.302 — Fourier
 
 - ARM32 and Thumb BFI/BFC now render as explicit bitfield insertion and clearing expressions.
