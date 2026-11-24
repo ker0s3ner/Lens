@@ -2523,6 +2523,12 @@ fn decompile_inner(
                     Ex::Var(v) => known_types.get(v).cloned(),
                     _ => None,
                 },
+                Ex::Tern(_, yes, no) => {
+                    match (&**yes, &**no) {
+                        (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
+                        _ => None,
+                    }
+                }
                 _ => None,
             };
             let old = known_types.get(t).cloned();
@@ -2551,6 +2557,10 @@ fn decompile_inner(
                 Ex::Var(v) => known_types.get(v).cloned(),
                 _ => None,
             },
+                Ex::Tern(_, yes, no) => match (&**yes, &**no) {
+                    (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
+                    _ => None,
+                },
             _ => None,
         };
         if let Some(ty) = ty {
@@ -2691,6 +2701,10 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                     Ex::Var(source) => types.get(source).cloned(),
                     _ => None,
                 },
+                Ex::Tern(_, yes, no) => match (&**yes, &**no) {
+                    (Ex::Var(a), Ex::Var(b)) if types.get(a) == types.get(b) => types.get(a).cloned(),
+                    _ => None,
+                },
                 _ => None,
             };
             if let Some(ty) = ty {
@@ -2766,6 +2780,20 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("q").map(String::as_str), Some("char *"));
+    }
+
+    #[test]
+    fn render_type_inference_keeps_common_type_through_conditional_value() {
+        let call = || Ex::Call(Box::new(var("strdup")), vec![]);
+        let outs = vec![BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("p".into()), call())),
+                (1, Stmt::Assign(Ex::Var("q".into()), call())),
+                (2, Stmt::Assign(Ex::Var("chosen".into()), Ex::Tern(Box::new(var("flag")), Box::new(var("p")), Box::new(var("q"))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("chosen").map(String::as_str), Some("char *"));
     }
 
     #[test]

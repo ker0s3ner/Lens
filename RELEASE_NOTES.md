@@ -1,3 +1,8 @@
+# Lens 0.6.338 — Fourier
+
+- Decompiler type recovery now preserves a common pointer type through conditional values.
+- Typed conditional results now continue into pointer arithmetic and struct-field rendering, with regression coverage.
+
 # Lens 0.6.337 — Fourier
 
 - Call-graph switch edges now use the analyzer's indexed jump-table map instead of rescanning every xref in the binary.

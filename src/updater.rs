@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler type recovery now preserves a common pointer type through conditional values.",
+    "Typed conditional results now continue into pointer arithmetic and struct-field rendering, with regression coverage.",
     "Call-graph switch edges now use the analyzer's indexed jump-table map instead of rescanning every xref in the binary.",
     "Large call graphs now avoid a quadratic per-function xref scan, reducing graph-open latency on binaries with many data references.",
     "Stripped Itanium C++ vtables now recover class names from the typeinfo object when symbols are absent.",
