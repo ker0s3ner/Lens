@@ -16,6 +16,7 @@ const CALL_GRAPH_MAX_NODES: usize = 120;
 const CALL_GRAPH_MAX_NEIGHBORS: usize = 24;
 const CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION: usize = 8192;
 const CALL_GRAPH_MAX_EDGES: usize = 2048;
+const CALL_GRAPH_MAX_CALLER_XREFS: usize = CALL_GRAPH_MAX_NEIGHBORS * 8;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -1053,12 +1054,15 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
 }
 
 fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
-    let mut v: Vec<u64> = l
+    let mut refs: Vec<_> = l
         .an
         .xrefs_to
         .get(&f)
-        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect())
+        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).collect())
         .unwrap_or_default();
+    refs.sort_by_key(|x| x.from);
+    refs.truncate(CALL_GRAPH_MAX_CALLER_XREFS);
+    let mut v: Vec<u64> = refs.into_iter().filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect();
     v.sort();
     v.dedup();
     v.truncate(CALL_GRAPH_MAX_NEIGHBORS * 4);

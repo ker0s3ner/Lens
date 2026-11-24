@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.440 — Fourier**. Scripted call graphs now cap emitted edges as well as nodes, and the script UI documents the callers, callees, and call_graph APIs. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
+Latest shipped build: **0.6.441 — Fourier**. Desktop call-graph caller discovery now bounds incoming xref mapping before function lookup, reducing worst-case UI work on high-fan-in functions. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 

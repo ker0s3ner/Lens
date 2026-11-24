@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Desktop call-graph caller discovery now bounds incoming call/jump xrefs before resolving containing functions.",
+    "High-fan-in graph construction now uses a deterministic 192-xref lookup budget while retaining the neighbor cap.",
     "Rhai call_graph now caps emitted edges at 2,048 as well as limiting nodes for high-fanout binaries.",
     "The in-app scripting API reference now documents callers(a), callees(a), and call_graph(a, depth).",
     "Rhai call_graph now uses pre-indexed function-level incoming and outgoing adjacency instead of repeated full xref scans.",

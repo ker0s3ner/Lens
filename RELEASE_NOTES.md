@@ -1,3 +1,8 @@
+# Lens 0.6.441 — Fourier
+
+- Desktop call-graph caller discovery now sorts and bounds incoming call/jump xrefs before resolving containing functions.
+- High-fan-in functions now have a deterministic 192-xref lookup budget, keeping first-frame graph construction responsive while retaining the existing neighbor cap.
+
 # Lens 0.6.440 — Fourier
 
 - Rhai `call_graph` now caps emitted edges at 2,048 as well as limiting nodes, preventing high-fanout binaries from producing oversized script results.
