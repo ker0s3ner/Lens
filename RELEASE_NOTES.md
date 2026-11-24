@@ -1,3 +1,17 @@
+# Lens 0.6.168 — Fourier
+
+## What's new
+
+- Typed struct-pointer arithmetic now renders known fields such as `p->second` in pseudocode.
+- Unknown types and offsets retain the existing conservative dereference rendering.
+
+## Verification
+
+- `cargo test --locked --quiet` — 69 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.167 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 68 passed
+- `cargo test --locked --quiet` — 69 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

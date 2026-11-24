@@ -110,9 +110,24 @@ fn int_type(size: u8) -> &'static str {
 struct Fmt<'a> {
     rename: &'a HashMap<String, String>,
     types: &'a HashMap<String, String>,
+    structs: &'a [crate::types::StructDef],
 }
 
 impl Fmt<'_> {
+    fn struct_field(&self, address: &Ex) -> Option<String> {
+        let Ex::Bin(op, base, offset) = address else { return None };
+        if *op != "+" && *op != "-" { return None; }
+        let (Ex::Var(name), Ex::Num(raw)) = (&**base, &**offset) else { return None };
+        let byte_offset = if *op == "+" { *raw } else { raw.wrapping_neg() };
+        if byte_offset < 0 { return None; }
+        let ty = self.types.get(name)?.trim();
+        let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
+        let ty = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
+        let def = self.structs.iter().find(|def| def.name == ty && !def.is_enum)?;
+        let field = def.fields.iter().find(|field| field.off as i64 == byte_offset)?;
+        Some(format!("{}->{}", self.at(base, 99), field.name))
+    }
+
     fn num(n: i64) -> String {
         if (-9..=9).contains(&n) {
             n.to_string()
@@ -154,6 +169,9 @@ impl Fmt<'_> {
             Ex::Cast(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::CastOwned(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::Deref(a, sz) => {
+                if let Some(field) = self.struct_field(a) {
+                    return field;
+                }
                 let address = match &**a {
                     Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.at(inner, 3),
                     _ => self.at(a, 3),
@@ -1769,7 +1787,7 @@ pub fn decompile(
     comp_note: &str,
 ) -> Decompiled {
     let enums = HashMap::new();
-    decompile_inner(bin, an, names, f, conv, comp_note, &enums)
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &[])
 }
 
 pub fn decompile_with_types(
@@ -1788,7 +1806,7 @@ pub fn decompile_with_types(
         }
     }
     let enums = crate::types::enum_constants(&all_structs);
-    decompile_inner(bin, an, names, f, conv, comp_note, &enums)
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &all_structs)
 }
 
 fn decompile_inner(
@@ -1799,6 +1817,7 @@ fn decompile_inner(
     conv: CallConv,
     comp_note: &str,
     enum_constants: &HashMap<String, HashMap<i64, String>>,
+    structs: &[crate::types::StructDef],
 ) -> Decompiled {
     let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
     let x86 = bin.arch.is_x86();
@@ -2039,7 +2058,7 @@ fn decompile_inner(
         outs: &outs,
         mat,
         idx: idx.clone(),
-        fmt: Fmt { rename: &rename_ref, types: &render_types },
+        fmt: Fmt { rename: &rename_ref, types: &render_types, structs },
         lines: vec![],
         labels,
         suppress: HashSet::new(),
@@ -2392,7 +2411,7 @@ mod tests {
         let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One"))]))]);
         let params = HashMap::from([(String::from("a1"), String::from("Color"))]);
         let switches = HashMap::new();
-        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_params: params };
+        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_params: params };
         let expression = emit.enumize(Ex::Bin("==", Box::new(Ex::Cast("int", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
     }
@@ -2400,13 +2419,13 @@ mod tests {
     #[test]
     fn dereference_formatter_preserves_pointer_pointees() {
         let empty = HashMap::new();
-        let fmt = Fmt { rename: &empty, types: &empty };
+        let fmt = Fmt { rename: &empty, types: &empty, structs: &[] };
         let call = Ex::Deref(Box::new(Ex::Call(Box::new(var("strdup")), vec![])), 1);
         assert_eq!(fmt.show(&call), "*(char*)strdup()");
         let cast = Ex::Deref(Box::new(Ex::CastOwned("uint32_t *".into(), Box::new(var("p")))), 4);
         assert_eq!(fmt.show(&cast), "*(uint32_t*)p");
         let types = HashMap::from([(String::from("p"), String::from("char *"))]);
-        let copied = Fmt { rename: &empty, types: &types };
+        let copied = Fmt { rename: &empty, types: &types, structs: &[] };
         let read = Ex::Deref(Box::new(var("p")), 1);
         assert_eq!(copied.show(&read), "*(char*)p");
     }
@@ -2519,6 +2538,16 @@ mod tests {
         let color = crate::types::parse_c("enum Color { Zero = 0, One = 1 };", 8, &[]).unwrap();
         let text = render_text(&decompile_with_types(&bin, &an, &names, f, crate::detect::CallConv::SysV64, "", &[color]));
         assert!(text.contains("return Color::One;"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn renders_known_struct_pointer_fields() {
+        let def = crate::types::parse_c("struct Pair { int first; int second; }", 8, &[]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Pair *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "p->second");
     }
 
     #[test]

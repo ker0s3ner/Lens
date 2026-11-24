@@ -1,17 +1,17 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Status checked against the repository on 2026-11-24. A weighted capability estimate puts Lens at about **36.9% of IDA Pro's breadth** (plausible range: **31–40%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-24. A weighted capability estimate puts Lens at about **37.1% of IDA Pro's breadth** (plausible range: **31–40%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 26% | 5.2% |
 | Static analysis and navigation | 20% | 58% | 11.6% |
-| Decompiler and type recovery | 20% | 22% | 4.4% |
+| Decompiler and type recovery | 20% | 23% | 4.6% |
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 27% | 2.7% |
-| **Total** | **100%** |  | **36.9%** |
+| **Total** | **100%** |  | **37.1%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -77,6 +77,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Thumb PC-indexed switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
 - Data-reference recovery now validates native pointers at unaligned offsets in packed data.
 - Packed pointer-table discovery now recognizes complete native-stride runs at unaligned starts.
+- Typed struct-pointer arithmetic now renders known field names in pseudocode when the type and offset are unambiguous.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

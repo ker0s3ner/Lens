@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed struct-pointer arithmetic now renders known fields such as `p->second` in pseudocode.",
+    "Unknown types and offsets retain the existing conservative dereference rendering.",
     "Packed pointer tables can now be discovered and promoted even when their first entry is unaligned.",
     "Unaligned table detection requires a complete native-stride run, keeping isolated packed pointers out of Lists.",
     "Data-reference recovery now detects validated native pointers at unaligned offsets in packed data.",
