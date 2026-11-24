@@ -164,9 +164,21 @@ impl LensApp {
         let p = self.p;
         let State::Ready(l) = &self.state else { return };
         let cur = self.nav.cursor;
+        let project = self.project.clone();
         let mut acts = vec![];
         ScrollArea::vertical().auto_shrink(false).id_salt("inspector").show(ui, |ui| {
             ui.add_space(12.0);
+            if let Some(project) = &project {
+                ui.label(RichText::new(format!("PROJECT · {}", project.name.to_uppercase())).small().strong().color(p.muted));
+                for file in &project.files {
+                    let active = project.active_file.as_deref() == Some(file.as_str());
+                    let label = std::path::Path::new(file).file_name().and_then(|name| name.to_str()).unwrap_or(file);
+                    if ui.add(egui::Button::selectable(active, RichText::new(label).monospace()).wrap_mode(egui::TextWrapMode::Truncate)).on_hover_text(file).clicked() && !active {
+                        acts.push(Action::Open(file.clone()));
+                    }
+                }
+                ui.separator();
+            }
             let section = |ui: &mut egui::Ui, t: &str| {
                 ui.add_space(12.0);
                 ui.label(RichText::new(t.to_uppercase()).small().strong().color(p.muted));
