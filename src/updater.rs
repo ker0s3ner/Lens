@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k now has a dedicated generic-decompiler register and ABI family instead of being routed through PowerPC semantics.",
+    "M68k data/address registers, stack-pointer handling, return register, and frame-pointer recognition now have regression coverage.",
     "Objective-C class-name metadata sections now produce stable objc_class_ names for navigation and reports.",
     "Objective-C selector and property naming remains separate, preserving readable runtime metadata categories.",
     "Known pointer-returning prototypes now preserve their return type in decompiler expressions.",

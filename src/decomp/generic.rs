@@ -40,6 +40,17 @@ mod tests {
         assert_eq!(r.w, 16);
         assert_eq!(abi_for(Arch::Arm64).names[r.i as usize], "v7");
     }
+
+    #[test]
+    fn m68k_uses_data_and_address_registers_with_stack_arguments() {
+        assert_eq!(parse_reg(Fam::M68k, "d0"), Some(R { i: 0, w: 4 }));
+        assert_eq!(parse_reg(Fam::M68k, "a6"), Some(R { i: 14, w: 4 }));
+        assert_eq!(parse_reg(Fam::M68k, "sp"), Some(R { i: 15, w: 4 }));
+        let abi = abi_for(Arch::M68k);
+        assert_eq!(abi.ret, 0);
+        assert_eq!(abi.sp, 15);
+        assert!(abi.args.is_empty());
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -49,6 +60,7 @@ enum Fam {
     Rv,
     Mips,
     Ppc,
+    M68k,
 }
 
 fn fam(a: Arch) -> Fam {
@@ -57,6 +69,7 @@ fn fam(a: Arch) -> Fam {
         Arch::Arm32 | Arch::Thumb => Fam::A32,
         Arch::RiscV32 | Arch::RiscV64 => Fam::Rv,
         Arch::Mips32 | Arch::Mips64 => Fam::Mips,
+        Arch::M68k => Fam::M68k,
         _ => Fam::Ppc,
     }
 }
@@ -87,6 +100,11 @@ pub fn abi_for(arch: Arch) -> Abi {
             let mut n: Vec<String> = (0..32).map(|i| format!("r{i}")).collect();
             n[1] = "sp".into();
             (n, 3, 1, (3..11).collect(), (3..=12).collect(), (14..=31).collect())
+        }
+        Fam::M68k => {
+            let mut n: Vec<String> = (0..8).map(|i| format!("d{i}")).collect();
+            n.extend((0..8).map(|i| if i == 7 { "sp".into() } else { format!("a{i}") }));
+            (n, 0, 15, vec![], vec![0, 1, 8, 9], (2..=7).chain(10..15).collect())
         }
     };
     Abi { names, ret, sp, args, caller_saved: caller, callee_saved: callee, x86: false }
@@ -144,6 +162,12 @@ fn parse_reg(f: Fam, tok: &str) -> Option<R> {
             MIPS.iter().position(|n| *n == t).map(|i| R { i: if i == 0 { ZERO } else { i as u8 }, w: 4 })
         }
         Fam::Ppc => num("r", 31).map(|i| R { i, w: 4 }),
+        Fam::M68k => {
+            let t = t.to_ascii_lowercase();
+            t.strip_prefix('d').and_then(|n| n.parse::<u8>().ok()).filter(|n| *n < 8).map(|i| R { i, w: 4 })
+                .or_else(|| t.strip_prefix('a').and_then(|n| n.parse::<u8>().ok()).filter(|n| *n < 8).map(|i| R { i: 8 + i, w: 4 }))
+                .or_else(|| (t == "sp").then_some(R { i: 15, w: 4 }))
+        }
     }
 }
 
@@ -252,6 +276,11 @@ fn sp_delta(f: Fam, mn: &str, ops: &[String]) -> i64 {
             }
             0
         }
+        Fam::M68k => match mn {
+            "link" if ops.len() >= 2 && spn(&ops[0]) => parse_imm(&ops[1]).unwrap_or(0),
+            "unlk" => 0,
+            _ => 0,
+        }
         Fam::A32 => {
             let regs = |o: &String| o.trim_matches(|c| c == '{' || c == '}').split(',').filter(|x| !x.trim().is_empty()).count() as i64;
             match mn {
@@ -295,7 +324,7 @@ fn sp_delta(f: Fam, mn: &str, ops: &[String]) -> i64 {
 
 /// `fp = sp + N` (frame pointer set-up) — returns N.
 fn fp_set(f: Fam, mn: &str, ops: &[String]) -> Option<i64> {
-    let is_fp = |s: &str| matches!(parse_reg(f, s), Some(r) if match f { Fam::A64 => r.i == 29, Fam::A32 => r.i == 11, Fam::Rv => r.i == 8, Fam::Mips => r.i == 30, Fam::Ppc => r.i == 31 });
+    let is_fp = |s: &str| matches!(parse_reg(f, s), Some(r) if match f { Fam::A64 => r.i == 29, Fam::A32 => r.i == 11, Fam::Rv => r.i == 8, Fam::Mips => r.i == 30, Fam::Ppc => r.i == 31, Fam::M68k => r.i == 14 });
     let is_sp = |s: &str| parse_reg(f, s).map(|r| r.i == abi_sp()).unwrap_or(false);
     if ops.is_empty() || !is_fp(&ops[0]) {
         return None;
@@ -377,7 +406,7 @@ impl<'a> Dc<'a> {
     }
 
     fn g_fp_idx(&self) -> u8 {
-        match fam(self.bin.arch) { Fam::A64 => 29, Fam::A32 => 11, Fam::Rv => 8, Fam::Mips => 30, Fam::Ppc => 31 }
+        match fam(self.bin.arch) { Fam::A64 => 29, Fam::A32 => 11, Fam::Rv => 8, Fam::Mips => 30, Fam::Ppc => 31, Fam::M68k => 14 }
     }
 
     fn g_rd(&mut self, st: &mut St, r: R) -> Ex {
@@ -617,7 +646,7 @@ pub(super) fn exec(dc: &mut Dc, f: &Function, bi: usize, sp_in: i64, bp_in: Opti
     };
     let mut term = Term::Fall(blk.end);
     let mut term_addr = blk.end;
-    let fp_idx: u8 = match fm { Fam::A64 => 29, Fam::A32 => 11, Fam::Rv => 8, Fam::Mips => 30, Fam::Ppc => 31 };
+    let fp_idx: u8 = match fm { Fam::A64 => 29, Fam::A32 => 11, Fam::Rv => 8, Fam::Mips => 30, Fam::Ppc => 31, Fam::M68k => 14 };
     'insns: for a in &blk.insns {
         let addr = *a;
         let Some(raw) = multiarch::one(dc.bin, addr) else { continue };
@@ -755,7 +784,7 @@ fn g_condition(dc: &mut Dc, st: &mut St, fm: Fam, mn: &str, ops: &[String]) -> E
     let reg = |k: usize| ops.get(k).and_then(|s| parse_reg(fm, s));
     let cmp = |op: &'static str, a: Ex, b: Ex| Ex::Bin(op, Box::new(a), Box::new(b));
     match fm {
-        Fam::A64 | Fam::A32 | Fam::Ppc => {
+        Fam::A64 | Fam::A32 | Fam::Ppc | Fam::M68k => {
             if matches!(mn, "cbz" | "cbnz") {
                 let v = reg(0).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Raw("?".into()));
                 return cmp(if mn == "cbz" { "==" } else { "!=" }, v, Ex::Num(0));

@@ -1,3 +1,8 @@
+# Lens 0.6.356 — Fourier
+
+- M68k now has a dedicated generic-decompiler register and ABI family instead of being routed through PowerPC semantics.
+- M68k data/address registers, stack-pointer handling, return register, and frame-pointer recognition now have regression coverage.
+
 # Lens 0.6.355 — Fourier
 
 - Objective-C class-name metadata sections now produce stable `objc_class_` names for navigation and reports.
