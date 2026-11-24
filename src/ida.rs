@@ -944,7 +944,7 @@ impl LensApp {
                             }
                         }
                     }
-                    if let Some(arr) = v.get("pointer_tables").or_else(|| v.get("pointer_table_records")).and_then(|x| x.as_array()) {
+                    if let Some(arr) = v.get("pointer_tables").or_else(|| v.get("pointer_table_records")).or_else(|| v.get("vtable_records")).and_then(|x| x.as_array()) {
                         let width = (l.bin.bitness() / 8) as u64;
                         let code = width as u8 | 0x80;
                         for item in arr {
