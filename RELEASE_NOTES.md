@@ -1,3 +1,8 @@
+# Lens 0.6.424 — Fourier
+
+- M68k size-suffixed arithmetic and compare mnemonics now dispatch through their semantic lifter.
+- M68k word/long/byte suffix normalization preserves readable arithmetic and flag conditions in pseudocode.
+
 # Lens 0.6.423 — Fourier
 
 - Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.

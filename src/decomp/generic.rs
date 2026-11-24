@@ -60,6 +60,22 @@ mod tests {
         assert_eq!(mem.base, R { i: 8, w: 4 });
         assert_eq!(mem.disp, 0);
     }
+
+    #[test]
+    fn m68k_size_suffixes_normalize_before_dispatch() {
+        assert_eq!(base_mnemonic("add.l"), "add");
+        assert_eq!(base_mnemonic("cmpi.w"), "cmpi");
+        assert_eq!(base_mnemonic("ext.b"), "ext");
+        assert_eq!(base_mnemonic("moveq"), "moveq");
+    }
+}
+
+fn base_mnemonic(mn: &str) -> &str {
+    mn.trim_end_matches(".b")
+        .trim_end_matches(".w")
+        .trim_end_matches(".l")
+        .trim_end_matches(".q")
+        .trim_end_matches(".n")
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -850,7 +866,7 @@ fn g_condition(dc: &mut Dc, st: &mut St, fm: Fam, mn: &str, ops: &[String]) -> E
 fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String], _fp_idx: u8) {
     let o = |k: usize| ops.get(k).map(|s| s.as_str()).unwrap_or("");
     let reg = |k: usize| parse_reg(fm, o(k));
-    let base_mn = mn.trim_end_matches(".w").trim_end_matches(".n");
+    let base_mn = base_mnemonic(mn);
     // shifted last operand: ["x1", "lsl #3"]
     let shifted = |dc: &mut Dc, st: &mut St, k: usize| -> Ex {
         match ops.get(k + 1) {
@@ -940,7 +956,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 dc.g_wr(st, r, bin("|", bin("<<", lo, Ex::Num(16)), hi), addr);
             }
         }
-        (Fam::M68k, "ext.w" | "ext.l") if ops.len() >= 1 => {
+        (Fam::M68k, "ext") if ops.len() >= 1 && (mn.ends_with(".w") || mn.ends_with(".l")) => {
             if let Some(r) = reg(0) {
                 let ty = if mn == "ext.w" { "int16_t" } else { "int32_t" };
                 let value = dc.g_rd(st, r);

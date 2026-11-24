@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k size-suffixed arithmetic and compare mnemonics now dispatch through their semantic lifter.",
+    "M68k word/long/byte suffix normalization preserves readable arithmetic and flag conditions in pseudocode.",
     "Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.",
     "Merge-block propagation remains conservative and requires matching incoming assignments before rewriting uses.",
     "Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.",
