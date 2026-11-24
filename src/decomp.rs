@@ -1469,6 +1469,8 @@ struct Emit<'a> {
     loops: HashMap<usize, Vec<usize>>,
     done: HashSet<usize>,
     switches: &'a HashMap<u64, Vec<u64>>,
+    enum_constants: &'a HashMap<String, HashMap<i64, String>>,
+    enum_return: Option<String>,
 }
 
 impl Emit<'_> {
@@ -1634,6 +1636,10 @@ impl Emit<'_> {
         match term {
             Term::Ret(v) => {
                 let t = match v {
+                    Some(Ex::Num(value)) => {
+                        let rendered = self.enum_return.as_ref().and_then(|ty| self.enum_constants.get(ty).and_then(|values| values.get(&value)).map(|member| format!("{ty}::{member}"))).unwrap_or_else(|| self.fmt.show(&Ex::Num(value)));
+                        format!("return {rendered};")
+                    }
                     Some(e) => format!("return {};", self.fmt.show(&e)),
                     None => "return;".into(),
                 };
@@ -1983,6 +1989,8 @@ fn decompile_inner(
     // emit (twice: the first run finds which blocks are jump targets, the second prints their labels)
     let rename_ref = rename.clone();
     let render_types = infer_render_types(&outs);
+    let own_proto = crate::protos::find(&name);
+    let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
@@ -1996,6 +2004,8 @@ fn decompile_inner(
         loops: loops.clone(),
         done: HashSet::new(),
         switches: &an.switches,
+        enum_constants,
+        enum_return: enum_return.clone(),
     };
     let mut first = make(HashSet::new(), mat.clone());
     first.emit(0, n, 1, None);
@@ -2014,7 +2024,7 @@ fn decompile_inner(
         lines.push(DLine { text: format!("// {comp_note}"), addr: f.start, indent: 0 });
     }
     // the function's own prototype (built in or typed by the person) gives it real types and parameter names
-    let own = crate::protos::find(&name);
+    let own = own_proto;
     let mut param_names: Vec<(String, String)> = vec![];
     let (ret_ty, params) = match &own {
         Some(p) => {
@@ -2355,6 +2365,21 @@ mod tests {
         let f = an.functions.get(&0x1000).unwrap();
         let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
         assert!(text.contains("__wide_dividend") && text.contains("/"), "unexpected pseudocode:\n{text}");
+    }
+
+    #[test]
+    fn enum_return_constants_render_as_named_members() {
+        crate::protos::set_user("enum Color color_value(void);");
+        let bin = raw_binary(&RawSpec {
+            path: "enum-return".into(), name: "enum-return".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0xB8, 1, 0, 0, 0, 0xC3])], entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let names = HashMap::from([(0x1000, ("color_value".into(), NameKind::Function))]);
+        let color = crate::types::parse_c("enum Color { Zero = 0, One = 1 };", 8, &[]).unwrap();
+        let text = render_text(&decompile_with_types(&bin, &an, &names, f, crate::detect::CallConv::SysV64, "", &[color]));
+        assert!(text.contains("return Color::One;"), "unexpected pseudocode:\n{text}");
     }
 
     #[test]

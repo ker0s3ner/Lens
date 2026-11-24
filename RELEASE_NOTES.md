@@ -1,6 +1,9 @@
-# Lens 0.6.130 — Fourier
+# Lens 0.6.131 — Fourier
 
 ## What's new
+
+- Typed enum return values now render as named Enum::Member constants in pseudocode.
+- A decompiler golden test covers enum-return propagation from prototype through return lifting.
 
 - PDB layouts now retain direct nested struct and union members using recovered record sizes.
 - Nested data members are no longer discarded solely because their enclosing record is another CodeView type.

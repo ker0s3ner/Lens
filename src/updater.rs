@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed enum return values now render as named Enum::Member constants in pseudocode.",
+    "A decompiler golden test covers enum-return propagation from prototype through return lifting.",
     "PDB layouts now retain direct nested struct and union members using recovered record sizes.",
     "Nested data members are no longer discarded solely because their enclosing record is another CodeView type.",
     "PDB class layouts containing unsupported base-class records are now skipped instead of partially imported.",
