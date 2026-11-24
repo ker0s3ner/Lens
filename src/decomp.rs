@@ -1971,6 +1971,15 @@ impl Emit<'_> {
         match e {
             Ex::Var(name) => self.enum_vars.get(name).cloned(),
             Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
+            Ex::Bin(op, left, right) if matches!(*op, "+" | "-") => {
+                if self.enum_type(left).is_some() && enum_const_int(right).is_some() {
+                    self.enum_type(left)
+                } else if self.enum_type(right).is_some() && enum_const_int(left).is_some() {
+                    self.enum_type(right)
+                } else {
+                    None
+                }
+            }
             Ex::Call(function, _) => match &**function {
                 Ex::Var(name) => crate::protos::find(name).and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string)),
                 _ => None,
@@ -2905,6 +2914,8 @@ mod tests {
         assert_eq!(emit.fmt.show(&divided), "a1 == Color::Two");
         let remainder = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("%", Box::new(Ex::Num(5)), Box::new(Ex::Num(3))))));
         assert_eq!(emit.fmt.show(&remainder), "a1 == Color::Two");
+        let shifted_member = emit.enumize(Ex::Bin("==", Box::new(Ex::Bin("+", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1)))), Box::new(Ex::Num(2))));
+        assert_eq!(emit.fmt.show(&shifted_member), "a1 + Color::One == 2");
     }
 
     #[test]
