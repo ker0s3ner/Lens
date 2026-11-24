@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON function records now include normalized callers and callees alongside call sites.",
+    "Machine-readable graph consumers can now reconstruct function neighborhoods without rescanning xrefs.",
     "Decompiler now inlines safe single-use call temporaries into their consuming assignment.",
     "Call results remain separate when a temporary is used later, preserving evaluation and value flow.",
     "Script callee queries now aggregate call sites across the whole containing function.",

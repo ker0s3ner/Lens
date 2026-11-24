@@ -1,3 +1,10 @@
+# Lens 0.6.276 — Fourier
+
+- JSON function records now include normalized callers and callees alongside call sites.
+- Machine-readable graph consumers can now reconstruct function neighborhoods without rescanning xrefs.
+
+Verification: `cargo test --locked --quiet` — 92 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.275 — Fourier
 
 - Decompiler now inlines safe single-use call temporaries into their consuming assignment.
