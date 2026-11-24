@@ -64,6 +64,14 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("+", Num(x), Num(y)) => Num(x.wrapping_add(*y)),
         ("-", Num(x), Num(y)) => Num(x.wrapping_sub(*y)),
         ("*", Num(x), Num(y)) => Num(x.wrapping_mul(*y)),
+        ("/", Num(x), Num(y)) if *y != 0 => Num(x.wrapping_div(*y)),
+        ("%", Num(x), Num(y)) if *y != 0 => Num(x.wrapping_rem(*y)),
+        ("==", Num(x), Num(y)) => Num((*x == *y) as i64),
+        ("!=", Num(x), Num(y)) => Num((*x != *y) as i64),
+        ("<", Num(x), Num(y)) => Num((*x < *y) as i64),
+        ("<=", Num(x), Num(y)) => Num((*x <= *y) as i64),
+        (">", Num(x), Num(y)) => Num((*x > *y) as i64),
+        (">=", Num(x), Num(y)) => Num((*x >= *y) as i64),
         ("&", Num(x), Num(y)) => Num(x & y),
         ("|", Num(x), Num(y)) => Num(x | y),
         ("^", Num(x), Num(y)) => Num(x ^ y),
@@ -2702,6 +2710,15 @@ mod tests {
         propagate_adjacent_copy(&mut ret);
         assert!(ret.stmts.is_empty());
         assert!(matches!(ret.term, Term::Ret(Some(Ex::Var(ref v))) if v == "rax"));
+    }
+
+    #[test]
+    fn folds_constant_division_remainder_and_comparisons() {
+        assert_eq!(bin("/", Ex::Num(20), Ex::Num(4)), Ex::Num(5));
+        assert_eq!(bin("%", Ex::Num(21), Ex::Num(4)), Ex::Num(1));
+        assert_eq!(bin("<", Ex::Num(2), Ex::Num(3)), Ex::Num(1));
+        assert_eq!(bin("==", Ex::Num(2), Ex::Num(3)), Ex::Num(0));
+        assert!(matches!(bin("/", Ex::Num(1), Ex::Num(0)), Ex::Bin("/", ..)));
     }
 
     #[test]
