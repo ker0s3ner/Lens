@@ -281,6 +281,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         let center = normalize(a as u64);
         let max_depth = depth.clamp(0, 8) as usize;
         const MAX_GRAPH_NODES: usize = 256;
+        const MAX_GRAPH_EDGES: usize = 2048;
         let mut seen = std::collections::HashSet::new();
         let mut visited = std::collections::HashSet::from([center]);
         let mut frontier = vec![center];
@@ -289,6 +290,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
             let mut next = Vec::new();
             for source in frontier {
                 for (target, kind) in graph_out.get(&source).into_iter().flatten() {
+                    if edges.len() >= MAX_GRAPH_EDGES { break; }
                     let target = *target;
                     if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&target) { continue; }
                     if seen.insert((source, target, kind.clone())) {
@@ -302,6 +304,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                     }
                 }
                 for (from, kind) in graph_in.get(&source).into_iter().flatten() {
+                    if edges.len() >= MAX_GRAPH_EDGES { break; }
                     let from = *from;
                     if visited.len() >= MAX_GRAPH_NODES && !visited.contains(&from) { continue; }
                     if seen.insert((from, source, kind.clone())) {
@@ -713,7 +716,7 @@ impl LensApp {
             ScrollArea::vertical().id_salt("out").max_height(180.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.label(RichText::new(&s.out).monospace().small());
             });
-            ui.label(RichText::new("API v1: script_api_version() functions() function_at(a) strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) search(query) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
+            ui.label(RichText::new("API v1: script_api_version() functions() function_at(a) strings() types() type_at(a) segments() imports() exports() pointer_tables() vtables() name_at(a) find(name) search(query) comment_at(a) bookmarks() data_at(a) data_definitions() xrefs_to(a) xrefs_to_details(a) xrefs_from(a) xrefs_from_details(a) callers(a) callees(a) call_graph(a,depth) decompile(a) read_u8/16/32/64(a) read_bytes(a,n) disasm(a) entry() arch() · rename comment mark goto patch make_function add_type apply_type define_pointer_table define_array log").small().color(p.muted));
         });
         if run {
             let src = self.tools2.script.src.clone();

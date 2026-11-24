@@ -1,3 +1,8 @@
+# Lens 0.6.440 — Fourier
+
+- Rhai `call_graph` now caps emitted edges at 2,048 as well as limiting nodes, preventing high-fanout binaries from producing oversized script results.
+- The in-app scripting API reference now documents `callers(a)`, `callees(a)`, and `call_graph(a, depth)` alongside the existing analysis helpers.
+
 # Lens 0.6.439 — Fourier
 
 - Rhai `call_graph` now builds function-level incoming and outgoing adjacency once per script run instead of rescanning every xref for each frontier node.

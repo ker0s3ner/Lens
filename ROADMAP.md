@@ -1,5 +1,7 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
+Release update: **Lens 0.6.440 — Fourier** caps scripted call-graph edges and documents the complete graph-query API in the script panel. The 50% target remains unmet.
+
 Release update: **Lens 0.6.439 — Fourier** replaces repeated full xref scans in scripted call-graph expansion with pre-indexed function-level adjacency. The 50% target remains unmet.
 
 Release update: **Lens 0.6.438 — Fourier** adds source–destination-correct M68k move lifting, `$`-prefixed hexadecimal immediate parsing, and deterministic M68k return-value pseudocode coverage. The 50% target remains unmet.
