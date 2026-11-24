@@ -2168,6 +2168,13 @@ fn decompile_inner(
         for (t, rhs) in &assignments {
             let ty = match rhs {
                 Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+                Ex::Deref(inner, _) => match &**inner {
+                    Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()), _ => None },
+                    Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
+                    Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                    Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                    _ => None,
+                },
                 Ex::Cast(ty, _) => Some((*ty).to_string()),
                 Ex::CastOwned(ty, _) => Some(ty.clone()),
                 Ex::Var(v) => known_types.get(v).cloned(),
@@ -2185,6 +2192,13 @@ fn decompile_inner(
     for (t, rhs) in &assignments {
         let ty = match rhs {
             Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret).filter(|r| r != "void"), _ => None },
+            Ex::Deref(inner, _) => match &**inner {
+                Ex::Call(c, _) => match &**c { Ex::Var(n) => crate::protos::find(n).map(|p| p.ret.trim().strip_suffix('*').map(str::trim).unwrap_or(p.ret.trim()).to_string()), _ => None },
+                Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
+                Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                _ => None,
+            },
             Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Var(v) => known_types.get(v).cloned(),

@@ -1,3 +1,17 @@
+# Lens 0.6.148 — Fourier
+
+## What's new
+
+- The decompiler's earlier type-analysis pass now preserves pointee types through dereferences, casts, and pointer temporaries before rendering.
+- Pointer type information remains available to later assignments and call-result propagation instead of only affecting final display formatting.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.147 — Fourier
 
 ## What's new
