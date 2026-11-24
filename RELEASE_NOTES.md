@@ -1,3 +1,8 @@
+# Lens 0.6.297 — Fourier
+
+- RISC-V SH1ADD, SH2ADD, and SH3ADD now render as explicit scaled-index address expressions.
+- RISC-V address-generation idioms now preserve their add-and-shift data flow in pseudocode.
+
 # Lens 0.6.296 — Fourier
 
 - RISC-V ORC.B and REV8 now render as named byte-oriented operations instead of opaque instruction fallbacks.

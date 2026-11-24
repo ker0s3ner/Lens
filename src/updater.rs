@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V SH1ADD, SH2ADD, and SH3ADD now render as explicit scaled-index address expressions.",
+    "RISC-V address-generation idioms now preserve their add-and-shift data flow in pseudocode.",
     "RISC-V ORC.B and REV8 now render as named byte-oriented operations instead of opaque instruction fallbacks.",
     "Roadmap and release documentation now track the shipped 0.6.296 Fourier build consistently.",
     "RISC-V BEXTI immediate bit extraction now renders through the same visible shift-and-mask expression as BEXT.",

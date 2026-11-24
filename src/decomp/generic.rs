@@ -1017,6 +1017,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 arith(dc, st, "+", false)
             }
         }
+        (Fam::Rv, "sh1add" | "sh2add" | "sh3add") if ops.len() >= 3 => {
+            let base = dc.g_val(st, o(1), None);
+            let index = dc.g_val(st, o(2), None);
+            let shift = match base_mn { "sh1add" => 1, "sh2add" => 2, _ => 3 };
+            set(dc, st, 0, bin("+", base, bin("<<", index, Ex::Num(shift))));
+        }
         (Fam::A64 | Fam::A32, "adds") => arith(dc, st, "+", true),
         (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") => arith(dc, st, "-", false),
         (Fam::A64 | Fam::A32, "subs") => arith(dc, st, "-", true),
