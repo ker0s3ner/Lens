@@ -20,6 +20,7 @@ pub struct VisState {
     pub cg_zoom: f32,
     pub cg_depth: usize,
     pub cg_for: u64,
+    pub cg_cache: Option<(u64, usize, Vec<CNode>, Vec<(usize, usize)>)>,
     pub map_mode: u8,
     pub map_pan: Vec2,
     pub map_zoom: f32,
@@ -653,6 +654,7 @@ impl LensApp {
             vis.cg_for = fs;
             vis.cg_pan = Vec2::ZERO;
             vis.cg_zoom = 1.0;
+            vis.cg_cache = None;
         }
         ui.horizontal(|ui| {
             ui.add_space(12.0);
@@ -665,7 +667,11 @@ impl LensApp {
             ui.add_space(10.0);
             ui.label(RichText::new("callers (left)  ->  this function  ->  callees (right)").small().color(p.faint));
         });
-        let (nodes, edges) = build_callgraph(l, fs, vis.cg_depth);
+        if vis.cg_cache.as_ref().map(|(cached_for, cached_depth, _, _)| (*cached_for, *cached_depth)) != Some((fs, vis.cg_depth)) {
+            let (nodes, edges) = build_callgraph(l, fs, vis.cg_depth);
+            vis.cg_cache = Some((fs, vis.cg_depth, nodes, edges));
+        }
+        let (_, _, nodes, edges) = vis.cg_cache.as_ref().expect("call graph cache populated");
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let area = resp.rect;
         painter.rect_filled(area, 0.0, p.panel_alt);
@@ -693,7 +699,7 @@ impl LensApp {
         let hover = resp.hover_pos();
         let hovered = nodes.iter().position(|n| hover.map(|h| rect_of(n).contains(h)).unwrap_or(false));
         // edges
-        for (a, b) in &edges {
+        for (a, b) in edges {
             let (ra, rb) = (rect_of(&nodes[*a]), rect_of(&nodes[*b]));
             let (s, e) = (pos2(ra.right(), ra.center().y), pos2(rb.left(), rb.center().y));
             let hot = hovered == Some(*a) || hovered == Some(*b);

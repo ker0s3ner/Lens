@@ -906,6 +906,7 @@ impl LensApp {
             Err(e) => { self.logm(format!("Couldn't read the file: {e}")); return; }
         };
         let State::Ready(l) = &mut self.state else { return };
+        let patches_before = l.ann.patches.len();
         let (mut n, mut c, mut f, mut d) = (0, 0, 0, 0);
         if text.trim_start().starts_with('{') {
             let exported = serde_json::from_str::<serde_json::Value>(&text).ok().map(|v| v.get("schema").is_some() || v.get("file").is_some() || v.get("data_definitions").is_some() || v.get("array_records").is_some()).unwrap_or(false);
@@ -1112,6 +1113,7 @@ impl LensApp {
             for (a, s) in cmts { l.ann.comments.insert(a, s); c += 1; }
             for a in funcs { if !l.ann.functions.contains(&a) && !l.an.functions.contains_key(&a) { l.ann.functions.push(a); f += 1; } }
         }
+        let imported_patches = l.ann.patches.len().saturating_sub(patches_before);
         if !l.ann.patches.is_empty() {
             let mut patched = (*l.bin).clone();
             crate::patch::apply(&mut patched, &l.ann.patches);
@@ -1119,7 +1121,7 @@ impl LensApp {
         }
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.refresh();
-        self.logm(format!("Imported {n} names, {c} notes, {d} data definitions and {f} new functions."));
-        if f > 0 || d > 0 { self.reanalyze(); }
+        self.logm(format!("Imported {n} names, {c} notes, {d} data definitions, {imported_patches} patches and {f} new functions."));
+        if f > 0 || d > 0 || imported_patches > 0 { self.reanalyze(); }
     }
 }

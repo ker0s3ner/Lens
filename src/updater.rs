@@ -29,6 +29,9 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Imported patches now trigger reanalysis of the patched in-memory binary.",
+    "The import log now reports how many patch records were restored.",
+    "Call graph layout is now cached between frames to prevent repeated rescans and UI stalls.",
     "Analysis JSON now round-trips patches, breakpoints, conditions, and variable renames.",
     "Imported patch records are now applied immediately to the in-memory binary.",
     "Full Lens annotation JSON import now restores data, patches, types, breakpoints, prototypes, and variable renames.",

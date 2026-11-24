@@ -31,6 +31,21 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.257 — Fourier
+
+## What's new
+
+- Imported patches now trigger reanalysis of the patched in-memory binary.
+- The import log now reports how many patch records were restored.
+- Call graph layout is now cached between frames to prevent repeated rescans and UI stalls.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.256 — Fourier
 
 ## What's new
