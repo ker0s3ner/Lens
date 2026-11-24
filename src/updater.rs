@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB primitive and pointer-indirected type decoding now has direct regression coverage.",
+    "The deterministic suite now covers 57 cases across analysis, interchange, DWARF, and PDB paths.",
     "PDB prototype recovery now decodes inline CodeView primitive type indices for concrete parameter and return types.",
     "Primitive PDB signatures no longer fall back to `void` merely because their types are encoded below the TPI stream.",
     "PDB prototypes are now retained even when their symbol names were already known from PE exports.",

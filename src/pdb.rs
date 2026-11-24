@@ -124,7 +124,8 @@ pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::symbols;
+    use super::{symbols, type_name};
+    use std::collections::HashMap;
 
     #[test]
     fn ignores_non_pdb_inputs() {
@@ -132,5 +133,12 @@ mod tests {
         std::fs::write(&path, b"not a PDB").unwrap();
         assert!(symbols(&path).is_none());
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn decodes_inline_primitive_type_indices() {
+        let types = HashMap::new();
+        assert_eq!(type_name(pdb::TypeIndex(0x74), &types), "int32_t");
+        assert_eq!(type_name(pdb::TypeIndex(0x474), &types), "int32_t *");
     }
 }

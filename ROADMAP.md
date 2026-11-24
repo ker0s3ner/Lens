@@ -118,6 +118,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - PDB procedure records now contribute conservative primitive/pointer prototypes to the decompiler.
 - PDB prototypes are retained even when their symbol names were already known from PE exports.
 - Inline CodeView primitive PDB type indices now resolve to concrete prototype types.
+- Inline primitive and pointer-indirected PDB type decoding is covered by deterministic tests.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
