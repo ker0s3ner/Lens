@@ -1,3 +1,8 @@
+# Lens 0.6.426 — Fourier
+
+- Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion.
+- Depth inputs are clamped defensively so large or scripted requests cannot trigger unbounded graph work.
+
 # Lens 0.6.425 — Fourier
 
 - Call graph now opens with a bounded one-hop neighborhood for a responsive first frame.

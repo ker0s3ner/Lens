@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion.",
+    "Depth inputs are clamped defensively so large or scripted requests cannot trigger unbounded graph work.",
     "Call graph now opens with a bounded one-hop neighborhood for a responsive first frame.",
     "Call-graph depth inputs are defensively clamped while deeper 2/3-hop expansion remains available on demand.",
     "Call-graph depth inputs are defensively clamped while deeper 2/3-hop expansion remains available on demand.",
