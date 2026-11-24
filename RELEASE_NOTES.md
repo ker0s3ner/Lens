@@ -1,3 +1,8 @@
+# Lens 0.6.334 — Fourier
+
+- PE ARM64 loading now seeds stripped function discovery from `.pdata` runtime-function records.
+- PE unwind-based function hints now cover both x64 and ARM64 images through the shared bounded table parser.
+
 # Lens 0.6.333 — Fourier
 
 - MIPS `madd`/`maddu` now preserve multiply-accumulate updates through the implicit HI/LO pair.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PE ARM64 loading now seeds stripped function discovery from .pdata runtime-function records.",
+    "PE unwind-based function hints now cover both x64 and ARM64 images through the shared bounded table parser.",
     "MIPS madd/maddu now preserve multiply-accumulate updates through the implicit HI/LO pair.",
     "MIPS msub/msubu now preserve multiply-subtract HI/LO updates with named wide-result helpers.",
     "Chained pointer typedefs now resolve through named aliases such as typedef FooAlias *FooPtr.",
