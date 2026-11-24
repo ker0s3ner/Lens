@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Variable-index pointer reconstruction now accepts either multiplication operand order.",
+    "Typed pointer dereferences now reconstruct p[index] accesses when the element stride is known.",
     "Typed pointer dereferences now reconstruct variable-index scalar accesses when the element stride is known.",
     "Enum local type recovery continues through typed call returns and recursive enum-return calls.",
     "Enum local type recovery now recognizes typed prototype call returns and recursive enum-return calls.",

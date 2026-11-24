@@ -326,8 +326,12 @@ impl Fmt<'_> {
 
     fn pointer_index(&self, address: &Ex) -> Option<(String, String)> {
         let Ex::Bin("+", base, offset) = address else { return None };
-        let Ex::Bin("*", index, scale) = &**offset else { return None };
-        let Ex::Num(stride) = **scale else { return None };
+        let Ex::Bin("*", left, right) = &**offset else { return None };
+        let (index, stride) = match (&**left, &**right) {
+            (index, Ex::Num(stride)) => (index, *stride),
+            (Ex::Num(stride), index) => (index, *stride),
+            _ => return None,
+        };
         if stride <= 0 || stride > u8::MAX as i64 { return None; }
         let pointer = match &**base {
             Ex::Var(name) => self.types.get(name).is_some_and(|ty| ty.trim().ends_with('*')),
@@ -3311,6 +3315,8 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("*", Box::new(var("i")), Box::new(Ex::Num(4)))))), 4);
         assert_eq!(fmt.show(&expression), "p[i]");
+        let reversed = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("*", Box::new(Ex::Num(4)), Box::new(var("i")))))), 4);
+        assert_eq!(fmt.show(&reversed), "p[i]");
     }
 
     #[test]

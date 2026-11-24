@@ -1,3 +1,8 @@
+# Lens 0.6.405 — Fourier
+
+- Variable-index pointer reconstruction now accepts either multiplication operand order.
+- Typed pointer dereferences now reconstruct `p[index]` accesses when the element stride is known.
+
 # Lens 0.6.404 — Fourier
 
 - Typed pointer dereferences now reconstruct variable-index scalar accesses when the element stride is known.
