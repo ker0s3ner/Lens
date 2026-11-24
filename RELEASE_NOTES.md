@@ -1,3 +1,8 @@
+# Lens 0.6.389 — Fourier
+
+- Rhai `vtables()` records now expose optional owning segment and file-offset fields.
+- Vtable source context is now consistent across analysis reports, desktop database exports, and scripts.
+
 # Lens 0.6.388 — Fourier
 
 - Desktop JSON database exports now preserve vtable owning segments and file offsets.

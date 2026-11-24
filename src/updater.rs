@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Rhai vtables() records now expose optional owning segment and file-offset fields.",
+    "Vtable source context is now consistent across analysis reports, desktop database exports, and scripts.",
     "Desktop JSON database exports now preserve vtable owning segments and file offsets.",
     "Analysis-report vtable records retain source context consistently with database exports.",
     "JSON vtable records now include owning segment and file-offset source context.",
