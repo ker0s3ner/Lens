@@ -718,6 +718,24 @@ struct BlockOut {
     term_addr: u64,
 }
 
+fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut vars = seed.clone();
+    for _ in 0..outs.len().max(1) {
+        let mut changed = false;
+        for block in outs {
+            for (_, stmt) in &block.stmts {
+                if let Stmt::Assign(Ex::Var(dst), Ex::Var(src)) = stmt {
+                    if let Some(ty) = vars.get(src).cloned() {
+                        changed |= vars.insert(dst.clone(), ty).is_none();
+                    }
+                }
+            }
+        }
+        if !changed { break; }
+    }
+    vars
+}
+
 #[derive(Clone)]
 pub struct DLine {
     pub text: String,
@@ -1814,6 +1832,7 @@ struct Emit<'a> {
     enum_constants: &'a HashMap<String, HashMap<i64, String>>,
     enum_return: Option<String>,
     enum_params: HashMap<String, String>,
+    enum_vars: HashMap<String, String>,
 }
 
 impl Emit<'_> {
@@ -1877,7 +1896,7 @@ impl Emit<'_> {
                         _ => return None,
                     };
                     let Ex::Num(value) = value else { return None };
-                    let ty = self.enum_params.get(name)?;
+                    let ty = self.enum_vars.get(name)?;
                     let member = self.enum_constants.get(ty)?.get(value)?;
                     Some(Ex::Var(format!("{ty}::{member}")))
                 };
@@ -1897,7 +1916,7 @@ impl Emit<'_> {
 
     fn enum_type(&self, e: &Ex) -> Option<&str> {
         match e {
-            Ex::Var(name) => self.enum_params.get(name).map(String::as_str),
+            Ex::Var(name) => self.enum_vars.get(name).map(String::as_str),
             Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
             _ => None,
         }
@@ -2383,6 +2402,7 @@ fn decompile_inner(
     let own_proto = crate::protos::find(&name);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
+    let enum_vars = infer_enum_vars(&outs, &enum_params);
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
@@ -2399,6 +2419,7 @@ fn decompile_inner(
         enum_constants,
         enum_return: enum_return.clone(),
         enum_params: enum_params.clone(),
+        enum_vars: enum_vars.clone(),
     };
     let mut first = make(HashSet::new(), mat.clone());
     first.emit(0, n, 1, None);
@@ -2811,9 +2832,23 @@ mod tests {
         let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One"))]))]);
         let params = HashMap::from([(String::from("a1"), String::from("Color"))]);
         let switches = HashMap::new();
-        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_params: params };
+        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_params: params.clone(), enum_vars: params };
         let expression = emit.enumize(Ex::Bin("==", Box::new(Ex::Cast("int", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
+    }
+
+    #[test]
+    fn enum_parameter_type_propagates_through_local_copies() {
+        let outs = vec![BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("a1".into()))),
+                (1, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("v1".into()))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
+        }];
+        let seed = HashMap::from([(String::from("a1"), String::from("Color"))]);
+        let vars = infer_enum_vars(&outs, &seed);
+        assert_eq!(vars.get("v2").map(String::as_str), Some("Color"));
     }
 
     #[test]

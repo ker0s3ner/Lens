@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum type information now propagates through safe local variable copies in decompiled pseudocode.",
+    "Enum-aware comparisons and switch recovery can retain named members after parameter-to-temporary moves.",
     "C-like type parsing now rejects named zero-width bitfields instead of treating them as alignment separators.",
     "Zero-width storage separators continue to honor packed and pragma-pack alignment rules with regression coverage.",
     "Call graph nodes now identify forwarding thunks and show their analyzed target address.",

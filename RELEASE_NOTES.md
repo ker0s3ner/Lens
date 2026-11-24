@@ -1,3 +1,8 @@
+# Lens 0.6.371 — Fourier
+
+- Enum type information now propagates through safe local variable copies in decompiled pseudocode.
+- Enum-aware comparisons and switch recovery can retain named members after parameter-to-temporary moves.
+
 # Lens 0.6.370 — Fourier
 
 - C-like type parsing now rejects named zero-width bitfields instead of treating them as alignment separators.
