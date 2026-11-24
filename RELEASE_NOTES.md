@@ -1,6 +1,9 @@
-# Lens 0.6.78 — Fourier
+# Lens 0.6.79 — Fourier
 
 ## What's new
+
+- AVX-512 mask-register logical, move, shift, and inversion families now remain visible as named pseudocode intrinsics.
+- Mask operand groups are preserved instead of disappearing into generic handling.
 
 - Added a deterministic JSON interchange regression covering function, export, import-slot, vtable, and explicit name records.
 - The repeatable test suite now has 54 passing tests.

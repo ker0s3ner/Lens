@@ -1117,6 +1117,17 @@ impl<'a> Dc<'a> {
                     let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
                 }
+                Mnemonic::Kandb | Mnemonic::Kandd | Mnemonic::Kandnb | Mnemonic::Kandnd | Mnemonic::Kandnq | Mnemonic::Kandnw | Mnemonic::Kandq | Mnemonic::Kandw
+                | Mnemonic::Kmovb | Mnemonic::Kmovd | Mnemonic::Kmovq | Mnemonic::Kmovw
+                | Mnemonic::Knotb | Mnemonic::Knotd | Mnemonic::Knotq | Mnemonic::Knotw
+                | Mnemonic::Korb | Mnemonic::Kord | Mnemonic::Korq | Mnemonic::Korw
+                | Mnemonic::Kshiftlb | Mnemonic::Kshiftld | Mnemonic::Kshiftlq | Mnemonic::Kshiftlw
+                | Mnemonic::Kshiftrb | Mnemonic::Kshiftrd | Mnemonic::Kshiftrq | Mnemonic::Kshiftrw
+                | Mnemonic::Kxorb | Mnemonic::Kxord | Mnemonic::Kxorq | Mnemonic::Kxorw
+                if ins.op_count() >= 1 => {
+                    let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
+                }
                 Mnemonic::Lea => {
                     let sz = 1;
                     let (a, _) = self.mem_operand(&mut st, ins, sz);
