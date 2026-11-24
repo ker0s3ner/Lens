@@ -352,6 +352,9 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
         if let Some(rest) = s.strip_prefix('!') {
             return Some((eval(rest, names)? == 0) as i64);
         }
+        if let Some(rest) = s.strip_prefix('+') {
+            return eval(rest, names);
+        }
         let mut depth = 0i32;
         let mut question = None;
         for (i, c) in s.char_indices() {
@@ -588,9 +591,9 @@ mod tests {
 
     #[test]
     fn parses_logical_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0, Choice = 1 ? 2 : 3 }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0, Choice = 1 ? 2 : 3, Plus = +2 }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
-        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1), ("Choice", 2)]);
+        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1), ("Choice", 2), ("Plus", 2)]);
     }
 
     #[test]

@@ -1,3 +1,8 @@
+# Lens 0.6.415 — Fourier
+
+- C enum parsing now accepts unary-plus constant expressions consistently with pseudocode folding.
+- Logical, ternary, and unary enum constant parsing now share the decompiler's supported semantics.
+
 # Lens 0.6.414 — Fourier
 
 - Enum type propagation now retains identity through unary-minus expressions.
