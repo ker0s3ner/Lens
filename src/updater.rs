@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Roadmap and README now identify the shipped 0.6.281 Fourier graph-report build.",
+    "Public CLI documentation now calls out stable normalized caller/callee arrays explicitly.",
     "The smoke corpus now verifies callers and callees in every JSON function record.",
     "JSON graph regressions now fail the release gate when normalized edge fields disappear.",
     "Roadmap and README status now track the current Fourier build and JSON graph fields.",

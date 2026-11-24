@@ -1,3 +1,10 @@
+# Lens 0.6.282 — Fourier
+
+- Roadmap and README now identify the shipped 0.6.281 Fourier graph-report build.
+- Public CLI documentation now calls out stable normalized caller/callee arrays explicitly.
+
+Verification: `cargo test --locked --quiet` — 93 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.281 — Fourier
 
 - The smoke corpus now verifies callers and callees in every JSON function record.
