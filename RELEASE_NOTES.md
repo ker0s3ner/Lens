@@ -1,3 +1,8 @@
+# Lens 0.6.366 — Fourier
+
+- M68k `exg` and `swap` idioms now lift as explicit register transformations.
+- M68k `ext.w`/`ext.l` operations now preserve signed width conversion in pseudocode.
+
 # Lens 0.6.365 — Fourier
 
 - M68k `unlk` instructions now restore the tracked stack from `a6` and clear frame state before return.

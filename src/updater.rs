@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k exg and swap idioms now lift as explicit register transformations.",
+    "M68k ext.w/ext.l operations now preserve signed width conversion in pseudocode.",
     "M68k unlk instructions now restore the tracked stack from a6 and clear frame state before return.",
     "M68k frame teardown no longer leaves stale local-address state in generic pseudocode recovery.",
     "M68k link/unlink-style frame setup now recognizes a6 as the frame pointer.",

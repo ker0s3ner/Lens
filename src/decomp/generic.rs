@@ -919,6 +919,29 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 dc.g_writeback(st, &mm, addr);
             }
         }
+        (Fam::M68k, "exg") if ops.len() >= 2 => {
+            if let (Some(a), Some(b)) = (reg(0), reg(1)) {
+                let av = dc.g_rd(st, a);
+                let bv = dc.g_rd(st, b);
+                dc.g_wr(st, a, bv, addr);
+                dc.g_wr(st, b, av, addr);
+            }
+        }
+        (Fam::M68k, "swap") if ops.len() >= 1 => {
+            if let Some(r) = reg(0) {
+                let v = dc.g_rd(st, r);
+                let lo = bin("&", v.clone(), Ex::Num(0xffff));
+                let hi = bin("&", bin(">>", v, Ex::Num(16)), Ex::Num(0xffff));
+                dc.g_wr(st, r, bin("|", bin("<<", lo, Ex::Num(16)), hi), addr);
+            }
+        }
+        (Fam::M68k, "ext.w" | "ext.l") if ops.len() >= 1 => {
+            if let Some(r) = reg(0) {
+                let ty = if mn == "ext.w" { "int16_t" } else { "int32_t" };
+                let value = dc.g_rd(st, r);
+                dc.g_wr(st, r, Ex::Cast(ty, Box::new(value)), addr);
+            }
+        }
         (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") | (Fam::M68k, "move" | "moveq") => {
             let mut v = dc.g_val(st, o(1), None);
             if base_mn == "lis" {
