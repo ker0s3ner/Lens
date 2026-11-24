@@ -1,3 +1,8 @@
+# Lens 0.6.345 — Fourier
+
+- Direct `--decompile` output now uses saved annotations and the typed decompiler instead of resetting to an empty database.
+- CLI address/name decompilation now matches JSON, scripts, and the GUI for recovered prototypes and struct fields.
+
 # Lens 0.6.344 — Fourier
 
 - CLI analysis now loads saved per-file annotations before discovery and pseudocode generation.

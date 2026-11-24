@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Direct --decompile output now uses saved annotations and the typed decompiler instead of resetting to an empty database.",
+    "CLI address/name decompilation now matches JSON, scripts, and the GUI for recovered prototypes and struct fields.",
     "CLI analysis now loads saved per-file annotations before discovery and pseudocode generation.",
     "JSON reports and scripts now preserve user-defined functions, names, prototypes, data definitions, and structs like the GUI.",
     "CLI JSON pseudocode now receives recovered DWARF and CodeView struct layouts instead of an empty type database.",

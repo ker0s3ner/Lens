@@ -425,7 +425,6 @@ fn cli(args: &[String]) -> bool {
         println!("{}", an.stats);
     }
     if let Some(target) = dec {
-        let ann = store::Annotations::default();
         let names = app::build_names(&an, &ann, &det, &bin);
         let addrs: Vec<u64> = if target == "all" {
             an.functions.keys().copied().collect()
@@ -441,7 +440,7 @@ fn cli(args: &[String]) -> bool {
                 if f.kind == analysis::FuncKind::Import { continue; }
                 if std::env::var("LENS_TRACE2").is_ok() { eprintln!("start {a:X}"); }
                 let t0 = std::time::Instant::now();
-                let d = decomp::decompile(&bin, &an, &names, f, det.conv, "");
+                let d = decomp::decompile_with_types(&bin, &an, &names, f, det.conv, "", &ann.structs);
                 if std::env::var("LENS_TRACE").is_ok() && t0.elapsed().as_millis() > 100 { eprintln!("{a:X} {} blocks {} insns {}ms", f.blocks.len(), f.insn_count, t0.elapsed().as_millis()); }
                 let lg = match args.iter().position(|x| x == "--lang").and_then(|i| args.get(i + 1)).map(|s| s.as_str()) { Some("python") => lang::Lang::Python, Some("rust") => lang::Lang::Rust, Some("go") => lang::Lang::Go, Some("js") => lang::Lang::JavaScript, _ => lang::Lang::C };
                 println!("{}", lang::render_text(&lang::render(&d, lg)));
