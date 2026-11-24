@@ -99,6 +99,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Decompiler now inlines safe single-use call temporaries while retaining separate values when later uses exist.
 - JSON function records now expose normalized caller and callee function addresses for graph consumers.
 - JSON callee records are deterministic and deduplicated while raw call-site records remain available.
+- The runtime smoke corpus now gates releases on the presence of normalized JSON callers/callees.
 - Decompiler folds constant ternary conditions while preserving non-constant branch structure.
 - Script call-graph expansion is bounded and deterministic for large-binary automation.
 - Decompiler lifting now distinguishes logical and arithmetic right shifts, including rotate expressions.

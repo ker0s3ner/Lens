@@ -1,3 +1,10 @@
+# Lens 0.6.281 — Fourier
+
+- The smoke corpus now verifies callers and callees in every JSON function record.
+- JSON graph regressions now fail the release gate when normalized edge fields disappear.
+
+Verification: `cargo test --locked --quiet` — 93 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.280 — Fourier
 
 - Roadmap and README status now track the current Fourier build and JSON graph fields.

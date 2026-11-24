@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The smoke corpus now verifies callers and callees in every JSON function record.",
+    "JSON graph regressions now fail the release gate when normalized edge fields disappear.",
     "Roadmap and README status now track the current Fourier build and JSON graph fields.",
     "Release documentation now records the 50% target status and current 38.3% weighted estimate consistently.",
     "Script call_graph now caps expansion at 256 functions to protect large-binary automation.",

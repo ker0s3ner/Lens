@@ -180,6 +180,20 @@ fn cli(args: &[String]) -> bool {
         let mut entry_records: Vec<u64> = bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).chain(bin.func_hints.iter().copied()).collect();
         entry_records.sort_unstable();
         entry_records.dedup();
+        let callers_for = |target: u64| -> Vec<u64> {
+            let mut callers: Vec<u64> = an.xrefs_to.get(&target).into_iter().flatten()
+                .filter(|xref| matches!(xref.kind, analysis::XrefKind::Call | analysis::XrefKind::Jump))
+                .filter_map(|xref| an.function_containing(xref.from).map(|function| function.start)).collect();
+            callers.sort_unstable();
+            callers.dedup();
+            callers
+        };
+        let callees_for = |function: &analysis::Function| -> Vec<u64> {
+            let mut callees: Vec<u64> = function.calls.iter().map(|target| an.function_containing(*target).map(|callee| callee.start).unwrap_or(*target)).collect();
+            callees.sort_unstable();
+            callees.dedup();
+            callees
+        };
         let value = serde_json::json!({
             "schema": "lens.analysis.v1",
             "file": bin.file_name,
@@ -209,6 +223,8 @@ fn cli(args: &[String]) -> bool {
                 "blocks": f.blocks.len(),
                 "instructions": f.insn_count,
                 "calls": f.calls,
+                "callees": callees_for(f),
+                "callers": callers_for(f.start),
                 "references": an.xrefs_to.get(&f.start).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
                 "noreturn": f.noreturn,
                 "thunk_target": f.thunk_target,
