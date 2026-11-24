@@ -563,6 +563,7 @@ impl LensApp {
                 }
                 let mut hit_name: Option<(Rect, u64)> = None;
                 let mut hit_var: Option<String> = None;
+                let mut xref_hit = false;
                 for (tx, kind, text) in tokenize(&ln.text) {
                     let col = match kind {
                         Tok2::Keyword => p.keyword,
@@ -601,12 +602,24 @@ impl LensApp {
                 if let Some(v) = hit_var {
                     if resp.double_clicked() { rename_var = Some(v); }
                 }
+                if ln.indent > 0 && ln.addr != 0 {
+                    if let Some(refs) = l.an.xrefs_to.get(&ln.addr).filter(|refs| !refs.is_empty()) {
+                        let label = format!("×{}", refs.len());
+                        let marker = painter.text(pos2(rect.left() + 2.0, rect.center().y), Align2::LEFT_CENTER, label, FontId::monospace(11.5), p.xref);
+                        if resp.hover_pos().map(|h| marker.contains(h)).unwrap_or(false) {
+                            xref_hit = true;
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                    }
+                }
                 if let Some((r, a)) = hit_name {
                     painter.line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, p.func_name));
                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                     if resp.clicked() {
                         goto = Some(a);
                     }
+                } else if xref_hit && resp.clicked() {
+                    acts.push(Action::Xrefs(ln.addr));
                 } else if resp.clicked() && ln.addr != 0 {
                     select = Some(ln.addr);
                 }
