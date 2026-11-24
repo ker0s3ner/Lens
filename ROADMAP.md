@@ -1,6 +1,6 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Latest shipped build: **Lens 0.6.288 — Fourier**. This release adds AArch64 long multiply-accumulate/subtract and negated-product lifting; the 50% target remains unmet.
+Latest shipped build: **Lens 0.6.289 — Fourier**. PowerPC division and remainder families now share readable arithmetic lifting; the 50% target remains unmet.
 
 Status checked against the repository on 2026-11-24, at **Lens 0.6.286 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.3% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 

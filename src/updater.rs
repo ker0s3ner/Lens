@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC integer remainder instructions (MODSW/MODUW/MODSD/MODUD) now render as readable remainder expressions.",
+    "The non-x86 lifter now covers both PowerPC division and remainder families instead of leaving remainder operations opaque.",
     "AArch64 pseudocode now models long multiply-accumulate/subtract instructions (SMADDL/UMADDL/SMSUBL/UMSUBL) instead of dropping them to opaque intrinsics.",
     "AArch64 MNEG now renders as an explicit negated product, improving arithmetic readability in non-x86 decompilation.",
     "Roadmap status now tracks the shipped 0.6.286 Fourier indirect-type build.",

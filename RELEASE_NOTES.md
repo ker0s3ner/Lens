@@ -1,3 +1,8 @@
+# Lens 0.6.289 — Fourier
+
+- PowerPC integer remainder instructions (MODSW/MODUW/MODSD/MODUD) now render as readable remainder expressions.
+- The non-x86 lifter now covers both PowerPC division and remainder families instead of leaving remainder operations opaque.
+
 # Lens 0.6.288 — Fourier
 
 - AArch64 pseudocode now models long multiply-accumulate/subtract instructions (SMADDL/UMADDL/SMSUBL/UMSUBL) instead of dropping them to opaque intrinsics.
