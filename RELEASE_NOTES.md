@@ -1,3 +1,16 @@
+# Lens 0.6.165 — Fourier
+
+## What's new
+
+- Added deterministic ARM32 relative-offset switch regression coverage to protect cross-architecture control-flow recovery.
+
+## Verification
+
+- `cargo test --locked --quiet` — 66 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.164 — Fourier
 
 ## What's new
@@ -7,7 +20,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 65 passed
+- `cargo test --locked --quiet` — 66 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

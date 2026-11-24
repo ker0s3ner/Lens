@@ -1921,6 +1921,22 @@ mod tests {
     }
 
     #[test]
+    fn recovers_arm32_relative_offset_switch_table() {
+        // The same indexed ARM32 load as above, with signed offsets from the table.
+        let mut code = vec![
+            0x02, 0x00, 0x50, 0xE3, // cmp r0, #2
+            0x00, 0xF1, 0x9F, 0xE7, // ldr pc, [pc, r0, lsl #2]
+        ];
+        code.extend_from_slice(&[0; 4]); // ARM PC table base at 0x1010
+        for offset in [0x10_u32, 0x14, 0x18] { code.extend_from_slice(&offset.to_le_bytes()); }
+        code.extend_from_slice(&[0; 4]);
+        code.extend_from_slice(&[0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1, 0x1E, 0xFF, 0x2F, 0xE1]);
+        let spec = RawSpec { path: "arm-relative".into(), name: "arm-relative".into(), arch: Arch::Arm32, big: false, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into() };
+        let an = analyze(&raw_binary(&spec), &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert_eq!(an.switches.get(&0x1004), Some(&vec![0x101C, 0x1020, 0x1024]));
+    }
+
+    #[test]
     fn classifies_direct_forwarding_thunks() {
         let spec = RawSpec {
             path: "t".into(), name: "t".into(), arch: Arch::X64, big: false,
