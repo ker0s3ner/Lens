@@ -1,3 +1,8 @@
+# Lens 0.6.363 — Fourier
+
+- M68k memory-form move instructions now use the shared typed load/store path.
+- M68k byte, word, long, and quad move sizes now preserve their memory width in pseudocode.
+
 # Lens 0.6.362 — Fourier
 
 - M68k condition-code set instructions now lift to readable boolean 0/1 expressions.

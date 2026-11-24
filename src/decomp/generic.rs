@@ -892,6 +892,18 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
     match (fm, base_mn) {
         // ---------------------------------------------------------- moves
         (_, "nop" | "pacibsp" | "paciasp" | "autiasp" | "autibsp" | "bti" | "hint" | "c.nop" | "dmb" | "dsb" | "isb" | "fence" | "sync" | "isync") => {}
+        (Fam::M68k, m) if m.starts_with("move") && ops.len() >= 2 => {
+            let size = if m.ends_with(".b") { 1 } else if m.ends_with(".w") { 2 } else if m.ends_with(".q") { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 0) {
+                let value = dc.g_val(st, o(1), None);
+                dc.g_store(st, value, reg(1), &mm, size, addr);
+            } else if let Some((mm, _)) = parse_mem(fm, ops, 1) {
+                dc.g_load(st, reg(0), &mm, size, false, addr);
+            } else if let Some(r) = reg(0) {
+                let value = dc.g_val(st, o(1), None);
+                dc.g_wr(st, r, value, addr);
+            }
+        }
         (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") | (Fam::M68k, "move" | "moveq") => {
             let mut v = dc.g_val(st, o(1), None);
             if base_mn == "lis" {
