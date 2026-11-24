@@ -1,3 +1,8 @@
+# Lens 0.6.330 — Fourier
+
+- ARM32, Thumb, and AArch64 `mvn`/`mvns` now decompile as explicit bitwise-NOT expressions.
+- ARM move-negation aliases now remain readable while condition-flag modeling stays conservative.
+
 # Lens 0.6.329 — Fourier
 
 - Typed struct-field rendering now resolves bounded C typedef aliases and alias chains before looking up nested layouts.

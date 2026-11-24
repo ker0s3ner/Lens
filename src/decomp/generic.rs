@@ -1003,7 +1003,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let sh = ops.get(2).and_then(|s| s.split_whitespace().last()).and_then(parse_imm).unwrap_or(0);
             set(dc, st, 0, Ex::Num(!(v << sh)));
         }
-        (Fam::A64 | Fam::A32, "mvn") | (Fam::Rv | Fam::Mips, "not") => {
+        (Fam::A64 | Fam::A32, "mvn" | "mvns") | (Fam::Rv | Fam::Mips, "not") => {
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Un("~", Box::new(v)));
         }
