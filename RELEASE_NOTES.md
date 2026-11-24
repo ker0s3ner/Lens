@@ -1,3 +1,17 @@
+# Lens 0.6.145 — Fourier
+
+## What's new
+
+- Decompiler type propagation now carries known pointer types through constant byte-offset expressions.
+- Added regression coverage for `pointer + constant` assignments derived from known pointer-returning calls.
+
+## Verification
+
+- `cargo test --locked --quiet` — 63 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.144 — Fourier
 
 ## What's new

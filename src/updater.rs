@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler type propagation now carries known pointer types through constant byte-offset expressions.",
+    "Added regression coverage for `pointer + constant` assignments derived from known pointer-returning calls.",
     "Added a direct decompiler regression test for pointee-type inference through dereferenced `strdup` calls.",
     "The Fourier patch line now verifies this pointer-return propagation at the render-type boundary.",
     "Decompiler type propagation now preserves pointee types when assigning from dereferenced known pointer-returning calls.",

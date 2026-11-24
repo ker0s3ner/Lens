@@ -2327,6 +2327,10 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                 Ex::Cast(t, _) => Some((*t).to_string()),
                 Ex::CastOwned(t, _) => Some(t.clone()),
                 Ex::Var(source) => types.get(source).cloned(),
+                Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
+                    Ex::Var(source) => types.get(source).cloned(),
+                    _ => None,
+                },
                 _ => None,
             };
             if let Some(ty) = ty {
@@ -2390,6 +2394,18 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("char"));
+    }
+
+    #[test]
+    fn render_type_inference_keeps_pointer_type_through_constant_offset() {
+        let outs = vec![BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("p".into()), Ex::Call(Box::new(var("strdup")), vec![]))),
+                (1, Stmt::Assign(Ex::Var("q".into()), Ex::Bin("+", Box::new(Ex::Var("p".into())), Box::new(Ex::Num(4))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("q").map(String::as_str), Some("char *"));
     }
 
     #[test]
