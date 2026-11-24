@@ -45,6 +45,9 @@ fn cli(args: &[String]) -> bool {
             *loader::RAW_PREF.lock().unwrap() = Some((x, args.iter().any(|a| a == "--big"), base));
         }
     }
+    if let Some(entry) = args.iter().position(|a| a == "--entry").and_then(|i| args.get(i + 1)).and_then(|e| dialogs::parse_addr(e)) {
+        *loader::RAW_ENTRY_PREF.lock().unwrap() = Some(entry);
+    }
     if let Some(sl) = args.iter().position(|a| a == "--slice").and_then(|i| args.get(i + 1)) {
         *loader::SLICE_PREF.lock().unwrap() = Some(sl.clone());
     }

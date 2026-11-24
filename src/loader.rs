@@ -329,17 +329,19 @@ pub fn load(path: &str) -> Result<Binary, String> {
 
 /// CPU, endianness and base address to use for files that aren't a known program format.
 pub static RAW_PREF: std::sync::Mutex<Option<(Arch, bool, u64)>> = std::sync::Mutex::new(None);
+pub static RAW_ENTRY_PREF: std::sync::Mutex<Option<u64>> = std::sync::Mutex::new(None);
 
 fn load_raw(bin: &mut Binary, bytes: &[u8]) {
     let pref = RAW_PREF.lock().ok().and_then(|g| *g);
+    let entry = RAW_ENTRY_PREF.lock().ok().and_then(|g| *g);
     let (arch, big, base) = pref.unwrap_or((Arch::X64, false, 0));
     bin.format = "Raw binary".into();
     bin.arch = arch;
     bin.big_endian = big;
     bin.arch_name = if pref.is_some() { arch.name().to_string() } else { "x86-64 (assumed)".into() };
-    bin.entry = Some(base);
+    bin.entry = Some(entry.unwrap_or(base));
     bin.notes.push(if pref.is_some() {
-        format!("Loaded as raw {} code at {base:X}.", arch.name())
+        format!("Loaded as raw {} code at {base:X}, entry at {:X}.", arch.name(), entry.unwrap_or(base))
     } else {
         "The file format wasn't recognised; it was loaded as raw x86-64 code at address 0. Use Tools > Hex to Code to pick another CPU.".into()
     });

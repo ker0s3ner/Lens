@@ -1,3 +1,16 @@
+# Lens 0.6.193 — Fourier
+
+## What's new
+
+- Raw-binary CLI analysis now accepts an explicit `--entry` address for firmware workflows.
+
+## Verification
+
+- `cargo test --locked --quiet` — 81 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.192 — Fourier
 
 ## What's new
