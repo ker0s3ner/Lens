@@ -251,7 +251,7 @@ impl LensApp {
         let p = self.p;
         let mut open = true;
         let cursor = self.nav.cursor;
-        let data = self.loaded().map(|l| (l.ann.structs.clone(), l.ann.applied.clone(), l.bin.arch.bits() / 8, l.bin.debug_structs.clone()));
+        let data = self.loaded().map(|l| (l.ann.structs.clone(), l.ann.applied.clone(), l.bin.arch.bits() / 8, l.bin.debug_structs.clone(), l.an.xrefs_to.clone()));
         let mut add_def: Option<types::StructDef> = None;
         let mut import_debug = false;
         let mut remove: Option<usize> = None;
@@ -259,9 +259,10 @@ impl LensApp {
         let mut unapply: Option<usize> = None;
         let mut pointer_goto: Option<u64> = None;
         let mut field_goto: Option<u64> = None;
+        let mut field_xrefs: Option<u64> = None;
         let mut msg = std::mem::take(&mut self.tools2.types.msg);
         egui::Window::new("Types").open(&mut open).default_size([560.0, 560.0]).show(ctx, |ui| {
-            let Some((structs, applied, ptr, debug_structs)) = &data else {
+            let Some((structs, applied, ptr, debug_structs, xrefs_to)) = &data else {
                 ui.label(RichText::new("Open a program to define structs, unions and enums.").color(p.muted));
                 return;
             };
@@ -298,7 +299,7 @@ impl LensApp {
                         }
                     });
                 }
-                egui::Grid::new("fields").num_columns(3).spacing([14.0, 2.0]).show(ui, |ui| {
+                egui::Grid::new("fields").num_columns(4).spacing([14.0, 2.0]).show(ui, |ui| {
                     for f in types::flatten_fields(structs, s) {
                         ui.label(RichText::new(format!("+{:X}", f.off)).monospace().color(p.func_name));
                         let field_type = f.bit_width.map(|w| format!("{} :{}", f.ty, w)).unwrap_or_else(|| f.ty.clone());
@@ -334,6 +335,13 @@ impl LensApp {
                                 if ui.small_button(RichText::new(&f.name).monospace()).on_hover_text(format!("Select field at {field_addr:X}")).clicked() {
                                     field_goto = Some(field_addr);
                                 }
+                                if let Some(refs) = xrefs_to.get(&field_addr).filter(|refs| !refs.is_empty()) {
+                                    if ui.small_button(RichText::new(format!("×{}", refs.len())).color(p.xref)).on_hover_text("Show incoming xrefs").clicked() {
+                                        field_xrefs = Some(field_addr);
+                                    }
+                                } else {
+                                    ui.label("");
+                                }
                                 let field_type = f.bit_width.map(|w| format!("{} :{}", f.ty, w)).unwrap_or_else(|| f.ty.clone());
                                 ui.label(RichText::new(field_type).monospace().color(p.keyword));
                                 let enum_name = f.ty.split('[').next().unwrap_or(&f.ty).trim().trim_start_matches("enum ");
@@ -361,6 +369,7 @@ impl LensApp {
         });
         if let Some(target) = pointer_goto { self.actions.push(Action::Goto(target)); }
         if let Some(target) = field_goto { self.actions.push(Action::Goto(target)); }
+        if let Some(target) = field_xrefs { self.actions.push(Action::Xrefs(target)); }
         let mut changed = false;
         if let State::Ready(l) = &mut self.state {
             if import_debug {

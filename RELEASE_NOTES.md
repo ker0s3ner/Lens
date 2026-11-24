@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.235 — Fourier
+
+## What's new
+
+- Structure fields now show clickable incoming-xref counts in the Types view.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.234 — Fourier
 
 ## What's new

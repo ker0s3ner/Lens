@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Structure fields now show clickable incoming-xref counts in the Types view.",
     "Flow-graph rows now show clickable incoming-xref markers.",
     "Pseudocode lines now show clickable incoming-xref markers.",
     "JSON array records now round-trip through database import as persistent data definitions.",
