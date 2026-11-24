@@ -747,6 +747,25 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
     }
 }
 
+fn enum_var_source(e: &Ex, vars: &HashMap<String, String>) -> Option<String> {
+    match e {
+        Ex::Var(name) => vars.get(name).cloned(),
+        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars),
+        Ex::Tern(_, yes, no) => {
+            let ty = enum_var_source(yes, vars)?;
+            (enum_var_source(no, vars).as_deref() == Some(ty.as_str())).then_some(ty)
+        }
+        Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^" | "<<" | ">>") => {
+            if let Some(ty) = enum_var_source(left, vars) {
+                enum_const_int(right).is_some().then_some(ty)
+            } else if let Some(ty) = enum_var_source(right, vars) {
+                enum_const_int(left).is_some().then_some(ty)
+            } else { None }
+        }
+        _ => None,
+    }
+}
+
 fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap<String, String> {
     let mut vars = seed.clone();
     for _ in 0..outs.len().max(1) {
@@ -754,14 +773,7 @@ fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>) -> HashMap
         for block in outs {
             for (_, stmt) in &block.stmts {
                 if let Stmt::Assign(Ex::Var(dst), rhs) = stmt {
-                    let source = match rhs {
-                        Ex::Var(src) => vars.get(src).cloned(),
-                        Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => match &**inner {
-                            Ex::Var(src) => vars.get(src).cloned(),
-                            _ => None,
-                        },
-                        _ => None,
-                    };
+                    let source = enum_var_source(rhs, &vars);
                     if let Some(ty) = source {
                         let old = vars.insert(dst.clone(), ty.clone());
                         changed |= old.as_ref() != Some(&ty);
@@ -2952,6 +2964,8 @@ mod tests {
                 (1, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("v1".into()))),
                 (2, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("rax".into()))),
                 (3, Stmt::Assign(Ex::Var("v3".into()), Ex::Cast("int".into(), Box::new(Ex::Var("v1".into()))))),
+                (4, Stmt::Assign(Ex::Var("v4".into()), Ex::Tern(Box::new(Ex::Var("cond".into())), Box::new(Ex::Var("a1".into())), Box::new(Ex::Var("a1".into()))))),
+                (5, Stmt::Assign(Ex::Var("v5".into()), Ex::Bin("+", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(1))))),
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
         }];
@@ -2960,6 +2974,8 @@ mod tests {
         assert_eq!(vars.get("v1").map(String::as_str), Some("Color"));
         assert!(!vars.contains_key("v2"));
         assert_eq!(vars.get("v3").map(String::as_str), Some("Color"));
+        assert_eq!(vars.get("v4").map(String::as_str), Some("Color"));
+        assert_eq!(vars.get("v5").map(String::as_str), Some("Color"));
     }
 
     #[test]

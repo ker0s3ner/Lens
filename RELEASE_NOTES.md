@@ -1,3 +1,8 @@
+# Lens 0.6.401 — Fourier
+
+- Enum local type recovery now survives conditional branch merges.
+- Enum local type recovery now survives safe constant arithmetic and bitwise transformations.
+
 # Lens 0.6.400 — Fourier
 
 - Enum constant propagation now folds constant ternary expressions in typed comparisons.

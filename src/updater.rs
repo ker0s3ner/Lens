@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum local type recovery now survives conditional branch merges.",
+    "Enum local type recovery now survives safe constant arithmetic and bitwise transformations.",
     "Enum constant propagation now folds constant ternary expressions in typed comparisons.",
     "C enum declarations now accept constant ternary expressions, including parenthesized branches.",
     "C enum declarations now accept logical &&, ||, and unary ! constant expressions, including parenthesized forms.",
