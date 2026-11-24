@@ -234,7 +234,7 @@ fn rows(l: &Loaded, tab: ListTab) -> Vec<Row> {
             .map(|(a, entries)| Row {
                 addr: *a,
                 name: l.an.vtable_names.get(a).cloned().unwrap_or_else(|| name_of(*a)),
-                detail: format!("{} entries · {} code xrefs", entries.len(), entries.iter().map(|t| l.an.xrefs_to.get(t).map(|x| x.len()).unwrap_or(0)).sum::<usize>()),
+                detail: format!("{} entries · {} code xrefs · {}", entries.len(), entries.iter().map(|t| l.an.xrefs_to.get(t).map(|x| x.len()).unwrap_or(0)).sum::<usize>(), l.bin.segment_of(*a).map(|segment| segment.name.as_str()).unwrap_or("unmapped")),
                 num: entries.len() as u64,
             })
             .collect(),

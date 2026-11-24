@@ -57,6 +57,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - JSON vtable records include their owning segment and file offset when the recovered table maps to file-backed data.
 - Desktop JSON database exports preserve the same vtable source context for round-tripping.
 - Rhai `vtables()` records expose the same optional `segment` and `file_offset` fields.
+- The Lists vtables view also shows the owning segment beside entry and xref counts.
 - `decompile(addr)` returns the typed C-like pseudocode for a recovered function, using the same decompiler path as the UI.
 - `script_api_version()` returns the current compatible Rhai API version (`1`); plugins can check it before using newer functions or record fields.
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
