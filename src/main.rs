@@ -262,6 +262,7 @@ fn cli(args: &[String]) -> bool {
                 "length": s.len,
                 "wide": s.wide,
                 "text": s.text,
+                "references": an.xrefs_to.get(&s.addr).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "segment_records": bin.segments.iter().map(|s| serde_json::json!({
                 "name": s.name,
