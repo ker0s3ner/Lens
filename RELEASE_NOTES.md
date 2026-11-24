@@ -1,3 +1,8 @@
+# Lens 0.6.329 — Fourier
+
+- Typed struct-field rendering now resolves bounded C typedef aliases and alias chains before looking up nested layouts.
+- Added regression coverage for pointer-to-struct fields accessed through aliased outer and inner record types.
+
 # Lens 0.6.328 — Fourier
 
 - AArch64 flag-setting aliases `bics`, `orns`, and `eons` now preserve their value semantics in pseudocode.

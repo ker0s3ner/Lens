@@ -179,6 +179,21 @@ struct Fmt<'a> {
 }
 
 impl Fmt<'_> {
+    fn struct_def(&self, ty: &str) -> Option<&crate::types::StructDef> {
+        let mut name = ty.trim().trim_start_matches("const ").trim();
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..=self.structs.len() {
+            name = name.strip_prefix("struct ").or_else(|| name.strip_prefix("union ")).unwrap_or(name).trim();
+            if !seen.insert(name.to_string()) { return None; }
+            let def = self.structs.iter().find(|candidate| candidate.name == name && !candidate.is_enum)?;
+            if !def.fields.is_empty() { return Some(def); }
+            let Some(alias) = def.alias_of.as_deref() else { return Some(def); };
+            if alias.starts_with("fn(") { return None; }
+            name = alias;
+        }
+        None
+    }
+
     fn resolve_struct_path(&self, def: &crate::types::StructDef, offset: i64, depth: usize) -> Option<String> {
         if depth > self.structs.len() { return None; }
         let field = def.fields.iter().find(|field| {
@@ -190,7 +205,7 @@ impl Fmt<'_> {
         let ty = field.ty.trim().trim_start_matches("const ").trim();
         let named = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         if !named.contains('[') {
-            if let Some(nested) = self.structs.iter().find(|candidate| candidate.name == named && !candidate.is_enum) {
+            if let Some(nested) = self.struct_def(named) {
                 if let Some(path) = self.resolve_struct_path(nested, relative, depth + 1) {
                     return Some(format!("{}.{}", field.name, path));
                 }
@@ -205,7 +220,7 @@ impl Fmt<'_> {
         let element_ty = field.ty[..open].trim().trim_start_matches("const ").trim();
         let element_name = element_ty.strip_prefix("struct ").or_else(|| element_ty.strip_prefix("union ")).unwrap_or(element_ty);
         if element_size > 0 && relative % element_size >= 0 {
-            if let Some(element_def) = self.structs.iter().find(|candidate| candidate.name == element_name && !candidate.is_enum) {
+            if let Some(element_def) = self.struct_def(element_name) {
                 let within = relative % element_size;
                 if let Some(path) = self.resolve_struct_path(element_def, within, depth + 1) {
                     if index >= 0 && index < count { return Some(format!("{}[{}].{}", field.name, index, path)); }
@@ -246,8 +261,7 @@ impl Fmt<'_> {
                 return Some(format!("{}[{}]", self.at(base, 99), byte_offset / element_size));
             }
         }
-        let ty = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
-        let def = self.structs.iter().find(|def| def.name == ty && !def.is_enum)?;
+        let def = self.struct_def(ty)?;
         let base_text = self.at(base, 99);
         let path = self.resolve_struct_path(def, byte_offset, 0)?;
         Some(format!("{base_text}->{path}"))
@@ -3028,6 +3042,20 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[inner, outer] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(12)))), 4);
         assert_eq!(fmt.show(&expression), "p->items[1].value");
+    }
+
+    #[test]
+    fn resolves_struct_field_through_typedef_alias() {
+        let base = crate::types::parse_c("struct Inner { uint32_t value; }", 8, &[]).unwrap();
+        let alias = crate::types::parse_c("typedef struct Inner InnerAlias;", 8, &[base.clone()]).unwrap();
+        let outer = crate::types::parse_c("struct Outer { InnerAlias inner; }", 8, &[base.clone(), alias.clone()]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("OuterAlias *"))]);
+        let outer_alias = crate::types::parse_c("typedef struct Outer OuterAlias;", 8, &[base.clone(), alias.clone(), outer.clone()]).unwrap();
+        let empty = HashMap::new();
+        let defs = vec![base, alias, outer, outer_alias];
+        let fmt = Fmt { rename: &empty, types: &types, structs: &defs };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(0)))), 4);
+        assert_eq!(fmt.show(&expression), "p->inner");
     }
 
     #[test]

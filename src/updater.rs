@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed struct-field rendering now resolves bounded C typedef aliases and alias chains before looking up nested layouts.",
+    "Added regression coverage for pointer-to-struct fields accessed through aliased outer and inner record types.",
     "AArch64 flag-setting aliases bics, orns, and eons now preserve their value semantics in pseudocode.",
     "ARM complementing bitwise lowering now handles both flag-preserving and flag-setting spellings while remaining conservative about condition flags.",
     "AArch64 eon now decompiles as explicit XOR-with-inverted-operand logic.",
