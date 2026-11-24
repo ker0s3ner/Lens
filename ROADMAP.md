@@ -393,6 +393,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 2. **Analysis quality:** improve tail-call and thunk classification; expand ARM/Thumb switch recovery beyond TBB/TBH; discover vtables and RTTI with confidence and source locations.
    - No-return propagation now also follows conservative multi-instruction tail-call edges.
    - JSON analysis reports expose exact direct and indirect call-site records.
+   - Tail-call no-return propagation has dedicated regression coverage.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.

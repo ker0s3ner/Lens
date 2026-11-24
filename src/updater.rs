@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Tail-call no-return propagation now has a dedicated regression fixture.",
     "JSON analysis reports now include exact direct and indirect call-site records.",
     "No-return propagation now follows conservative multi-instruction tail-call edges.",
     "Static analysis now records conservative multi-instruction tail calls in the call graph.",

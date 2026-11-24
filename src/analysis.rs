@@ -2036,6 +2036,19 @@ mod tests {
     }
 
     #[test]
+    fn propagates_noreturn_through_tail_calls() {
+        let spec = RawSpec {
+            path: "tail-noreturn".into(), name: "tail-noreturn".into(), arch: Arch::X64, big: false,
+            segs: vec![(0x1000, vec![0x55, 0x48, 0x89, 0xE5, 0xE9, 0x03, 0x00, 0x00, 0x00, 0xC3, 0xC3, 0xC3, 0xC3])],
+            entry: Some(0x1000), format: "test".into(),
+        };
+        let mut bin = raw_binary(&spec);
+        bin.symbols.push((0x100C, "abort".into()));
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        assert!(an.functions[&0x1000].noreturn);
+    }
+
+    #[test]
     fn classifies_import_slot_forwarding_thunks() {
         // jmp qword ptr [rip+0] with the import slot immediately after it.
         let spec = RawSpec {
