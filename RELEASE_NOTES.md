@@ -1,6 +1,9 @@
-# Lens 0.6.134 — Fourier
+# Lens 0.6.135 — Fourier
 
 ## What's new
+
+- Enum-typed switch expressions now render recovered case labels as named Enum::Member values.
+- Unknown and non-enum jump-table cases retain their numeric labels.
 
 - Enum constant propagation now recognizes transparent casts around typed parameters.
 - Compiler-generated enum comparisons remain readable after explicit scalar conversions.

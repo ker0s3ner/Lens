@@ -1553,6 +1553,14 @@ impl Emit<'_> {
         }
     }
 
+    fn enum_type(&self, e: &Ex) -> Option<&str> {
+        match e {
+            Ex::Var(name) => self.enum_params.get(name).map(String::as_str),
+            Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
+            _ => None,
+        }
+    }
+
     fn goto(&mut self, ind: usize, addr: u64, target: u64, lp: Option<(usize, usize)>, cond: Option<String>) {
         let pre = match &cond {
             Some(c) => format!("if ({c}) "),
@@ -1681,10 +1689,12 @@ impl Emit<'_> {
             Term::Stop => i + 1,
             Term::Indirect(e) => {
                 if let Some(ts) = self.switches.get(&ta).cloned() {
+                    let enum_ty = self.enum_type(&e).map(str::to_string);
                     self.line(ind, ta, format!("switch ({}) {{ // jump table, {} targets", self.fmt.at(&e, 3), ts.len()));
                     for (k, t) in ts.iter().enumerate() {
                         self.labels.insert(*t);
-                        self.line(ind + 1, ta, format!("case {k}: goto L_{t:X};"));
+                        let label = enum_ty.as_ref().and_then(|ty| self.enum_constants.get(ty).and_then(|values| values.get(&(k as i64)).map(|member| format!("{ty}::{member}")))).unwrap_or_else(|| k.to_string());
+                        self.line(ind + 1, ta, format!("case {label}: goto L_{t:X};"));
                     }
                     self.line(ind, ta, "}".into());
                 } else {

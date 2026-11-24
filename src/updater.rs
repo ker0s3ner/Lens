@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum-typed switch expressions now render recovered case labels as named Enum::Member values.",
+    "Unknown and non-enum jump-table cases retain their numeric labels.",
     "Enum constant propagation now recognizes transparent casts around typed parameters.",
     "Compiler-generated enum comparisons remain readable after explicit scalar conversions.",
     "Typed enum parameters now render named Enum::Member constants in decompiler comparisons.",
