@@ -1,6 +1,9 @@
-# Lens 0.6.100 — Fourier
+# Lens 0.6.101 — Fourier
 
 ## What's new
+
+- Go runtime.panic* and runtime.goexit symbol families are recognized as no-return functions.
+- Version-specific compiler panic helpers now terminate analysis consistently.
 
 - Go runtime panic/throw and additional Rust bounds-panic symbols are recognized as no-return functions.
 - Call graphs and decompilation now terminate more accurately across Go and Rust binaries.

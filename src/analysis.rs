@@ -230,6 +230,9 @@ pub fn is_noreturn_name(name: &str) -> bool {
     n = n.strip_suffix("() ").unwrap_or(n).trim_end_matches("()").trim();
     let short = n.rsplit("::").next().unwrap_or(n);
     NORETURN.iter().any(|x| *x == n || *x == short)
+        || n == "runtime.goexit"
+        || n.starts_with("runtime.panic")
+        || n.starts_with("runtime.throw")
 }
 
 fn itanium_type_name(symbol: &str) -> Option<String> {
@@ -1764,6 +1767,9 @@ mod tests {
         assert!(is_noreturn_name("panic"));
         assert!(is_noreturn_name("runtime.gopanic"));
         assert!(is_noreturn_name("runtime.throw"));
+        assert!(is_noreturn_name("runtime.panicIndex"));
+        assert!(is_noreturn_name("runtime.panicSliceAlen"));
+        assert!(is_noreturn_name("runtime.goexit"));
         assert!(is_noreturn_name("core::panicking::panic_bounds_check"));
     }
 
