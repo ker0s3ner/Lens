@@ -189,6 +189,9 @@ fn cli(args: &[String]) -> bool {
                 let code = decomp::decompile_with_types(&bin, &an, &an.names, function, det.conv, "", &[]);
                 serde_json::json!({
                     "address": function.start,
+                    "name": bin.symbols.iter().find(|(address, _)| *address == function.start).map(|(_, name)| name),
+                    "kind": format!("{:?}", function.kind),
+                    "segment": bin.segment_of(function.start).map(|segment| segment.name.clone()),
                     "text": decomp::render_text(&code),
                 })
             }).collect::<Vec<_>>(),

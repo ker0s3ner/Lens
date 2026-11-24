@@ -40,6 +40,10 @@ for target in "${targets[@]}"; do
       exit 1
     }
   done
+  grep -q '"pseudocode_records"' <<<"$json" || {
+    echo "missing pseudocode records in $target" >&2
+    exit 1
+  }
 done
 
 raw_fixture="$(mktemp -t lens-raw-entry.XXXXXX)"

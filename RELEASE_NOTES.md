@@ -11,6 +11,20 @@
 # Lens 0.6.207 — Fourier
 # Lens 0.6.208 — Fourier
 # Lens 0.6.209 — Fourier
+# Lens 0.6.210 — Fourier
+
+## What's new
+
+- JSON pseudocode records now retain each function's matched name, kind, and mapped segment.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.209 — Fourier
 
 ## What's new
 
