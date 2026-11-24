@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call-graph caller neighborhoods now deduplicate functions before responsiveness caps are applied.",
+    "ARM64 and RISC-V switch-table reconstruction now preserve signed address adjustments.",
     "ARM64 switch-table reconstruction now accepts signed adrp/adr and immediate add adjustments.",
     "RISC-V switch-table reconstruction now accepts signed auipc and load offsets, with dedicated regression coverage.",
     "RISC-V switch-table reconstruction now accepts signed auipc and load offsets.",

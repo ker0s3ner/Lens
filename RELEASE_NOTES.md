@@ -1,3 +1,8 @@
+# Lens 0.6.386 — Fourier
+
+- Call-graph caller neighborhoods now deduplicate functions before responsiveness caps are applied.
+- ARM64 and RISC-V switch-table reconstruction now preserve signed address adjustments.
+
 # Lens 0.6.385 — Fourier
 
 - ARM64 switch-table reconstruction now accepts signed `adrp`/`adr` and immediate `add` adjustments.
