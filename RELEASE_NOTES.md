@@ -1,3 +1,8 @@
+# Lens 0.6.416 — Fourier
+
+- Enum constant parsing now preserves equality and relational comparisons as 0/1 values.
+- Decompiler enum folding now evaluates equality and relational operators consistently with C declarations.
+
 # Lens 0.6.415 — Fourier
 
 - C enum parsing now accepts unary-plus constant expressions consistently with pseudocode folding.

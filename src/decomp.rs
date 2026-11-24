@@ -821,6 +821,12 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
                 ">>" => left.checked_shr(right.try_into().ok()?),
                 "&&" => Some((left != 0 && right != 0) as i64),
                 "||" => Some((left != 0 || right != 0) as i64),
+                "==" => Some((left == right) as i64),
+                "!=" => Some((left != right) as i64),
+                "<" => Some((left < right) as i64),
+                "<=" => Some((left <= right) as i64),
+                ">" => Some((left > right) as i64),
+                ">=" => Some((left >= right) as i64),
                 _ => None,
             }
         }

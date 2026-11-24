@@ -369,16 +369,20 @@ fn parse_enum_int(s: &str, names: &HashMap<String, i64>) -> Option<i64> {
                 }, _ => {} }
             }
         }
-        for op in ["||", "&&", "|", "^", "&", "<<", ">>", "+", "-"] {
+        for op in ["||", "&&", "|", "^", "&", "==", "!=", "<=", ">=", "<", ">", "<<", ">>", "+", "-"] {
             let mut depth = 0i32;
             for (i, c) in s.char_indices().rev() {
                 match c { ')' => depth += 1, '(' => depth -= 1, _ => {} }
-                if depth == 0 && s[i..].starts_with(op) && (op != "-" || i > 0) {
+                let is_shift_token = matches!(op, "<" | ">") && (s[i..].starts_with(if op == "<" { "<<" } else { ">>" }) || (i > 0 && s.as_bytes()[i - 1] == op.as_bytes()[0]));
+                if depth == 0 && s[i..].starts_with(op) && !is_shift_token && (op != "-" || i > 0) {
                     let a = eval(&s[..i], names)?;
                     let b = eval(&s[i + op.len()..], names)?;
                     return Some(match op {
                         "||" => (a != 0 || b != 0) as i64, "&&" => (a != 0 && b != 0) as i64,
                         "|" => a | b, "^" => a ^ b, "&" => a & b,
+                        "==" => (a == b) as i64, "!=" => (a != b) as i64,
+                        "<" => (a < b) as i64, "<=" => (a <= b) as i64,
+                        ">" => (a > b) as i64, ">=" => (a >= b) as i64,
                         "<<" => a.wrapping_shl(b as u32), ">>" => a.wrapping_shr(b as u32),
                         "+" => a.wrapping_add(b), "-" => a.wrapping_sub(b), _ => unreachable!(),
                     });
@@ -591,9 +595,9 @@ mod tests {
 
     #[test]
     fn parses_logical_enum_constant_expressions() {
-        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0, Choice = 1 ? 2 : 3, Plus = +2 }", 8, &[]).unwrap();
+        let flags = parse_c("enum Flags { None = 0, Ready = (1 && 1), Empty = !1, Active = 1 || 0, Choice = 1 ? 2 : 3, Plus = +2, Equal = 2 == 2, Ordered = 2 < 3, NotEqual = 2 != 3 }", 8, &[]).unwrap();
         let values = flags.enum_values.iter().map(|v| (v.name.as_str(), v.value)).collect::<Vec<_>>();
-        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1), ("Choice", 2), ("Plus", 2)]);
+        assert_eq!(values, [("None", 0), ("Ready", 1), ("Empty", 0), ("Active", 1), ("Choice", 2), ("Plus", 2), ("Equal", 1), ("Ordered", 1), ("NotEqual", 1)]);
     }
 
     #[test]
