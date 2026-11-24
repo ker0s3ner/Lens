@@ -1,3 +1,8 @@
+# Lens 0.6.418 — Fourier
+
+- Debugger shutdown now clears stale commands and trace state when LLDB exits unexpectedly.
+- Debugger exit status is surfaced in the console and reconnects start from a clean session.
+
 # Lens 0.6.417 — Fourier
 
 - C enum parsing now supports checked multiplication, division, and remainder expressions.

@@ -383,8 +383,16 @@ impl Dbg {
                 self.console.push(l);
             }
         }
-        if let Ok(Some(_)) = self.child.try_wait() {
-            self.state = RunState::Exited;
+        if let Ok(Some(status)) = self.child.try_wait() {
+            if self.state != RunState::Exited {
+                self.state = RunState::Exited;
+                self.ready = false;
+                self.queue.clear();
+                self.inflight = None;
+                self.trace_active = false;
+                self.trace_remaining = 0;
+                self.console.push(format!("lldb exited{}.", status.code().map(|code| format!(" with status {code}")).unwrap_or_default()));
+            }
         }
         self.send_next();
         new_pc
