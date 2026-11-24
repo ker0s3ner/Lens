@@ -1028,6 +1028,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let amount = dc.g_val(st, o(2), None);
             set(dc, st, 0, bin("<<", bin("&", value, Ex::Num(0xffff_ffff)), amount));
         }
+        (Fam::Rv, "add.uw" | "sub.uw") if ops.len() >= 3 => {
+            let left = bin("&", dc.g_val(st, o(1), None), Ex::Num(0xffff_ffff));
+            let right = dc.g_val(st, o(2), None);
+            let op = if base_mn == "add.uw" { "+" } else { "-" };
+            set(dc, st, 0, bin(op, left, right));
+        }
         (Fam::A64 | Fam::A32, "adds") => arith(dc, st, "+", true),
         (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") => arith(dc, st, "-", false),
         (Fam::A64 | Fam::A32, "subs") => arith(dc, st, "-", true),

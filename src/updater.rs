@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V ADD.UW and SUB.UW now preserve their low-word zero-extension semantics in pseudocode.",
+    "RISC-V word-width add/subtract idioms now remain distinguishable from ordinary 64-bit arithmetic.",
     "RISC-V SLLI.UW now renders its 32-bit zero-extension before shifting, preserving the instruction's exact data flow.",
     "RISC-V word-width arithmetic is now clearer in pseudocode for this common address and integer idiom.",
     "RISC-V SH1ADD, SH2ADD, and SH3ADD now render as explicit scaled-index address expressions.",

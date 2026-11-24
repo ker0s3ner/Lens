@@ -1,3 +1,8 @@
+# Lens 0.6.299 — Fourier
+
+- RISC-V ADD.UW and SUB.UW now preserve their low-word zero-extension semantics in pseudocode.
+- RISC-V word-width add/subtract idioms now remain distinguishable from ordinary 64-bit arithmetic.
+
 # Lens 0.6.298 — Fourier
 
 - RISC-V SLLI.UW now renders its 32-bit zero-extension before shifting, preserving the instruction's exact data flow.
