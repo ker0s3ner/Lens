@@ -1,3 +1,8 @@
+# Lens 0.6.327 — Fourier
+
+- AArch64 `eon` now decompiles as explicit XOR-with-inverted-operand logic.
+- ARM complementing bitwise lowering now covers AND, OR, and XOR inverted-operand forms consistently.
+
 # Lens 0.6.326 — Fourier
 
 - ARM32, Thumb, and ARM64 `bic` now decompile as explicit AND-with-inverted-operand expressions.

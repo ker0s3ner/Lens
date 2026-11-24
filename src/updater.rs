@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 eon now decompiles as explicit XOR-with-inverted-operand logic.",
+    "ARM complementing bitwise lowering now covers AND, OR, and XOR inverted-operand forms consistently.",
     "ARM32, Thumb, and ARM64 bic now decompile as explicit AND-with-inverted-operand expressions.",
     "ARM/ARM64 orn now decompiles as explicit OR-with-inverted-operand logic instead of an opaque intrinsic.",
     "MIPS nor now decompiles as an explicit inverted OR expression.",
