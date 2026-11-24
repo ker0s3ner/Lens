@@ -1,3 +1,8 @@
+# Lens 0.6.414 — Fourier
+
+- Enum type propagation now retains identity through unary-minus expressions.
+- Unary-plus and unary-minus enum wrappers now remain typed in comparisons.
+
 # Lens 0.6.413 — Fourier
 
 - Enum constant folding now handles transparent unary-plus wrappers.

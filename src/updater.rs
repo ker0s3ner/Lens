@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Enum type propagation now retains identity through unary-minus expressions.",
+    "Unary-plus and unary-minus enum wrappers now remain typed in comparisons.",
     "Enum constant folding now handles transparent unary-plus wrappers.",
     "Enum type propagation now retains identity through unary-plus expressions.",
     "Enum constant recovery now folds transparent borrowed and owned casts before naming typed members.",
