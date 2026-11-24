@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS switch recovery now accepts validated signed relative-offset tables in addition to absolute pointer tables.",
+    "Relative MIPS cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",
     "RISC-V switch recovery now accepts validated signed 32-bit relative-offset tables in addition to absolute pointer tables.",
     "Relative cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",
     "JSON and human-readable reports now expose the selected image slice and embedded file base offset.",
