@@ -308,7 +308,7 @@ int pthread_create(void *t, const void *attr, void *(*fn)(void *), void *arg); i
 int pthread_mutex_init(void *m, const void *attr); void pthread_exit(void *ret) noreturn;
 // ---- runtime
 void assert_rtn(const char *func, const char *file, int line, const char *expr) noreturn; void stack_chk_fail(void) noreturn; void cxa_throw(void *ex, void *type, void *dtor) noreturn;
-void *cxa_allocate_exception(size_t n); int cxa_atexit(void (*fn)(void *), void *arg, void *dso); void *cxa_begin_catch(void *exception); void cxa_end_catch(void); void cxa_rethrow(void) noreturn; void cxa_pure_virtual(void) noreturn; int cxa_guard_acquire(unsigned long long *guard); void cxa_guard_release(unsigned long long *guard); void cxa_guard_abort(unsigned long long *guard); void longjmp(void *env, int val) noreturn; int setjmp(void *env);
+void *cxa_allocate_exception(size_t n); void cxa_free_exception(void *exception); int cxa_atexit(void (*fn)(void *), void *arg, void *dso); void *cxa_begin_catch(void *exception); void cxa_end_catch(void); void cxa_rethrow(void) noreturn; void cxa_pure_virtual(void) noreturn; int cxa_guard_acquire(unsigned long long *guard); void cxa_guard_release(unsigned long long *guard); void cxa_guard_abort(unsigned long long *guard); void *cxa_vec_new(size_t count, size_t size, size_t padding, void *ctor, void *dtor); void cxa_vec_delete(void *array, size_t size, size_t padding, void *dtor); void cxa_vec_cleanup(void *array, size_t count, size_t size, void *dtor); void longjmp(void *env, int val) noreturn; int setjmp(void *env);
 void objc_msgSend(void *self, const char *sel, ...); void *objc_alloc(void *cls); void *objc_retain(void *o); void objc_release(void *o); void *objc_getClass(const char *name);
 void *sel_registerName(const char *name); void CFRelease(const void *cf); const void *CFRetain(const void *cf); void NSLog(void *fmt, ...);
 // ---- Win32
@@ -398,6 +398,8 @@ mod tests {
         assert!(find("__cxa_pure_virtual").unwrap().noreturn);
         assert_eq!(find("__cxa_guard_acquire").unwrap().ret, "int");
         assert_eq!(find("__cxa_guard_release").unwrap().params.len(), 1);
+        assert_eq!(find("__cxa_vec_new").unwrap().ret, "void *");
+        assert_eq!(find("__cxa_vec_delete").unwrap().params.len(), 4);
     }
 
     #[test]

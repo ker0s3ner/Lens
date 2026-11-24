@@ -1,3 +1,8 @@
+# Lens 0.6.435 — Fourier
+
+- C++ vector-construction/destruction runtime prototypes are now built in.
+- Exception cleanup and array lifecycle calls now receive typed pointer metadata.
+
 # Lens 0.6.434 — Fourier
 
 - C++ thread-safe static-initialization guard prototypes are now built in.

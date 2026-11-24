@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C++ vector-construction/destruction runtime prototypes are now built in.",
+    "Exception cleanup and array lifecycle calls now receive typed pointer metadata.",
     "C++ thread-safe static-initialization guard prototypes are now built in.",
     "Guard acquire/release/abort calls now carry typed signatures for clearer decompiler output.",
     "C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in.",
