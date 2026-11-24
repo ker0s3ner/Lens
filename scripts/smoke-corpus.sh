@@ -34,7 +34,7 @@ for target in "${targets[@]}"; do
     printf '%s\n' "$json" >&2
     exit 1
   }
-  for field in noreturn_functions forwarding_thunks switch_tables; do
+  for field in noreturn_functions forwarding_thunks switch_tables function_records; do
     grep -q "\"$field\":" <<<"$json" || {
       echo "missing JSON field $field for $target" >&2
       exit 1

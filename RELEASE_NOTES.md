@@ -1,3 +1,16 @@
+# Lens 0.6.185 — Fourier
+
+## What's new
+
+- CLI JSON reports now include per-function boundaries, calls, no-return status, and thunk targets.
+
+## Verification
+
+- `cargo test --locked --quiet` — 79 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.184 — Fourier
 
 ## What's new
