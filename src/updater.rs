@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 direct 32/64-bit pointer switch tables now recover bounded targets alongside offset tables.",
+    "Common compiler-generated br-through-table cases become real graph edges and pseudocode cases.",
     "Lens JSON import now restores exported pointer-table entries as persistent native pointer definitions.",
     "Interchange preserves analyst-promoted pointer data across files and sessions.",
     "RISC-V, MIPS and PowerPC jump-table recognizers now participate in live indirect-branch analysis.",

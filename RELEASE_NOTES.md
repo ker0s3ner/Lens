@@ -1,6 +1,9 @@
-# Lens 0.6.96 — Fourier
+# Lens 0.6.97 — Fourier
 
 ## What's new
+
+- AArch64 direct 32/64-bit pointer switch tables now recover bounded targets alongside offset tables.
+- Common compiler-generated br-through-table cases become real graph edges and pseudocode cases.
 
 - Lens JSON import now restores exported pointer-table entries as persistent native pointer definitions.
 - Interchange preserves analyst-promoted pointer data across files and sessions.

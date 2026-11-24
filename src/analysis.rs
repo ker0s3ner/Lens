@@ -286,12 +286,18 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
                 if let Some(sh) = ops[3].rsplit('#').next().and_then(|x| x.trim().parse::<u32>().ok()) { shift = sh; }
                 if let Some(b) = val.get(&reg(ops[1])).copied() { base = Some(b); }
             }
-            "ldrsw" | "ldrb" | "ldrh" | "ldrsb" | "ldrsh" => {
+            "ldrsw" | "ldrb" | "ldrh" | "ldrsb" | "ldrsh" | "ldr" => {
                 // ldrsw x8, [x9, x8, lsl #2]
                 let m = i.ops.split('[').nth(1).unwrap_or("").trim_end_matches(']');
                 let parts: Vec<&str> = m.split(", ").collect();
                 if let Some(t) = parts.first().and_then(|r| val.get(&reg(r)).copied()) {
-                    let size = match i.mnemonic.as_str() { "ldrsw" => 4, "ldrb" | "ldrsb" => 1, _ => 2 };
+                    let size = match i.mnemonic.as_str() {
+                        "ldrsw" => 4,
+                        "ldrb" | "ldrsb" => 1,
+                        "ldr" if ops.first().is_some_and(|r| r.trim_start().starts_with('x')) => 8,
+                        "ldr" => 9, // direct 32-bit pointer table (ldr wN)
+                        _ => 2,
+                    };
                     table = Some((t, size));
                 }
             }
@@ -307,6 +313,16 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     let mut out = vec![];
     for k in 0..count {
         let t = match size {
+            8 => {
+                let b = bin.read(tbl + 8 * k as u64, 8);
+                if b.len() < 8 { break; }
+                if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
+            }
+            9 => {
+                let b = bin.read(tbl + 4 * k as u64, 4);
+                if b.len() < 4 { break; }
+                if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 }
+            }
             4 => {
                 let b = bin.read(tbl + 4 * k as u64, 4);
                 if b.len() < 4 { break; }
