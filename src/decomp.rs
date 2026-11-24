@@ -2349,6 +2349,19 @@ mod tests {
     }
 
     #[test]
+    fn enum_condition_rewrites_numeric_member_through_a_cast() {
+        let function = crate::analysis::Function { start: 0, end: 0, blocks: vec![], insn_count: 0, kind: crate::analysis::FuncKind::Normal, noreturn: false, calls: vec![], has_symbol: false, thunk_target: None };
+        let outs = vec![];
+        let empty = HashMap::new();
+        let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One"))]))]);
+        let params = HashMap::from([(String::from("a1"), String::from("Color"))]);
+        let switches = HashMap::new();
+        let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_params: params };
+        let expression = emit.enumize(Ex::Bin("==", Box::new(Ex::Cast("int", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
+        assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
+    }
+
+    #[test]
     fn dereference_formatter_preserves_pointer_pointees() {
         let empty = HashMap::new();
         let fmt = Fmt { rename: &empty, types: &empty };

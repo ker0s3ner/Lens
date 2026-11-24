@@ -1,6 +1,9 @@
-# Lens 0.6.137 — Fourier
+# Lens 0.6.138 — Fourier
 
 ## What's new
+
+- Added direct regression coverage for enum comparison rendering through transparent casts.
+- The decompiler suite now verifies named enum constants at the expression-emission boundary.
 
 - GitHub release builds now run the locked unit-test suite and analysis smoke corpus before packaging.
 - Release automation fails before publication if representative host binaries cannot be loaded and analyzed.
