@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "C enum parsing now supports checked multiplication, division, and remainder expressions.",
+    "Enum declarations and pseudocode now share arithmetic coverage for scalar constant folding.",
     "Enum constant parsing now preserves equality and relational comparisons as 0/1 values.",
     "Decompiler enum folding now evaluates equality and relational operators consistently with C declarations.",
     "C enum parsing now accepts unary-plus constant expressions consistently with pseudocode folding.",

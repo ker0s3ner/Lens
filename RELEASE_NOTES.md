@@ -1,3 +1,8 @@
+# Lens 0.6.417 — Fourier
+
+- C enum parsing now supports checked multiplication, division, and remainder expressions.
+- Enum declarations and pseudocode now share arithmetic coverage for scalar constant folding.
+
 # Lens 0.6.416 — Fourier
 
 - Enum constant parsing now preserves equality and relational comparisons as 0/1 values.
