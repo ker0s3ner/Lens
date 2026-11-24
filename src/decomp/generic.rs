@@ -1600,6 +1600,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let (a, b) = (dc.g_val(st, o(0), None), shifted(dc, st, 1));
             st.flags = Flags::Cmp(a, b);
         }
+        (Fam::M68k, "tst") => {
+            let a = dc.g_val(st, o(0), None);
+            st.flags = Flags::Cmp(a, Ex::Num(0));
+        }
         (Fam::A64 | Fam::A32, "cmn") => {
             let (a, b) = (dc.g_val(st, o(0), None), dc.g_val(st, o(1), None));
             st.flags = Flags::Op(bin("+", a, b));

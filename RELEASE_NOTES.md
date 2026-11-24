@@ -1,3 +1,8 @@
+# Lens 0.6.361 — Fourier
+
+- M68k `tst` instructions now set zero-comparison flags for following conditional branches.
+- M68k test-and-branch pseudocode can now structure common `beq`/`bne` paths instead of emitting opaque conditions.
+
 # Lens 0.6.360 — Fourier
 
 - M68k comparisons now feed the shared condition model used by branch pseudocode.
