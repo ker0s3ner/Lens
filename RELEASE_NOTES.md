@@ -1,6 +1,9 @@
-# Lens 0.6.110 — Fourier
+# Lens 0.6.111 — Fourier
 
 ## What's new
+
+- PE/PDB procedure records now contribute conservative primitive/pointer prototypes to decompilation.
+- Unsupported PDB type records remain skipped instead of generating guessed signatures.
 
 - PDB ingestion now has a malformed-input regression guard before type-stream expansion.
 - The deterministic test suite now covers 56 cases, including PE debug-symbol safety.

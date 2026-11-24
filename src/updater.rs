@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PE/PDB procedure records now contribute conservative primitive/pointer prototypes to decompilation.",
+    "Unsupported PDB type records remain skipped instead of generating guessed signatures.",
     "PDB ingestion now has a malformed-input regression guard before type-stream expansion.",
     "The deterministic test suite now covers 56 cases, including PE debug-symbol safety.",
     "PE analysis now imports procedure/public symbols from PDB module streams in addition to global symbols.",

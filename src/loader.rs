@@ -705,7 +705,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
         }
     }
     for candidate in pdb_candidates {
-        let Some(symbols) = crate::pdb::symbols(&candidate) else { continue };
+        let Some((symbols, protos)) = crate::pdb::symbols(&candidate) else { continue };
         let mut added = 0;
         for (rva, name) in symbols {
             let addr = base.saturating_add(rva as u64);
@@ -715,6 +715,10 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             }
         }
         if added > 0 {
+            if !protos.is_empty() {
+                if !bin.debug_protos.is_empty() { bin.debug_protos.push('\n'); }
+                bin.debug_protos.push_str(&protos);
+            }
             bin.notes.push(format!("PDB symbols: {added} function name(s) imported from {}.", candidate.display()));
             break;
         }
