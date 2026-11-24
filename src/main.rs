@@ -181,6 +181,11 @@ fn cli(args: &[String]) -> bool {
                 "jump": jump,
                 "targets": targets,
             })).collect::<Vec<_>>(),
+            "xref_records": an.xrefs_to.iter().flat_map(|(target, refs)| refs.iter().map(move |xref| serde_json::json!({
+                "from": xref.from,
+                "to": target,
+                "kind": xref.kind.label(),
+            }))).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

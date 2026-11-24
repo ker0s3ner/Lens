@@ -98,6 +98,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Decompiler expression folding now simplifies deterministic constant division, remainder, and comparisons.
 - Decompiler expression folding now simplifies constant boolean conjunctions and disjunctions.
 - Decompiler expression folding now simplifies constant unary negation, bitwise-not, and logical-not.
+- CLI JSON analysis reports now expose typed source/target cross-reference records.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.
