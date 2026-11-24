@@ -817,6 +817,15 @@ mod tests {
         let v = serde_json::json!({"vtable_records": [{"address": 12288, "name": "vtable_Widget"}]});
         assert_eq!(json_named_records(&v), vec![(12288, "vtable_Widget".to_string())]);
     }
+
+    #[test]
+    fn restores_names_from_analysis_import_export_records() {
+        let v = serde_json::json!({
+            "import_records": [{"slot": 12288, "name": "read"}],
+            "export_records": [{"address": 16384, "name": "entry"}]
+        });
+        assert_eq!(json_named_records(&v), vec![(16384, "entry".to_string()), (12288, "read".to_string())]);
+    }
 }
 
 // ------------------------------------------------------------------ import
@@ -874,7 +883,7 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
 
 fn json_named_records(v: &serde_json::Value) -> Vec<(u64, String)> {
     let mut out = Vec::new();
-    let fields = [("functions", "start"), ("function_records", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("vtable_records", "address"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
+    let fields = [("functions", "start"), ("function_records", "start"), ("exports", "addr"), ("export_records", "address"), ("imports", "slot"), ("import_records", "slot"), ("vtables", "addr"), ("vtable_records", "address"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
     for (collection, address_field) in fields {
         let Some(items) = v.get(collection).and_then(|x| x.as_array()) else { continue };
         for item in items {
