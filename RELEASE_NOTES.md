@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.264 — Fourier
+
+## What's new
+
+- Decompiler copy propagation now crosses safe intervening statements.
+- Copy propagation now stops when the source or temporary is reassigned, with regression coverage.
+
+## Verification
+
+- `cargo test --locked --quiet` — 89 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.263 — Fourier
 
 ## What's new

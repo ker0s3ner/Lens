@@ -433,6 +433,52 @@ fn propagate_adjacent_copy(o: &mut BlockOut) {
     }
 }
 
+fn writes_var(s: &Stmt, name: &str) -> bool {
+    matches!(s, Stmt::Assign(Ex::Var(dst), _) if dst == name)
+}
+
+/// Propagate a temporary copy across safe intervening statements. Stop before
+/// either side is reassigned so the pass never crosses a value-version change.
+fn propagate_forward_copy(o: &mut BlockOut) {
+    let mut i = 0;
+    while i < o.stmts.len() {
+        let (dst, src) = match &o.stmts[i].1 {
+            Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => (dst.clone(), src.clone()),
+            _ => { i += 1; continue; }
+        };
+        let mut changed = false;
+        let mut j = i + 1;
+        while j < o.stmts.len() {
+            if writes_var(&o.stmts[j].1, &dst) || writes_var(&o.stmts[j].1, &src) { break; }
+            let old = std::mem::replace(&mut o.stmts[j].1, Stmt::Comment(String::new()));
+            let (new, did_change) = match old {
+                Stmt::Assign(left, right) => {
+                    let new_left = subst(&left, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                    let new_right = subst(&right, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                    (Stmt::Assign(new_left.clone(), new_right.clone()), new_left != left || new_right != right)
+                }
+                Stmt::Expr(expr) => { let new = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Stmt::Expr(new.clone()), new != expr) }
+                Stmt::Comment(text) => (Stmt::Comment(text), false),
+            };
+            o.stmts[j].1 = new;
+            changed |= did_change;
+            j += 1;
+        }
+        if j == o.stmts.len() {
+            let old = std::mem::replace(&mut o.term, Term::Stop);
+            let (new, did_change) = match old {
+                Term::Ret(Some(expr)) => { let new = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Ret(Some(new.clone())), new != expr) }
+                Term::Indirect(expr) => { let new = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Indirect(new.clone()), new != expr) }
+                Term::Cond { cond, taken, fall } => { let new = subst(&cond, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Cond { cond: new.clone(), taken, fall }, new != cond) }
+                other => (other, false),
+            };
+            o.term = new;
+            changed |= did_change;
+        }
+        if changed { o.stmts.remove(i); } else { i += 1; }
+    }
+}
+
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     match e {
         Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
@@ -2065,6 +2111,7 @@ fn decompile_inner(
     }
     for out in &mut outs {
         propagate_adjacent_copy(out);
+        propagate_forward_copy(out);
     }
 
     // pass 3: liveness of registers
@@ -2736,6 +2783,31 @@ mod tests {
         propagate_adjacent_copy(&mut ret);
         assert!(ret.stmts.is_empty());
         assert!(matches!(ret.term, Term::Ret(Some(Ex::Var(ref v))) if v == "rax"));
+    }
+
+    #[test]
+    fn folds_copy_across_safe_statements_but_stops_at_source_reassignment() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Var("rax".into()))),
+                (1, Stmt::Assign(Ex::Var("x".into()), Ex::Num(7))),
+                (2, Stmt::Assign(Ex::Var("y".into()), Ex::Bin("+", Box::new(Ex::Var("v1".into())), Box::new(Ex::Num(1))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 3,
+        };
+        propagate_forward_copy(&mut out);
+        assert!(matches!(&out.stmts[1].1, Stmt::Assign(Ex::Var(y), Ex::Bin("+", left, _)) if y == "y" && **left == Ex::Var("rax".into())));
+
+        let mut stopped = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("rax".into()))),
+                (1, Stmt::Assign(Ex::Var("rax".into()), Ex::Num(9))),
+                (2, Stmt::Assign(Ex::Var("z".into()), Ex::Var("v2".into()))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 3,
+        };
+        propagate_forward_copy(&mut stopped);
+        assert!(matches!(&stopped.stmts[2].1, Stmt::Assign(Ex::Var(z), Ex::Var(v)) if z == "z" && v == "v2"));
     }
 
     #[test]

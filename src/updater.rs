@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler copy propagation now crosses safe intervening statements.",
+    "Copy propagation now stops when the source or temporary is reassigned, with regression coverage.",
     "Objective-C objc_msgSend selector arguments now render as @selector(...) in pseudocode.",
     "Objective-C objc_getClass arguments now render as @class(...) in pseudocode.",
     "Data double-click now selects the applied type for that address in Types.",
