@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Function-pointer typedef aliases now resolve through bounded alias chains.",
     "Function-pointer typedefs now resolve into callable parameter and return prototypes.",
     "User-defined callback aliases retain their full C-style signature in decompiler call metadata.",
     "Relocatable ELF analysis now applies common MIPS 32/64-bit and PC-relative relocations.",

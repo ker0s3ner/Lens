@@ -1,3 +1,16 @@
+# Lens 0.6.178 — Fourier
+
+## What's new
+
+- Function-pointer typedef aliases now resolve through bounded alias chains.
+
+## Verification
+
+- `cargo test --locked --quiet` — 76 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.177 — Fourier
 
 ## What's new

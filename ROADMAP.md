@@ -84,6 +84,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Typed pointer-returning calls now participate in known struct-field resolution.
 - Explicit function-pointer casts now contribute conservative prototypes to indirect calls.
 - Function-pointer typedef aliases now resolve to full callable parameter and return prototypes.
+- Function-pointer typedef aliases resolve through bounded alias chains without unbounded parser recursion.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

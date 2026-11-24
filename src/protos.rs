@@ -80,7 +80,13 @@ fn collect_typedefs(decls: &[String]) -> HashMap<String, String> {
 }
 
 fn resolve_alias(ty: String, aliases: &HashMap<String, String>) -> String {
-    aliases.get(ty.trim()).cloned().unwrap_or(ty)
+    let mut current = ty;
+    for _ in 0..8 {
+        let Some(next) = aliases.get(current.trim()) else { break };
+        if next == &current { break; }
+        current = next.clone();
+    }
+    current
 }
 
 fn split_top(s: &str) -> Vec<String> {
@@ -337,7 +343,7 @@ mod tests {
 
     #[test]
     fn resolves_function_pointer_typedef_parameters() {
-        let (p, e) = parse("typedef int (*callback_t)(int, void *); void register_cb(callback_t cb); callback_t get_cb(void);");
+        let (p, e) = parse("typedef int (*callback_t)(int, void *); typedef callback_t callback_alias_t; void register_cb(callback_alias_t cb); callback_t get_cb(void);");
         assert!(e.is_empty(), "{e:?}");
         assert_eq!(p[0].params[0].0, "int (*)(int, void *)");
         assert_eq!(p[1].ret, "int (*)(int, void *)");
