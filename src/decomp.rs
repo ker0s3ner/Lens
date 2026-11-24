@@ -1219,7 +1219,12 @@ impl<'a> Dc<'a> {
         }
         self.tmp += 1;
         let t = format!("v{}", self.tmp);
-        st.stmts.push((addr, Stmt::Assign(var(&t), call)));
+        let call_value = match proto.as_ref().map(|p| p.ret.trim()) {
+            Some(ret) if ret.ends_with('*') && ret != "void *" => Ex::CastOwned(ret.to_string(), Box::new(call)),
+            Some("void *") => Ex::CastOwned("void *".into(), Box::new(call)),
+            _ => call,
+        };
+        st.stmts.push((addr, Stmt::Assign(var(&t), call_value)));
         st.env.insert(RAX, var(&t));
         st.modified.insert(RAX);
         st.modified.extend(dead.iter().copied());

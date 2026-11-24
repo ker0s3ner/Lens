@@ -1,3 +1,8 @@
+# Lens 0.6.354 — Fourier
+
+- Known pointer-returning prototypes now preserve their return type in decompiler expressions.
+- Pointer-return type propagation now continues into downstream struct and array field recovery.
+
 # Lens 0.6.353 — Fourier
 
 - Call-graph expansion now bounds instruction scans and incoming-xref collection for pathological functions.

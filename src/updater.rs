@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Known pointer-returning prototypes now preserve their return type in decompiler expressions.",
+    "Pointer-return type propagation now continues into downstream struct and array field recovery.",
     "Call-graph expansion now bounds instruction scans and incoming-xref collection for pathological functions.",
     "Call-graph rendering now caps edge geometry, keeping oversized neighborhoods responsive instead of freezing the UI.",
     "PDB-derived C++ layouts now flatten explicitly offset non-virtual base members into derived classes.",
