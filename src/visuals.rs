@@ -14,6 +14,8 @@ use std::collections::{HashMap, HashSet};
 
 const CALL_GRAPH_MAX_NODES: usize = 120;
 const CALL_GRAPH_MAX_NEIGHBORS: usize = 24;
+const CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION: usize = 8192;
+const CALL_GRAPH_MAX_EDGES: usize = 2048;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -1032,8 +1034,7 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
         return vec![];
     }
     let mut v = vec![];
-    for b in &func.blocks {
-        for a in &b.insns {
+    for a in func.blocks.iter().flat_map(|b| b.insns.iter()).take(CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION) {
             let i = &l.an.insns[a];
             match i.flow {
                 crate::analysis::Flow::Call if i.target != 0 && l.an.functions.contains_key(&i.target) => v.push(i.target),
@@ -1041,13 +1042,12 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
                 crate::analysis::Flow::IndirectCall if l.an.import_slot.contains_key(&i.mem) => v.push(i.mem),
                 _ => {}
             }
-        }
     }
     // Indirect switch cases have no single instruction target. Walk only this
     // function's instructions and consult the analyzer's indexed switch map;
     // scanning every xref destination here made opening a graph quadratic in
     // the size of a large binary.
-    for a in func.blocks.iter().flat_map(|b| b.insns.iter().copied()) {
+    for a in func.blocks.iter().flat_map(|b| b.insns.iter().copied()).take(CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION) {
         if let Some(targets) = l.an.switches.get(&a) {
             v.extend(targets.iter().copied().filter(|target| l.an.functions.contains_key(target)));
         }
@@ -1062,7 +1062,7 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
         .an
         .xrefs_to
         .get(&f)
-        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect())
+        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).take(CALL_GRAPH_MAX_NEIGHBORS * 4).collect())
         .unwrap_or_default();
     v.sort();
     v.dedup();
@@ -1116,7 +1116,9 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for c in cached_callees(*a) {
             if let Some(&j) = idx.get(&c) {
                 if i != j {
+                if edges.len() < CALL_GRAPH_MAX_EDGES {
                     edges.push((i, j));
+                }
                 }
             }
         }

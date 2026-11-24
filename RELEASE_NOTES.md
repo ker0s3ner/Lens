@@ -1,3 +1,8 @@
+# Lens 0.6.353 — Fourier
+
+- Call-graph expansion now bounds instruction scans and incoming-xref collection for pathological functions.
+- Call-graph rendering now caps edge geometry, keeping oversized neighborhoods responsive instead of freezing the UI.
+
 # Lens 0.6.352 — Fourier
 
 - PDB-derived C++ layouts now flatten explicitly offset non-virtual base members into derived classes.

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call-graph expansion now bounds instruction scans and incoming-xref collection for pathological functions.",
+    "Call-graph rendering now caps edge geometry, keeping oversized neighborhoods responsive instead of freezing the UI.",
     "PDB-derived C++ layouts now flatten explicitly offset non-virtual base members into derived classes.",
     "Virtual-base fields remain omitted until runtime vbtable offsets can be resolved, avoiding fabricated layouts.",
     "JSON analysis reports now export normalized merged name_records for analyst labels and inferred names.",
