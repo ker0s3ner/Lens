@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON analysis reports now include recovered pointer-table and vtable records with their targets.",
     "JSON analysis reports now include conservative inferred scalar, pointer, and string data records.",
     "JSON analysis reports now include structured imported-library records.",
     "JSON function records now identify the mapped segment containing each function.",

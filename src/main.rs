@@ -226,6 +226,15 @@ fn cli(args: &[String]) -> bool {
                 "kind": if *code == analysis::DEF_STRING { "string" } else if (*code & 0x80) != 0 { "pointer" } else { "scalar" },
                 "size": if *code == analysis::DEF_STRING { serde_json::Value::Null } else { serde_json::json!(code & 0x7f) },
             })).collect::<Vec<_>>(),
+            "pointer_table_records": an.pointer_tables.iter().map(|(address, targets)| serde_json::json!({
+                "address": address,
+                "targets": targets,
+            })).collect::<Vec<_>>(),
+            "vtable_records": an.vtables.iter().map(|(address, targets)| serde_json::json!({
+                "address": address,
+                "name": an.vtable_names.get(address),
+                "targets": targets,
+            })).collect::<Vec<_>>(),
             "symbol_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
                 "name": name,
