@@ -1,3 +1,10 @@
+# Lens 0.6.266 — Fourier
+
+- Call graph expansion now caps high-fanout neighborhoods to keep rendering responsive.
+- Large call graphs now show an explicit truncation notice instead of silently overwhelming the UI.
+
+Verification: `cargo test --locked --quiet` — 89 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.197 — Fourier
 # Lens 0.6.198 — Fourier
 # Lens 0.6.199 — Fourier

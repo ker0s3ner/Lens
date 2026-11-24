@@ -17,7 +17,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Phase 1 - Reliability (first, everything else depends on it)
 - Expand the existing 200-program system-binary run into a repeatable corpus covering ELF, PE, Mach-O, stripped files, dylibs, and Go/Rust/Swift; fix crashes and incorrect results found by it.
-- Performance on 100 MB+ files: background analysis, incremental listing, memory limits.
+- Performance on 100 MB+ files: background analysis, incremental listing, memory limits. Call-graph expansion now bounds high-fanout neighborhoods and surfaces truncation instead of allowing oversized graphs to stall rendering.
 - Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
@@ -62,6 +62,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Done so far (toward parity)
 - JSON analysis reports now declare the `lens.analysis.v1` schema, and the smoke corpus validates human-readable plus JSON output for every discovered executable.
+- Call graph expansion now bounds high-fanout neighborhoods and visibly reports when a graph is truncated for responsiveness.
 - Imported indirect calls now contribute explicit call-graph edges, with regression coverage separate from forwarding-thunk analysis.
 - ELF dynamic `DT_INIT` and `DT_FINI` entries now seed executable-range-validated function discovery.
 - ELF dynamic init/fini arrays now seed bounded executable-range-validated constructor and destructor roots when section names are unavailable.

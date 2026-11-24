@@ -11,6 +11,9 @@ use eframe::egui::{
     self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Margin, Pos2, Rect, RichText, ScrollArea, Sense, Shape, Stroke, StrokeKind, Vec2,
 };
 use std::collections::{HashMap, HashSet};
+
+const CALL_GRAPH_MAX_NODES: usize = 120;
+const CALL_GRAPH_MAX_NEIGHBORS: usize = 24;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -672,6 +675,9 @@ impl LensApp {
             vis.cg_cache = Some((fs, vis.cg_depth, l.version, nodes, edges));
         }
         let (_, _, _, nodes, edges) = vis.cg_cache.as_ref().expect("call graph cache populated");
+        if nodes.len() >= CALL_GRAPH_MAX_NODES {
+            ui.label(RichText::new("large graph truncated for responsiveness").small().color(p.nav_unexplored));
+        }
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let area = resp.rect;
         painter.rect_filled(area, 0.0, p.panel_alt);
@@ -1091,8 +1097,8 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
             let mut next = vec![];
             for a in &frontier {
                 let list = if dir > 0 { cached_callees(*a) } else { cached_callers(*a) };
-                for c in list.into_iter().take(40) {
-                    if !idx.contains_key(&c) && nodes.len() < 160 {
+                for c in list.into_iter().take(CALL_GRAPH_MAX_NEIGHBORS) {
+                    if !idx.contains_key(&c) && nodes.len() < CALL_GRAPH_MAX_NODES {
                         idx.insert(c, nodes.len());
                         nodes.push(mk(c, dir * d));
                         next.push(c);

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call graph expansion now caps high-fanout neighborhoods to keep rendering responsive.",
+    "Large call graphs now show an explicit truncation notice instead of silently overwhelming the UI.",
     "Call graph caller expansion now memoizes xref scans within each build.",
     "Multi-level call graph construction now avoids duplicate caller traversal work.",
     "Decompiler copy propagation now crosses safe intervening statements.",
