@@ -1,3 +1,8 @@
+# Lens 0.6.407 — Fourier
+
+- Variable-index pointer reconstruction now recognizes power-of-two shift scaling such as `index << 2`.
+- Known struct-pointer arrays now render variable-index field accesses such as `p[index].field`.
+
 # Lens 0.6.406 — Fourier
 
 - Known struct-pointer arrays now render variable-index field accesses such as `p[i].field`.

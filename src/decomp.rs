@@ -326,10 +326,17 @@ impl Fmt<'_> {
 
     fn pointer_index(&self, address: &Ex) -> Option<(String, String)> {
         let Ex::Bin("+", base, offset) = address else { return None };
-        let Ex::Bin("*", left, right) = &**offset else { return None };
-        let (index, stride) = match (&**left, &**right) {
-            (index, Ex::Num(stride)) => (index, *stride),
-            (Ex::Num(stride), index) => (index, *stride),
+        let (index, stride) = match &**offset {
+            Ex::Bin("*", left, right) => match (&**left, &**right) {
+                (index, Ex::Num(stride)) => (index, *stride),
+                (Ex::Num(stride), index) => (index, *stride),
+                _ => return None,
+            },
+            Ex::Bin("<<", index, shift) => {
+                let Ex::Num(shift) = **shift else { return None };
+                if !(0..=6).contains(&shift) { return None; }
+                (&**index, 1_i64 << shift as u32)
+            }
             _ => return None,
         };
         if stride <= 0 || stride > u8::MAX as i64 { return None; }
@@ -3349,6 +3356,8 @@ mod tests {
         assert_eq!(fmt.show(&expression), "p[i]");
         let reversed = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("*", Box::new(Ex::Num(4)), Box::new(var("i")))))), 4);
         assert_eq!(fmt.show(&reversed), "p[i]");
+        let shifted = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Bin("<<", Box::new(var("i")), Box::new(Ex::Num(2)))))), 4);
+        assert_eq!(fmt.show(&shifted), "p[i]");
     }
 
     #[test]
