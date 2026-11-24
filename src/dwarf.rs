@@ -98,6 +98,8 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
                         };
                         let pname = child.attr_value(gimli::DW_AT_name).ok().flatten().and_then(|v| attr_string(c, unit, v));
                         params.push(pname.map(|n| format!("{p} {n}")).unwrap_or(p));
+                    } else if level == 1 && child.tag() == gimli::DW_TAG_unspecified_parameters {
+                        params.push("...".into());
                     }
                 }
             }

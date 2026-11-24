@@ -1,6 +1,9 @@
-# Lens 0.6.105 — Fourier
+# Lens 0.6.106 — Fourier
 
 ## What's new
+
+- DWARF variadic callback signatures now retain their `...` parameter marker.
+- Imported callback types preserve fixed parameters and variadic ABI shape together.
 
 - Named DWARF callback parameters are retained in imported function-pointer signatures when available.
 - Type recovery now preserves both callback shapes and analyst-useful parameter names.
