@@ -1766,6 +1766,8 @@ impl<'a> Dc<'a> {
                 | Mnemonic::Divss | Mnemonic::Divsd | Mnemonic::Addps | Mnemonic::Addpd | Mnemonic::Subps | Mnemonic::Subpd
                 | Mnemonic::Mulps | Mnemonic::Mulpd | Mnemonic::Divps | Mnemonic::Divpd
                 | Mnemonic::Vaddps | Mnemonic::Vaddpd | Mnemonic::Vsubps | Mnemonic::Vsubpd | Mnemonic::Vmulps | Mnemonic::Vmulpd | Mnemonic::Vdivps | Mnemonic::Vdivpd
+                | Mnemonic::Minss | Mnemonic::Minsd | Mnemonic::Minps | Mnemonic::Minpd | Mnemonic::Maxss | Mnemonic::Maxsd | Mnemonic::Maxps | Mnemonic::Maxpd
+                | Mnemonic::Vminss | Mnemonic::Vminsd | Mnemonic::Vminps | Mnemonic::Vminpd | Mnemonic::Vmaxss | Mnemonic::Vmaxsd | Mnemonic::Vmaxps | Mnemonic::Vmaxpd
                 | Mnemonic::Pxor | Mnemonic::Xorps | Mnemonic::Xorpd | Mnemonic::Andps | Mnemonic::Andpd
                 | Mnemonic::Orps | Mnemonic::Paddd | Mnemonic::Paddq | Mnemonic::Psubd | Mnemonic::Adc | Mnemonic::Sbb if ins.op_count() >= 2 => {
                     let a = self.read_op(&mut st, ins, 0);
@@ -1784,6 +1786,8 @@ impl<'a> Dc<'a> {
                         Mnemonic::Shr => bin(">>>", a.clone(), b),
                         Mnemonic::Sar => bin(">>", a.clone(), b),
                         Mnemonic::Mulss | Mnemonic::Mulsd | Mnemonic::Mulps | Mnemonic::Mulpd | Mnemonic::Vmulps | Mnemonic::Vmulpd => bin("*", a.clone(), b),
+                        Mnemonic::Minss | Mnemonic::Minsd | Mnemonic::Minps | Mnemonic::Minpd | Mnemonic::Vminss | Mnemonic::Vminsd | Mnemonic::Vminps | Mnemonic::Vminpd => Ex::Call(Box::new(var("fmin")), vec![a.clone(), b]),
+                        Mnemonic::Maxss | Mnemonic::Maxsd | Mnemonic::Maxps | Mnemonic::Maxpd | Mnemonic::Vmaxss | Mnemonic::Vmaxsd | Mnemonic::Vmaxps | Mnemonic::Vmaxpd => Ex::Call(Box::new(var("fmax")), vec![a.clone(), b]),
                         _ => bin("/", a.clone(), b),
                     };
                     st.flags = match m {

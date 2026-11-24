@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls.",
+    "Min/max no longer fall through to the generic division fallback, improving floating-point pseudocode fidelity.",
     "Pseudocode now collapses identical conditional branches instead of printing redundant ternaries.",
     "Decompiler formatting keeps the branch simplification semantics-preserving with regression coverage.",
     "Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion.",

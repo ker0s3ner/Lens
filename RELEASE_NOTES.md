@@ -1,3 +1,8 @@
+# Lens 0.6.428 — Fourier
+
+- x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls.
+- Min/max no longer fall through to the generic division fallback, improving floating-point pseudocode fidelity.
+
 # Lens 0.6.427 — Fourier
 
 - Pseudocode now collapses identical conditional branches instead of printing redundant ternaries.
