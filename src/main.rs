@@ -221,7 +221,7 @@ fn cli(args: &[String]) -> bool {
             "function_records": an.functions.values().map(|f| serde_json::json!({
                 "start": f.start,
                 "end": f.end,
-                "name": bin.symbols.iter().find(|(address, _)| *address == f.start).map(|(_, name)| name),
+                "name": names.get(&f.start).map(|(name, _)| name),
                 "kind": format!("{:?}", f.kind),
                 "segment": bin.segment_of(f.start).map(|segment| segment.name.clone()),
                 "has_symbol": f.has_symbol,
@@ -238,7 +238,7 @@ fn cli(args: &[String]) -> bool {
                 let code = decomp::decompile_with_types(&bin, &an, &names, function, det.conv, "", &ann.structs);
                 serde_json::json!({
                     "address": function.start,
-                    "name": bin.symbols.iter().find(|(address, _)| *address == function.start).map(|(_, name)| name),
+                    "name": names.get(&function.start).map(|(name, _)| name),
                     "kind": format!("{:?}", function.kind),
                     "segment": bin.segment_of(function.start).map(|segment| segment.name.clone()),
                     "lines": code.lines.len(),

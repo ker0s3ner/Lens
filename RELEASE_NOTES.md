@@ -1,3 +1,8 @@
+# Lens 0.6.346 — Fourier
+
+- JSON function and pseudocode records now use the merged annotation-aware name table instead of raw symbols only.
+- Saved user renames now survive into machine-readable reports alongside GUI and direct CLI decompilation.
+
 # Lens 0.6.345 — Fourier
 
 - Direct `--decompile` output now uses saved annotations and the typed decompiler instead of resetting to an empty database.

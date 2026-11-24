@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON function and pseudocode records now use the merged annotation-aware name table instead of raw symbols only.",
+    "Saved user renames now survive into machine-readable reports alongside GUI and direct CLI decompilation.",
     "Direct --decompile output now uses saved annotations and the typed decompiler instead of resetting to an empty database.",
     "CLI address/name decompilation now matches JSON, scripts, and the GUI for recovered prototypes and struct fields.",
     "CLI analysis now loads saved per-file annotations before discovery and pseudocode generation.",
