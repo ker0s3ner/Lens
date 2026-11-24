@@ -1,6 +1,9 @@
-# Lens 0.6.136 — Fourier
+# Lens 0.6.137 — Fourier
 
 ## What's new
+
+- GitHub release builds now run the locked unit-test suite and analysis smoke corpus before packaging.
+- Release automation fails before publication if representative host binaries cannot be loaded and analyzed.
 
 - Added `scripts/smoke-corpus.sh` for repeatable headless loader and analysis checks on host binaries.
 - The smoke corpus discovers available executables at runtime and fails on missing analysis reports.

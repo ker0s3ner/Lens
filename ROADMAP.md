@@ -141,6 +141,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Enum propagation now survives transparent scalar casts around typed parameters.
 - Enum-typed switch expressions now render named members for recovered jump-table cases.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
+- GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.
