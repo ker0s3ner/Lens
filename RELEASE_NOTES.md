@@ -1,3 +1,8 @@
+# Lens 0.6.406 — Fourier
+
+- Known struct-pointer arrays now render variable-index field accesses such as `p[i].field`.
+- Variable-index pointer reconstruction accepts both `index * stride` and `stride * index` forms.
+
 # Lens 0.6.405 — Fourier
 
 - Variable-index pointer reconstruction now accepts either multiplication operand order.

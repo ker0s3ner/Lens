@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Known struct-pointer arrays now render variable-index field accesses such as p[index].field.",
+    "Variable-index pointer reconstruction accepts both index * stride and stride * index forms.",
     "Variable-index pointer reconstruction now accepts either multiplication operand order.",
     "Typed pointer dereferences now reconstruct p[index] accesses when the element stride is known.",
     "Typed pointer dereferences now reconstruct variable-index scalar accesses when the element stride is known.",

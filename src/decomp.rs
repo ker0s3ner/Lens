@@ -343,6 +343,35 @@ impl Fmt<'_> {
         pointer.then(|| (self.at(base, 3), self.at(index, 99)))
     }
 
+    fn variable_struct_field(&self, address: &Ex) -> Option<String> {
+        let Ex::Bin("+", scaled, tail) = address else { return None };
+        let (base, index, stride) = match (&**scaled, &**tail) {
+            (Ex::Bin("+", base, scaled), Ex::Num(offset)) => (base, scaled, *offset),
+            (Ex::Num(offset), Ex::Bin("+", base, scaled)) => (base, scaled, *offset),
+            _ => return None,
+        };
+        let Ex::Bin("*", left, right) = &**index else { return None };
+        let (index, element_size) = match (&**left, &**right) {
+            (index, Ex::Num(size)) => (index, *size),
+            (Ex::Num(size), index) => (index, *size),
+            _ => return None,
+        };
+        if element_size <= 0 || stride < 0 { return None; }
+        let ty = match &**base {
+            Ex::Var(name) => self.types.get(name).cloned(),
+            Ex::Call(callee, _) => call_return_type(callee),
+            Ex::Cast(t, _) => Some((*t).to_string()),
+            Ex::CastOwned(t, _) => Some(t.clone()),
+            _ => None,
+        }?;
+        let name = ty.trim().strip_suffix('*')?.trim().trim_start_matches("const ").trim();
+        let name = name.strip_prefix("struct ").or_else(|| name.strip_prefix("union ")).unwrap_or(name);
+        let def = self.struct_def(name)?;
+        if def.size as i64 != element_size { return None; }
+        let field = self.resolve_struct_path(def, stride, 0)?;
+        Some(format!("{}[{}].{field}", self.at(base, 3), self.at(index, 99)))
+    }
+
     fn at(&self, e: &Ex, ctx: u8) -> String {
         let s = match e {
             Ex::Num(n) => Self::num(*n),
@@ -353,6 +382,9 @@ impl Fmt<'_> {
             Ex::CastOwned(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::Deref(a, sz) => {
                 if let Some(field) = self.struct_field(a) {
+                    return field;
+                }
+                if let Some(field) = self.variable_struct_field(a) {
                     return field;
                 }
                 if let Some((base, index)) = self.pointer_index(a) {
@@ -3399,6 +3431,18 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[inner, outer] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(12)))), 4);
         assert_eq!(fmt.show(&expression), "p->items[1].value");
+    }
+
+    #[test]
+    fn renders_variable_struct_array_field_index() {
+        let item = crate::types::parse_c("struct Item { uint32_t id; uint32_t value; }", 8, &[]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Item *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[item] };
+        let scaled = Ex::Bin("*", Box::new(var("i")), Box::new(Ex::Num(8)));
+        let address = Ex::Bin("+", Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(scaled))), Box::new(Ex::Num(4)));
+        let expression = Ex::Deref(Box::new(address), 4);
+        assert_eq!(fmt.show(&expression), "p[i].value");
     }
 
     #[test]
