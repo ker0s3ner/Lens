@@ -1,3 +1,8 @@
+# Lens 0.6.364 — Fourier
+
+- M68k link/unlink-style frame setup now recognizes `a6` as the frame pointer.
+- M68k `lea` instructions now preserve computed address expressions for pointer and local recovery.
+
 # Lens 0.6.363 — Fourier
 
 - M68k memory-form move instructions now use the shared typed load/store path.

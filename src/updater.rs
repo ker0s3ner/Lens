@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "M68k link/unlink-style frame setup now recognizes a6 as the frame pointer.",
+    "M68k lea instructions now preserve computed address expressions for pointer and local recovery.",
     "M68k memory-form move instructions now use the shared typed load/store path.",
     "M68k byte, word, long, and quad move sizes now preserve their memory width in pseudocode.",
     "M68k condition-code set instructions now lift to readable boolean 0/1 expressions.",

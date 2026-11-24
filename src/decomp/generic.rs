@@ -339,6 +339,7 @@ fn fp_set(f: Fam, mn: &str, ops: &[String]) -> Option<i64> {
         return None;
     }
     match mn {
+        "link" if f == Fam::M68k => Some(0),
         "mov" | "move" | "mr" | "or" | "c.mv" | "mv" if ops.len() >= 2 && is_sp(&ops[1]) => Some(0),
         "add" | "addi" | "addiu" | "add.w" | "addw" if ops.len() == 3 && is_sp(&ops[1]) => parse_imm(&ops[2]),
         _ => None,
@@ -902,6 +903,13 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             } else if let Some(r) = reg(0) {
                 let value = dc.g_val(st, o(1), None);
                 dc.g_wr(st, r, value, addr);
+            }
+        }
+        (Fam::M68k, "lea") if ops.len() >= 2 => {
+            if let (Some((mm, _)), Some(rd)) = (parse_mem(fm, ops, 0), reg(1)) {
+                let value = dc.g_addr(st, &mm);
+                dc.g_wr(st, rd, value, addr);
+                dc.g_writeback(st, &mm, addr);
             }
         }
         (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") | (Fam::M68k, "move" | "moveq") => {
