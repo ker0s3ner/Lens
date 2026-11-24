@@ -1,3 +1,17 @@
+# Lens 0.6.172 — Fourier
+
+## What's new
+
+- Arrays of known nested records now render chained accesses such as `p->items[1].value`.
+- Nested array indexing remains bounded by the recovered element size and record layout.
+
+## Verification
+
+- `cargo test --locked --quiet` — 72 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.171 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 71 passed
+- `cargo test --locked --quiet` — 72 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

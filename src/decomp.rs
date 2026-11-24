@@ -137,6 +137,16 @@ impl Fmt<'_> {
         if count <= 0 || field.size as i64 % count != 0 { return None; }
         let element_size = field.size as i64 / count;
         let index = relative / element_size;
+        let element_ty = field.ty[..open].trim().trim_start_matches("const ").trim();
+        let element_name = element_ty.strip_prefix("struct ").or_else(|| element_ty.strip_prefix("union ")).unwrap_or(element_ty);
+        if element_size > 0 && relative % element_size >= 0 {
+            if let Some(element_def) = self.structs.iter().find(|candidate| candidate.name == element_name && !candidate.is_enum) {
+                let within = relative % element_size;
+                if let Some(path) = self.resolve_struct_path(element_def, within, depth + 1) {
+                    if index >= 0 && index < count { return Some(format!("{}[{}].{}", field.name, index, path)); }
+                }
+            }
+        }
         (element_size > 0 && relative % element_size == 0 && index >= 0 && index < count)
             .then(|| format!("{}[{index}]", field.name))
     }
@@ -2597,6 +2607,17 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[inner, outer] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "p->inner.value");
+    }
+
+    #[test]
+    fn renders_array_of_nested_struct_field() {
+        let inner = crate::types::parse_c("struct Item { uint32_t id; uint32_t value; }", 8, &[]).unwrap();
+        let outer = crate::types::parse_c("struct Batch { struct Item items[2]; }", 8, &[inner.clone()]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("struct Batch *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[inner, outer] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(12)))), 4);
+        assert_eq!(fmt.show(&expression), "p->items[1].value");
     }
 
     #[test]
