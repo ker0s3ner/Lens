@@ -55,6 +55,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - `xrefs_to_details(addr)` exposes incoming xrefs as `{from, kind}` records, preserving distinctions such as `call`, `switch case`, `read`, `write`, and `pointer`.
 - `xrefs_from_details(addr)` exposes outgoing xrefs as `{to, kind}` records with the same relationship labels.
 - JSON vtable records include their owning segment and file offset when the recovered table maps to file-backed data.
+- Desktop JSON database exports preserve the same vtable source context for round-tripping.
 - `decompile(addr)` returns the typed C-like pseudocode for a recovered function, using the same decompiler path as the UI.
 - `script_api_version()` returns the current compatible Rhai API version (`1`); plugins can check it before using newer functions or record fields.
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
