@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 register-based switch tables now accept signed PC-relative table bases.",
+    "ARM32 and Thumb switch recovery now recognizes sub reg, pc, #imm backward-base idioms.",
     "Thumb indexed ldr pc switch tables now recover register-based table bases prepared from the PC.",
     "Signed PC-relative table-base immediates are supported for additional compiler-emitted Thumb switch layouts.",
     "Enum-aware comparisons now fold multiplication, division, and remainder into named members.",

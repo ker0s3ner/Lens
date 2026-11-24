@@ -1,3 +1,8 @@
+# Lens 0.6.383 — Fourier
+
+- ARM32 register-based switch tables now accept signed PC-relative table bases.
+- ARM32 and Thumb switch recovery now recognizes `sub reg, pc, #imm` backward-base idioms.
+
 # Lens 0.6.382 — Fourier
 
 - Thumb indexed `ldr pc` switch tables now recover register-based table bases prepared from the PC, including signed PC-relative immediates.
