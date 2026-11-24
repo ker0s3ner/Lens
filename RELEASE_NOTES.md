@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.240 — Fourier
+
+## What's new
+
+- JSON analysis name and symbol records can now be restored by database import.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.239 — Fourier
 
 ## What's new

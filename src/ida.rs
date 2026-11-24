@@ -802,6 +802,15 @@ mod tests {
         assert_eq!(json_named_records(&v).len(), 5);
         assert!(json_named_records(&v).contains(&(12288, "lib_call".into())));
     }
+
+    #[test]
+    fn restores_names_from_analysis_name_records() {
+        let v = serde_json::json!({
+            "name_records": [{"address": 4096, "name": "main", "kind": "function"}],
+            "symbol_records": [{"address": 8192, "name": "global", "kind": "data"}]
+        });
+        assert_eq!(json_named_records(&v), vec![(4096, "main".to_string()), (8192, "global".to_string())]);
+    }
 }
 
 // ------------------------------------------------------------------ import
@@ -859,7 +868,7 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
 
 fn json_named_records(v: &serde_json::Value) -> Vec<(u64, String)> {
     let mut out = Vec::new();
-    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("names", "addr")];
+    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
     for (collection, address_field) in fields {
         let Some(items) = v.get(collection).and_then(|x| x.as_array()) else { continue };
         for item in items {
