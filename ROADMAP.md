@@ -101,6 +101,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON callee records are deterministic and deduplicated while raw call-site records remain available.
 - The runtime smoke corpus now gates releases on the presence of normalized JSON callers/callees.
 - Decompiler folds constant ternary conditions while preserving non-constant branch structure.
+- Decompiler folds constant conditional terminators into direct jumps, removing impossible branches.
 - Script call-graph expansion is bounded and deterministic for large-binary automation.
 - Decompiler lifting now distinguishes logical and arithmetic right shifts, including rotate expressions.
 - Return expressions now also fold safe adjacent temporary-to-register copies.

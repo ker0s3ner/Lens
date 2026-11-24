@@ -525,6 +525,12 @@ fn inline_adjacent_call_temp(o: &mut BlockOut) {
     }
 }
 
+fn fold_constant_term(o: &mut BlockOut) {
+    if let Term::Cond { cond: Ex::Num(value), taken, fall } = &o.term {
+        o.term = Term::Jmp(if *value != 0 { *taken } else { *fall });
+    }
+}
+
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     match e {
         Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
@@ -2160,6 +2166,7 @@ fn decompile_inner(
         propagate_adjacent_copy(out);
         propagate_forward_copy(out);
         inline_adjacent_call_temp(out);
+        fold_constant_term(out);
     }
 
     // pass 3: liveness of registers
@@ -2911,6 +2918,16 @@ mod tests {
         assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
         assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
         assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
+    }
+
+    #[test]
+    fn folds_constant_conditional_terminators() {
+        let mut out = BlockOut {
+            stmts: vec![], defs: BTreeMap::new(), uses: BTreeSet::new(),
+            term: Term::Cond { cond: Ex::Num(0), taken: 0x2000, fall: 0x3000 }, term_addr: 1,
+        };
+        fold_constant_term(&mut out);
+        assert!(matches!(out.term, Term::Jmp(0x3000)));
     }
 
     #[test]

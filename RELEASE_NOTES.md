@@ -1,3 +1,10 @@
+# Lens 0.6.283 — Fourier
+
+- Decompiler now turns constant conditional terminators into direct jumps.
+- Impossible constant branches are removed while non-constant control flow remains unchanged.
+
+Verification: `cargo test --locked --quiet` — 94 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.282 — Fourier
 
 - Roadmap and README now identify the shipped 0.6.281 Fourier graph-report build.
