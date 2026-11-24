@@ -182,6 +182,7 @@ fn cli(args: &[String]) -> bool {
                 "blocks": f.blocks.len(),
                 "instructions": f.insn_count,
                 "calls": f.calls,
+                "references": an.xrefs_to.get(&f.start).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
                 "noreturn": f.noreturn,
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),

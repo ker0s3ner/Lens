@@ -15,6 +15,20 @@
 # Lens 0.6.211 — Fourier
 # Lens 0.6.212 — Fourier
 # Lens 0.6.213 — Fourier
+# Lens 0.6.214 — Fourier
+
+## What's new
+
+- JSON function records now include their incoming reference addresses.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.213 — Fourier
 
 ## What's new
 
