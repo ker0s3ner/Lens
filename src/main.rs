@@ -274,6 +274,7 @@ fn cli(args: &[String]) -> bool {
             "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
                 "jump": jump,
                 "targets": targets,
+                "references": an.xrefs_to.get(jump).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "xref_records": an.xrefs_to.iter().flat_map(|(target, refs)| refs.iter().map(move |xref| serde_json::json!({
                 "from": xref.from,
