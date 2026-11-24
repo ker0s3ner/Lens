@@ -1128,6 +1128,15 @@ impl<'a> Dc<'a> {
                     let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
                     self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
                 }
+                Mnemonic::Vpdpbusd | Mnemonic::Vpdpbusds | Mnemonic::Vpdpwssd | Mnemonic::Vpdpwssds
+                | Mnemonic::Vpdpbssd | Mnemonic::Vpdpbssds | Mnemonic::Vpdpbsud | Mnemonic::Vpdpbsuds
+                | Mnemonic::Vpdpbuud | Mnemonic::Vpdpbuuds | Mnemonic::Vpdpwsud | Mnemonic::Vpdpwsuds
+                | Mnemonic::Vpdpwusd | Mnemonic::Vpdpwusds | Mnemonic::Vpdpwuud | Mnemonic::Vpdpwuuds
+                | Mnemonic::V4fmaddps | Mnemonic::V4fmaddss
+                if ins.op_count() >= 2 => {
+                    let args = (1..ins.op_count()).map(|i| self.read_op(&mut st, ins, i)).collect();
+                    self.write_op(&mut st, ins, 0, Ex::Call(Box::new(var(&format!("__{:?}", m))), args));
+                }
                 Mnemonic::Lea => {
                     let sz = 1;
                     let (a, _) = self.mem_operand(&mut st, ins, sz);

@@ -1,6 +1,9 @@
-# Lens 0.6.89 — Fourier
+# Lens 0.6.90 — Fourier
 
 ## What's new
+
+- x86/x64 VNNI and 4-way fused multiply-add dot-product families now remain visible as named pseudocode intrinsics.
+- ML-oriented packed dot-product operand groups are preserved in decompiler output.
 
 - AArch64 NEON pairwise-long and absolute-difference accumulation families now remain visible as named pseudocode intrinsics.
 - Image/audio reduction kernels preserve their widening accumulation operands.

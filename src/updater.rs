@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "x86/x64 VNNI and 4-way fused multiply-add dot-product families now remain visible as named pseudocode intrinsics.",
+    "ML-oriented packed dot-product operand groups are preserved in decompiler output.",
     "AArch64 NEON pairwise-long and absolute-difference accumulation families now remain visible as named pseudocode intrinsics.",
     "Image/audio reduction kernels preserve their widening accumulation operands.",
     "AArch64 NEON numeric min/max and horizontal reduction families now remain visible as named pseudocode intrinsics.",
