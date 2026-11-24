@@ -585,6 +585,13 @@ fn fold_constant_term(o: &mut BlockOut) {
     }
 }
 
+fn typed_call_value(proto: Option<&crate::protos::Proto>, call: Ex) -> Ex {
+    match proto.map(|p| p.ret.trim()) {
+        Some(ret) if ret.ends_with('*') => Ex::CastOwned(ret.to_string(), Box::new(call)),
+        _ => call,
+    }
+}
+
 fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     match e {
         Ex::Var(v) => *m.entry(v.clone()).or_default() += 1,
@@ -1219,11 +1226,7 @@ impl<'a> Dc<'a> {
         }
         self.tmp += 1;
         let t = format!("v{}", self.tmp);
-        let call_value = match proto.as_ref().map(|p| p.ret.trim()) {
-            Some(ret) if ret.ends_with('*') && ret != "void *" => Ex::CastOwned(ret.to_string(), Box::new(call)),
-            Some("void *") => Ex::CastOwned("void *".into(), Box::new(call)),
-            _ => call,
-        };
+        let call_value = typed_call_value(proto.as_ref(), call);
         st.stmts.push((addr, Stmt::Assign(var(&t), call_value)));
         st.env.insert(RAX, var(&t));
         st.modified.insert(RAX);
@@ -2825,6 +2828,15 @@ mod tests {
         let copied = Fmt { rename: &empty, types: &types, structs: &[] };
         let read = Ex::Deref(Box::new(var("p")), 1);
         assert_eq!(copied.show(&read), "*(char*)p");
+    }
+
+    #[test]
+    fn pointer_return_prototypes_wrap_call_values() {
+        let proto = crate::protos::find("strdup").expect("built-in strdup prototype");
+        let value = typed_call_value(Some(&proto), Ex::Call(Box::new(var("strdup")), vec![]));
+        assert!(matches!(value, Ex::CastOwned(ref ty, _) if ty == "char *"));
+        let plain = typed_call_value(None, Ex::Call(Box::new(var("unknown")), vec![]));
+        assert!(matches!(plain, Ex::Call(_, _)));
     }
 
     #[test]
