@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 SM4 round and key-schedule instructions now remain visible as named pseudocode intrinsics.",
+    "Modern block-cipher operand groups are preserved alongside existing AES and SHA coverage.",
     "AArch64 SHA-3/SM3-style Boolean and rotate-combine instructions now remain visible as named pseudocode intrinsics.",
     "Modern cryptographic mix operations preserve their operand groups.",
     "AArch64 SHA-512 round and schedule instructions now remain visible as named pseudocode intrinsics.",

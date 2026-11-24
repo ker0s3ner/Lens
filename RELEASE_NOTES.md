@@ -1,6 +1,9 @@
-# Lens 0.6.93 — Fourier
+# Lens 0.6.94 — Fourier
 
 ## What's new
+
+- AArch64 SM4 round and key-schedule instructions now remain visible as named pseudocode intrinsics.
+- Modern block-cipher operand groups are preserved alongside existing AES and SHA coverage.
 
 - AArch64 SHA-3/SM3-style Boolean and rotate-combine instructions now remain visible as named pseudocode intrinsics.
 - Modern cryptographic mix operations preserve their operand groups.
