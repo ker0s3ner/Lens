@@ -2383,6 +2383,16 @@ mod tests {
     }
 
     #[test]
+    fn render_type_inference_keeps_dereferenced_pointer_return_type() {
+        let rhs = Ex::Deref(Box::new(Ex::Call(Box::new(var("strdup")), vec![])), 1);
+        let outs = vec![BlockOut {
+            stmts: vec![(0, Stmt::Assign(Ex::Var("ch".into()), rhs))],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("char"));
+    }
+
+    #[test]
     fn simple_return_has_stable_pseudocode_golden() {
         let bin = raw_binary(&RawSpec {
             path: "golden".into(), name: "golden".into(), arch: Arch::X64, big: false,

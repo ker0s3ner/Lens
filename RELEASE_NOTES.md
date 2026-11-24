@@ -1,3 +1,17 @@
+# Lens 0.6.144 — Fourier
+
+## What's new
+
+- Added a direct decompiler regression test for pointee-type inference through dereferenced `strdup` calls.
+- The Fourier patch line now verifies this pointer-return propagation at the render-type boundary.
+
+## Verification
+
+- `cargo test --locked --quiet` — 62 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.143 — Fourier
 
 ## What's new
