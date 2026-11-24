@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Function-scoped searches now scan the full function before applying the result cap.",
     "Search can now be scoped to the current function or the full program.",
     "Search results can now be copied as an address-and-text report.",
     "JSON database import now restores legacy import and export record collections.",

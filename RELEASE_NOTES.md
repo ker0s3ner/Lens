@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.251 — Fourier
+
+## What's new
+
+- Function-scoped searches now scan the full function before applying the result cap.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.250 — Fourier
 
 ## What's new

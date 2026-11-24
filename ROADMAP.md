@@ -414,6 +414,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON database import restores legacy import and export record collections.
 - Search results can be copied as an address-and-text report for external triage and review.
 - Search can be scoped to the current function or the full program.
+- Function-scoped searches scan the full function before applying the result cap.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.

@@ -202,14 +202,14 @@ impl LensApp {
                 for s in &l.an.strings {
                     if s.text.to_lowercase().contains(&lq) {
                         res.push((s.addr, crate::code::escape_str(&s.text, 120)));
-                        if res.len() >= CAP { break; }
+                        if scope == SearchScope::Program && res.len() >= CAP { break; }
                     }
                 }
             }
             SearchMode::Names => {
                 let mut v: Vec<(&u64, &(String, crate::analysis::NameKind))> = l.names.iter().filter(|(_, (n, _))| n.to_lowercase().contains(&lq)).collect();
                 v.sort_by_key(|(a, _)| **a);
-                for (a, (n, _)) in v.into_iter().take(CAP) {
+                for (a, (n, _)) in v.into_iter().take(if scope == SearchScope::Program { CAP } else { usize::MAX }) {
                     res.push((*a, n.clone()));
                 }
             }
@@ -224,7 +224,7 @@ impl LensApp {
                                 let a = s.start + i as u64;
                                 let shown = crate::code::hex_bytes(&d[i..(i + pat.len().max(8)).min(d.len())]);
                                 res.push((a, shown));
-                                if res.len() >= CAP { break 'outer; }
+                                if scope == SearchScope::Program && res.len() >= CAP { break 'outer; }
                             }
                         }
                     }
@@ -254,7 +254,7 @@ impl LensApp {
                         let hit = if mode == SearchMode::Value { needles.iter().take(2).any(|x| tl.contains(x.as_str())) || tl.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w == needles[2]) } else { tl.contains(&needles[0]) };
                         if hit {
                             res.push((l.an.lines[i].addr, t.trim().to_string()));
-                            if res.len() >= CAP { break; }
+                            if scope == SearchScope::Program && res.len() >= CAP { break; }
                         }
                     }
                     let _ = scanned;
@@ -268,6 +268,14 @@ impl LensApp {
         }
         if let Some((start, end)) = current_function {
             res.retain(|(address, _)| *address >= start && *address < end);
+        }
+        res.truncate(CAP);
+        if note.is_empty() {
+            note = if res.len() >= CAP {
+                format!("Showing the first {CAP} matches.")
+            } else {
+                format!("{} match{}", res.len(), if res.len() == 1 { "" } else { "es" })
+            };
         }
         self.tools.search.results = res;
         self.tools.search.note = note;
