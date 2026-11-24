@@ -5,13 +5,13 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 26% | 5.2% |
-| Static analysis and navigation | 20% | 54% | 10.8% |
+| Static analysis and navigation | 20% | 55% | 11.0% |
 | Decompiler and type recovery | 20% | 22% | 4.4% |
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 27% | 2.7% |
-| **Total** | **100%** |  | **36.1%** |
+| **Total** | **100%** |  | **36.3%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -73,6 +73,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - RISC-V switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
 - MIPS switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
 - PowerPC switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
+- ARM32 switch recovery now accepts validated signed relative-offset tables as well as absolute pointer tables.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

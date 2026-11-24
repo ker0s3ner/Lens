@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM32 switch recovery now accepts validated signed relative-offset tables in addition to absolute pointer tables.",
+    "Relative ARM32 cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",
     "PowerPC switch recovery now accepts validated signed relative-offset tables in addition to absolute pointer tables.",
     "Relative PowerPC cases are checked against both table-relative and function-relative bases before becoming control-flow edges.",
     "MIPS switch recovery now accepts validated signed relative-offset tables in addition to absolute pointer tables.",

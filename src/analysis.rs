@@ -486,14 +486,26 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let Some(table) = found else { return vec![] };
         table
     };
-    let mut out = Vec::new();
+    let mut raw_entries = Vec::new();
     for k in 0..count {
         let b = bin.read(table + (k * 4) as u64, 4);
         if b.len() != 4 { break; }
-        let t = if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 };
-        if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
-        out.push(t);
+        raw_entries.push(if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 });
     }
+    let valid = |target: u64| bin.is_exec(target) && target.abs_diff(fstart) < 0x40_0000 && decode_info(bin, target).is_some();
+    let absolute: Vec<u64> = raw_entries.iter().copied().take_while(|target| valid(*target)).collect();
+    let out = if absolute.len() >= 2 {
+        absolute
+    } else {
+        raw_entries.into_iter().map(|raw| {
+            let offset = raw as u32 as i32 as i64;
+            let from_table = table.wrapping_add_signed(offset);
+            if valid(from_table) { Some(from_table) } else {
+                let from_function = fstart.wrapping_add_signed(offset);
+                valid(from_function).then_some(from_function)
+            }
+        }).collect::<Option<Vec<_>>>().unwrap_or_default()
+    };
     if out.iter().collect::<HashSet<_>>().len() < 2 { vec![] } else { out }
 }
 
