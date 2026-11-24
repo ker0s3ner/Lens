@@ -47,12 +47,15 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 lists.insert(item.index(), fields);
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct) => {
-                if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size)); }
+                if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
+            }
+            pdb::TypeData::Union(union) => {
+                records.push((union.name.to_string().into_owned(), union.fields, union.size, true));
             }
             _ => {}
         }
     }
-    records.into_iter().filter_map(|(name, field_list, size)| {
+    records.into_iter().filter_map(|(name, field_list, size, is_union)| {
         let fields = lists.get(&field_list)?;
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
@@ -68,7 +71,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
             out.push(crate::types::Field { off: *offset as u32, name: field_name.clone(), ty, size: field_size, bit_offset: None, bit_width: None });
         }
         if name.is_empty() || out.is_empty() || size > u32::MAX as u64 { return None; }
-        Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union: false, is_enum: false, enum_values: vec![], alias_of: None })
+        Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union, is_enum: false, enum_values: vec![], alias_of: None })
     }).collect()
 }
 

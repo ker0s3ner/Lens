@@ -1,6 +1,9 @@
-# Lens 0.6.120 — Fourier
+# Lens 0.6.121 — Fourier
 
 ## What's new
+
+- PE/PDB union records now import supported overlapping members through the Types database.
+- Union layouts reuse CodeView member offsets and declared sizes without guessing unsupported fields.
 
 - PE/PDB struct records now import supported scalar and pointer members with their CodeView offsets.
 - Incomplete or unsupported PDB layouts are skipped instead of producing partial types.
