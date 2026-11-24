@@ -1,3 +1,8 @@
+# Lens 0.6.295 — Fourier
+
+- RISC-V BEXTI immediate bit extraction now renders through the same visible shift-and-mask expression as BEXT.
+- RISC-V indexed and immediate bit extraction paths now produce consistent pseudocode for bit-level data flow.
+
 # Lens 0.6.294 — Fourier
 
 - RISC-V BSETI, BCLRI, and BINVI immediate aliases now share the exact visible bit-mask lowering.

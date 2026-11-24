@@ -1378,7 +1378,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let amount = dc.g_val(st, o(2), None);
             set(dc, st, 0, Ex::Call(Box::new(var("ror")), vec![value, amount]));
         }
-        (Fam::Rv, "bext") if ops.len() >= 3 => {
+        (Fam::Rv, "bext" | "bexti") if ops.len() >= 3 => {
             let value = dc.g_val(st, o(1), None);
             let bit = dc.g_val(st, o(2), None);
             set(dc, st, 0, bin("&", bin(">>", value, bit), Ex::Num(1)));
