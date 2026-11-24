@@ -68,6 +68,13 @@ mod tests {
         assert_eq!(base_mnemonic("ext.b"), "ext");
         assert_eq!(base_mnemonic("moveq"), "moveq");
     }
+
+    #[test]
+    fn a64_float_minmax_dispatches_to_named_helpers() {
+        assert_eq!(a64_float_minmax_helper("fmin"), Some("fmin"));
+        assert_eq!(a64_float_minmax_helper("fmax"), Some("fmax"));
+        assert_eq!(a64_float_minmax_helper("fadd"), None);
+    }
 }
 
 fn base_mnemonic(mn: &str) -> &str {
@@ -76,6 +83,14 @@ fn base_mnemonic(mn: &str) -> &str {
         .trim_end_matches(".l")
         .trim_end_matches(".q")
         .trim_end_matches(".n")
+}
+
+fn a64_float_minmax_helper(mn: &str) -> Option<&'static str> {
+    match mn {
+        "fmin" => Some("fmin"),
+        "fmax" => Some("fmax"),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -985,7 +1000,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::A64, "fmin" | "fmax") => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
-            let helper = if base_mn == "fmin" { "fmin" } else { "fmax" };
+            let helper = a64_float_minmax_helper(base_mn).unwrap_or("fmin");
             set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![a, b]));
         }
         (Fam::A64, "fneg" | "fabs" | "fsqrt") => {

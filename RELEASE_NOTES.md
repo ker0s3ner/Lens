@@ -1,3 +1,8 @@
+# Lens 0.6.430 — Fourier
+
+- ARM64 min/max helper selection now has direct regression coverage.
+- The generic dispatcher and test share one named-helper mapping, preventing future drift.
+
 # Lens 0.6.429 — Fourier
 
 - ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers.
