@@ -1,3 +1,8 @@
+# Lens 0.6.437 — Fourier
+
+- The golden corpus now checks ARM64 pseudocode for a recovered constant return.
+- ARM64 validation now covers both analysis metadata and decompiler output.
+
 # Lens 0.6.436 — Fourier
 
 - The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis.

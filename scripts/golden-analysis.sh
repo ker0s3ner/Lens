@@ -6,6 +6,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture="$(mktemp -t lens-golden.XXXXXX)"
 fixture_arm="$(mktemp -t lens-golden-arm.XXXXXX)"
+fixture_arm_pseudo="$(mktemp -t lens-golden-arm-pseudo.XXXXXX)"
 fixture_rv="$(mktemp -t lens-golden-rv.XXXXXX)"
 fixture_arm32="$(mktemp -t lens-golden-arm32.XXXXXX)"
 fixture_ppc="$(mktemp -t lens-golden-ppc.XXXXXX)"
@@ -13,9 +14,10 @@ fixture_mips="$(mktemp -t lens-golden-mips.XXXXXX)"
 fixture_mips_branch="$(mktemp -t lens-golden-mips-branch.XXXXXX)"
 fixture_thumb="$(mktemp -t lens-golden-thumb.XXXXXX)"
 fixture_m68k="$(mktemp -t lens-golden-m68k.XXXXXX)"
-trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32" "$fixture_ppc" "$fixture_mips" "$fixture_mips_branch" "$fixture_thumb" "$fixture_m68k"' EXIT
+trap 'rm -f "$fixture" "$fixture_arm" "$fixture_arm_pseudo" "$fixture_rv" "$fixture_arm32" "$fixture_ppc" "$fixture_mips" "$fixture_mips_branch" "$fixture_thumb" "$fixture_m68k"' EXIT
 printf '\x55\x48\x89\xE5\xB8\x2A\x00\x00\x00\x5D\xC3' > "$fixture"
 printf '\xC0\x03\x5F\xD6' > "$fixture_arm"
+printf '\x40\x05\x80\x52\xC0\x03\x5F\xD6' > "$fixture_arm_pseudo"
 printf '\x67\x80\x00\x00' > "$fixture_rv"
 printf '\x1E\xFF\x2F\xE1' > "$fixture_arm32"
 printf '\x4E\x80\x00\x20' > "$fixture_ppc"
@@ -43,6 +45,9 @@ grep -q '"architecture": "ARM64"' <<<"$arm_json" || { echo "golden: ARM64 archit
 grep -q '"entry_point": 4096' <<<"$arm_json" || { echo "golden: ARM64 entry point mismatch" >&2; exit 1; }
 grep -q '"functions": 1' <<<"$arm_json" || { echo "golden: ARM64 function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$arm_json" || { echo "golden: ARM64 instruction count mismatch" >&2; exit 1; }
+arm_pseudo_json="$(cd "$root" && cargo run --quiet -- "$fixture_arm_pseudo" --arch arm64 --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
+grep -q '"architecture": "ARM64"' <<<"$arm_pseudo_json" || { echo "golden: ARM64 pseudocode architecture mismatch" >&2; exit 1; }
+grep -q 'return 0x2A;' <<<"$arm_pseudo_json" || { echo "golden: ARM64 pseudocode return mismatch" >&2; exit 1; }
 
 rv_json="$(cd "$root" && cargo run --quiet -- "$fixture_rv" --arch riscv64 --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
 grep -q '"architecture": "RISC-V 64"' <<<"$rv_json" || { echo "golden: RISC-V architecture mismatch" >&2; exit 1; }
