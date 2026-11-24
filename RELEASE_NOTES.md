@@ -1,3 +1,8 @@
+# Lens 0.6.382 — Fourier
+
+- Thumb indexed `ldr pc` switch tables now recover register-based table bases prepared from the PC, including signed PC-relative immediates.
+- Enum-aware comparisons now fold multiplication, division, and remainder into named members; the JSON contract documents aligned switch `case_indices` for typed tooling.
+
 # Lens 0.6.381 — Fourier
 
 - Test-only user prototypes are now isolated per test thread instead of racing through shared global state.

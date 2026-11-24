@@ -29,6 +29,10 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Thumb indexed ldr pc switch tables now recover register-based table bases prepared from the PC.",
+    "Signed PC-relative table-base immediates are supported for additional compiler-emitted Thumb switch layouts.",
+    "Enum-aware comparisons now fold multiplication, division, and remainder into named members.",
+    "The JSON report contract documents aligned switch case_indices for typed tooling.",
     "Test-only user prototypes are now isolated per test thread instead of racing through shared global state.",
     "Parallel release-gate runs now keep prototype-dependent decompiler regressions deterministic.",
     "x86 switch recovery now recognizes bounded subtract-before-index patterns and preserves their non-zero case base.",
