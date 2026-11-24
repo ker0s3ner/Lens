@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB LF_BITFIELD members now retain CodeView bit positions and widths in imported layouts.",
+    "Supported PDB bitfields no longer collapse into ordinary scalar fields during type recovery.",
     "PDB struct and union recovery now retains supported CodeView callback members as pointer-sized fields.",
     "Procedure-type members are routed through Lens callback declarations instead of being discarded.",
     "Split CodeView field lists are now reconstructed across continuation records.",

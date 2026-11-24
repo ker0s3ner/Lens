@@ -43,6 +43,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
     let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>)> = HashMap::new();
+    let mut bitfields: HashMap<pdb::TypeIndex, (u8, u8)> = HashMap::new();
     let mut records = Vec::new();
     while let Ok(Some(item)) = iter.next() {
         let Ok(data) = item.parse() else { continue };
@@ -56,6 +57,9 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct) => {
                 if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
+            }
+            pdb::TypeData::Bitfield(bitfield) => {
+                bitfields.insert(item.index(), (bitfield.position, bitfield.length));
             }
             pdb::TypeData::Union(union) => {
                 records.push((union.name.to_string().into_owned(), union.fields, union.size, true));
@@ -84,7 +88,8 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 _ => return None,
             }};
             if field_name.is_empty() || offset > u32::MAX as u64 { return None; }
-            out.push(crate::types::Field { off: offset as u32, name: field_name, ty, size: field_size, bit_offset: None, bit_width: None });
+            let (bit_offset, bit_width) = bitfields.get(&field_type).map(|(position, length)| (Some(*position), Some(*length))).unwrap_or((None, None));
+            out.push(crate::types::Field { off: offset as u32, name: field_name, ty, size: field_size, bit_offset, bit_width });
         }
         if name.is_empty() || out.is_empty() || size > u32::MAX as u64 { return None; }
         Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union, is_enum: false, enum_values: vec![], alias_of: None })

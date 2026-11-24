@@ -1,6 +1,9 @@
-# Lens 0.6.123 — Fourier
+# Lens 0.6.124 — Fourier
 
 ## What's new
+
+- PDB LF_BITFIELD members now retain CodeView bit positions and widths in imported layouts.
+- Supported PDB bitfields no longer collapse into ordinary scalar fields during type recovery.
 
 - PDB struct and union recovery now retains supported CodeView callback members as pointer-sized fields.
 - Procedure-type members are routed through Lens callback declarations instead of being discarded.
