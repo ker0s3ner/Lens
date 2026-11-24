@@ -24,6 +24,20 @@
 # Lens 0.6.220 — Fourier
 # Lens 0.6.221 — Fourier
 # Lens 0.6.222 — Fourier
+# Lens 0.6.223 — Fourier
+
+## What's new
+
+- JSON call records now retain the analyzer's call-edge classification.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.222 — Fourier
 
 ## What's new
 
