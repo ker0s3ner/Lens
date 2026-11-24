@@ -1,3 +1,8 @@
+# Lens 0.6.351 — Fourier
+
+- PDB-derived C++ classes with base records now retain validated direct members instead of discarding the entire layout.
+- Inherited and virtual-base fields remain intentionally omitted until their offsets can be proven, avoiding fabricated type layouts.
+
 # Lens 0.6.350 — Fourier
 
 - JSON analysis reports now export normalized merged `name_records` for analyst labels and inferred names.

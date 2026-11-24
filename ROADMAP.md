@@ -1,8 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Latest shipped build: **Lens 0.6.350 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; JSON reports now round-trip normalized names, comments, and bookmarks; the 50% target remains unmet.
+Latest shipped build: **Lens 0.6.351 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; PDB-derived classes now retain validated direct members around unsupported base records; the 50% target remains unmet.
 
-Current audit marker: **0.6.350 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
+Current audit marker: **0.6.351 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
 
 Status checked against the repository on 2026-11-24, at **Lens 0.6.346 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.7% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
@@ -224,7 +224,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CodeView const/volatile modifiers now survive PDB prototype and layout recovery.
 - Enum-typed CodeView members now retain their underlying storage widths in imported PDB layouts.
 - CodeView C++ class/interface records now contribute supported explicit data members to imported layouts.
-- PDB class layouts with unsupported base-class records now fail closed rather than exposing partial types.
+- PDB class layouts with base-class records now retain validated direct members while intentionally omitting unsupported inherited/virtual-base fields.
 - Direct nested struct/union members now use recovered PDB record sizes during layout import.
 - Typed enum return values now propagate into named constants in pseudocode.
 - Import-slot forwarding thunks now contribute caller edges to the call graph.

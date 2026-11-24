@@ -89,8 +89,11 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut seen = std::collections::HashSet::new();
         while let Some(index) = current {
             if !seen.insert(index) { return None; }
-            let (part, next, has_base) = lists.get(&index)?;
-            if *has_base { return None; }
+            // Keep direct members even when the class also has a base-class
+            // record. Base members are intentionally not synthesized here:
+            // their layout can depend on virtual inheritance, but discarding
+            // the entire derived layout loses valid direct offsets too.
+            let (part, next, _has_base) = lists.get(&index)?;
             fields.extend(part.iter().cloned());
             current = *next;
         }

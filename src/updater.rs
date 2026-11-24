@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB-derived C++ classes with base records now retain validated direct members instead of discarding the entire layout.",
+    "Inherited and virtual-base fields remain intentionally omitted until their offsets can be proven, avoiding fabricated type layouts.",
     "JSON analysis reports now export normalized merged name_records for analyst labels and inferred names.",
     "Name records now match the existing importer schema, completing the report round-trip for labels, comments, and bookmarks.",
     "JSON annotation_records comments and bookmarks now round-trip through the existing database importer.",
