@@ -1,6 +1,9 @@
-# Lens 0.6.132 — Fourier
+# Lens 0.6.133 — Fourier
 
 ## What's new
+
+- Typed enum parameters now render named Enum::Member constants in decompiler comparisons.
+- Enum propagation now covers call arguments, return values, and conditional control flow.
 
 - Import-slot tail jumps now contribute explicit call-graph edges to their imported targets.
 - Forwarding-thunk regression coverage now verifies both thunk classification and caller relationships.

@@ -1471,6 +1471,7 @@ struct Emit<'a> {
     switches: &'a HashMap<u64, Vec<u64>>,
     enum_constants: &'a HashMap<String, HashMap<i64, String>>,
     enum_return: Option<String>,
+    enum_params: HashMap<String, String>,
 }
 
 impl Emit<'_> {
@@ -1516,9 +1517,35 @@ impl Emit<'_> {
                     c = subst(&c, e, &Ex::Var(reg_name(*r)));
                 }
             }
-            return Some(c);
+            return Some(self.enumize(c));
         }
         None
+    }
+
+    fn enumize(&self, e: Ex) -> Ex {
+        match e {
+            Ex::Bin(op, left, right) => {
+                let left = self.enumize(*left);
+                let right = self.enumize(*right);
+                let named = |param: &Ex, value: &Ex| -> Option<Ex> {
+                    let Ex::Var(name) = param else { return None };
+                    let Ex::Num(value) = value else { return None };
+                    let ty = self.enum_params.get(name)?;
+                    let member = self.enum_constants.get(ty)?.get(value)?;
+                    Some(Ex::Var(format!("{ty}::{member}")))
+                };
+                if let Some(value) = named(&left, &right) { return Ex::Bin(op, Box::new(left), Box::new(value)); }
+                if let Some(value) = named(&right, &left) { return Ex::Bin(op, Box::new(value), Box::new(right)); }
+                Ex::Bin(op, Box::new(left), Box::new(right))
+            }
+            Ex::Un(op, value) => Ex::Un(op, Box::new(self.enumize(*value))),
+            Ex::Cast(op, value) => Ex::Cast(op, Box::new(self.enumize(*value))),
+            Ex::CastOwned(op, value) => Ex::CastOwned(op, Box::new(self.enumize(*value))),
+            Ex::Deref(value, size) => Ex::Deref(Box::new(self.enumize(*value)), size),
+            Ex::Tern(a, b, c) => Ex::Tern(Box::new(self.enumize(*a)), Box::new(self.enumize(*b)), Box::new(self.enumize(*c))),
+            Ex::Call(f, args) => Ex::Call(Box::new(self.enumize(*f)), args.into_iter().map(|a| self.enumize(a)).collect()),
+            other => other,
+        }
     }
 
     fn goto(&mut self, ind: usize, addr: u64, target: u64, lp: Option<(usize, usize)>, cond: Option<String>) {
@@ -1991,6 +2018,7 @@ fn decompile_inner(
     let render_types = infer_render_types(&outs);
     let own_proto = crate::protos::find(&name);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
+    let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
     let make = |labels: HashSet<u64>, mat: Vec<Vec<(u8, Ex)>>| Emit {
         f,
         outs: &outs,
@@ -2006,6 +2034,7 @@ fn decompile_inner(
         switches: &an.switches,
         enum_constants,
         enum_return: enum_return.clone(),
+        enum_params: enum_params.clone(),
     };
     let mut first = make(HashSet::new(), mat.clone());
     first.emit(0, n, 1, None);

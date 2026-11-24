@@ -137,6 +137,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Direct nested struct/union members now use recovered PDB record sizes during layout import.
 - Typed enum return values now propagate into named constants in pseudocode.
 - Import-slot forwarding thunks now contribute caller edges to the call graph.
+- Typed enum parameters now propagate named constants into decompiler conditional expressions.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

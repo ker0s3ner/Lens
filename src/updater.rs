@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Typed enum parameters now render named Enum::Member constants in decompiler comparisons.",
+    "Enum propagation now covers call arguments, return values, and conditional control flow.",
     "Import-slot tail jumps now contribute explicit call-graph edges to their imported targets.",
     "Forwarding-thunk regression coverage now verifies both thunk classification and caller relationships.",
     "Typed enum return values now render as named Enum::Member constants in pseudocode.",
