@@ -1901,8 +1901,31 @@ impl Emit<'_> {
                 let named = |param: &Ex, value: &Ex| -> Option<Ex> {
                     let Ex::Num(value) = value else { return None };
                     let ty = self.enum_type(param)?;
-                    let member = self.enum_constants.get(&ty)?.get(value)?;
-                    Some(Ex::Var(format!("{ty}::{member}")))
+                    let values = self.enum_constants.get(&ty)?;
+                    if let Some(member) = values.get(value) {
+                        return Some(Ex::Var(format!("{ty}::{member}")));
+                    }
+                    if *value <= 0 { return None; }
+                    let mut parts: Vec<(i64, Ex)> = values.iter()
+                        .filter(|(candidate, _)| **candidate > 0 && (**candidate & (**candidate - 1)) == 0 && (**candidate & *value) != 0)
+                        .map(|(candidate, member)| (*candidate, Ex::Var(format!("{ty}::{member}"))))
+                        .collect();
+                    parts.sort_by_key(|(candidate, _)| std::cmp::Reverse(*candidate));
+                    let mut remaining = *value;
+                    let mut named = vec![];
+                    for (candidate, member) in parts {
+                        if remaining & candidate == candidate {
+                            remaining &= !candidate;
+                            named.push(member);
+                        }
+                    }
+                    if remaining == 0 && named.len() > 1 {
+                        let mut out = named.into_iter();
+                        let first = out.next().unwrap();
+                        Some(out.fold(first, |left, right| Ex::Bin("|", Box::new(left), Box::new(right))))
+                    } else {
+                        None
+                    }
                 };
                 if let Some(value) = named(&left, &right) { return Ex::Bin(op, Box::new(left), Box::new(value)); }
                 if let Some(value) = named(&right, &left) { return Ex::Bin(op, Box::new(value), Box::new(right)); }
@@ -2836,12 +2859,14 @@ mod tests {
         let function = crate::analysis::Function { start: 0, end: 0, blocks: vec![], insn_count: 0, kind: crate::analysis::FuncKind::Normal, noreturn: false, calls: vec![], has_symbol: false, thunk_target: None };
         let outs = vec![];
         let empty = HashMap::new();
-        let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One"))]))]);
+        let constants = HashMap::from([(String::from("Color"), HashMap::from([(1_i64, String::from("One")), (2_i64, String::from("Two"))]))]);
         let params = HashMap::from([(String::from("a1"), String::from("Color"))]);
         let switches = HashMap::new();
         let emit = Emit { f: &function, outs: &outs, mat: vec![], idx: HashMap::new(), fmt: Fmt { rename: &empty, types: &empty, structs: &[] }, lines: vec![], labels: HashSet::new(), suppress: HashSet::new(), open: HashSet::new(), loops: HashMap::new(), done: HashSet::new(), switches: &switches, enum_constants: &constants, enum_return: None, enum_vars: params };
         let expression = emit.enumize(Ex::Bin("==", Box::new(Ex::Cast("int", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
         assert_eq!(emit.fmt.show(&expression), "(int)a1 == Color::One");
+        let flags = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Num(3))));
+        assert_eq!(emit.fmt.show(&flags), "a1 == (Color::Two | Color::One)");
     }
 
     #[test]

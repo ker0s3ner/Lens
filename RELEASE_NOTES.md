@@ -1,3 +1,8 @@
+# Lens 0.6.377 — Fourier
+
+- Flag-style enum comparisons now decompose known power-of-two values into named members.
+- Exact enum constants remain preferred, with conservative fallback when a value cannot be represented safely.
+
 # Lens 0.6.376 — Fourier
 
 - Known enum-returning calls now retain their enum type during numeric comparisons in pseudocode.
