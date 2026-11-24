@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.263 — Fourier
+
+## What's new
+
+- Objective-C `objc_msgSend` selector arguments now render as `@selector(...)` in pseudocode.
+- Objective-C `objc_getClass` arguments now render as `@class(...)` in pseudocode.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.262 — Fourier
 
 ## What's new

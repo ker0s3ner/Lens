@@ -993,6 +993,21 @@ impl<'a> Dc<'a> {
                 }
             }
         }
+        if let Ex::Var(fname) = &callee {
+            let literal = |a: &Ex| -> Option<String> {
+                let Ex::Raw(raw) = a else { return None };
+                raw.strip_prefix('"').and_then(|s| s.strip_suffix('"')).map(str::to_string)
+            };
+            if fname == "objc_msgSend" {
+                if let Some(arg) = args.get_mut(1) {
+                    if let Some(selector) = literal(arg) { *arg = Ex::Raw(format!("@selector({selector})")); }
+                }
+            } else if fname == "objc_getClass" {
+                if let Some(arg) = args.get_mut(0) {
+                    if let Some(class_name) = literal(arg) { *arg = Ex::Raw(format!("@class({class_name})")); }
+                }
+            }
+        }
         if let Some(p) = &proto {
             for (k, a) in args.iter_mut().enumerate() {
                 let Some(ty) = p.params.get(k).map(|(t, _)| t.trim_start_matches("enum ")) else { continue };

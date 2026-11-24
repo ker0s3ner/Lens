@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Objective-C objc_msgSend selector arguments now render as @selector(...) in pseudocode.",
+    "Objective-C objc_getClass arguments now render as @class(...) in pseudocode.",
     "Data double-click now selects the applied type for that address in Types.",
     "Data double-click now pre-fills the Types apply address.",
     "Double-clicking a Data row now opens the synchronized Types pane.",
