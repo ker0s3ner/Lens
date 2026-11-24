@@ -42,7 +42,8 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
 fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, ptr: u32) -> Vec<crate::types::StructDef> {
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
-    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, bool)> = HashMap::new();
+    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, Vec<(pdb::TypeIndex, u64)>)> = HashMap::new();
+    let mut class_fields: HashMap<pdb::TypeIndex, pdb::TypeIndex> = HashMap::new();
     let mut bitfields: HashMap<pdb::TypeIndex, (u8, u8)> = HashMap::new();
     let mut enum_sizes: HashMap<pdb::TypeIndex, u32> = HashMap::new();
     let mut layout_sizes: HashMap<String, u32> = HashMap::new();
@@ -51,16 +52,24 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let Ok(data) = item.parse() else { continue };
         match data {
             pdb::TypeData::FieldList(list) => {
-                let has_base = list.fields.iter().any(|field| matches!(field, pdb::TypeData::BaseClass(_) | pdb::TypeData::VirtualBaseClass(_)));
                 let fields = list.fields.iter().filter_map(|field| match field {
                     pdb::TypeData::Member(member) => Some((member.name.to_string().into_owned(), member.field_type, member.offset)),
                     _ => None,
                 }).collect();
-                lists.insert(item.index(), (fields, list.continuation, has_base));
+                let bases = list.fields.iter().filter_map(|field| match field {
+                    pdb::TypeData::BaseClass(base) => Some((base.base_class, base.offset as u64)),
+                    // Virtual-base layout needs runtime vbtable resolution; keep it out
+                    // rather than manufacturing a misleading static offset.
+                    _ => None,
+                }).collect();
+                lists.insert(item.index(), (fields, list.continuation, bases));
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct | pdb::ClassKind::Class | pdb::ClassKind::Interface) => {
                 if class.size <= u32::MAX as u64 { layout_sizes.insert(format!("struct {}", class.name), class.size as u32); }
-                if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
+                if let Some(fields) = class.fields {
+                    class_fields.insert(item.index(), fields);
+                    records.push((class.name.to_string().into_owned(), fields, class.size, false));
+                }
             }
             pdb::TypeData::Bitfield(bitfield) => {
                 bitfields.insert(item.index(), (bitfield.position, bitfield.length));
@@ -85,18 +94,8 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
     }
     records.into_iter().filter_map(|(name, field_list, size, is_union)| {
         let mut fields = Vec::new();
-        let mut current = Some(field_list);
         let mut seen = std::collections::HashSet::new();
-        while let Some(index) = current {
-            if !seen.insert(index) { return None; }
-            // Keep direct members even when the class also has a base-class
-            // record. Base members are intentionally not synthesized here:
-            // their layout can depend on virtual inheritance, but discarding
-            // the entire derived layout loses valid direct offsets too.
-            let (part, next, _has_base) = lists.get(&index)?;
-            fields.extend(part.iter().cloned());
-            current = *next;
-        }
+        collect_pdb_fields(field_list, 0, &lists, &class_fields, &mut seen, &mut fields);
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
             let ty = types.get(&field_type)?.clone();
@@ -118,6 +117,30 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         if name.is_empty() || out.is_empty() || size > u32::MAX as u64 { return None; }
         Some(crate::types::StructDef { name, fields: out, size: size as u32, is_union, is_enum: false, enum_values: vec![], alias_of: None })
     }).collect()
+}
+
+fn collect_pdb_fields(
+    index: pdb::TypeIndex,
+    base_offset: u64,
+    lists: &HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, Vec<(pdb::TypeIndex, u64)>)>,
+    class_fields: &HashMap<pdb::TypeIndex, pdb::TypeIndex>,
+    seen: &mut std::collections::HashSet<pdb::TypeIndex>,
+    out: &mut Vec<(String, pdb::TypeIndex, u64)>,
+) {
+    if !seen.insert(index) { return; }
+    let Some((part, next, bases)) = lists.get(&index) else { seen.remove(&index); return; };
+    for (name, ty, offset) in part {
+        out.push((name.clone(), *ty, base_offset.saturating_add(*offset)));
+    }
+    for (base, offset) in bases {
+        if let Some(fields) = class_fields.get(base) {
+            collect_pdb_fields(*fields, base_offset.saturating_add(*offset), lists, class_fields, seen, out);
+        }
+    }
+    if let Some(next) = next {
+        collect_pdb_fields(*next, base_offset, lists, class_fields, seen, out);
+    }
+    seen.remove(&index);
 }
 
 fn type_name(index: pdb::TypeIndex, types: &HashMap<pdb::TypeIndex, String>) -> String {

@@ -1,3 +1,8 @@
+# Lens 0.6.352 — Fourier
+
+- PDB-derived C++ layouts now flatten explicitly offset non-virtual base members into derived classes.
+- Virtual-base fields remain omitted until runtime vbtable offsets can be resolved, avoiding fabricated layouts.
+
 # Lens 0.6.351 — Fourier
 
 - PDB-derived C++ classes with base records now retain validated direct members instead of discarding the entire layout.
