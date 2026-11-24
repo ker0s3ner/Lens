@@ -1,3 +1,8 @@
+# Lens 0.6.323 — Fourier
+
+- PowerPC `nor` and `nand` now decompile as explicit inverted OR/AND expressions.
+- PowerPC `eqv` now decompiles as an inverted XOR expression, keeping boolean-mask idioms readable.
+
 # Lens 0.6.322 — Fourier
 
 - PowerPC `addic`/`addic.` now preserve immediate-add value semantics in pseudocode.
