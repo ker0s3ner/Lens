@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Roadmap status now tracks the shipped 0.6.286 Fourier indirect-type build.",
+    "README now documents typed field access through explicit function-pointer returns.",
     "Roadmap status now tracks the shipped 0.6.285 Fourier type-recovery build.",
     "README documentation now calls out typed fields through explicit indirect-call returns.",
     "Typed struct-field rendering now follows cast function-pointer returns.",

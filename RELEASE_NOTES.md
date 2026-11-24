@@ -1,3 +1,10 @@
+# Lens 0.6.287 — Fourier
+
+- Roadmap status now tracks the shipped 0.6.286 Fourier indirect-type build.
+- README now documents typed field access through explicit function-pointer returns.
+
+Verification: `cargo test --locked --quiet` — 96 tests passed; `./scripts/smoke-corpus.sh` — 7 targets passed.
+
 # Lens 0.6.286 — Fourier
 
 - Roadmap status now tracks the shipped 0.6.285 Fourier type-recovery build.
