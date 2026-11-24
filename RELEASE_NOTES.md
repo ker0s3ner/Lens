@@ -1,3 +1,17 @@
+# Lens 0.6.175 — Fourier
+
+## What's new
+
+- Explicit C-style and normalized function-pointer casts now supply parameter and return prototypes to indirect calls.
+- Indirect-call prototype parsing preserves conservative behavior for unsupported signatures.
+
+## Verification
+
+- `cargo test --locked --quiet` — 75 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.174 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 74 passed
+- `cargo test --locked --quiet` — 75 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---

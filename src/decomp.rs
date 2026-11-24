@@ -40,6 +40,24 @@ fn var(s: &str) -> Ex {
     Ex::Var(s.to_string())
 }
 
+/// Recover a call prototype from an explicit C-style or normalized function-pointer cast.
+fn function_pointer_proto(ty: &str) -> Option<crate::protos::Proto> {
+    let t = ty.trim();
+    let (ret, params) = if let Some(rest) = t.strip_prefix("fn(") {
+        let close = rest.find(") -> ")?;
+        let params = &rest[..close];
+        let ret = rest[close + 5..].trim_end_matches('*').trim();
+        (ret, params)
+    } else {
+        let (ret, tail) = t.split_once("(*")?;
+        let (name, params) = tail.split_once(')')?;
+        if !name.trim().is_empty() || !params.trim_start().starts_with('(') { return None; }
+        (ret.trim(), params.trim().trim_start_matches('(').trim_end_matches(')'))
+    };
+    let (mut parsed, _) = crate::protos::parse(&format!("{ret} __indirect({params});"));
+    parsed.pop()
+}
+
 fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
     use Ex::*;
     match (op, &a, &b) {
@@ -864,7 +882,12 @@ impl<'a> Dc<'a> {
             }
         }
         // a known prototype tells us exactly how many arguments the call takes
-        let proto = if let Ex::Var(n) = &callee { crate::protos::find(n) } else { None };
+        let proto = match &callee {
+            Ex::Var(n) => crate::protos::find(n),
+            Ex::Cast(ty, _) => function_pointer_proto(ty),
+            Ex::CastOwned(ty, _) => function_pointer_proto(ty),
+            _ => None,
+        };
         if let Some(p) = &proto {
             let np = p.params.len().min(regs.len());
             n_regs = if p.variadic { n_regs.max(np) } else { np };
@@ -2627,6 +2650,16 @@ mod tests {
         let call = Ex::Call(Box::new(var("make_pair")), vec![]);
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "make_pair()->second");
+    }
+
+    #[test]
+    fn parses_explicit_function_pointer_call_type() {
+        let proto = function_pointer_proto("int (*)(const char *, int)").unwrap();
+        assert_eq!(proto.ret, "int");
+        assert_eq!(proto.params.len(), 2);
+        let normalized = function_pointer_proto("fn(const char *, int) -> int *").unwrap();
+        assert_eq!(normalized.params.len(), 2);
+        assert_eq!(normalized.ret, "int");
     }
 
     #[test]

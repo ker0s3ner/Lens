@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Explicit C-style and normalized function-pointer casts now supply parameter and return prototypes to indirect calls.",
+    "Indirect-call prototype parsing preserves conservative behavior for unsupported signatures.",
     "Known struct layouts now propagate through typed pointer-returning calls when rendering field accesses.",
     "Prototype return types participate in conservative nested field and array resolution.",
     "Known scalar pointer arithmetic now renders indexed accesses such as `p[2]` in pseudocode.",
