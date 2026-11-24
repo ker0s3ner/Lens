@@ -811,6 +811,12 @@ mod tests {
         });
         assert_eq!(json_named_records(&v), vec![(4096, "main".to_string()), (8192, "global".to_string())]);
     }
+
+    #[test]
+    fn restores_rtti_names_from_vtable_records() {
+        let v = serde_json::json!({"vtable_records": [{"address": 12288, "name": "vtable_Widget"}]});
+        assert_eq!(json_named_records(&v), vec![(12288, "vtable_Widget".to_string())]);
+    }
 }
 
 // ------------------------------------------------------------------ import
@@ -868,7 +874,7 @@ pub fn parse_script(text: &str) -> (Vec<(u64, String)>, Vec<(u64, String)>, Vec<
 
 fn json_named_records(v: &serde_json::Value) -> Vec<(u64, String)> {
     let mut out = Vec::new();
-    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
+    let fields = [("functions", "start"), ("exports", "addr"), ("imports", "slot"), ("vtables", "addr"), ("vtable_records", "address"), ("names", "addr"), ("name_records", "address"), ("symbol_records", "address")];
     for (collection, address_field) in fields {
         let Some(items) = v.get(collection).and_then(|x| x.as_array()) else { continue };
         for item in items {
