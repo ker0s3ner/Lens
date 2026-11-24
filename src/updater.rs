@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Analysis JSON now round-trips patches, breakpoints, conditions, and variable renames.",
+    "Imported patch records are now applied immediately to the in-memory binary.",
     "Full Lens annotation JSON import now restores data, patches, types, breakpoints, prototypes, and variable renames.",
     "Decompiler call arguments now retain known pointer types for inferred variables.",
     "Known pointer prototypes now propagate through inferred call arguments in pseudocode.",

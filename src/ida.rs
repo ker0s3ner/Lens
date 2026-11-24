@@ -736,6 +736,8 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 "types": l.ann.structs,
                 "prototypes": l.ann.protos,
                 "comments": l.ann.comments, "bookmarks": l.ann.marks,
+                "patches": l.ann.patches, "breakpoints": l.ann.breakpoints,
+                "bp_conditions": l.ann.bp_conditions, "vars": l.ann.vars,
             });
             (serde_json::to_string_pretty(&v).unwrap_or_default(), "json")
         }
@@ -950,6 +952,25 @@ impl LensApp {
                     if let Some(arr) = v.get("bookmarks").and_then(|x| x.as_array()) {
                         for addr in arr.iter().filter_map(|x| x.as_u64()) { if !l.ann.marks.contains(&addr) { l.ann.marks.push(addr); } recognized = true; }
                     }
+                    if let Some(arr) = v.get("patches").and_then(|x| x.as_array()) {
+                        if let Ok(patches) = serde_json::from_value::<Vec<crate::patch::Patch>>(serde_json::Value::Array(arr.clone())) {
+                            for patch in patches { if !l.ann.patches.iter().any(|old| old.addr == patch.addr && old.old == patch.old && old.new == patch.new) { l.ann.patches.push(patch); } }
+                            recognized = true;
+                        }
+                    }
+                    if let Some(arr) = v.get("breakpoints").and_then(|x| x.as_array()) {
+                        for addr in arr.iter().filter_map(|x| x.as_u64()) { if !l.ann.breakpoints.contains(&addr) { l.ann.breakpoints.push(addr); } recognized = true; }
+                    }
+                    if let Some(obj) = v.get("bp_conditions").and_then(|x| x.as_object()) {
+                        for (addr, condition) in obj {
+                            if let (Some(addr), Some(condition)) = (parse_num(addr), condition.as_str()) { l.ann.bp_conditions.insert(addr, condition.to_string()); recognized = true; }
+                        }
+                    }
+                    if let Some(obj) = v.get("vars").and_then(|x| x.as_object()) {
+                        for (key, value) in obj {
+                            if let Some(value) = value.as_str() { l.ann.vars.insert(key.clone(), value.to_string()); recognized = true; }
+                        }
+                    }
                     if let Some(arr) = v.get("data_definitions").and_then(|x| x.as_array()) {
                         for item in arr {
                             if let (Some(addr), Some(code)) = (item.get("addr").and_then(|x| x.as_u64()), item.get("code").and_then(|x| x.as_u64())) {
@@ -1090,6 +1111,11 @@ impl LensApp {
             for (a, s) in names { l.ann.names.insert(a, s); n += 1; }
             for (a, s) in cmts { l.ann.comments.insert(a, s); c += 1; }
             for a in funcs { if !l.ann.functions.contains(&a) && !l.an.functions.contains_key(&a) { l.ann.functions.push(a); f += 1; } }
+        }
+        if !l.ann.patches.is_empty() {
+            let mut patched = (*l.bin).clone();
+            crate::patch::apply(&mut patched, &l.ann.patches);
+            l.bin = std::sync::Arc::new(patched);
         }
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.refresh();

@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.256 — Fourier
+
+## What's new
+
+- Analysis JSON now round-trips patches, breakpoints, conditions, and variable renames.
+- Imported patch records are now applied immediately to the in-memory binary.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.255 — Fourier
 
 ## What's new

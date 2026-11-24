@@ -419,6 +419,8 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Known pointer prototypes now propagate through inferred call arguments in pseudocode.
 - Decompiler call arguments now retain known pointer types for inferred variables.
 - Full Lens annotation JSON import now restores data, patches, types, breakpoints, prototypes, and variable renames.
+- Analysis JSON now round-trips patches, breakpoints, conditions, and variable renames.
+- Imported patch records are applied immediately to the in-memory binary.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.
