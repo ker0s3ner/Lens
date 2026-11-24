@@ -3,6 +3,20 @@
 # Lens 0.6.199 — Fourier
 # Lens 0.6.200 — Fourier
 # Lens 0.6.201 — Fourier
+# Lens 0.6.202 — Fourier
+
+## What's new
+
+- JSON analysis reports now include structured imported-library records.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.201 — Fourier
 
 ## What's new
 
