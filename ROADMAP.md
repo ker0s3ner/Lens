@@ -123,6 +123,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CodeView/PDB procedure flags now preserve explicit never-returning functions for PE analysis.
 - PDB no-return metadata now terminates both analysis traversal and pseudocode call lifting.
 - PDB no-return matching in pseudocode has exact-name regression coverage.
+- CodeView/PDB enum records now import named members into the existing Types and pseudocode enum pipeline.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

@@ -1733,7 +1733,13 @@ pub fn decompile_with_types(
     comp_note: &str,
     structs: &[crate::types::StructDef],
 ) -> Decompiled {
-    let enums = crate::types::enum_constants(structs);
+    let mut all_structs = structs.to_vec();
+    for debug in &bin.debug_structs {
+        if !all_structs.iter().any(|existing| existing.name == debug.name) {
+            all_structs.push(debug.clone());
+        }
+    }
+    let enums = crate::types::enum_constants(&all_structs);
     decompile_inner(bin, an, names, f, conv, comp_note, &enums)
 }
 

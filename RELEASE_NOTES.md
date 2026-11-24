@@ -1,6 +1,9 @@
-# Lens 0.6.118 — Fourier
+# Lens 0.6.119 — Fourier
 
 ## What's new
+
+- PE/PDB enum records now import named CodeView members into the Types database.
+- Recovered PDB enum values are available to pseudocode constant propagation.
 
 - PDB no-return name matching in pseudocode is now exact and regression-tested.
 - Decompiler tests cover the boundary between CodeView metadata and terminating callees.

@@ -4,6 +4,33 @@ use pdb::{FallibleIterator, SymbolData};
 use std::collections::HashMap;
 use std::path::Path;
 
+fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
+    let Ok(info) = db.type_information() else { return Vec::new() };
+    let mut iter = info.iter();
+    let mut lists: HashMap<pdb::TypeIndex, Vec<(String, i64)>> = HashMap::new();
+    let mut enums = Vec::new();
+    while let Ok(Some(item)) = iter.next() {
+        let Ok(data) = item.parse() else { continue };
+        match data {
+            pdb::TypeData::FieldList(list) => {
+                let values = list.fields.iter().filter_map(|field| match field {
+                    pdb::TypeData::Enumerate(e) => e.value.to_string().parse().ok().map(|v| (e.name.to_string().into_owned(), v)),
+                    _ => None,
+                }).collect::<Vec<_>>();
+                lists.insert(item.index(), values);
+            }
+            pdb::TypeData::Enumeration(e) => enums.push((e.name.to_string().into_owned(), e.fields)),
+            _ => {}
+        }
+    }
+    enums.into_iter().filter_map(|(name, fields)| {
+        let values = lists.get(&fields)?;
+        if name.is_empty() || values.is_empty() { return None; }
+        let body = values.iter().map(|(n, v)| format!("{n} = {v}")).collect::<Vec<_>>().join(", ");
+        Some(format!("enum {name} {{ {body} }};"))
+    }).collect()
+}
+
 fn type_name(index: pdb::TypeIndex, types: &HashMap<pdb::TypeIndex, String>) -> String {
     if index.0 < 0x1000 {
         let base = match index.0 & 0xff {
@@ -96,11 +123,12 @@ fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: 
 }
 
 /// Read global procedure/public symbols and return their RVAs plus display names.
-pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>)> {
+pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>, Vec<String>)> {
     let file = std::fs::File::open(path).ok()?;
     let mut db = pdb::PDB::open(file).ok()?;
     let map = db.address_map().ok()?;
     let types = pdb_types(&mut db);
+    let enum_decls = pdb_enum_declarations(&mut db);
     let mut out = Vec::new();
     let mut protos = Vec::new();
     let mut noreturn = Vec::new();
@@ -124,7 +152,7 @@ pub fn symbols(path: &Path) -> Option<(Vec<(u32, String)>, String, Vec<String>)>
     protos.dedup();
     noreturn.sort();
     noreturn.dedup();
-    Some((out, protos.join("\n"), noreturn))
+    Some((out, protos.join("\n"), noreturn, enum_decls))
 }
 
 #[cfg(test)]
