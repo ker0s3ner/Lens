@@ -1,3 +1,8 @@
+# Lens 0.6.333 — Fourier
+
+- MIPS `madd`/`maddu` now preserve multiply-accumulate updates through the implicit HI/LO pair.
+- MIPS `msub`/`msubu` now preserve multiply-subtract HI/LO updates with named wide-result helpers.
+
 # Lens 0.6.332 — Fourier
 
 - Chained pointer typedefs now resolve through named aliases such as `typedef FooAlias *FooPtr`.

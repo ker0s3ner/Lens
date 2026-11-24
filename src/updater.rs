@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "MIPS madd/maddu now preserve multiply-accumulate updates through the implicit HI/LO pair.",
+    "MIPS msub/msubu now preserve multiply-subtract HI/LO updates with named wide-result helpers.",
     "Chained pointer typedefs now resolve through named aliases such as typedef FooAlias *FooPtr.",
     "Scalar-pointer indexing keeps its existing typed rendering while struct-pointer alias recovery gains dedicated regression coverage.",
     "Pointer typedefs now preserve their struct targets instead of collapsing to void *.",

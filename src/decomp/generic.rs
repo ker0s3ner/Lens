@@ -1194,6 +1194,21 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             st.env.insert(MIPS_LO, Ex::Call(Box::new(var("__wide_low")), vec![wide.clone()]));
             st.env.insert(MIPS_HI, Ex::Call(Box::new(var("__wide_high")), vec![wide]));
         }
+        (Fam::Mips, "madd" | "maddu" | "msub" | "msubu") if ops.len() >= 2 => {
+            let a = dc.g_val(st, o(0), None);
+            let b = dc.g_val(st, o(1), None);
+            let old_lo = st.env.get(&MIPS_LO).cloned().unwrap_or_else(|| Ex::Call(Box::new(var("__mips_lo")), vec![]));
+            let old_hi = st.env.get(&MIPS_HI).cloned().unwrap_or_else(|| Ex::Call(Box::new(var("__mips_hi")), vec![]));
+            let helper = match base_mn {
+                "madd" => "__mips_madd",
+                "maddu" => "__mips_maddu",
+                "msub" => "__mips_msub",
+                _ => "__mips_msubu",
+            };
+            let wide = Ex::Call(Box::new(var(helper)), vec![a, b, old_lo, old_hi]);
+            st.env.insert(MIPS_LO, Ex::Call(Box::new(var("__wide_low")), vec![wide.clone()]));
+            st.env.insert(MIPS_HI, Ex::Call(Box::new(var("__wide_high")), vec![wide]));
+        }
         (Fam::Mips, "div" | "divu" | "ddiv" | "ddivu") if ops.len() >= 2 => {
             let a = dc.g_val(st, o(0), None);
             let b = dc.g_val(st, o(1), None);
