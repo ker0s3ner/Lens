@@ -1899,15 +1899,9 @@ impl Emit<'_> {
                 let left = self.enumize(*left);
                 let right = self.enumize(*right);
                 let named = |param: &Ex, value: &Ex| -> Option<Ex> {
-                    let name = match param {
-                        Ex::Var(name) => name,
-                        Ex::Cast(_, inner) => match &**inner { Ex::Var(name) => name, _ => return None },
-                        Ex::CastOwned(_, inner) => match &**inner { Ex::Var(name) => name, _ => return None },
-                        _ => return None,
-                    };
                     let Ex::Num(value) = value else { return None };
-                    let ty = self.enum_vars.get(name)?;
-                    let member = self.enum_constants.get(ty)?.get(value)?;
+                    let ty = self.enum_type(param)?;
+                    let member = self.enum_constants.get(&ty)?.get(value)?;
                     Some(Ex::Var(format!("{ty}::{member}")))
                 };
                 if let Some(value) = named(&left, &right) { return Ex::Bin(op, Box::new(left), Box::new(value)); }
@@ -1924,10 +1918,14 @@ impl Emit<'_> {
         }
     }
 
-    fn enum_type(&self, e: &Ex) -> Option<&str> {
+    fn enum_type(&self, e: &Ex) -> Option<String> {
         match e {
-            Ex::Var(name) => self.enum_vars.get(name).map(String::as_str),
+            Ex::Var(name) => self.enum_vars.get(name).cloned(),
             Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => self.enum_type(inner),
+            Ex::Call(function, _) => match &**function {
+                Ex::Var(name) => crate::protos::find(name).and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string)),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -2060,7 +2058,7 @@ impl Emit<'_> {
             Term::Stop => i + 1,
             Term::Indirect(e) => {
                 if let Some(ts) = self.switches.get(&ta).cloned() {
-                    let enum_ty = self.enum_type(&e).map(str::to_string);
+                    let enum_ty = self.enum_type(&e);
                     self.line(ind, ta, format!("switch ({}) {{ // jump table, {} targets", self.fmt.at(&e, 3), ts.len()));
                     for (k, t) in ts.iter().enumerate() {
                         self.labels.insert(*t);

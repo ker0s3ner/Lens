@@ -1,3 +1,8 @@
+# Lens 0.6.376 — Fourier
+
+- Known enum-returning calls now retain their enum type during numeric comparisons in pseudocode.
+- Enum member naming now works through both typed call results and existing parameter/cast paths.
+
 # Lens 0.6.375 — Fourier
 
 - Call graph thunk nodes now show the resolved target symbol when analysis has a name for it.
