@@ -159,6 +159,18 @@ impl Fmt<'_> {
         if byte_offset < 0 { return None; }
         let ty = self.types.get(name)?.trim();
         let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
+        if !ty.starts_with("struct ") && !ty.starts_with("union ") {
+            let element_size = match ty {
+                "char" | "int8_t" | "uint8_t" | "u8" | "i8" => 1,
+                "short" | "int16_t" | "uint16_t" | "u16" | "i16" => 2,
+                "int" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" => 4,
+                "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" => 8,
+                _ => 0,
+            };
+            if element_size > 0 && byte_offset % element_size == 0 {
+                return Some(format!("{}[{}]", self.at(base, 99), byte_offset / element_size));
+            }
+        }
         let ty = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         let def = self.structs.iter().find(|def| def.name == ty && !def.is_enum)?;
         let base_text = self.at(base, 99);
@@ -2586,6 +2598,15 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &[def] };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "p->second");
+    }
+
+    #[test]
+    fn renders_known_scalar_pointer_index() {
+        let types = HashMap::from([(String::from("p"), String::from("uint32_t *"))]);
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &types, structs: &[] };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(8)))), 4);
+        assert_eq!(fmt.show(&expression), "p[2]");
     }
 
     #[test]

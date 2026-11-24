@@ -1,3 +1,17 @@
+# Lens 0.6.173 — Fourier
+
+## What's new
+
+- Known scalar pointer arithmetic now renders indexed accesses such as `p[2]` in pseudocode.
+- Pointer indices are emitted only for known scalar element sizes and aligned offsets.
+
+## Verification
+
+- `cargo test --locked --quiet` — 73 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.172 — Fourier
 
 ## What's new
@@ -7,7 +21,7 @@
 
 ## Verification
 
-- `cargo test --locked --quiet` — 72 passed
+- `cargo test --locked --quiet` — 73 passed
 - `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
 
 ---
