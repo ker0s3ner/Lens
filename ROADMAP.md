@@ -1,5 +1,7 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
+Release update: **Lens 0.6.445 — Fourier** lifts ARM64 NEON `bsl`, `bit`, and `bif` mask-combine operations into readable expressions. The 50% target remains unmet.
+
 Release update: **Lens 0.6.444 — Fourier** adds GCC 128-bit integer aliases across layout, prototypes, and typed element recovery. The 50% target remains unmet.
 
 Release update: **Lens 0.6.443 — Fourier** carries 128-bit integer widths through typed pointer and array recovery. The 50% target remains unmet.

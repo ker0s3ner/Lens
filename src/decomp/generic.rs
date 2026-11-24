@@ -1055,6 +1055,20 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let no = if base_mn == "csetm" { -1 } else { 0 };
             set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(Ex::Num(1)), Box::new(Ex::Num(no))));
         }
+        // NEON bit-select family. The destination is also the selector for
+        // BSL; BIT/BIF use the second source as the selector.
+        (Fam::A64, "bsl" | "bit" | "bif") if ops.len() >= 3 => {
+            let dst = dc.g_val(st, o(0), None);
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let (mask, yes, no) = match base_mn {
+                "bsl" => (dst.clone(), a, b),
+                "bit" => (a.clone(), dst, b),
+                _ => (a.clone(), b, dst),
+            };
+            let selected = bin("|", bin("&", mask.clone(), yes), bin("&", Ex::Un("~", Box::new(mask)), no));
+            set(dc, st, 0, selected);
+        }
         // AArch64 bitfield aliases are common in compiler-generated masking,
         // packed-struct access, and sign-extension sequences.  Render the
         // ordinary non-wrapping forms as C-like shifts and masks instead of

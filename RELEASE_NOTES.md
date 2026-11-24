@@ -1,3 +1,8 @@
+# Lens 0.6.445 — Fourier
+
+- ARM64 NEON `bsl`, `bit`, and `bif` now lift to explicit bit-select and mask-combine expressions.
+- The destination-mask semantics are preserved in pseudocode, making these common vector operations readable and analyzable.
+
 # Lens 0.6.444 — Fourier
 
 - Type recovery now recognizes GCC’s `__int128_t` and `__uint128_t` aliases as aligned 16-byte integer types.
