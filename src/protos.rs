@@ -144,6 +144,14 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
     let mut out = vec![];
     let mut errs = vec![];
     for d in declarations {
+        let mut d = d;
+        let mut leading_noret = false;
+        for attr in ["__attribute__((noreturn))", "[[noreturn]]"] {
+            if d.trim_start().starts_with(attr) {
+                leading_noret = true;
+                d = d.trim_start()[attr.len()..].trim().to_string();
+            }
+        }
         if d.is_empty() || d.starts_with("typedef") || d.starts_with("struct ") && !d.contains('(') || d.starts_with('#') { continue; }
         let Some(open) = d.find('(') else { errs.push(format!("Not a function declaration: {d}")); continue };
         let mut depth = 0i32;
@@ -153,9 +161,9 @@ pub fn parse(text: &str) -> (Vec<Proto>, Vec<String>) {
         }
         let Some(close) = close else { errs.push(format!("Missing ) in: {d}")); continue };
         let head = d[..open].trim();
-        let mut noret = d[close + 1..].contains("noreturn");
+        let mut noret = leading_noret || d[close + 1..].contains("noreturn");
         let head: Vec<&str> = head.split_whitespace().filter(|w| {
-            if matches!(*w, "noreturn" | "__noreturn" | "_Noreturn" | "__declspec(noreturn)") { noret = true; false } else { !matches!(*w, "extern" | "static" | "inline" | "WINAPI" | "__stdcall" | "__cdecl" | "APIENTRY") }
+            if matches!(*w, "noreturn" | "__noreturn" | "_Noreturn" | "__declspec(noreturn)" | "__attribute__((noreturn))" | "[[noreturn]]") { noret = true; false } else { !matches!(*w, "extern" | "static" | "inline" | "WINAPI" | "__stdcall" | "__cdecl" | "APIENTRY") }
         }).collect();
         let joined = head.join(" ").replace('*', " * ");
         let mut toks: Vec<&str> = joined.split_whitespace().collect();
@@ -347,6 +355,13 @@ mod tests {
         assert!(e.is_empty(), "{e:?}");
         assert_eq!(p[0].params[0].0, "int (*)(int, void *)");
         assert_eq!(p[1].ret, "int (*)(int, void *)");
+    }
+
+    #[test]
+    fn parses_common_noreturn_attributes() {
+        let (p, e) = parse("__attribute__((noreturn)) void die(void); [[noreturn]] void halt(void);");
+        assert!(e.is_empty(), "{e:?}");
+        assert!(p.iter().all(|proto| proto.noreturn));
     }
 
     #[test]

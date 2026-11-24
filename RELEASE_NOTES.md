@@ -1,3 +1,16 @@
+# Lens 0.6.180 — Fourier
+
+## What's new
+
+- Prototype parsing now recognizes GCC/Clang and C++ no-return attributes.
+
+## Verification
+
+- `cargo test --locked --quiet` — 77 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.179 — Fourier
 
 ## What's new
