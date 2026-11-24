@@ -121,6 +121,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON string records include their incoming reference addresses.
 - JSON data records include their incoming reference addresses.
 - JSON function records include their incoming reference addresses.
+- JSON pointer-table and vtable records include their incoming references.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

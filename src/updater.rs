@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "JSON pointer-table and vtable records now include their incoming references.",
     "JSON function records now include their incoming reference addresses.",
     "JSON data records now include their incoming reference addresses.",
     "JSON string records now include their incoming reference addresses.",

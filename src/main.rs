@@ -297,11 +297,13 @@ fn cli(args: &[String]) -> bool {
             "pointer_table_records": an.pointer_tables.iter().map(|(address, targets)| serde_json::json!({
                 "address": address,
                 "targets": targets,
+                "references": an.xrefs_to.get(address).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "vtable_records": an.vtables.iter().map(|(address, targets)| serde_json::json!({
                 "address": address,
                 "name": an.vtable_names.get(address),
                 "targets": targets,
+                "references": an.xrefs_to.get(address).map(|refs| refs.iter().map(|xref| xref.from).collect::<Vec<_>>()).unwrap_or_default(),
             })).collect::<Vec<_>>(),
             "symbol_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
