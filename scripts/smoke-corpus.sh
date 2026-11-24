@@ -57,3 +57,4 @@ grep -q '"entry_point": 4660' <<<"$raw_json" || {
 }
 
 echo "smoke corpus: ${#targets[@]} targets passed"
+"$root/scripts/golden-analysis.sh"

@@ -1,3 +1,8 @@
+# Lens 0.6.306 — Fourier
+
+- Added a deterministic golden-analysis gate for raw x64 JSON output, covering schema, entry metadata, and graph record shape.
+- The smoke workflow now runs both the host-discovered corpus and the committed golden fixture for repeatable regression coverage.
+
 # Lens 0.6.305 — Fourier
 
 - ARM32 and Thumb SXTAB/SXTAH now render signed byte and halfword extension before accumulation.
