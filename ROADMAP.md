@@ -10,8 +10,8 @@ Status checked against the repository on 2026-11-24. A weighted capability estim
 | Type system and debug information | 10% | 40% | 4.0% |
 | Debugging and tracing | 10% | 35% | 3.5% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
-| Reliability, performance and scale | 10% | 25% | 2.5% |
-| **Total** | **100%** |  | **35.3%** |
+| Reliability, performance and scale | 10% | 27% | 2.7% |
+| **Total** | **100%** |  | **35.5%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -68,6 +68,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - ELF `DT_PREINIT_ARRAY` entries now seed the same bounded executable-range-validated function discovery path.
 - Mach-O filesets now open the first parseable embedded image through the normal Mach-O loader and fail closed when none is parseable.
 - Mach-O fileset entries can be selected by name with `--slice`, with a recorded fallback when the requested entry is unavailable.
+- The runtime smoke corpus now includes discovered shared-library/dylib candidates alongside executable programs.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

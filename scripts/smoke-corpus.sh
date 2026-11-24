@@ -7,7 +7,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 targets=()
 for candidate in \
   /bin/ls /usr/bin/true /usr/bin/grep /usr/bin/clang \
-  /bin/echo /usr/bin/ld; do
+  /bin/echo /usr/bin/ld \
+  /usr/lib/libSystem.B.dylib /usr/lib/system/libdyld.dylib /usr/lib/system/libsystem_kernel.dylib \
+  /lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libc.so.6; do
   if [[ -f "$candidate" && -x "$candidate" ]]; then
     targets+=("$candidate")
   fi

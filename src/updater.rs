@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The analysis smoke corpus now discovers representative shared libraries and dylibs in addition to executable programs.",
+    "Runtime corpus validation now covers both program and library loading paths without committing platform-specific binaries.",
     "Selected Mach-O fileset images now retain their embedded file base offset for patching and exported metadata.",
     "Fileset diagnostics preserve both the entry name and original file location.",
     "Mach-O fileset loading now honors `--slice <entry-name>` for embedded images.",

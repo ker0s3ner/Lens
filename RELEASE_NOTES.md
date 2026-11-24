@@ -1,3 +1,17 @@
+# Lens 0.6.157 — Fourier
+
+## What's new
+
+- The analysis smoke corpus now discovers representative shared libraries and dylibs in addition to executable programs.
+- Runtime corpus validation now covers both program and library loading paths without committing platform-specific binaries.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.156 — Fourier
 
 ## What's new
