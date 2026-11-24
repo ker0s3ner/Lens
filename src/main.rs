@@ -177,6 +177,10 @@ fn cli(args: &[String]) -> bool {
                 "noreturn": f.noreturn,
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),
+            "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
+                "jump": jump,
+                "targets": targets,
+            })).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),

@@ -1,3 +1,16 @@
+# Lens 0.6.188 — Fourier
+
+## What's new
+
+- CLI JSON reports now include recovered switch-table locations and targets.
+
+## Verification
+
+- `cargo test --locked --quiet` — 80 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.187 — Fourier
 
 ## What's new

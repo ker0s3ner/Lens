@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "CLI JSON reports now include recovered switch-table locations and targets.",
     "Decompiler copy propagation now folds temporary register copies into return expressions.",
     "Decompiler output now folds safe adjacent temporary-to-register copies.",
     "CLI JSON reports now include per-function boundaries, calls, no-return status, and thunk targets.",
