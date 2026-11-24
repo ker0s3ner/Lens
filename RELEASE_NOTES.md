@@ -1,6 +1,9 @@
-# Lens 0.6.116 — Fourier
+# Lens 0.6.117 — Fourier
 
 ## What's new
+
+- PDB-marked never-returning procedures now also terminate pseudocode call lifting.
+- Decompiler control flow now agrees with PE analysis for CodeView no-return metadata.
 
 - CodeView never-returning procedure flags now terminate PE control-flow analysis conservatively.
 - PDB no-return metadata is preserved alongside imported symbols and prototypes.

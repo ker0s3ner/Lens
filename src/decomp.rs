@@ -753,14 +753,16 @@ impl<'a> Dc<'a> {
         let (callee, noret, skip): (Ex, bool, bool) = match info.flow {
             Flow::Call if info.target != 0 => {
                 let n = self.callee_name(info.target);
-                let nr = self.an.functions.get(&info.target).map(|f| f.noreturn).unwrap_or(false) || is_noreturn_name(&n);
+                let nr = self.an.functions.get(&info.target).map(|f| f.noreturn).unwrap_or(false)
+                    || is_noreturn_name(&n)
+                    || self.bin.debug_noreturn.iter().any(|p| p == &n);
                 let skip = matches!(n.as_str(), "chkstk" | "alloca_probe" | "security_check_cookie" | "__chkstk" | "_alloca_probe" | "_chkstk" | "__security_check_cookie");
                 (Ex::Var(n), nr, skip)
             }
             _ => {
                 if info.mem != 0 && (self.names.contains_key(&info.mem) || self.an.import_slot.contains_key(&info.mem)) {
                     let n = self.callee_name(info.mem);
-                    let nr = is_noreturn_name(&n);
+                    let nr = is_noreturn_name(&n) || self.bin.debug_noreturn.iter().any(|p| p == &n);
                     (Ex::Var(n), nr, false)
                 } else if ins.op_kind(0) == OpKind::Register {
                     (self.rd_reg(st, ins.op_register(0)), false, false)

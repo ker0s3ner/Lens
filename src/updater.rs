@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB-marked never-returning procedures now also terminate pseudocode call lifting.",
+    "Decompiler control flow now agrees with PE analysis for CodeView no-return metadata.",
     "CodeView never-returning procedure flags now terminate PE control-flow analysis conservatively.",
     "PDB no-return metadata is preserved alongside imported symbols and prototypes.",
     "CodeView LF_BITFIELD records now retain their underlying scalar type in recovered PDB prototypes.",
