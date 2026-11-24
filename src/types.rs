@@ -134,6 +134,9 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         if !target.starts_with("struct ") && !target.starts_with("union ") && !target.starts_with("enum ") {
             target = target.trim_start_matches("const ").trim_start_matches("unsigned ").trim_start_matches("signed ").trim().to_string();
         }
+        if let Some(callable) = known.iter().find(|def| def.name == target).and_then(|def| def.alias_of.as_deref()).filter(|alias| alias.starts_with("fn(")) {
+            return Ok(StructDef { name: alias_name.to_string(), fields: vec![], size: ptr, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(callable.to_string()) });
+        }
         let (size, _) = size_align(&target, ptr, known).ok_or(format!("Unknown typedef target `{target}`"))?;
         let alias_size = if pointer_depth > 0 { ptr } else { size };
         return Ok(StructDef { name: alias_name.to_string(), fields: vec![], size: alias_size, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(if pointer_depth > 0 { "void *".into() } else { target }) });
@@ -505,12 +508,14 @@ mod tests {
         assert_eq!(s.fields[1].off, 8);
         let alias = parse_c("typedef int (*callback_t)(int, void *);", 8, &[]).unwrap();
         assert_eq!(alias.alias_of.as_deref(), Some("fn(int, void *) -> int *"));
-        assert!(is_pointer_type("callback_t", &[alias]));
+        assert!(is_pointer_type("callback_t", &[alias.clone()]));
         let nested = parse_c("struct Nested { int (**callback)(int); }", 8, &[]).unwrap();
         assert_eq!(nested.fields[0].ty, "fn(int) -> int **");
         assert_eq!(nested.fields[0].size, 8);
         let nested_alias = parse_c("typedef int (**callback_ptr_t)(int);", 8, &[]).unwrap();
         assert_eq!(nested_alias.alias_of.as_deref(), Some("fn(int) -> int **"));
+        let chained_alias = parse_c("typedef callback_t callback_alias_t;", 8, &[alias.clone()]).unwrap();
+        assert_eq!(chained_alias.alias_of.as_deref(), Some("fn(int, void *) -> int *"));
     }
 
     #[test]

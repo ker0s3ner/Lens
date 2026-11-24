@@ -1,3 +1,16 @@
+# Lens 0.6.179 — Fourier
+
+## What's new
+
+- Applied type parsing now preserves chained function-pointer typedef aliases.
+
+## Verification
+
+- `cargo test --locked --quiet` — 76 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.178 — Fourier
 
 ## What's new
