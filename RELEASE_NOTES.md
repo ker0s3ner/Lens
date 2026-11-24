@@ -1,3 +1,8 @@
+# Lens 0.6.307 — Fourier
+
+- The golden raw x64 fixture now contains a real five-instruction function rather than an empty one-byte input.
+- Golden assertions now pin function, instruction, and basic-block counts in addition to JSON schema and metadata.
+
 # Lens 0.6.306 — Fourier
 
 - Added a deterministic golden-analysis gate for raw x64 JSON output, covering schema, entry metadata, and graph record shape.
