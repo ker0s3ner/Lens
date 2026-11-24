@@ -1,3 +1,8 @@
+# Lens 0.6.436 — Fourier
+
+- The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis.
+- The deterministic golden corpus now validates M68k architecture, entry, function, and instruction records.
+
 # Lens 0.6.435 — Fourier
 
 - C++ vector-construction/destruction runtime prototypes are now built in.

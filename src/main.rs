@@ -62,7 +62,7 @@ fn array_records(an: &analysis::Analysis) -> Vec<serde_json::Value> {
 fn cli(args: &[String]) -> bool {
     if let Some(a) = args.iter().position(|a| a == "--arch").and_then(|i| args.get(i + 1)) {
         let want = a.to_lowercase().replace(['-', ' '], "");
-        let want = match want.as_str() { "ppc" | "ppc32" => "powerpc".to_string(), "ppc64" => "powerpc64".to_string(), "arm" | "arm32" => "arm(32".to_string(), "thumb" | "thumb2" | "armthumb" => "armthumb".to_string(), "x64" | "amd64" => "x8664".to_string(), "i386" | "i686" => "x86".to_string(), w => w.to_string() };
+        let want = match want.as_str() { "ppc" | "ppc32" => "powerpc".to_string(), "ppc64" => "powerpc64".to_string(), "arm" | "arm32" => "arm(32".to_string(), "thumb" | "thumb2" | "armthumb" => "armthumb".to_string(), "x64" | "amd64" => "x8664".to_string(), "i386" | "i686" => "x86".to_string(), "m68k" | "68k" | "m68000" => "motorola68000".to_string(), w => w.to_string() };
         let arch = loader::Arch::all().into_iter().find(|x| x.name().to_lowercase().replace([' ', '-'], "").starts_with(&want));
         let base = args.iter().position(|a| a == "--base").and_then(|i| args.get(i + 1)).and_then(|b| dialogs::parse_addr(b)).unwrap_or(0);
         if let Some(x) = arch {

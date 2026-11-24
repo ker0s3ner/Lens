@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis.",
+    "The deterministic golden corpus now validates M68k architecture, entry, function, and instruction records.",
     "C++ vector-construction/destruction runtime prototypes are now built in.",
     "Exception cleanup and array lifecycle calls now receive typed pointer metadata.",
     "C++ thread-safe static-initialization guard prototypes are now built in.",
