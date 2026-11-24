@@ -64,9 +64,9 @@ grep -q '"entry_point": 4096' <<<"$mips_json" || { echo "golden: MIPS entry poin
 grep -q '"functions": 1' <<<"$mips_json" || { echo "golden: MIPS function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$mips_json" || { echo "golden: MIPS instruction count mismatch" >&2; exit 1; }
 
-thumb_json="$(cd "$root" && cargo run --quiet -- "$fixture_thumb" --arch thumb --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
+thumb_json="$(cd "$root" && cargo run --quiet -- "$fixture_thumb" --arch thumb --base 0x1000 --entry 0x1001 --json 2>/dev/null)"
 grep -q '"architecture": "ARM Thumb"' <<<"$thumb_json" || { echo "golden: Thumb architecture mismatch" >&2; exit 1; }
-grep -q '"entry_point": 4096' <<<"$thumb_json" || { echo "golden: Thumb entry point mismatch" >&2; exit 1; }
+grep -q '"entry_point": 4096' <<<"$thumb_json" || { echo "golden: Thumb mode-bit normalization mismatch" >&2; exit 1; }
 grep -q '"functions": 1' <<<"$thumb_json" || { echo "golden: Thumb function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$thumb_json" || { echo "golden: Thumb instruction count mismatch" >&2; exit 1; }
 

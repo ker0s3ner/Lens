@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Raw Thumb entry points now normalize the low mode bit before analysis, so odd function pointers decode at the correct byte address.",
+    "The deterministic Thumb golden fixture now verifies odd-entry normalization and the resulting function discovery.",
     "Raw-binary CLI loading now accepts explicit thumb, thumb2, and armthumb architecture selectors.",
     "Deterministic golden analysis now exercises a Thumb return instruction alongside the existing cross-architecture fixtures.",
     "The deterministic golden gate now includes a big-endian MIPS32 return fixture.",

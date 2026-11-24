@@ -339,9 +339,12 @@ fn load_raw(bin: &mut Binary, bytes: &[u8]) {
     bin.arch = arch;
     bin.big_endian = big;
     bin.arch_name = if pref.is_some() { arch.name().to_string() } else { "x86-64 (assumed)".into() };
-    bin.entry = Some(entry.unwrap_or(base));
+    let requested_entry = entry.unwrap_or(base);
+    // Thumb function pointers carry bit 0 as the instruction-set mode flag;
+    // it is not part of the byte address used to read or decode the code.
+    bin.entry = Some(if arch == Arch::Thumb { requested_entry & !1 } else { requested_entry });
     bin.notes.push(if pref.is_some() {
-        format!("Loaded as raw {} code at {base:X}, entry at {:X}.", arch.name(), entry.unwrap_or(base))
+        format!("Loaded as raw {} code at {base:X}, entry at {:X}{}.", arch.name(), requested_entry, if arch == Arch::Thumb && requested_entry & 1 != 0 { " (Thumb mode bit normalized)" } else { "" })
     } else {
         "The file format wasn't recognised; it was loaded as raw x86-64 code at address 0. Use Tools > Hex to Code to pick another CPU.".into()
     });
