@@ -1,6 +1,9 @@
-# Lens 0.6.90 — Fourier
+# Lens 0.6.91 — Fourier
 
 ## What's new
+
+- AVX-512 ternary-logic instructions now remain visible as named pseudocode intrinsics.
+- Three-input Boolean operand groups are preserved for crypto and bit-manipulation code.
 
 - x86/x64 VNNI and 4-way fused multiply-add dot-product families now remain visible as named pseudocode intrinsics.
 - ML-oriented packed dot-product operand groups are preserved in decompiler output.

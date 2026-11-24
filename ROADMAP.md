@@ -103,6 +103,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON numeric min/max and horizontal reduction families remain visible as named intrinsics.
 - AArch64 NEON pairwise-long and absolute-difference accumulation families remain visible as named intrinsics.
 - x86/x64 VNNI and 4-way fused multiply-add dot-product families remain visible as named intrinsics.
+- x86/x64 AVX-512 ternary-logic instructions remain visible as named intrinsics.
 - README decompiler coverage now reflects the latest AArch64 NEON semantic families.
 - x86/x64 AVX2 packed logical, arithmetic, and variable shift families remain visible as named intrinsics.
 - x86/x64 AVX2 packed absolute-value and signed/unsigned min/max families remain visible as named intrinsics.
