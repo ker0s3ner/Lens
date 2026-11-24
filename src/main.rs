@@ -268,6 +268,9 @@ fn cli(args: &[String]) -> bool {
                 "kind": "export",
             }))).collect::<Vec<_>>(),
             "debug_type_records": bin.debug_structs,
+            "debug_prototype_records": bin.debug_protos.lines().filter(|line| !line.trim().is_empty()).map(|prototype| serde_json::json!({
+                "text": prototype,
+            })).collect::<Vec<_>>(),
             "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
                 "jump": jump,
                 "targets": targets,
