@@ -113,6 +113,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON analysis reports expose recovered pointer-table and vtable records with their targets.
 - JSON analysis reports expose compact per-instruction flow, operand-reference, and memory-access records.
 - JSON analysis reports expose basic-block boundaries, instruction membership, and typed successor edges.
+- JSON analysis reports expose explicit call-edge and entry-point records for graph consumers.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

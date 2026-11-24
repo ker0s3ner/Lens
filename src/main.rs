@@ -217,6 +217,11 @@ fn cli(args: &[String]) -> bool {
                     },
                 })).collect::<Vec<_>>(),
             }))).collect::<Vec<_>>(),
+            "call_records": an.functions.values().flat_map(|function| function.calls.iter().map(move |target| serde_json::json!({
+                "from": function.start,
+                "to": target,
+            }))).collect::<Vec<_>>(),
+            "entry_records": bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).collect::<Vec<_>>(),
             "switch_records": an.switches.iter().map(|(jump, targets)| serde_json::json!({
                 "jump": jump,
                 "targets": targets,

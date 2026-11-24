@@ -8,6 +8,20 @@
 # Lens 0.6.204 — Fourier
 # Lens 0.6.205 — Fourier
 # Lens 0.6.206 — Fourier
+# Lens 0.6.207 — Fourier
+
+## What's new
+
+- JSON analysis reports now include explicit call-edge and entry-point records for graph consumers.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.206 — Fourier
 
 ## What's new
 
