@@ -42,7 +42,7 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
 fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, ptr: u32) -> Vec<crate::types::StructDef> {
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
-    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>)> = HashMap::new();
+    let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, bool)> = HashMap::new();
     let mut bitfields: HashMap<pdb::TypeIndex, (u8, u8)> = HashMap::new();
     let mut enum_sizes: HashMap<pdb::TypeIndex, u32> = HashMap::new();
     let mut records = Vec::new();
@@ -50,11 +50,12 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let Ok(data) = item.parse() else { continue };
         match data {
             pdb::TypeData::FieldList(list) => {
+                let has_base = list.fields.iter().any(|field| matches!(field, pdb::TypeData::BaseClass(_) | pdb::TypeData::VirtualBaseClass(_)));
                 let fields = list.fields.iter().filter_map(|field| match field {
                     pdb::TypeData::Member(member) => Some((member.name.to_string().into_owned(), member.field_type, member.offset)),
                     _ => None,
                 }).collect();
-                lists.insert(item.index(), (fields, list.continuation));
+                lists.insert(item.index(), (fields, list.continuation, has_base));
             }
             pdb::TypeData::Class(class) if matches!(class.kind, pdb::ClassKind::Struct | pdb::ClassKind::Class | pdb::ClassKind::Interface) => {
                 if let Some(fields) = class.fields { records.push((class.name.to_string().into_owned(), fields, class.size, false)); }
@@ -85,7 +86,8 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut seen = std::collections::HashSet::new();
         while let Some(index) = current {
             if !seen.insert(index) { return None; }
-            let (part, next) = lists.get(&index)?;
+            let (part, next, has_base) = lists.get(&index)?;
+            if *has_base { return None; }
             fields.extend(part.iter().cloned());
             current = *next;
         }

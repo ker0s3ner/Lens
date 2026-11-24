@@ -1,6 +1,9 @@
-# Lens 0.6.128 — Fourier
+# Lens 0.6.129 — Fourier
 
 ## What's new
+
+- PDB class layouts containing unsupported base-class records are now skipped instead of partially imported.
+- Direct-member-only C++ class and interface layouts remain available through the Types database.
 
 - PDB C++ class and interface records now import supported explicit data members through the Types database.
 - Unsupported C++ inheritance, methods, and virtual-layout records remain conservative skips.
