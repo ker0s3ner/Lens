@@ -130,6 +130,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CodeView procedure-type members in PDB layouts now survive as pointer-sized callback fields.
 - CodeView LF_BITFIELD members now preserve bit positions and widths in imported PDB layouts.
 - CodeView fixed-array members now retain supported element counts and storage sizes in PDB layouts.
+- CodeView const/volatile modifiers now survive PDB prototype and layout recovery.
 - AArch64 NEON dot-product and widening multiply-accumulate families remain visible as named intrinsics.
 - AArch64 NEON fixed-point saturating and rounded multiply families remain visible as named intrinsics.
 - AArch64 NEON saturating rounded multiply-accumulate/subtract families remain visible as named intrinsics.

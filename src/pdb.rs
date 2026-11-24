@@ -84,7 +84,7 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                 let element = match base { "char" | "int8_t" | "uint8_t" | "bool" => 1, "short" | "int16_t" | "uint16_t" => 2, "int" | "int32_t" | "uint32_t" | "float" => 4, "long" | "int64_t" | "uint64_t" | "double" => 8, _ if base.ends_with('*') => ptr, _ => 0 };
                 if element == 0 { return None; }
                 element.saturating_mul(count.parse::<u32>().ok()?)
-            } else { match ty.as_str() {
+            } else { match ty.trim_start_matches("const ").trim_start_matches("volatile ") {
                 "char" | "int8_t" | "uint8_t" | "bool" => 1,
                 "short" | "int16_t" | "uint16_t" => 2,
                 "int" | "int32_t" | "uint32_t" | "float" => 4,
@@ -149,7 +149,12 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>) -> HashMap<pdb::TypeIndex, String
         let name = match data {
             pdb::TypeData::Primitive(p) => primitive_name(p),
             pdb::TypeData::Pointer(p) => format!("{} *", type_name(p.underlying_type, &out)),
-            pdb::TypeData::Modifier(m) => type_name(m.underlying_type, &out),
+            pdb::TypeData::Modifier(m) => {
+                let mut ty = type_name(m.underlying_type, &out);
+                if m.volatile { ty = format!("volatile {ty}"); }
+                if m.constant { ty = format!("const {ty}"); }
+                ty
+            }
             pdb::TypeData::Bitfield(b) => type_name(b.underlying_type, &out),
             pdb::TypeData::Class(c) => format!("struct {}", c.name),
             pdb::TypeData::Union(u) => format!("union {}", u.name),

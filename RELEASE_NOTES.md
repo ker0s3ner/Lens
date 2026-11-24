@@ -1,6 +1,9 @@
-# Lens 0.6.125 — Fourier
+# Lens 0.6.126 — Fourier
 
 ## What's new
+
+- PDB CodeView modifier records now preserve const and volatile qualifiers in recovered types.
+- Qualified scalar fields continue to receive correct storage sizing during layout import.
 
 - PDB fixed-array members now import supported element counts and storage sizes from CodeView dimensions.
 - Unknown array element layouts remain skipped instead of being assigned guessed sizes.

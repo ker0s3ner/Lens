@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PDB CodeView modifier records now preserve const and volatile qualifiers in recovered types.",
+    "Qualified scalar fields continue to receive correct storage sizing during layout import.",
     "PDB fixed-array members now import supported element counts and storage sizes from CodeView dimensions.",
     "Unknown array element layouts remain skipped instead of being assigned guessed sizes.",
     "PDB LF_BITFIELD members now retain CodeView bit positions and widths in imported layouts.",
