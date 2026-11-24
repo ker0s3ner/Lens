@@ -1,3 +1,8 @@
+# Lens 0.6.387 — Fourier
+
+- JSON vtable records now include owning segment and file-offset source context.
+- Call-graph caller deduplication and signed ARM64/RISC-V switch recovery are included in this Fourier patch.
+
 # Lens 0.6.386 — Fourier
 
 - Call-graph caller neighborhoods now deduplicate functions before responsiveness caps are applied.
