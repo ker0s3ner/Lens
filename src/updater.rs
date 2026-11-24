@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Data double-click now selects the applied type for that address in Types.",
+    "Data double-click now pre-fills the Types apply address.",
     "Double-clicking a Data row now opens the synchronized Types pane.",
     "Selected Data rows now expose a one-click address copy action.",
     "Data rows now show applied struct/type annotations.",

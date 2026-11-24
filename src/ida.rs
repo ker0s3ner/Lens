@@ -376,7 +376,17 @@ impl LensApp {
             });
         });
         if let Some(a) = goto { self.actions.push(Action::Goto(a)); }
-        if open_types { self.actions.push(Action::Structs); }
+        if open_types {
+            if let Some(addr) = goto {
+                if let Some(l) = self.loaded() {
+                    if let Some((_, type_name)) = l.ann.applied.iter().find(|(base, _)| *base == addr) {
+                        if let Some(index) = l.ann.structs.iter().position(|def| def.name == *type_name) { self.tools2.types.sel = index; }
+                    }
+                }
+                self.tools2.types.apply_addr = format!("{addr:X}");
+            }
+            self.actions.push(Action::Structs);
+        }
         if !open { self.lists.open = false; }
     }
 }

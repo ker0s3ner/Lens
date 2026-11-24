@@ -31,6 +31,20 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.262 — Fourier
+
+## What's new
+
+- Data double-click now selects the applied type for that address in Types.
+- Data double-click now pre-fills the Types apply address.
+
+## Verification
+
+- `cargo test --locked --quiet` — 88 tests passed.
+- `./scripts/smoke-corpus.sh` — 7 host targets passed.
+
+---
+
 # Lens 0.6.261 — Fourier
 
 ## What's new

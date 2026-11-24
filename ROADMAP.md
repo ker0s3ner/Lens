@@ -1,6 +1,6 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Status checked against the repository on 2026-11-24. A weighted capability estimate puts Lens at about **38.3% of IDA Pro's breadth** (plausible range: **31–40%**). This estimates feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those are substantially behind IDA. The scoring model is below. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-24, at **Lens 0.6.262 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.3% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
@@ -432,6 +432,8 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Data rows now include analyst comments in their detail text.
 - Double-clicking a Data row now opens the synchronized Types pane.
 - Selected Data rows now expose a one-click address copy action.
+- Data double-click now selects the applied type for that address in Types.
+- Data double-click now pre-fills the Types apply address.
 3. **Data views and xrefs:** add top-level non-pointer array definitions and a dedicated synchronized structure view; extend xref navigation into pseudocode and graph.
 4. **Decompiler:** preserve types across calls and memory accesses, improve switch/loop recovery, and add floating-point/SIMD semantics incrementally.
 5. **Debugging:** decide whether to build native backends or deepen LLDB integration; add hardware trace decoding, stronger reconnect/session handling, and broader platform coverage.

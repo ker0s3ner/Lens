@@ -2,6 +2,10 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
+## IDA Pro parity status
+
+The current engineering estimate is **about 40–45% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **38.3% of IDA Pro's breadth**. Lens is below the 50% target mainly because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugging still depends on LLDB, and large-file/performance validation is limited. The roadmap tracks the remaining work and its evidence.
+
 ## What it can do
 
 ### Load and identify programs
@@ -27,7 +31,7 @@ Lens is a Rust and egui desktop workbench for inspecting executable files, follo
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview; recovered switch-case destinations also appear as graph edges.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.
-- Browse manual and inferred scalar, pointer, string, and array-backed definitions from the synchronized Data tab in Lists, including applied types and analyst comments. Double-click a row to open Types, or copy its selected address for scripts and notes.
+- Browse manual and inferred scalar, pointer, string, and array-backed definitions from the synchronized Data tab in Lists, including applied types and analyst comments. Double-click a row to open Types focused on its applied type and address, or copy its selected address for scripts and notes.
 - Lists tabs can also be selected in automation with `LENS_TAB=arrays`, `pointer_tables`, or `vtables`.
 - Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`; scope searches to the current function or full program, and copy results as an address-and-text report for external triage. Function-scoped searches scan the full function before capping displayed results and clear when navigation moves to another function. Data rows can be explicitly marked as native-width pointers with the `O` action.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.
