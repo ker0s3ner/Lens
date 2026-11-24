@@ -231,6 +231,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Typed enum parameters now propagate named constants into decompiler conditional expressions.
 - Enum propagation now survives transparent scalar casts around typed parameters.
 - Enum-typed switch expressions now render named members for recovered jump-table cases.
+- Enum-aware constant propagation now folds multiplication, division, and remainder in typed comparisons.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
 - Enum comparison rendering through transparent casts now has direct expression-level regression coverage.

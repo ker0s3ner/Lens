@@ -731,6 +731,9 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
                 "|" => Some(left | right),
                 "&" => Some(left & right),
                 "^" => Some(left ^ right),
+                "*" => left.checked_mul(right),
+                "/" => left.checked_div(right),
+                "%" => left.checked_rem(right),
                 "<<" => left.checked_shl(right.try_into().ok()?),
                 ">>" => left.checked_shr(right.try_into().ok()?),
                 _ => None,
@@ -2896,6 +2899,12 @@ mod tests {
         assert_eq!(emit.fmt.show(&flags), "a1 == (Color::Two | Color::One)");
         let folded = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("<<", Box::new(Ex::Num(1)), Box::new(Ex::Num(1))))));
         assert_eq!(emit.fmt.show(&folded), "a1 == Color::Two");
+        let multiplied = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("*", Box::new(Ex::Num(1)), Box::new(Ex::Num(2))))));
+        assert_eq!(emit.fmt.show(&multiplied), "a1 == Color::Two");
+        let divided = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("/", Box::new(Ex::Num(4)), Box::new(Ex::Num(2))))));
+        assert_eq!(emit.fmt.show(&divided), "a1 == Color::Two");
+        let remainder = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::Bin("%", Box::new(Ex::Num(5)), Box::new(Ex::Num(3))))));
+        assert_eq!(emit.fmt.show(&remainder), "a1 == Color::Two");
     }
 
     #[test]
