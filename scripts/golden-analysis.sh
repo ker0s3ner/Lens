@@ -7,10 +7,12 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture="$(mktemp -t lens-golden.XXXXXX)"
 fixture_arm="$(mktemp -t lens-golden-arm.XXXXXX)"
 fixture_rv="$(mktemp -t lens-golden-rv.XXXXXX)"
-trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv"' EXIT
+fixture_arm32="$(mktemp -t lens-golden-arm32.XXXXXX)"
+trap 'rm -f "$fixture" "$fixture_arm" "$fixture_rv" "$fixture_arm32"' EXIT
 printf '\x55\x48\x89\xE5\xB8\x2A\x00\x00\x00\x5D\xC3' > "$fixture"
 printf '\xC0\x03\x5F\xD6' > "$fixture_arm"
 printf '\x67\x80\x00\x00' > "$fixture_rv"
+printf '\x1E\xFF\x2F\xE1' > "$fixture_arm32"
 
 json="$(cd "$root" && cargo run --quiet -- "$fixture" --arch x64 --base 0x1000 --entry 0x1234 --json 2>/dev/null)"
 
@@ -37,5 +39,11 @@ grep -q '"architecture": "RISC-V 64"' <<<"$rv_json" || { echo "golden: RISC-V ar
 grep -q '"entry_point": 4096' <<<"$rv_json" || { echo "golden: RISC-V entry point mismatch" >&2; exit 1; }
 grep -q '"functions": 1' <<<"$rv_json" || { echo "golden: RISC-V function count mismatch" >&2; exit 1; }
 grep -q '"instructions": 1' <<<"$rv_json" || { echo "golden: RISC-V instruction count mismatch" >&2; exit 1; }
+
+arm32_json="$(cd "$root" && cargo run --quiet -- "$fixture_arm32" --arch arm --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
+grep -q '"architecture": "ARM (32-bit)"' <<<"$arm32_json" || { echo "golden: ARM32 architecture mismatch" >&2; exit 1; }
+grep -q '"entry_point": 4096' <<<"$arm32_json" || { echo "golden: ARM32 entry point mismatch" >&2; exit 1; }
+grep -q '"functions": 1' <<<"$arm32_json" || { echo "golden: ARM32 function count mismatch" >&2; exit 1; }
+grep -q '"instructions": 1' <<<"$arm32_json" || { echo "golden: ARM32 instruction count mismatch" >&2; exit 1; }
 
 echo "golden analysis: deterministic raw x64 fixture passed"

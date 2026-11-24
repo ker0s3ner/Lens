@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The deterministic golden gate now includes an ARM32 return fixture alongside x64, ARM64, and RISC-V 64.",
+    "Four representative CPU-family paths now have pinned raw decoding metadata and function counts.",
     "The x64 golden fixture now verifies decompiler text as well as loader, instruction, and basic-block metadata.",
     "Golden regression coverage now detects pseudocode changes to a deterministic return-value function.",
     "The deterministic golden gate now covers x64, ARM64, and RISC-V 64 raw instruction fixtures.",

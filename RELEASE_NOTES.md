@@ -1,3 +1,8 @@
+# Lens 0.6.311 — Fourier
+
+- The deterministic golden gate now includes an ARM32 return fixture alongside x64, ARM64, and RISC-V 64.
+- Four representative CPU-family paths now have pinned raw decoding metadata and function counts.
+
 # Lens 0.6.310 — Fourier
 
 - The x64 golden fixture now verifies decompiler text as well as loader, instruction, and basic-block metadata.
