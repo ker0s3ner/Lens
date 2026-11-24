@@ -695,6 +695,9 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
         if let Some(cv) = &debug.codeview_pdb70_debug_info {
             if let Ok(raw) = std::str::from_utf8(cv.filename) {
                 let embedded = Path::new(raw.trim_end_matches('\0'));
+                if embedded.is_absolute() {
+                    pdb_candidates.insert(0, embedded.to_path_buf());
+                }
                 if let Some(name) = embedded.file_name() {
                     pdb_candidates.push(Path::new(&bin.path).parent().unwrap_or(Path::new(".")).join(name));
                 }

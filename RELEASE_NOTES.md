@@ -1,6 +1,9 @@
-# Lens 0.6.107 — Fourier
+# Lens 0.6.108 — Fourier
 
 ## What's new
+
+- PDB discovery now honors a valid embedded CodeView path before local executable-directory fallbacks.
+- Malformed individual PDB symbol records no longer discard the rest of the symbol import.
 
 - PE analysis now imports global procedure/public symbols from an adjacent CodeView PDB when available.
 - PDB-backed function names are mapped through the executable image base before analysis begins.

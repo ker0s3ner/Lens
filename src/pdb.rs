@@ -11,8 +11,8 @@ pub fn symbols(path: &Path) -> Option<Vec<(u32, String)>> {
     let table = db.global_symbols().ok()?;
     let mut iter = table.iter();
     let mut out = Vec::new();
-    while let Some(symbol) = iter.next().ok()? {
-        let data = symbol.parse().ok()?;
+    while let Ok(Some(symbol)) = iter.next() {
+        let Ok(data) = symbol.parse() else { continue };
         let (offset, name) = match data {
             SymbolData::Public(data) => (data.offset, data.name),
             SymbolData::Procedure(data) => (data.offset, data.name),
