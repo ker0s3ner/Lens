@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Type recovery now recognizes GCC’s __int128_t and __uint128_t aliases as aligned 16-byte integer types.",
+    "Prototype and decompiler element-width paths now share the alias coverage with deterministic layout regression tests.",
     "Decompiler typed pointer and array recovery now recognizes __int128 and __uint128 element widths.",
     "The 128-bit type model now flows from declaration sizing through prototype parsing and field-index recovery.",
     "The C type system now models compiler __int128 and __uint128 scalars as aligned 16-byte values.",

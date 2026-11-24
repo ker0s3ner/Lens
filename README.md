@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.443 — Fourier**. Typed pointer and array recovery now recognizes 128-bit integer element widths in addition to struct layout and prototype parsing. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
+Latest shipped build: **0.6.444 — Fourier**. Type recovery now also recognizes GCC’s `__int128_t` and `__uint128_t` aliases across layout, prototypes, and typed element recovery. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 

@@ -1,3 +1,8 @@
+# Lens 0.6.444 — Fourier
+
+- Type recovery now recognizes GCC’s `__int128_t` and `__uint128_t` aliases as aligned 16-byte integer types.
+- Prototype and decompiler element-width paths now share the alias coverage, with deterministic layout regression tests.
+
 # Lens 0.6.443 — Fourier
 
 - Decompiler typed pointer and array recovery now recognizes `__int128` and `__uint128` element widths.

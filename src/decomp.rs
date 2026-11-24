@@ -280,7 +280,7 @@ impl Fmt<'_> {
                 "short" | "int16_t" | "uint16_t" | "u16" | "i16" => 2,
                 "int" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" => 4,
                 "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" => 8,
-                "__int128" | "__uint128" => 16,
+                "__int128" | "__uint128" | "__int128_t" | "__uint128_t" => 16,
                 _ => 0,
             };
             if element_size > 0 && byte_offset % element_size == 0 {
