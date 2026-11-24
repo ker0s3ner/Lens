@@ -101,6 +101,15 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
     }
 }
 
+fn un(op: &'static str, a: Ex) -> Ex {
+    match (op, &a) {
+        ("-", Ex::Num(x)) => Ex::Num(x.wrapping_neg()),
+        ("~", Ex::Num(x)) => Ex::Num(!x),
+        ("!", Ex::Num(x)) => Ex::Num((*x == 0) as i64),
+        _ => Ex::Un(op, Box::new(a)),
+    }
+}
+
 fn prec(e: &Ex) -> u8 {
     match e {
         Ex::Bin(op, _, _) => match *op {
@@ -322,7 +331,7 @@ fn negate(e: Ex) -> Ex {
         Ex::Bin(">", a, b) => Ex::Bin("<=", a, b),
         Ex::Bin("<=", a, b) => Ex::Bin(">", a, b),
         Ex::Un("!", a) => *a,
-        other => Ex::Un("!", Box::new(other)),
+        other => un("!", other),
     }
 }
 
@@ -1353,9 +1362,9 @@ impl<'a> Dc<'a> {
                         Mnemonic::Dec => bin("-", a, Ex::Num(1)),
                         Mnemonic::Neg => {
                             st.flags = Flags::Cmp(Ex::Num(0), a.clone());
-                            Ex::Un("-", Box::new(a))
+                            un("-", a)
                         }
-                        _ => Ex::Un("~", Box::new(a)),
+                        _ => un("~", a),
                     };
                     if m != Mnemonic::Neg && m != Mnemonic::Not {
                         st.flags = Flags::Op(r.clone());
@@ -2723,6 +2732,9 @@ mod tests {
         assert!(matches!(bin("/", Ex::Num(1), Ex::Num(0)), Ex::Bin("/", ..)));
         assert_eq!(bin("&&", Ex::Num(1), Ex::Num(0)), Ex::Num(0));
         assert_eq!(bin("||", Ex::Num(0), Ex::Num(4)), Ex::Num(1));
+        assert_eq!(un("-", Ex::Num(4)), Ex::Num(-4));
+        assert_eq!(un("~", Ex::Num(0)), Ex::Num(-1));
+        assert_eq!(un("!", Ex::Num(0)), Ex::Num(1));
     }
 
     #[test]

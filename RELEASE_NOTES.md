@@ -1,3 +1,16 @@
+# Lens 0.6.191 — Fourier
+
+## What's new
+
+- Decompiler constant folding now simplifies unary negation, bitwise-not, and logical-not.
+
+## Verification
+
+- `cargo test --locked --quiet` — 81 passed
+- `./scripts/smoke-corpus.sh` — 7 host binaries/libraries passed in both report modes
+
+---
+
 # Lens 0.6.190 — Fourier
 
 ## What's new
