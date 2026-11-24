@@ -1,3 +1,8 @@
+# Lens 0.6.412 — Fourier
+
+- Enum constant recovery now folds transparent borrowed and owned casts before naming typed members.
+- Typed enum comparisons now preserve named members through both cast expression forms.
+
 # Lens 0.6.411 — Fourier
 
 - Typed pointer and struct-array reconstruction now handles reverse-index forms such as `p[-i]`.
