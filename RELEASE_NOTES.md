@@ -1,3 +1,8 @@
+# Lens 0.6.413 — Fourier
+
+- Enum constant folding now handles transparent unary-plus wrappers.
+- Enum type propagation now retains identity through unary-plus expressions.
+
 # Lens 0.6.412 — Fourier
 
 - Enum constant recovery now folds transparent borrowed and owned casts before naming typed members.

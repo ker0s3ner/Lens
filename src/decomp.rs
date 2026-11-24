@@ -801,6 +801,7 @@ fn enum_const_int(e: &Ex) -> Option<i64> {
     match e {
         Ex::Num(value) => Some(*value),
         Ex::Cast(_, value) | Ex::CastOwned(_, value) => enum_const_int(value),
+        Ex::Un("+", value) => enum_const_int(value),
         Ex::Un("-", value) => enum_const_int(value)?.checked_neg(),
         Ex::Un("~", value) => Some(!enum_const_int(value)?),
         Ex::Un("!", value) => Some((enum_const_int(value)? == 0) as i64),
@@ -2078,7 +2079,7 @@ impl Emit<'_> {
                 let yes_ty = self.enum_type(yes)?;
                 (self.enum_type(no).as_deref() == Some(yes_ty.as_str())).then_some(yes_ty)
             }
-            Ex::Un("~", inner) => self.enum_type(inner),
+            Ex::Un("+" | "~", inner) => self.enum_type(inner),
             Ex::Bin(op, left, right) if matches!(*op, "+" | "-" | "|" | "&" | "^" | "<<" | ">>") => {
                 if self.enum_type(left).is_some() && (enum_const_int(right).is_some() || self.enum_type(right).is_some()) {
                     self.enum_type(left)
@@ -3040,6 +3041,8 @@ mod tests {
         assert_eq!(emit.fmt.show(&ternary_member), "a1 == Color::Two");
         let cast_constant = emit.enumize(Ex::Bin("==", Box::new(Ex::Var("a1".into())), Box::new(Ex::CastOwned("uint32_t".into(), Box::new(Ex::Num(2))))));
         assert_eq!(emit.fmt.show(&cast_constant), "a1 == Color::Two");
+        let unary_constant = emit.enumize(Ex::Bin("==", Box::new(Ex::Un("+", Box::new(Ex::Var("a1".into())))), Box::new(Ex::Num(1))));
+        assert_eq!(emit.fmt.show(&unary_constant), "+a1 == Color::One");
     }
 
     #[test]
