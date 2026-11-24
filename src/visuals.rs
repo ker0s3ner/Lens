@@ -37,7 +37,7 @@ pub struct VisState {
 
 impl VisState {
     pub fn new() -> Self {
-        VisState { cg_zoom: 1.0, map_zoom: 1.0, cg_depth: 2, lang: Some(Lang::C), ..Default::default() }
+        VisState { cg_zoom: 1.0, map_zoom: 1.0, cg_depth: 1, lang: Some(Lang::C), ..Default::default() }
     }
 }
 
@@ -1066,6 +1066,9 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
 }
 
 pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>) {
+    // Keep the first render bounded even if a future caller supplies an
+    // untrusted depth (the UI currently exposes only 1..=3).
+    let depth = depth.min(3);
     let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::new();
     let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::new();
     let mut cached_callees = |addr: u64| -> Vec<u64> {

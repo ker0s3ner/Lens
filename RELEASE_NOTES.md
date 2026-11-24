@@ -1,3 +1,8 @@
+# Lens 0.6.425 — Fourier
+
+- Call graph now opens with a bounded one-hop neighborhood for a responsive first frame.
+- Call-graph depth inputs are defensively clamped while deeper 2/3-hop expansion remains available on demand.
+
 # Lens 0.6.424 — Fourier
 
 - M68k size-suffixed arithmetic and compare mnemonics now dispatch through their semantic lifter.

@@ -29,6 +29,9 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call graph now opens with a bounded one-hop neighborhood for a responsive first frame.",
+    "Call-graph depth inputs are defensively clamped while deeper 2/3-hop expansion remains available on demand.",
+    "Call-graph depth inputs are defensively clamped while deeper 2/3-hop expansion remains available on demand.",
     "M68k size-suffixed arithmetic and compare mnemonics now dispatch through their semantic lifter.",
     "M68k word/long/byte suffix normalization preserves readable arithmetic and flag conditions in pseudocode.",
     "Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.",
