@@ -251,6 +251,7 @@ impl LensApp {
                         ("Lists: names, imports, exports, entry points, bookmarks…", "", Action::Lists),
                         ("Compare with another program…", "", Action::Diff),
                         ("Import names and notes (JSON, .idc, .py)…", "", Action::Import),
+                        ("Open raw binary…", "", Action::OpenRawFile),
                         ("Export IDA script (.idc)…", "", Action::Export(crate::ida::ExportKind::Idc)),
                         ("Export Ghidra script (.py)…", "", Action::Export(crate::ida::ExportKind::Ghidra)),
                         ("Export database as JSON…", "", Action::Export(crate::ida::ExportKind::Json)),

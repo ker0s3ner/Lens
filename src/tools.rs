@@ -5,6 +5,7 @@ use crate::loader::{self, Arch, RawSpec};
 use crate::multiarch;
 use eframe::egui::{self, vec2, FontId, RichText, ScrollArea, Sense, TextEdit};
 use std::time::{Duration, Instant};
+use std::path::Path;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SearchMode {
@@ -93,6 +94,20 @@ impl Default for Tools {
             hex: HexState { open: false, text: String::new(), arch: Arch::X64, big: false, base: "0".into(), file: None, key: 0, rows: vec![], note: String::new() },
             settings_open: false,
         }
+    }
+}
+
+impl Tools {
+    pub fn load_hex_file(&mut self, path: &Path) -> Result<(), String> {
+        let bytes = std::fs::read(path).map_err(|e| format!("Couldn't read raw file: {e}"))?;
+        let name = path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "raw.bin".into());
+        let text = String::from_utf8_lossy(&bytes[..bytes.len().min(4_000_000)]).to_string();
+        let segs = loader::parse_ihex(&text).or_else(|| loader::parse_srec(&text)).unwrap_or_else(|| vec![(parse_base("0"), bytes)]);
+        self.hex.file = Some(FileSrc { name, path: path.to_string_lossy().to_string(), segs });
+        self.hex.key = 0;
+        self.hex.rows.clear();
+        self.hex.note.clear();
+        Ok(())
     }
 }
 

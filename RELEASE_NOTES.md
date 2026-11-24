@@ -1,3 +1,8 @@
+# Lens 0.6.421 — Fourier
+
+- Open raw binary is now available directly from the command palette.
+- Raw-file commands preload the existing architecture, endian, base, and Intel HEX/S-record loader controls.
+
 # Lens 0.6.420 — Fourier
 
 - Project members can now be removed directly from the workspace inspector.

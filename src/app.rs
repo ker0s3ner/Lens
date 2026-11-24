@@ -75,6 +75,7 @@ pub enum Action {
     SaveProject,
     AddProjectFile,
     RemoveProjectFile(String),
+    OpenRawFile,
     Close,
     Rename(u64),
     Comment(u64),
@@ -720,6 +721,14 @@ impl LensApp {
                 Action::SaveProject => self.save_project(),
                 Action::AddProjectFile => self.add_project_file(),
                 Action::RemoveProjectFile(file) => self.remove_project_file(&file),
+                Action::OpenRawFile => {
+                    if let Some(path) = rfd::FileDialog::new().set_title("Open raw binary, Intel HEX or S-record").pick_file() {
+                        match self.tools.load_hex_file(&path) {
+                            Ok(()) => self.tools.hex.open = true,
+                            Err(e) => self.modal_message("Couldn't open raw file", e),
+                        }
+                    }
+                }
                 Action::Close => {
                     self.state = State::Empty;
                     self.logm("Closed the file.");
