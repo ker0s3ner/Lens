@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Portable project paths now keep the active-file highlight correct after moving a project.",
     "Multi-file projects now expose their binaries as switchable inspector entries.",
     "Debugger instruction traces can now be exported with step indexes and addresses.",
     "Decompiler struct-array access now preserves the first element index.",

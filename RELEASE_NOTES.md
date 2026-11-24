@@ -31,6 +31,19 @@
 # Lens 0.6.227 — Fourier
 # Lens 0.6.228 — Fourier
 # Lens 0.6.229 — Fourier
+# Lens 0.6.239 — Fourier
+
+## What's new
+
+- Portable project paths now keep the active-file highlight correct after moving a project.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
 # Lens 0.6.238 — Fourier
 
 ## What's new

@@ -27,6 +27,11 @@ pub fn load_project(path: &std::path::Path) -> Result<ProjectManifest, String> {
     Ok(project)
 }
 
+pub fn resolve_project_file(project_path: &std::path::Path, file: &str) -> PathBuf {
+    let candidate = std::path::Path::new(file);
+    if candidate.is_absolute() { candidate.to_path_buf() } else { project_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join(candidate) }
+}
+
 pub fn save_project(path: &std::path::Path, name: &str, files: &[String], active_file: Option<&str>) -> Result<(), String> {
     if files.is_empty() { return Err("A Lens project needs at least one file".into()); }
     let base = path.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -252,5 +257,12 @@ mod tests {
         assert!(save_project(&path, "Empty", &[], None).is_err());
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_dir(dir);
+    }
+
+    #[test]
+    fn resolves_relative_project_files_against_manifest_location() {
+        let project = std::path::Path::new("/tmp/work/sample.lensproj");
+        assert_eq!(resolve_project_file(project, "bin/app").to_string_lossy(), "/tmp/work/bin/app");
+        assert_eq!(resolve_project_file(project, "/opt/app").to_string_lossy(), "/opt/app");
     }
 }
