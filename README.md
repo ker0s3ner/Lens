@@ -31,6 +31,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Identify direct and imported-slot forwarding thunks, including common `nop`/`endbr`-decorated stubs, and show their destination in function lists.
 - Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; available RTTI symbols are converted to readable C++ names in Lists and JSON. Objective-C method/property-name sections in Mach-O files receive selector-aware `sel_` names, Swift `$s` symbols get readable component names, and Swift reflection/type-reference strings receive `swift_` names.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview; recovered switch-case destinations also appear as graph edges.
+- Call-graph neighborhoods deduplicate caller functions before applying responsiveness caps, so repeated call sites do not hide distinct callers.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.
 - Browse manual and inferred scalar, pointer, string, and array-backed definitions from the synchronized Data tab in Lists, including applied types and analyst comments. Double-click a row to open Types focused on its applied type and address, or copy its selected address for scripts and notes.

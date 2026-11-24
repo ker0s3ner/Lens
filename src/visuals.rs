@@ -1057,10 +1057,11 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
         .an
         .xrefs_to
         .get(&f)
-        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).take(CALL_GRAPH_MAX_NEIGHBORS * 4).collect())
+        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect())
         .unwrap_or_default();
     v.sort();
     v.dedup();
+    v.truncate(CALL_GRAPH_MAX_NEIGHBORS * 4);
     v
 }
 
