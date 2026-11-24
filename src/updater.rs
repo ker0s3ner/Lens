@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Pointer typedefs now preserve their struct targets instead of collapsing to void *.",
+    "Decompiler field recovery now follows bounded pointer-alias chains, with regression coverage for aliased pointer access.",
     "ARM32, Thumb, and AArch64 mvn/mvns now decompile as explicit bitwise-NOT expressions.",
     "ARM move-negation aliases now remain readable while condition-flag modeling stays conservative.",
     "Typed struct-field rendering now resolves bounded C typedef aliases and alias chains before looking up nested layouts.",

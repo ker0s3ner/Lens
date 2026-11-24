@@ -139,7 +139,12 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
         }
         let (size, _) = size_align(&target, ptr, known).ok_or(format!("Unknown typedef target `{target}`"))?;
         let alias_size = if pointer_depth > 0 { ptr } else { size };
-        return Ok(StructDef { name: alias_name.to_string(), fields: vec![], size: alias_size, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(if pointer_depth > 0 { "void *".into() } else { target }) });
+        let aliased = if pointer_depth > 0 {
+            format!("{} {}", target, "*".repeat(pointer_depth))
+        } else {
+            target
+        };
+        return Ok(StructDef { name: alias_name.to_string(), fields: vec![], size: alias_size, is_union: false, is_enum: false, enum_values: vec![], alias_of: Some(aliased) });
     };
     let close = clean.rfind('}').ok_or("Missing closing brace")?;
     let head = clean[..open].replace("typedef", "");
@@ -516,6 +521,14 @@ mod tests {
         assert_eq!(nested_alias.alias_of.as_deref(), Some("fn(int) -> int **"));
         let chained_alias = parse_c("typedef callback_t callback_alias_t;", 8, &[alias.clone()]).unwrap();
         assert_eq!(chained_alias.alias_of.as_deref(), Some("fn(int, void *) -> int *"));
+    }
+
+    #[test]
+    fn preserves_struct_pointer_typedef_targets() {
+        let base = parse_c("struct Item { int value; }", 8, &[]).unwrap();
+        let alias = parse_c("typedef struct Item *ItemPtr;", 8, &[base]).unwrap();
+        assert_eq!(alias.alias_of.as_deref(), Some("struct Item *"));
+        assert!(is_pointer_type("ItemPtr", &[alias]));
     }
 
     #[test]

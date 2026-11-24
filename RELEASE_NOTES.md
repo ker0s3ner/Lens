@@ -1,3 +1,8 @@
+# Lens 0.6.331 — Fourier
+
+- Pointer typedefs now preserve their struct targets instead of collapsing to `void *`.
+- Decompiler field recovery now follows bounded pointer-alias chains, with regression coverage for aliased pointer access.
+
 # Lens 0.6.330 — Fourier
 
 - ARM32, Thumb, and AArch64 `mvn`/`mvns` now decompile as explicit bitwise-NOT expressions.

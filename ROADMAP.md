@@ -1,8 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Latest shipped build: **Lens 0.6.330 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; typed struct-field rendering follows bounded typedef alias chains and ARM move-negation aliases decompile explicitly; the 50% target remains unmet.
+Latest shipped build: **Lens 0.6.331 — Fourier**. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; typed struct-field rendering follows bounded struct and pointer typedef alias chains; the 50% target remains unmet.
 
-Current audit marker: **0.6.330 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
+Current audit marker: **0.6.331 — Fourier**. The weighted estimate remains **38.7%**; the practical workflow estimate remains **about 40–45%**. The 50% target is still unmet.
 
 Status checked against the repository on 2026-11-24, at **Lens 0.6.309 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below gives **38.7% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness; those remain substantially behind IDA. Each phase should be validated against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 

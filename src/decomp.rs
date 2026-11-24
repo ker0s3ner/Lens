@@ -194,6 +194,21 @@ impl Fmt<'_> {
         None
     }
 
+    fn pointer_target(&self, ty: &str) -> Option<String> {
+        let mut current = ty.trim().trim_start_matches("const ").trim().to_string();
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..=self.structs.len() {
+            if let Some(target) = current.strip_suffix('*') {
+                return Some(target.trim().to_string());
+            }
+            if !seen.insert(current.clone()) { return None; }
+            let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+            let def = self.structs.iter().find(|candidate| candidate.name == name)?;
+            current = def.alias_of.as_deref()?.trim().to_string();
+        }
+        None
+    }
+
     fn resolve_struct_path(&self, def: &crate::types::StructDef, offset: i64, depth: usize) -> Option<String> {
         if depth > self.structs.len() { return None; }
         let field = def.fields.iter().find(|field| {
@@ -247,8 +262,8 @@ impl Fmt<'_> {
             },
             _ => None,
         }?;
-        let ty = ty_owned.trim();
-        let ty = ty.strip_suffix('*')?.trim().trim_start_matches("const ").trim();
+        let ty = self.pointer_target(&ty_owned)?;
+        let ty = ty.trim().trim_start_matches("const ").trim();
         if !ty.starts_with("struct ") && !ty.starts_with("union ") {
             let element_size = match ty {
                 "char" | "int8_t" | "uint8_t" | "u8" | "i8" => 1,
@@ -3056,6 +3071,18 @@ mod tests {
         let fmt = Fmt { rename: &empty, types: &types, structs: &defs };
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(0)))), 4);
         assert_eq!(fmt.show(&expression), "p->inner");
+    }
+
+    #[test]
+    fn resolves_struct_field_through_pointer_typedef_alias() {
+        let outer = crate::types::parse_c("struct Outer { uint32_t value; }", 8, &[]).unwrap();
+        let pointer = crate::types::parse_c("typedef struct Outer *OuterPtr;", 8, &[outer.clone()]).unwrap();
+        let types = HashMap::from([(String::from("p"), String::from("OuterPtr"))]);
+        let empty = HashMap::new();
+        let defs = vec![outer, pointer];
+        let fmt = Fmt { rename: &empty, types: &types, structs: &defs };
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(var("p")), Box::new(Ex::Num(0)))), 4);
+        assert_eq!(fmt.show(&expression), "p->value");
     }
 
     #[test]
