@@ -1206,11 +1206,16 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let inserted = bin("<<", bin("&", src, Ex::Num(((1u64 << width) - 1) as i64)), Ex::Num(lsb as i64));
             set(dc, st, 0, bin("|", cleared, bin("&", inserted, Ex::Num(field as i64))));
         }
-        (Fam::A32, "uxtab" | "uxtah") if ops.len() >= 3 => {
+        (Fam::A32, "uxtab" | "uxtah" | "sxtab" | "sxtah") if ops.len() >= 3 => {
             let base = dc.g_val(st, o(1), None);
             let value = dc.g_val(st, o(2), None);
-            let mask = if base_mn == "uxtab" { 0xff } else { 0xffff };
-            set(dc, st, 0, bin("+", base, bin("&", value, Ex::Num(mask))));
+            let byte = base_mn.ends_with('b');
+            let mask = if byte { 0xff } else { 0xffff };
+            let extracted = bin("&", value, Ex::Num(mask));
+            let extended = if base_mn.starts_with('s') {
+                Ex::Cast(if byte { "int8_t" } else { "int16_t" }, Box::new(extracted))
+            } else { extracted };
+            set(dc, st, 0, bin("+", base, extended));
         }
         (Fam::A32, "bfc") if ops.len() >= 3 => {
             let dst = dc.g_val(st, o(0), None);

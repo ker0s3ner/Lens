@@ -1,3 +1,8 @@
+# Lens 0.6.305 — Fourier
+
+- ARM32 and Thumb SXTAB/SXTAH now render signed byte and halfword extension before accumulation.
+- ARM extend-and-accumulate lifting now covers both signed and unsigned variants.
+
 # Lens 0.6.304 — Fourier
 
 - ARM32 and Thumb UXTAB/UXTAH now render as explicit zero-extend-and-add expressions.
