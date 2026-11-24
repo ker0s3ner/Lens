@@ -211,7 +211,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - AArch64 NEON floating/integer conversion and rounding families remain visible as named intrinsics.
 - AArch64 NEON reciprocal and reciprocal-square-root estimate/refinement families remain visible as named intrinsics.
 - AArch64 NEON complex add/multiply families remain visible as named intrinsics.
-- AArch64 NEON bit-select and mask-combine families remain visible as named intrinsics.
+- AArch64 NEON `bsl`, `bit`, and `bif` bit-select/mask-combine operations now lift to explicit expressions; broader lane families remain planned.
 - AArch64 SHA-512 round and schedule instructions remain visible as named intrinsics.
 - AArch64 SHA-3/SM3-style Boolean and rotate-combine families remain visible as named intrinsics.
 - AArch64 SM4 round and key-schedule instructions remain visible as named intrinsics.
