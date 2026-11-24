@@ -1,3 +1,17 @@
+# Lens 0.6.147 — Fourier
+
+## What's new
+
+- Decompiler pointee inference now survives explicit pointer casts before dereference.
+- Added regression coverage for owned pointer casts such as `uint32_t *` memory reads.
+
+## Verification
+
+- `cargo test --locked --quiet` — 65 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.146 — Fourier
 
 ## What's new

@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler pointee inference now survives explicit pointer casts before dereference.",
+    "Added regression coverage for owned pointer casts such as `uint32_t *` memory reads.",
     "Decompiler type propagation now recovers pointee types when dereferencing typed pointer temporaries.",
     "Added regression coverage for both direct pointer-return dereferences and dereferences after temporary assignment.",
     "Decompiler type propagation now carries known pointer types through constant byte-offset expressions.",

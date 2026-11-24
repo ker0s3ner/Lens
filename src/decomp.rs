@@ -2323,6 +2323,8 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
                         _ => None,
                     },
                     Ex::Var(source) => types.get(source).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
+                    Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
+                    Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
                     _ => None,
                 },
                 Ex::Cast(t, _) => Some((*t).to_string()),
@@ -2419,6 +2421,18 @@ mod tests {
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
         }];
         assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("char"));
+    }
+
+    #[test]
+    fn render_type_inference_recovers_pointee_through_pointer_cast() {
+        let outs = vec![BlockOut {
+            stmts: vec![(0, Stmt::Assign(
+                Ex::Var("ch".into()),
+                Ex::Deref(Box::new(Ex::CastOwned("uint32_t *".into(), Box::new(var("p")))), 4),
+            ))],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 0,
+        }];
+        assert_eq!(infer_render_types(&outs).get("ch").map(String::as_str), Some("uint32_t"));
     }
 
     #[test]
