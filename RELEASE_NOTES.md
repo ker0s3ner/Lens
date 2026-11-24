@@ -1,3 +1,8 @@
+# Lens 0.6.288 — Fourier
+
+- AArch64 pseudocode now models long multiply-accumulate/subtract instructions (SMADDL/UMADDL/SMSUBL/UMSUBL) instead of dropping them to opaque intrinsics.
+- AArch64 MNEG now renders as an explicit negated product, improving arithmetic readability in non-x86 decompilation.
+
 # Lens 0.6.287 — Fourier
 
 - Roadmap status now tracks the shipped 0.6.286 Fourier indirect-type build.

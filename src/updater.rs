@@ -29,6 +29,8 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 pseudocode now models long multiply-accumulate/subtract instructions (SMADDL/UMADDL/SMSUBL/UMSUBL) instead of dropping them to opaque intrinsics.",
+    "AArch64 MNEG now renders as an explicit negated product, improving arithmetic readability in non-x86 decompilation.",
     "Roadmap status now tracks the shipped 0.6.286 Fourier indirect-type build.",
     "README now documents typed field access through explicit function-pointer returns.",
     "Roadmap status now tracks the shipped 0.6.285 Fourier type-recovery build.",

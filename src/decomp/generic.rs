@@ -1118,6 +1118,19 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let (a, b, c) = (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None), dc.g_val(st, o(3), None));
             set(dc, st, 0, bin("+", bin("*", a, b), c));
         }
+        (Fam::A64, "mneg") if ops.len() >= 3 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            set(dc, st, 0, bin("-", Ex::Num(0), bin("*", a, b)));
+        }
+        (Fam::A64, "smaddl" | "umaddl" | "smsubl" | "umsubl") if ops.len() >= 4 => {
+            let a = dc.g_val(st, o(1), None);
+            let b = dc.g_val(st, o(2), None);
+            let c = dc.g_val(st, o(3), None);
+            let product = bin("*", a, b);
+            let value = if base_mn.ends_with("subl") { bin("-", c, product) } else { bin("+", product, c) };
+            set(dc, st, 0, value);
+        }
         (Fam::A32, "mla") if ops.len() >= 4 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
