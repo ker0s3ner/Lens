@@ -33,7 +33,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Debug info: DWARF names, prototypes and supported type layouts are available, with adjacent dSYM lookup; PDB and broader C++/Rust/Swift debug-type support remain.
 
 ## Phase 3 - Decompiler
-- Type recovery and propagation across calls; struct and array access reconstruction.
+- Type recovery and propagation across calls is expanding; typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, and pointer typedefs are implemented with regression coverage. Broader SSA-based propagation and more complex array/pointer reconstruction remain.
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, calling-convention inference.
 - Thumb/Thumb-2 in the main loader and additional PPC extras.
