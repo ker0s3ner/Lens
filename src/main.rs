@@ -256,7 +256,7 @@ fn cli(args: &[String]) -> bool {
                 "to": target,
                 "kind": xrefs_to.get(target).and_then(|refs| refs.iter().find(|xref| xref.from == function.start)).map(|xref| xref.kind.label()).unwrap_or("call"),
             }))).collect::<Vec<_>>(),
-            "entry_records": bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).collect::<Vec<_>>(),
+            "entry_records": bin.entry.into_iter().chain(det.main.iter().map(|(address, _)| *address)).chain(bin.func_hints.iter().copied()).collect::<Vec<_>>(),
             "name_records": bin.symbols.iter().map(|(address, name)| serde_json::json!({
                 "address": address,
                 "name": name,

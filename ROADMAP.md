@@ -131,6 +131,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - JSON export records include incoming references to each exported symbol.
 - JSON call records retain the analyzer's call-edge classification.
 - JSON library records include the imported symbol names associated with each dependency.
+- JSON entry records include loader-provided function-start hints.
 - Thumb indexed absolute jump tables (`ldr pc, [pc, index, lsl #2]`) recover bounded, validated switch targets.
 - ARM64 scaled switch-table offsets and halfword entries honor the binary's declared endianness.
 - Stripped functions ending in an architectural stop/trap instruction are conservatively inferred as no-return.

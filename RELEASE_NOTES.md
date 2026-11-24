@@ -26,6 +26,20 @@
 # Lens 0.6.222 — Fourier
 # Lens 0.6.223 — Fourier
 # Lens 0.6.224 — Fourier
+# Lens 0.6.225 — Fourier
+
+## What's new
+
+- JSON entry records now include loader-provided function-start hints.
+
+## Verification
+
+- `cargo test --locked --quiet`
+- `./scripts/smoke-corpus.sh`
+
+---
+
+# Lens 0.6.224 — Fourier
 
 ## What's new
 
