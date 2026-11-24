@@ -150,6 +150,7 @@ fn cli(args: &[String]) -> bool {
     }
     if json_report {
         let value = serde_json::json!({
+            "schema": "lens.analysis.v1",
             "file": bin.file_name,
             "format": det.kind,
             "os": det.os,

@@ -26,6 +26,12 @@ for target in "${targets[@]}"; do
     printf '%s\n' "$output" >&2
     exit 1
   }
+  json="$(cd "$root" && cargo run --quiet -- "$target" --json 2>/dev/null)"
+  grep -q '"schema": "lens.analysis.v1"' <<<"$json" || {
+    echo "smoke corpus: missing JSON schema for $target" >&2
+    printf '%s\n' "$json" >&2
+    exit 1
+  }
 done
 
 echo "smoke corpus: ${#targets[@]} targets passed"

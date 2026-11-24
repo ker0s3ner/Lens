@@ -1,3 +1,17 @@
+# Lens 0.6.140 — Fourier
+
+## What's new
+
+- JSON analysis reports now declare the stable `lens.analysis.v1` schema.
+- The release smoke corpus validates both human-readable and JSON analysis output for every discovered binary.
+
+## Verification
+
+- `cargo test --locked --quiet` — 60 passed
+- `./scripts/smoke-corpus.sh` — 6 host binaries passed in both report modes
+
+---
+
 # Lens 0.6.139 — Fourier
 
 ## What's new
