@@ -630,7 +630,7 @@ fn propagate_adjacent_constant(o: &mut BlockOut) {
         let (dst, value) = match &o.stmts[i].1 {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
-                    && matches!(value, Ex::Num(_)) => (dst.clone(), value.clone()),
+                    && constant_value(value).is_some() => (dst.clone(), constant_value(value).unwrap()),
             _ => { i += 1; continue; }
         };
         let mut changed = false;
@@ -671,6 +671,21 @@ fn propagate_adjacent_constant(o: &mut BlockOut) {
 
 fn writes_var(s: &Stmt, name: &str) -> bool {
     matches!(s, Stmt::Assign(Ex::Var(dst), _) if dst == name)
+}
+
+fn constant_value(e: &Ex) -> Option<Ex> {
+    let value = match e {
+        Ex::Num(_) => e.clone(),
+        Ex::Un(op, value) => un(op, constant_value(value)?),
+        Ex::Bin(op, left, right) => bin(op, constant_value(left)?, constant_value(right)?),
+        Ex::Tern(cond, yes, no) => match constant_value(cond)? {
+            Ex::Num(value) => constant_value(if value != 0 { yes } else { no })?,
+            _ => return None,
+        },
+        Ex::Cast(_, value) | Ex::CastOwned(_, value) => constant_value(value)?,
+        _ => return None,
+    };
+    matches!(value, Ex::Num(_)).then_some(value)
 }
 
 /// Propagate a temporary copy across safe intervening statements. Stop before
@@ -785,7 +800,7 @@ fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
         let Some((dst, value)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
-                    && matches!(value, Ex::Num(_)) => Some((dst.clone(), value.clone())),
+                    && constant_value(value).is_some() => Some((dst.clone(), constant_value(value).unwrap())),
             _ => None,
         }) else { continue };
         for (target, _) in &f.blocks[source].succs {
@@ -874,7 +889,7 @@ fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) {
         let Some((dst, value)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
-                    && matches!(value, Ex::Num(_)) => Some((dst.clone(), value.clone())),
+                    && constant_value(value).is_some() => Some((dst.clone(), constant_value(value).unwrap())),
             _ => None,
         })).try_fold(None, |same: Option<(String, Ex)>, item| match (same, item) {
             (Some(a), Some(b)) if a == b => Some(Some(a)),
@@ -3623,6 +3638,20 @@ mod tests {
         assert_eq!(out.stmts.len(), 1);
         assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Num(42)));
         assert!(matches!(out.term, Term::Ret(Some(Ex::Num(42)))));
+    }
+
+    #[test]
+    fn evaluates_compile_time_temporary_constants() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Bin("+", Box::new(Ex::Num(2)), Box::new(Ex::Num(3))))),
+                (1, Stmt::Assign(Ex::Var("x".into()), Ex::Bin("*", Box::new(Ex::Var("v1".into())), Box::new(Ex::Num(4))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 2,
+        };
+        propagate_adjacent_constant(&mut out);
+        assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("*", left, _)) if x == "x" && **left == Ex::Num(5)));
+        assert!(matches!(out.term, Term::Ret(Some(Ex::Num(5)))));
     }
 
     #[test]
