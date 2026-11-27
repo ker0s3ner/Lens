@@ -736,6 +736,7 @@ impl LensApp {
                         if !dynamic_signal_counts.is_empty() {
                             let summary = dynamic_signal_counts.iter().map(|(name, count)| format!("{name} ×{count}")).collect::<Vec<_>>().join(" · ");
                             ui.label(RichText::new(format!("Observed signal frequency: {summary}")).small().color(p.muted));
+                            if ui.small_button("Copy signal frequencies").clicked() { ui.ctx().copy_text(summary); }
                         }
                         if dynamic_signal_count > 0 && ui.small_button("Copy observed signals").clicked() {
                             let mut names = dynamic_lookup.values().flat_map(|(_, signals)| signals.iter().cloned()).collect::<Vec<_>>();
