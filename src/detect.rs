@@ -64,6 +64,14 @@ pub struct Capability {
 }
 
 #[derive(Clone, Debug)]
+pub struct ThreatSignal {
+    /// 1 = noteworthy, 2 = suspicious, 3 = high-risk heuristic.
+    pub severity: u8,
+    pub name: String,
+    pub evidence: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Detection {
     /// "Windows GUI program", "macOS app", "Linux program", …
     pub kind: String,
@@ -94,6 +102,8 @@ pub struct Detection {
     pub asar: Option<crate::source::AsarInfo>,
     /// Cryptographic constants found in the bytes: (address, constant, algorithm).
     pub crypto: Vec<(u64, String, String)>,
+    /// Heuristic behavior signals; these are triage hints, not a malware verdict.
+    pub threat_signals: Vec<ThreatSignal>,
 }
 
 impl Detection {
@@ -103,6 +113,40 @@ impl Detection {
     pub fn language(&self) -> &str {
         self.languages.first().map(|g| g.name.as_str()).unwrap_or("unknown")
     }
+}
+
+fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &[(String, bool)], entropy: f32) -> Vec<ThreatSignal> {
+    let mut out = Vec::new();
+    let has = |name: &str| capabilities.iter().find(|c| c.name == name);
+    if let Some(c) = has("Processes") {
+        out.push(ThreatSignal { severity: 2, name: "Process execution".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Registry & settings") {
+        out.push(ThreatSignal { severity: 3, name: "Persistence behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Keyboard & screen capture") {
+        out.push(ThreatSignal { severity: 3, name: "Input or screen capture".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Anti-debugging") {
+        out.push(ThreatSignal { severity: 2, name: "Anti-analysis behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Memory tricks") {
+        out.push(ThreatSignal { severity: 2, name: "Executable memory or process tampering".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Network") {
+        out.push(ThreatSignal { severity: 1, name: "Network communication".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if !packers.is_empty() {
+        out.push(ThreatSignal { severity: 2, name: "Packing or obfuscation".into(), evidence: packers.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ") });
+    }
+    if entropy >= 7.4 {
+        out.push(ThreatSignal { severity: 2, name: "High file entropy".into(), evidence: format!("overall entropy {:.2} of 8; compressed or encrypted content is possible", entropy) });
+    }
+    if protections.iter().any(|(name, enabled)| *enabled && name.to_ascii_lowercase().contains("aslr")) {
+        out.push(ThreatSignal { severity: 1, name: "ASLR enabled".into(), evidence: "hardening context; not inherently suspicious".into() });
+    }
+    out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
+    out
 }
 
 #[derive(Default)]
@@ -846,8 +890,10 @@ pub fn detect(bin: &Binary, an: &Analysis) -> Detection {
         main: None,
         unsupported_note,
         crypto,
+        threat_signals: vec![],
         asar: crate::source::find_asar(&bin.path).and_then(|p| crate::source::asar_info(&p)),
     };
+    det.threat_signals = threat_signals(&det.capabilities, &det.packers, &det.protections, det.overall_entropy);
     det.main = find_main(bin, an, &det);
     det.plan = plan(bin, &det);
     det
@@ -1012,4 +1058,23 @@ fn native_conv(arch: Arch, is_pe: bool) -> Option<&'static str> {
         Arch::M68k => "Motorola 68000 ABI (d0/d1 results, stack arguments)",
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malware_signals_are_ranked_and_explainable() {
+        let caps = vec![
+            Capability { name: "Processes", apis: vec!["CreateProcess".into()] },
+            Capability { name: "Anti-debugging", apis: vec!["IsDebuggerPresent".into()] },
+            Capability { name: "Network", apis: vec!["connect".into()] },
+        ];
+        let signals = threat_signals(&caps, &[], &[], 4.0);
+        assert_eq!(signals[0].severity, 2);
+        assert!(signals.iter().any(|s| s.name == "Process execution" && s.evidence.contains("CreateProcess")));
+        assert!(signals.iter().any(|s| s.name == "Network communication"));
+        assert!(signals.windows(2).all(|pair| pair[0].severity >= pair[1].severity));
+    }
 }

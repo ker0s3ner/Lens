@@ -420,6 +420,22 @@ impl LensApp {
                                 });
                             });
                         }
+                        if !det.threat_signals.is_empty() {
+                            card(ui, &p, "Malware triage signals (heuristic)", |ui| {
+                                ui.label(RichText::new("These are behavior clues for analyst review, not a malware verdict.").small().color(p.muted));
+                                for signal in &det.threat_signals {
+                                    let (label, color) = match signal.severity {
+                                        3 => ("HIGH", p.edge_not),
+                                        2 => ("MED", p.nav_unexplored),
+                                        _ => ("NOTE", p.text),
+                                    };
+                                    ui.horizontal_wrapped(|ui| {
+                                        pill(ui, &format!("{label}  {}", signal.name), color, p.panel_alt);
+                                        ui.label(RichText::new(&signal.evidence).small().color(p.muted));
+                                    });
+                                }
+                            });
+                        }
                     });
                     ui.add_space(12.0);
                     {
