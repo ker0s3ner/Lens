@@ -859,6 +859,50 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
     }
 }
 
+/// Fold an identical literal assignment through a merge block.  All incoming
+/// predecessors must agree on both the temporary and its value.
+fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) {
+    let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
+    let mut incoming: Vec<Vec<usize>> = vec![vec![]; f.blocks.len()];
+    for (source, block) in f.blocks.iter().enumerate() {
+        for (target, _) in &block.succs {
+            if let Some(&ti) = index.get(target) { incoming[ti].push(source); }
+        }
+    }
+    for (target, preds) in incoming.iter().enumerate() {
+        if preds.len() < 2 { continue; }
+        let Some((dst, value)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
+            Stmt::Assign(Ex::Var(dst), value)
+                if (dst.starts_with('v') || dst.starts_with('t'))
+                    && matches!(value, Ex::Num(_)) => Some((dst.clone(), value.clone())),
+            _ => None,
+        })).try_fold(None, |same: Option<(String, Ex)>, item| match (same, item) {
+            (Some(a), Some(b)) if a == b => Some(Some(a)),
+            (None, Some(b)) => Some(Some(b)),
+            _ => None,
+        }).flatten() else { continue };
+        let mut stopped = false;
+        for (_, stmt) in &mut outs[target].stmts {
+            if writes_var(stmt, &dst) { stopped = true; break; }
+            let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
+            *stmt = match old {
+                Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &value), subst(&right, &Ex::Var(dst.clone()), &value)),
+                Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &value)),
+                Stmt::Comment(text) => Stmt::Comment(text),
+            };
+        }
+        if !stopped {
+            let term = std::mem::replace(&mut outs[target].term, Term::Stop);
+            outs[target].term = match term {
+                Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
+                Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &value)),
+                Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst), &value), taken, fall },
+                other => other,
+            };
+        }
+    }
+}
+
 fn inline_adjacent_call_temp(o: &mut BlockOut) {
     let mut i = 0;
     while i + 1 < o.stmts.len() {
@@ -2672,6 +2716,7 @@ fn decompile_inner(
     propagate_single_predecessor_copy(&mut outs, f);
     propagate_single_predecessor_constant(&mut outs, f);
     propagate_convergent_copy(&mut outs, f);
+    propagate_convergent_constant(&mut outs, f);
 
     // pass 3: liveness of registers
     let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
@@ -3658,6 +3703,24 @@ mod tests {
         propagate_convergent_copy(&mut outs, &f);
         assert!(matches!(&outs[2].stmts[0].1, Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if dst == "x" && src == "a1"));
         assert!(matches!(&outs[2].term, Term::Ret(Some(Ex::Var(v))) if v == "a1"));
+    }
+
+    #[test]
+    fn propagates_identical_constants_through_merge_block() {
+        let f = Function {
+            start: 0x1000, end: 0x1004,
+            blocks: vec![
+                crate::analysis::Block { start: 0x1000, end: 0x1001, insns: vec![], succs: vec![(0x1002, crate::analysis::EdgeKind::Taken)] },
+                crate::analysis::Block { start: 0x1001, end: 0x1002, insns: vec![], succs: vec![(0x1002, crate::analysis::EdgeKind::NotTaken)] },
+                crate::analysis::Block { start: 0x1002, end: 0x1004, insns: vec![], succs: vec![] },
+            ],
+            insn_count: 0, kind: crate::analysis::FuncKind::Normal, noreturn: false, calls: vec![], has_symbol: false, thunk_target: None,
+        };
+        let constant = || BlockOut { stmts: vec![(0, Stmt::Assign(Ex::Var("v1".into()), Ex::Num(9)))], defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Jmp(0x1002), term_addr: 0 };
+        let mut outs = vec![constant(), constant(), BlockOut { stmts: vec![(1, Stmt::Assign(Ex::Var("x".into()), Ex::Bin("+", Box::new(Ex::Var("v1".into())), Box::new(Ex::Num(1)))))], defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 1 }];
+        propagate_convergent_constant(&mut outs, &f);
+        assert!(matches!(&outs[2].stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Num(9)));
+        assert!(matches!(&outs[2].term, Term::Ret(Some(Ex::Num(9)))));
     }
 
     #[test]
