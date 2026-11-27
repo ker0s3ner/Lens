@@ -734,7 +734,9 @@ impl LensApp {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
                         if !dynamic_signal_counts.is_empty() {
-                            let summary = dynamic_signal_counts.iter().map(|(name, count)| format!("{name} ×{count}")).collect::<Vec<_>>().join(" · ");
+                            let mut ranked = dynamic_signal_counts.iter().map(|(name, count)| (name, *count)).collect::<Vec<_>>();
+                            ranked.sort_by(|(a_name, a_count), (b_name, b_count)| b_count.cmp(a_count).then(a_name.cmp(b_name)));
+                            let summary = ranked.iter().map(|(name, count)| format!("{name} ×{count}")).collect::<Vec<_>>().join(" · ");
                             ui.label(RichText::new(format!("Observed signal frequency: {summary}")).small().color(p.muted));
                             if ui.small_button("Copy signal frequencies").clicked() { ui.ctx().copy_text(summary); }
                         }

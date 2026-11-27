@@ -137,6 +137,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.
 - Signal-frequency summaries can be copied directly for case notes and handoff.
+- Signal-frequency summaries are ranked by count with deterministic alphabetical tie-breaking.
 - Dynamic trace annotations are indexed once per debugger frame, keeping full-trace review responsive at the 5,000-entry cap.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Structured dynamic-trace records now include the matching heuristic signal names, not only a boolean flag.
