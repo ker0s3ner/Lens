@@ -1,3 +1,19 @@
+# Lens 0.6.468 — Fourier
+
+- PowerPC `cnttzw` and `cnttzd` now lift to named trailing-zero operations.
+- PowerPC `bpermd` now remains visible as a bit-permutation operation.
+- PowerPC `extlwi` now remains visible in pseudocode.
+- PowerPC `extrwi` now remains visible in pseudocode.
+- PowerPC `inslwi` now remains visible in pseudocode.
+- PowerPC `insrwi` now remains visible in pseudocode.
+- M68k `swap` now remains visible as an explicit word-swap operation.
+- M68k `ext` now remains visible as an explicit sign-extension operation.
+- M68k `extb` now remains visible as an explicit byte-extension operation.
+- M68k `tas` now preserves its test-and-set flag and value behavior.
+- Packed integer and bitfield idioms no longer fall through to generic output.
+- The existing 135-test regression suite remains green after this extension.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.467 — Fourier
 
 - RISC-V `czero.eqz` now lifts to explicit zero-selection semantics.

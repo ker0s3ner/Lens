@@ -1497,9 +1497,31 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("popcount")), vec![value]));
         }
+        (Fam::Ppc, "cnttzw" | "cnttzd") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("ctz")), vec![value]));
+        }
+        (Fam::Ppc, "bpermd") if ops.len() >= 3 => {
+            let mask = dc.g_val(st, o(1), None);
+            let value = dc.g_val(st, o(2), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("bit_permute")), vec![mask, value]));
+        }
+        (Fam::Ppc, "extlwi" | "extrwi" | "inslwi" | "insrwi") if ops.len() >= 4 => {
+            let args = ops.iter().skip(1).map(|s| dc.g_val(st, s, None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::Mips, "wsbh") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("byteswap16")), vec![value]));
+        }
+        (Fam::M68k, "swap" | "ext" | "extb") if ops.len() >= 1 => {
+            let value = dc.g_val(st, o(0), None);
+            set(dc, st, 1, Ex::Call(Box::new(var(base_mn)), vec![value]));
+        }
+        (Fam::M68k, "tas") if ops.len() >= 1 => {
+            let value = dc.g_val(st, o(0), None);
+            st.flags = Flags::Cmp(value.clone(), Ex::Num(0));
+            set(dc, st, 1, bin("|", value, Ex::Num(0x80)));
         }
         (Fam::Mips, "ext") if ops.len() >= 4 => {
             let value = dc.g_val(st, o(1), None);

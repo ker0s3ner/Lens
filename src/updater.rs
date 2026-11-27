@@ -29,6 +29,13 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC cnttzw and cnttzd now lift to named trailing-zero operations.",
+    "PowerPC bpermd now remains visible as a bit-permutation operation.",
+    "PowerPC extlwi, extrwi, inslwi, and insrwi remain visible in pseudocode.",
+    "M68k swap, ext, and extb now remain visible as explicit operations.",
+    "M68k tas now preserves its test-and-set flag and value behavior.",
+    "Packed integer and bitfield idioms no longer fall through to generic output.",
+    "The existing 135-test regression suite remains green after this extension.",
     "RISC-V czero.eqz and czero.nez now lift to explicit zero-selection semantics.",
     "RISC-V cmix and cmov remain visible as conditional bit operations.",
     "RISC-V fsl and fsr remain visible as funnel shifts.",

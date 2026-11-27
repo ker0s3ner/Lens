@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.467 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.468 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.468 — Fourier** adds PowerPC count-trailing-zero, bit-permute, and rotate/insert idioms plus M68k swap/extend/test-and-set lifting. The 50% target remains unmet.
 
 Release update: **Lens 0.6.467 — Fourier** adds RISC-V conditional-move and bit-permutation semantics plus MIPS floating-point conditional moves, improving optimized branchless code readability. The 50% target remains unmet.
 
