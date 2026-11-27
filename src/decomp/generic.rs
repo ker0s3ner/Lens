@@ -1249,6 +1249,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Un("~", Box::new(v)));
         }
+        (Fam::A32, "rbit") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("bit_reverse")), vec![value]));
+        }
         (Fam::A64, "adrp" | "adr") | (Fam::A32, "adr") => {
             if let Some(n) = parse_imm(o(1)) {
                 set(dc, st, 0, Ex::Num(n));
@@ -1916,6 +1920,20 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 let (size, _) = mem_size_of(fm, m, rs);
                 let v = rs.map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
                 dc.g_store(st, v, rs, &mm, size, addr);
+            }
+        }
+        (Fam::A32, m) if matches!(m, "ldrex" | "ldrexb" | "ldrexh" | "ldrexd" | "strex" | "strexb" | "strexh" | "strexd") => {
+            let load = m.starts_with("ld");
+            let width = if m.ends_with('b') { 1 } else if m.ends_with('h') { 2 } else if m.ends_with('d') { 8 } else { 4 };
+            let mem_index = if load { 1 } else { 2 };
+            if let Some((mm, _)) = parse_mem(fm, ops, mem_index) {
+                if load {
+                    dc.g_load(st, reg(0), &mm, width, false, addr);
+                } else {
+                    let value = reg(1).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                    dc.g_store(st, value, reg(1), &mm, width, addr);
+                    if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
+                }
             }
         }
         (Fam::A32, m) if m.starts_with("ldr") || m.starts_with("str") => {

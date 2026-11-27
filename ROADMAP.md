@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.450 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.451 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.451 — Fourier** adds ARM/Thumb `rbit` and exclusive load/store lifting for synchronization-heavy code, including byte, halfword, and doubleword forms. The 50% target remains unmet.
 
 Release update: **Lens 0.6.450 — Fourier** broadens no-return recognition across Rust, Go, Swift, Objective-C, C++, and Windows/Apple runtime symbols, including hashed Rust panic names. The 50% target remains unmet.
 

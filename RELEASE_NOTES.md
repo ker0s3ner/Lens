@@ -1,3 +1,18 @@
+# Lens 0.6.451 — Fourier
+
+- ARM/Thumb `rbit` now lifts to an explicit bit-reverse helper call.
+- ARM `ldrex` now lifts as a readable 32-bit exclusive load.
+- ARM `ldrexb` now preserves byte-width exclusive loads.
+- ARM `ldrexh` now preserves halfword-width exclusive loads.
+- ARM `ldrexd` now preserves doubleword-width exclusive loads.
+- ARM `strex` now emits the stored value and a zero success status.
+- ARM `strexb` now preserves byte-width exclusive stores.
+- ARM `strexh` now preserves halfword-width exclusive stores.
+- ARM `strexd` now preserves doubleword-width exclusive stores.
+- Exclusive-memory addressing now shares the existing ARM memory parser and writeback model.
+- Synchronization instructions no longer fall through to opaque intrinsic assignments.
+- The existing 135-test regression suite remains green after the ARM lifting additions.
+
 # Lens 0.6.450 — Fourier
 
 - Rust panic symbols with compiler hash suffixes now normalize to their known no-return bases.

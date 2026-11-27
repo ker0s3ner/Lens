@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb rbit now lifts to an explicit bit-reverse helper call.",
+    "ARM ldrex, ldrexb, ldrexh, and ldrexd now lift as readable exclusive loads.",
+    "ARM strex, strexb, strexh, and strexd now preserve stored values and success status.",
+    "Exclusive-memory addressing shares the existing ARM memory parser and writeback model.",
+    "Synchronization instructions no longer fall through to opaque intrinsic assignments.",
+    "The existing 135-test regression suite remains green after the ARM lifting additions.",
     "Rust panic symbols with compiler hash suffixes now normalize to known no-return bases.",
     "Go slice, index, divide, and panic runtime variants now terminate control-flow propagation.",
     "Rust panic_display, begin_panic, and panic_any now participate in no-return recognition.",
