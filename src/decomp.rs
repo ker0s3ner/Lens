@@ -193,7 +193,11 @@ struct Fmt<'a> {
 
 impl Fmt<'_> {
     fn struct_def(&self, ty: &str) -> Option<&crate::types::StructDef> {
-        let mut name = ty.trim().trim_start_matches("const ").trim();
+        let mut qualified = ty.trim().to_string();
+        for qualifier in ["const ", "volatile ", "restrict "] {
+            qualified = qualified.trim_start_matches(qualifier).trim().to_string();
+        }
+        let mut name = qualified.as_str();
         let mut seen = std::collections::HashSet::new();
         for _ in 0..=self.structs.len() {
             name = name.strip_prefix("struct ").or_else(|| name.strip_prefix("union ")).unwrap_or(name).trim();
