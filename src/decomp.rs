@@ -374,7 +374,7 @@ impl Fmt<'_> {
         };
         if stride <= 0 || stride > u8::MAX as i64 { return None; }
         let pointer = match &**base {
-            Ex::Var(name) => self.types.get(name).is_some_and(|ty| ty.trim().ends_with('*')),
+            Ex::Var(name) => self.types.get(name).is_some_and(|ty| self.pointer_target(ty).is_some()),
             Ex::Call(callee, _) => call_return_type(callee).is_some_and(|ty| self.pointer_target(&ty).is_some()),
             Ex::Tern(_, _, _) | Ex::Bin(_, _, _) => call_return_type(base).is_some_and(|ty| self.pointer_target(&ty).is_some()),
             Ex::Cast(ty, _) => self.pointer_target(ty).is_some(),
