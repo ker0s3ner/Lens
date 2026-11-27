@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.471 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.472 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.472 — Fourier** extends qualified pointer-typedef and alias-aware field recovery across calls, locals, casts, arithmetic, indexed access, and nested structs. The 50% target remains unmet.
 
 Release update: **Lens 0.6.471 — Fourier** extends prototype-aware call-site typing across pointers, computed expressions, callbacks, function-pointer parameters, and array-to-pointer decay. The 50% target remains unmet.
 

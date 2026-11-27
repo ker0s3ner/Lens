@@ -1,3 +1,20 @@
+# Lens 0.6.472 — Fourier
+
+- Direct pointer typedef returns now resolve to their pointee targets.
+- Local pointer typedef variables now participate in indexed access recovery.
+- Casted pointer typedefs now participate in indexed access recovery.
+- Call-return pointer aliases now participate in indexed access recovery.
+- Conditional pointer aliases now participate in indexed access recovery.
+- Arithmetic-adjusted pointer aliases now participate in indexed access recovery.
+- Nested arithmetic pointer aliases now retain their target types.
+- Leading `const`, `volatile`, and `restrict` qualifiers are normalized.
+- Trailing pointer qualifiers such as `Pair * const` are normalized.
+- Qualified nested struct aliases now resolve through field formatting.
+- Scaled and variable-indexed fields now use alias-aware pointer detection.
+- Added regression coverage for pointer aliases and qualified forms.
+- The existing regression suite passes 141 tests.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.471 — Fourier
 
 - Ordinary pointer parameters retain their declared prototype types.

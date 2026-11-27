@@ -29,6 +29,14 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Pointer typedef returns resolve to their pointee targets.",
+    "Local, casted, conditional, and arithmetic pointer aliases work in indexed access.",
+    "Nested arithmetic pointer aliases retain their target types.",
+    "Leading and trailing C pointer qualifiers are normalized.",
+    "Qualified nested struct aliases resolve through field formatting.",
+    "Scaled and variable-indexed fields use alias-aware pointer detection.",
+    "Added regression coverage for pointer aliases and qualified forms.",
+    "The existing regression suite passes 141 tests after the alias extension.",
     "Pointer parameters retain declared prototype types at call sites.",
     "Computed, positive, negative, and nested pointer arguments retain types.",
     "Callback and function-pointer parameters now retain prototype types.",
