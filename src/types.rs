@@ -63,8 +63,8 @@ fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
     Some(match t {
         "char" | "char8_t" | "bool" | "_Bool" | "int8_t" | "uint8_t" | "u8" | "i8" | "BYTE" | "byte" | "" => (1, 1),
         "short" | "char16_t" | "int16_t" | "uint16_t" | "u16" | "i16" | "WORD" | "wchar_t" => (2, 2),
-        "int" | "char32_t" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" | "DWORD" | "long32" | "pid_t" | "socklen_t" => (4, 4),
-        "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" | "size_t" | "ssize_t" | "intptr_t" | "uintptr_t" | "QWORD" | "ptrdiff_t" | "off_t" | "time_t" => (8, 8),
+        "int" | "char32_t" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" | "DWORD" | "long32" | "pid_t" | "socklen_t" | "HRESULT" | "ULONG" => (4, 4),
+        "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" | "size_t" | "ssize_t" | "intptr_t" | "uintptr_t" | "QWORD" | "ptrdiff_t" | "off_t" | "time_t" | "ULONG_PTR" | "DWORD_PTR" | "WPARAM" | "LPARAM" | "LRESULT" => (8, 8),
         "__int128" | "__uint128" | "__int128_t" | "__uint128_t" => (16, 16),
         _ => return None,
     })
@@ -660,6 +660,13 @@ mod tests {
         let def = parse_c("struct Posix { off_t offset; time_t stamp; pid_t pid; socklen_t length; }", 8, &[]).unwrap();
         assert_eq!(def.size, 24);
         assert_eq!(def.fields.iter().map(|f| f.size).collect::<Vec<_>>(), vec![8, 8, 4, 4]);
+    }
+
+    #[test]
+    fn sizes_common_windows_abi_types() {
+        let def = parse_c("struct Win { HRESULT result; ULONG count; ULONG_PTR handle; LPARAM data; }", 8, &[]).unwrap();
+        assert_eq!(def.size, 24);
+        assert_eq!(def.fields.iter().map(|f| f.size).collect::<Vec<_>>(), vec![4, 4, 8, 8]);
     }
 
     #[test]
