@@ -173,6 +173,7 @@ fn cli(args: &[String]) -> bool {
             vtable_names: an.vtable_names.clone(),
             applied_types: ann.applied.iter().cloned().collect(),
             types: ann.structs.clone(),
+            threat_signals: det.threat_signals.iter().map(|s| (s.severity, s.name.clone(), s.evidence.clone())).collect(),
         };
         let r = script::run(&src, snap, None);
         print!("{}", r.text);

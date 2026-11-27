@@ -35,6 +35,7 @@ pub struct Snap {
     pub vtable_names: HashMap<u64, String>,
     pub applied_types: HashMap<u64, String>,
     pub types: Vec<crate::types::StructDef>,
+    pub threat_signals: Vec<(u8, String, String)>,
 }
 
 #[derive(Debug)]
@@ -139,6 +140,16 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     }
     // ---- reading
     e.register_fn("script_api_version", || -> INT { API_VERSION as INT });
+    let s = snap.clone();
+    e.register_fn("threat_signals", move || -> Array {
+        s.threat_signals.iter().map(|(severity, name, evidence)| {
+            let mut m = Map::new();
+            m.insert("severity".into(), Dynamic::from(*severity as INT));
+            m.insert("name".into(), Dynamic::from(name.clone()));
+            m.insert("evidence".into(), Dynamic::from(evidence.clone()));
+            Dynamic::from_map(m)
+        }).collect()
+    });
     let s = snap.clone();
     e.register_fn("functions", move || -> Array {
         let mut funcs = s.funcs.clone();
@@ -587,6 +598,7 @@ impl LensApp {
             vtable_names: l.an.vtable_names.clone(),
             applied_types: l.ann.applied.iter().cloned().collect(),
             types: l.ann.structs.clone(),
+            threat_signals: l.det.threat_signals.iter().map(|s| (s.severity, s.name.clone(), s.evidence.clone())).collect(),
         })
     }
 
@@ -767,9 +779,9 @@ mod tests {
         let snap = Snap {
             bin: Arc::new(bin), funcs: vec![], names: [(0x1000, "needle_name".into())].into_iter().collect(), strings: vec![(0x2000, "needle string".into())],
             comments: [(0x3000, "needle note".into())].into_iter().collect(), bookmarks: vec![], data_defs: HashMap::new(), xrefs: [(0x1000, vec![0x1100])].into_iter().collect(), xref_details: [(0x1000, vec![(0x1100, "call".into())])].into_iter().collect(), out_xrefs: [(0x1100, vec![0x1000])].into_iter().collect(), out_xref_details: [(0x1100, vec![(0x1000, "call".into())])].into_iter().collect(), pseudocode: [(0x4000, "if (needle_condition) return;".into())].into_iter().collect(), pointer_tables: vec![], vtables: vec![], vtable_names: HashMap::new(),
-            applied_types: HashMap::new(), types: vec![],
+            applied_types: HashMap::new(), types: vec![], threat_signals: vec![],
         };
-        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); print(call_graph(0x1100, 1).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
+        let out = run("print(script_api_version()); print(function_at(0x1000).len); print(comment_at(0x1000)); print(bookmarks().len); print(data_at(0x1000)); print(data_definitions().len); print(search(\"needle\").len); print(pointer_tables().len); print(vtables().len); print(threat_signals().len); print(decompile(0x1000)); print(callers(0x1000).len); print(callees(0x1100).len); print(call_graph(0x1100, 1).len); define_pointer_table(0x2000); define_array(0x3000);", snap, None);
         assert!(out.error.is_none(), "script failed: {:?}", out.error);
         assert!(out.text.contains("1") && out.text.contains("4") && out.text.contains("\n1\n0\n1"), "unexpected output: {}", out.text);
         assert_eq!(out.cmds.len(), 2);
