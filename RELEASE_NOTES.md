@@ -1,3 +1,17 @@
+# Lens 0.6.478 — Fourier
+
+- Added explainable static malware-triage signals for process, persistence, capture, anti-analysis, memory-tampering, network, packing, entropy, and protection clues.
+- Added a dedicated Overview triage panel with severity labels and evidence text; signals are heuristic analyst clues, not malware verdicts.
+- Added dynamic trace correlation that resolves recent LLDB PCs to analyzed function names.
+- Dynamic trace views now mark heuristic matches and summarize entries, unique functions, and matches.
+- Exported instruction traces now include function names and heuristic-signal markers.
+- Exposed `threat_signals()` to Rhai scripts and plugins for defensive automation.
+- Added triage signals to CLI `--report` output and machine-readable `--json` analysis reports.
+- Preserved triage evidence in desktop database JSON exports.
+- Added smoke and golden-analysis assertions protecting the `threat_signals` export contract.
+- Updated README, roadmap, and GitHub Pages release history for the complete cross-surface feature.
+- Regression suite: 152 tests passing; deterministic golden analysis passing.
+
 # Lens 0.6.477 — Fourier
 
 - Safe identical ternary branches now collapse to one expression.
