@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC lwarx, ldarx, stwcx., and stdcx. now lift as readable reservation operations.",
+    "RISC-V AMO families now remain visible as named atomic helper calls.",
+    "PowerPC reservation operands reuse the generic memory parser and typed write paths.",
+    "ARM, RISC-V, MIPS, and PowerPC synchronization semantics now share one readable workflow.",
+    "Lock-free synchronization instructions no longer fall through to generic unsupported output.",
+    "The existing 135-test regression suite remains green after the atomic extension.",
     "M68k btst, bset, bclr, and bchg now lift to explicit flag and mask expressions.",
     "M68k bit operations support register and memory destinations with typed stores.",
     "M68k rol, ror, roxl, and roxr now preserve rotate and rotate-through-extend intent.",

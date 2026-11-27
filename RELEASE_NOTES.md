@@ -1,3 +1,18 @@
+# Lens 0.6.454 — Fourier
+
+- PowerPC `lwarx` now lifts as a readable 32-bit load-reserve operation.
+- PowerPC `ldarx` now preserves 64-bit load-reserve width.
+- PowerPC `stwcx.` now lifts the stored value and reservation-status flags.
+- PowerPC `stdcx.` now preserves 64-bit store-conditional width.
+- RISC-V AMO families now remain visible as named atomic helper calls.
+- RISC-V AMO operands preserve the decoded source order in pseudocode.
+- PowerPC reservation memory operands reuse the generic memory parser.
+- Store-conditional operations reuse the typed register and memory write paths.
+- ARM, RISC-V, MIPS, and PowerPC synchronization semantics now share one readable workflow.
+- Lock-free synchronization instructions no longer fall through to generic unsupported output.
+- The existing 135-test regression suite remains green after the atomic extension.
+- The 0.6.453 M68k packed-flag and rotate improvements remain included.
+
 # Lens 0.6.453 — Fourier
 
 - M68k `btst` now preserves the tested-bit condition in flags.

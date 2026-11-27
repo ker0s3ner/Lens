@@ -1985,11 +1985,27 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
             }
         }
+        (Fam::Rv, m) if m.starts_with("amo") && ops.len() >= 3 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(m)), args));
+        }
         (Fam::Mips, "sc") if ops.len() >= 2 => {
             if let Some((mm, _)) = parse_mem(fm, ops, 1) {
                 let value = reg(0).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
                 dc.g_store(st, value, reg(0), &mm, 4, addr);
                 if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
+            }
+        }
+        (Fam::Ppc, "lwarx" | "ldarx") => {
+            let width = if base_mn == "ldarx" { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) { dc.g_load(st, reg(0), &mm, width, false, addr); }
+        }
+        (Fam::Ppc, "stwcx." | "stdcx.") => {
+            let width = if base_mn == "stdcx." { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) {
+                let value = reg(0).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                dc.g_store(st, value, reg(0), &mm, width, addr);
+                st.flags = Flags::Op(Ex::Num(0));
             }
         }
         (Fam::Rv | Fam::Mips | Fam::Ppc, m) if matches!(m.trim_start_matches("c."), "lw" | "ld" | "lb" | "lbu" | "lh" | "lhu" | "lwu" | "lwz" | "lbz" | "lhz" | "lha" | "lwa" | "lwzu" | "lbzu" | "ldu" | "lwsp" | "ldsp" | "ll" | "lwl" | "lwr") => {

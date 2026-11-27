@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.453 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.454 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.454 — Fourier** adds readable PowerPC reservation and RISC-V AMO lifting for lock-free synchronization code, extending the ARM, MIPS, and RISC-V atomic workflow. The 50% target remains unmet.
 
 Release update: **Lens 0.6.453 — Fourier** adds explicit Motorola 68000 bit-test/set/clear/change and rotate semantics for packed flags and dispatch code. The 50% target remains unmet.
 
