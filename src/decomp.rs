@@ -950,8 +950,10 @@ fn inline_adjacent_call_temp(o: &mut BlockOut) {
 }
 
 fn fold_constant_term(o: &mut BlockOut) {
-    if let Term::Cond { cond: Ex::Num(value), taken, fall } = &o.term {
-        o.term = Term::Jmp(if *value != 0 { *taken } else { *fall });
+    if let Term::Cond { cond, taken, fall } = &o.term {
+        if let Some(Ex::Num(value)) = constant_value(cond) {
+            o.term = Term::Jmp(if value != 0 { *taken } else { *fall });
+        }
     }
 }
 
@@ -3808,6 +3810,18 @@ mod tests {
         assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
         assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
         assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
+    }
+
+    #[test]
+    fn folds_expression_conditions_into_jumps() {
+        let mut out = BlockOut {
+            stmts: vec![],
+            defs: BTreeMap::new(), uses: BTreeSet::new(),
+            term: Term::Cond { cond: Ex::Bin("+", Box::new(Ex::Num(2)), Box::new(Ex::Num(3))), taken: 0x2000, fall: 0x3000 },
+            term_addr: 0x1000,
+        };
+        fold_constant_term(&mut out);
+        assert!(matches!(out.term, Term::Jmp(0x2000)));
     }
 
     #[test]
