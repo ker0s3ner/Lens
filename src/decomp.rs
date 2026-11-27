@@ -148,7 +148,20 @@ fn un(op: &'static str, a: Ex) -> Ex {
     }
 }
 
+fn side_effect_free(e: &Ex) -> bool {
+    match e {
+        Ex::Call(..) | Ex::Deref(..) => false,
+        Ex::Bin(_, a, b) => side_effect_free(a) && side_effect_free(b),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => side_effect_free(a),
+        Ex::Tern(a, b, c) => side_effect_free(a) && side_effect_free(b) && side_effect_free(c),
+        _ => true,
+    }
+}
+
 fn tern(c: Ex, a: Ex, b: Ex) -> Ex {
+    if a == b && side_effect_free(&a) {
+        return a;
+    }
     match c {
         Ex::Num(value) => if value != 0 { a } else { b },
         condition => Ex::Tern(Box::new(condition), Box::new(a), Box::new(b)),
@@ -3860,6 +3873,7 @@ mod tests {
     fn folds_constant_ternary_conditions() {
         assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
         assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
+        assert_eq!(tern(var("condition"), var("same"), var("same")), var("same"));
         assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
     }
 
