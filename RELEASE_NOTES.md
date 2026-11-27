@@ -1,3 +1,18 @@
+# Lens 0.6.461 — Fourier
+
+- PowerPC `frsp` now remains visible as a single-precision conversion.
+- PowerPC `fctiwz` now remains visible as a signed integer conversion.
+- PowerPC `fctiwuz` now remains visible as an unsigned integer conversion.
+- PowerPC `fcfid` now remains visible as an integer-to-floating conversion.
+- PowerPC `fctidz` now remains visible as a 64-bit integer conversion.
+- PowerPC `fctiduz` now remains visible as an unsigned 64-bit conversion.
+- PowerPC `fmr` now lifts as a readable floating-point move.
+- PowerPC `fabs` now lifts to an explicit absolute-value helper.
+- PowerPC `fnabs` now preserves negated absolute-value intent.
+- Conversion and move operands preserve decoded source order.
+- These operations now compose with existing PowerPC FP arithmetic and comparisons.
+- The existing 135-test regression suite remains green after the PowerPC FP extension.
+
 # Lens 0.6.460 — Fourier
 
 - ARM/Thumb VFP `vmla` now lifts to explicit fused multiply-add structure.

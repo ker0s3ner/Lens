@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.460 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.461 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.461 — Fourier** adds PowerPC floating-point conversion, move, and absolute-value lifting for clearer value flow. The 50% target remains unmet.
 
 Release update: **Lens 0.6.460 — Fourier** adds ARM/Thumb VFP and PowerPC fused multiply-add/subtract lifting with explicit operand order. The 50% target remains unmet.
 

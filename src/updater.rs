@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC frsp, fcti*, and fcfid conversions now remain visible as named operations.",
+    "PowerPC fmr, fabs, and fnabs now lift to readable floating-point expressions.",
+    "PowerPC conversion and move operands preserve decoded source order.",
+    "These operations compose with existing PowerPC FP arithmetic and comparisons.",
+    "The existing 135-test regression suite remains green after the PowerPC FP extension.",
     "ARM/Thumb VFP vmla, vmls, vnmla, and vnmls now lift to explicit fused arithmetic.",
     "PowerPC fmadd, fmsub, fnmadd, and fnmsub now lift to explicit fused arithmetic.",
     "Fused operations preserve decoded accumulator, multiplicand, and addend order.",
