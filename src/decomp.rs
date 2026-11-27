@@ -367,6 +367,7 @@ impl Fmt<'_> {
         let pointer = match &**base {
             Ex::Var(name) => self.types.get(name).is_some_and(|ty| ty.trim().ends_with('*')),
             Ex::Call(callee, _) => call_return_type(callee).is_some_and(|ty| ty.trim().ends_with('*')),
+            Ex::Tern(_, _, _) | Ex::Bin(_, _, _) => call_return_type(base).is_some_and(|ty| ty.trim().ends_with('*')),
             Ex::Cast(ty, _) => ty.trim().ends_with('*'),
             Ex::CastOwned(ty, _) => ty.trim().ends_with('*'),
             _ => false,
@@ -403,6 +404,7 @@ impl Fmt<'_> {
         let ty = match &**base {
             Ex::Var(name) => self.types.get(name).cloned(),
             Ex::Call(callee, _) => call_return_type(callee),
+            Ex::Tern(_, _, _) | Ex::Bin(_, _, _) => call_return_type(base),
             Ex::Cast(t, _) => Some((*t).to_string()),
             Ex::CastOwned(t, _) => Some(t.clone()),
             _ => None,
