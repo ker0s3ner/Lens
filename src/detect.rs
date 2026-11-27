@@ -136,6 +136,13 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Network") {
         out.push(ThreatSignal { severity: 1, name: "Network communication".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if capabilities.len() >= 3 {
+        out.push(ThreatSignal {
+            severity: 2,
+            name: "Multiple behavior categories".into(),
+            evidence: format!("{} capability categories detected; review the individual imports and execution paths", capabilities.len()),
+        });
+    }
     if !packers.is_empty() {
         out.push(ThreatSignal { severity: 2, name: "Packing or obfuscation".into(), evidence: packers.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ") });
     }

@@ -113,6 +113,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Database JSON exports also preserve `threat_signals`, keeping defensive review context attached to shared analysis.
 - Exported dynamic traces include per-address hit counts, making repeated loop or hot-path behavior visible during review.
 - The Overview triage panel can copy a compact, explicitly heuristic summary for case notes and handoff.
+- Triage adds an explainable multi-capability signal when several behavior categories co-occur.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.
