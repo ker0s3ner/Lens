@@ -116,6 +116,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Triage adds an explainable multi-capability signal when several behavior categories co-occur.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
+- Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.

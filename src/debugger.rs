@@ -569,6 +569,7 @@ impl LensApp {
         };
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, risky)| *risky).count();
+        let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, risky)| *risky).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
         let hot_trace: Vec<(u64, usize)> = match &self.dbg {
             Some(d) => {
                 let mut counts = std::collections::HashMap::<u64, usize>::new();
@@ -708,7 +709,7 @@ impl LensApp {
                     });
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
-                        ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic matches", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count)).small().color(p.muted));
+                        ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
                         if hot_trace.len() > 1 {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
                             ui.horizontal_wrapped(|ui| {
