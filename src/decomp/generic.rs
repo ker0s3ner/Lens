@@ -1105,6 +1105,19 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = match base_mn { "fneg" => bin("-", Ex::Num(0), value), "fabs" => Ex::Call(Box::new(var("fabs")), vec![value]), _ => value };
             set(dc, st, 0, value);
         }
+        (Fam::Rv, "feq" | "flt" | "fle") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let operator = match base_mn { "feq" => "==", "flt" => "<", _ => "<=" };
+            set(dc, st, 0, Ex::Bin(operator, Box::new(left), Box::new(right)));
+        }
+        (Fam::Mips, m) if matches!(m, "c.eq" | "c.lt" | "c.le" | "c.ueq" | "c.ult" | "c.ule") && ops.len() >= 2 => {
+            let left = dc.g_val(st, o(0), None);
+            let right = dc.g_val(st, o(1), None);
+            let operator = match base_mn { "c.eq" | "c.ueq" => "==", "c.lt" | "c.ult" => "<", _ => "<=" };
+            st.flags = Flags::Cmp(left, right);
+            let _ = operator;
+        }
         (Fam::A32, "vmla" | "vmls" | "vnmla" | "vnmls") if ops.len() >= 3 => {
             let accumulator = dc.g_val(st, o(0), None);
             let left = dc.g_val(st, o(1), None);

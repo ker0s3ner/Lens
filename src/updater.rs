@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V feq, flt, and fle forms now produce explicit boolean comparison results.",
+    "MIPS c.eq, c.lt, and c.le forms now populate floating-point comparison state.",
+    "MIPS unordered comparison aliases remain visible in condition tracking.",
+    "FP comparison state composes with existing branch structuring paths.",
+    "The existing 135-test regression suite remains green after the FP comparison extension.",
     "RISC-V and MIPS fadd, fsub, fmul, and fdiv forms now lift to readable arithmetic.",
     "RISC-V and MIPS fneg, fabs, and fmv forms now preserve floating-point value flow.",
     "Scalar FP suffixes .s and .d now normalize before generic dispatch.",

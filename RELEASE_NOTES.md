@@ -1,3 +1,18 @@
+# Lens 0.6.463 — Fourier
+
+- RISC-V `feq.s` and `feq.d` now produce explicit equality results.
+- RISC-V `flt.s` and `flt.d` now produce explicit less-than results.
+- RISC-V `fle.s` and `fle.d` now produce explicit less-than-or-equal results.
+- RISC-V FP comparison operands preserve decoded source order.
+- MIPS `c.eq.s` and `c.eq.d` now populate FP comparison state.
+- MIPS `c.lt.s` and `c.lt.d` now populate FP comparison state.
+- MIPS `c.le.s` and `c.le.d` now populate FP comparison state.
+- MIPS unordered comparison aliases now remain visible in condition tracking.
+- FP comparison state now composes with existing branch structuring paths.
+- RISC-V comparison results now remain readable instead of generic intrinsic calls.
+- MIPS comparison instructions no longer fall through to opaque unsupported output.
+- The existing 135-test regression suite remains green after the FP comparison extension.
+
 # Lens 0.6.462 — Fourier
 
 - RISC-V `fadd.s` and `fadd.d` now lift to readable floating-point addition.
