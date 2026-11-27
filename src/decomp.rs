@@ -409,7 +409,8 @@ impl Fmt<'_> {
             Ex::CastOwned(t, _) => Some(t.clone()),
             _ => None,
         }?;
-        let name = ty.trim().strip_suffix('*')?.trim().trim_start_matches("const ").trim();
+        let target = self.pointer_target(&ty)?;
+        let name = target.trim().trim_start_matches("const ").trim();
         let name = name.strip_prefix("struct ").or_else(|| name.strip_prefix("union ")).unwrap_or(name);
         let def = self.struct_def(name)?;
         if def.size as i64 != element_size { return None; }
