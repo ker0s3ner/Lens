@@ -752,18 +752,23 @@ impl LensApp {
         let rect_of = |n: &CNode| Rect::from_min_size(origin + vec2(n.layer as f32 * 280.0 - nw / 2.0, n.y - nh / 2.0) * z, vec2(nw, nh) * z);
         let hover = resp.hover_pos();
         let hovered = nodes.iter().position(|n| hover.map(|h| rect_of(n).contains(h)).unwrap_or(false));
+        // Dense graphs can contain thousands of cached relationships. Avoid
+        // allocating curve points for edges whose endpoints are both far
+        // outside the viewport; this keeps panning/zooming responsive.
+        let edge_view = area.expand(240.0);
         // edges
         for (a, b) in edges {
             if *a >= nodes.len() || *b >= nodes.len() { continue; }
             let (ra, rb) = (rect_of(&nodes[*a]), rect_of(&nodes[*b]));
+            if !ra.intersects(edge_view) && !rb.intersects(edge_view) { continue; }
             let (s, e) = (pos2(ra.right(), ra.center().y), pos2(rb.left(), rb.center().y));
             let hot = hovered == Some(*a) || hovered == Some(*b);
             let col = if hot { p.accent } else { p.faint.gamma_multiply(0.7) };
             let dx = ((e.x - s.x).abs() * 0.5).max(40.0 * z);
             let (c1, c2) = (s + vec2(dx, 0.0), e - vec2(dx, 0.0));
-            let pts: Vec<Pos2> = (0..=12)
+            let pts: Vec<Pos2> = (0..=6)
                 .map(|i| {
-                    let t = i as f32 / 12.0;
+                    let t = i as f32 / 6.0;
                     let u = 1.0 - t;
                     pos2(
                         u * u * u * s.x + 3.0 * u * u * t * c1.x + 3.0 * u * t * t * c2.x + t * t * t * e.x,

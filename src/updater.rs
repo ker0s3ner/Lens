@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Dense call-graph rendering now skips off-screen relationships and uses lighter curve sampling for smoother pan and zoom.",
     "Protection triage now explains ASLR, DEP/NX, stack, CFG, signatures, RELRO, fortification, and PIE posture.",
     "Dynamic trace JSON now includes observed signal names, hot-address metrics, and distinct flagged-address counts.",
     "The debugger can copy observed heuristic signals and hotspot records for defensive case handoff.",

@@ -4,6 +4,8 @@ Authoritative current build: **Lens 0.6.481 — Fourier**. The release archive a
 
 Release update: **Lens 0.6.481 — Fourier** adds protection-posture triage for common mitigation gaps and regression coverage for the complete signal family. The 50% target remains unmet.
 
+Performance follow-up: dense call-graph rendering now skips off-screen edges and uses lighter curve sampling, reducing UI work during pan and zoom. The 50% target remains unmet.
+
 Release update: **Lens 0.6.480 — Fourier** expands defensive behavior taxonomy and adds focused high/medium triage handoff controls. The 50% target remains unmet.
 
 Release update: **Lens 0.6.479 — Fourier** adds structured dynamic-trace export, hotspot navigation and clipboard handoff, triage filtering, distinct-address summaries, and a stronger multi-capability heuristic. The 50% target remains unmet.
