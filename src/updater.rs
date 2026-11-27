@@ -29,6 +29,16 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Expanded native prototypes for POSIX I/O, sockets, event loops, synchronization, processes, clocks, filesystems, signals, and stdio.",
+    "Added C++ array ABI allocation, deallocation, construction, destruction, and failure-runtime signatures.",
+    "Added Win32 file mapping, asynchronous I/O, wait, and process-status signatures.",
+    "Added dynamic-loader and signal-management signatures for Unix runtime analysis.",
+    "Added numeric conversion, wide-character conversion, entropy, and randomness signatures.",
+    "Added filesystem ownership, permissions, temporary-file, and statx signatures.",
+    "Added process spawning, waiting, resource-usage, process-group, and clock signatures.",
+    "Added stdio line-reading and formatted-allocation signatures.",
+    "Added focused prototype lookup regression coverage across the expanded library.",
+    "The existing regression suite now passes 150 tests.",
     "Decompiler temporaries now propagate compile-time constants through arithmetic, unary expressions, casts, and constant ternaries.",
     "Constant propagation now crosses single-predecessor successor blocks and identical merge branches.",
     "Constant branch expressions now fold into direct jumps after data-flow propagation.",

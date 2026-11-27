@@ -283,6 +283,7 @@ void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const voi
 // ---- stdio
 int printf(const char *fmt, ...); int fprintf(FILE *f, const char *fmt, ...); int sprintf(char *buf, const char *fmt, ...); int snprintf(char *buf, size_t n, const char *fmt, ...);
 int vprintf(const char *fmt, va_list ap); int vfprintf(FILE *f, const char *fmt, va_list ap); int vsnprintf(char *buf, size_t n, const char *fmt, va_list ap);
+int vasprintf(char **buf, const char *fmt, va_list ap); int asprintf(char **buf, const char *fmt, ...); ssize_t getline(char **line, size_t *cap, FILE *f); ssize_t getdelim(char **line, size_t *cap, int delim, FILE *f);
 int scanf(const char *fmt, ...); int sscanf(const char *s, const char *fmt, ...); int fscanf(FILE *f, const char *fmt, ...);
 int puts(const char *s); int putchar(int c); int fputs(const char *s, FILE *f); int fputc(int c, FILE *f); int getchar(void); int fgetc(FILE *f);
 char *fgets(char *buf, int n, FILE *f); FILE *fopen(const char *path, const char *mode); int fclose(FILE *f); size_t fread(void *buf, size_t size, size_t n, FILE *f);
@@ -492,6 +493,10 @@ mod tests {
         assert_eq!(find("getentropy").unwrap().params.len(), 2);
         assert_eq!(find("arc4random").unwrap().params.len(), 0);
         assert_eq!(find("arc4random_buf").unwrap().params.len(), 2);
+        assert_eq!(find("vasprintf").unwrap().params.len(), 3);
+        assert!(find("asprintf").unwrap().variadic);
+        assert_eq!(find("getline").unwrap().params.len(), 3);
+        assert_eq!(find("getdelim").unwrap().params.len(), 4);
     }
 
     #[test]

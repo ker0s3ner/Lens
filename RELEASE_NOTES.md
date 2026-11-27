@@ -1,3 +1,15 @@
+# Lens 0.6.475 — Fourier
+
+- Expanded POSIX, C++, Win32, socket, event-loop, thread, process, filesystem, signal, randomness, and stdio prototypes.
+- Added C++ array ABI allocation, deallocation, construction, destruction, and failure-runtime signatures.
+- Added Win32 file mapping, asynchronous I/O, wait, and process-status signatures.
+- Added dynamic-loader and signal-management signatures.
+- Added numeric, wide-character, entropy, and randomness signatures.
+- Added filesystem ownership, permissions, temporary-file, and `statx` signatures.
+- Added process spawning, waiting, resource-usage, process-group, and clock signatures.
+- Added stdio line-reading and formatted-allocation signatures.
+- Added focused lookup regression coverage; the suite now passes 150 tests.
+
 # Lens 0.6.474 — Fourier
 
 - Temporary constants now propagate through arithmetic, unary expressions, casts, and constant ternaries.
