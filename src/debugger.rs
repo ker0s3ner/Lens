@@ -567,6 +567,10 @@ impl LensApp {
             }).collect(),
             _ => vec![],
         };
+        let dynamic_lookup: HashMap<u64, (String, Vec<String>)> = dynamic_trace.iter().cloned().fold(HashMap::new(), |mut map, (address, name, signals)| {
+            map.entry(address).or_insert((name, signals));
+            map
+        });
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
         let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
@@ -668,7 +672,7 @@ impl LensApp {
                                 let mut hits = std::collections::HashMap::<u64, usize>::new();
                                 for address in &d.trace { *hits.entry(*address).or_default() += 1; }
                                 let text = d.trace.iter().enumerate().map(|(i, address)| {
-                                    let annotation = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, signals)| {
+                                    let annotation = dynamic_lookup.get(address).map(|(name, signals)| {
                                         format!("  {name}  {}", if signals.is_empty() { "".into() } else { format!("heuristic: {}", signals.join(", ")) })
                                     }).unwrap_or_default();
                                     format!("{i:06}  {address:016X}  hits={}{}", hits.get(address).copied().unwrap_or(1), annotation)
@@ -684,14 +688,14 @@ impl LensApp {
                                 let mut hits = std::collections::HashMap::<u64, usize>::new();
                                 for address in &d.trace { *hits.entry(*address).or_default() += 1; }
                                 let records = d.trace.iter().enumerate().map(|(step, address)| {
-                                    let resolved = dynamic_trace.iter().find(|(seen, _, _)| seen == address);
+                                    let resolved = dynamic_lookup.get(address);
                                     serde_json::json!({
                                         "step": step,
                                         "address": address,
                                         "hits": hits.get(address).copied().unwrap_or(1),
-                                        "function": resolved.map(|(_, name, _)| name),
-                                        "heuristic_signal": resolved.map(|(_, _, signals)| !signals.is_empty()).unwrap_or(false),
-                                        "heuristic_signals": resolved.map(|(_, _, signals)| signals.clone()).unwrap_or_default(),
+                                        "function": resolved.map(|(name, _)| name),
+                                        "heuristic_signal": resolved.map(|(_, signals)| !signals.is_empty()).unwrap_or(false),
+                                        "heuristic_signals": resolved.map(|(_, signals)| signals.clone()).unwrap_or_default(),
                                     })
                                 }).collect::<Vec<_>>();
                                 let unique_addresses = hits.len();
@@ -720,7 +724,7 @@ impl LensApp {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
                         if dynamic_signal_count > 0 && ui.small_button("Copy observed signals").clicked() {
-                            let mut names = dynamic_trace.iter().flat_map(|(_, _, signals)| signals.iter().cloned()).collect::<Vec<_>>();
+                            let mut names = dynamic_lookup.values().flat_map(|(_, signals)| signals.iter().cloned()).collect::<Vec<_>>();
                             names.sort();
                             names.dedup();
                             ui.ctx().copy_text(names.join("\n"));
@@ -729,13 +733,13 @@ impl LensApp {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
                             if ui.small_button("Copy hotspots").clicked() {
                                 ui.ctx().copy_text(hot_trace.iter().map(|(address, hits)| {
-                                    let name = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, _)| name.as_str()).unwrap_or("unknown");
+                                    let name = dynamic_lookup.get(address).map(|(name, _)| name.as_str()).unwrap_or("unknown");
                                     format!("{name}\t{address:016X}\t{hits}")
                                 }).collect::<Vec<_>>().join("\n"));
                             }
                             ui.horizontal_wrapped(|ui| {
                                 for (address, hits) in &hot_trace {
-                                    let label = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, _)| name.as_str()).unwrap_or("unknown");
+                                    let label = dynamic_lookup.get(address).map(|(name, _)| name.as_str()).unwrap_or("unknown");
                                     if ui.small_button(format!("{label}  {address:016X} ×{hits}")).clicked() { goto = Some(*address); }
                                 }
                             });
