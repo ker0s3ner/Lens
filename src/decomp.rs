@@ -69,6 +69,12 @@ fn call_return_type(callee: &Ex) -> Option<String> {
             .map(|p| p.ret)
             .or_else(|| if matches!(inner.as_ref(), Ex::Call(_, _)) { Some(ty.trim().to_string()) } else { None })
             .filter(|ret| ret != "void"),
+        Ex::Call(callee, _) => call_return_type(callee),
+        Ex::Tern(_, yes, no) => {
+            let yes = call_return_type(yes)?;
+            let no = call_return_type(no)?;
+            (yes == no).then_some(yes)
+        }
         _ => None,
     }
 }
@@ -3647,6 +3653,16 @@ mod tests {
     fn infers_return_type_from_cast_function_pointer_call() {
         let callee = Ex::CastOwned("struct Pair *(*)(void)".into(), Box::new(var("fp")));
         assert_eq!(call_return_type(&callee).as_deref(), Some("struct Pair *"));
+    }
+
+    #[test]
+    fn infers_common_pointer_type_from_conditional_calls() {
+        let expression = Ex::Tern(
+            Box::new(Ex::Var("condition".into())),
+            Box::new(Ex::Call(Box::new(var("malloc")), vec![])),
+            Box::new(Ex::Call(Box::new(var("malloc")), vec![])),
+        );
+        assert_eq!(call_return_type(&expression).as_deref(), Some("void *"));
     }
 
     #[test]
