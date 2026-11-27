@@ -714,7 +714,8 @@ impl LensApp {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
                             ui.horizontal_wrapped(|ui| {
                                 for (address, hits) in &hot_trace {
-                                    if ui.small_button(format!("{address:016X} ×{hits}")).clicked() { goto = Some(*address); }
+                                    let label = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, _)| name.as_str()).unwrap_or("unknown");
+                                    if ui.small_button(format!("{label}  {address:016X} ×{hits}")).clicked() { goto = Some(*address); }
                                 }
                             });
                         }

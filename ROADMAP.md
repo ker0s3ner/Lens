@@ -553,6 +553,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.
 - The debugger can filter its visible trace list to heuristic-matched entries for faster behavior triage.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
+- Runtime hotspot navigation now shows the resolved function name beside each address and hit count.
 - Rhai scripts can read saved analyst notes with `comment_at(addr)` and bookmark addresses with `bookmarks()`.
 - Rhai scripts can inspect persisted byte/word/dword/qword, pointer, string and undefinition choices through `data_at(addr)` and `data_definitions()`.
 - Rhai scripts can search names, strings, comments, and generated pseudocode through a single case-insensitive `search(query)` API.
