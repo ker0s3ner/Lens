@@ -100,6 +100,22 @@ impl Drop for Dbg {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::weighted_signal_counts;
+    use std::collections::HashMap;
+
+    #[test]
+    fn weighted_signal_counts_use_address_hits_once() {
+        let mut lookup = HashMap::new();
+        lookup.insert(0x10, ("f".into(), vec!["Network communication".into()]));
+        lookup.insert(0x20, ("g".into(), vec!["Network communication".into(), "Process execution".into()]));
+        let counts = weighted_signal_counts(&[0x10, 0x10, 0x20], &lookup);
+        assert_eq!(counts.get("Network communication"), Some(&3));
+        assert_eq!(counts.get("Process execution"), Some(&1));
+    }
+}
+
 fn clean(line: &str) -> String {
     line.replace("(lldb) ", "").trim_end().to_string()
 }
@@ -109,6 +125,17 @@ fn parse_hex_after(s: &str, key: &str) -> Option<u64> {
     let rest = s[i..].trim_start().strip_prefix("0x")?;
     let end = rest.find(|c: char| !c.is_ascii_hexdigit()).unwrap_or(rest.len());
     u64::from_str_radix(&rest[..end], 16).ok()
+}
+
+fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<String>)>) -> std::collections::BTreeMap<String, usize> {
+    let mut hits = HashMap::<u64, usize>::new();
+    for address in trace { *hits.entry(*address).or_default() += 1; }
+    let mut counts = std::collections::BTreeMap::new();
+    for (address, (_, signals)) in lookup {
+        let weight = hits.get(address).copied().unwrap_or(1);
+        for signal in signals { *counts.entry(signal.clone()).or_default() += weight; }
+    }
+    counts
 }
 
 impl Dbg {
@@ -727,16 +754,10 @@ impl LensApp {
                                 signal_names.sort();
                                 signal_names.dedup();
                                 let mut signal_counts = std::collections::BTreeMap::<String, usize>::new();
-                                let mut signal_hit_counts = std::collections::BTreeMap::<String, usize>::new();
                                 for signals in dynamic_lookup.values().map(|(_, signals)| signals) {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
-                                for (address, (_, signals)) in &dynamic_lookup {
-                                    if !signals.is_empty() {
-                                        let hits_for_address = hits.get(address).copied().unwrap_or(1);
-                                        for signal in signals { *signal_hit_counts.entry(signal.clone()).or_default() += hits_for_address; }
-                                    }
-                                }
+                                let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
                                 let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),

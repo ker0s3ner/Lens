@@ -22,6 +22,8 @@ Dynamic-analysis follow-up: trace JSON now includes hit-weighted signal counts, 
 
 Correctness follow-up: hit-weighted signal counts now apply each address hit count once, avoiding repeated-entry overcounting. The 50% target remains unmet.
 
+Correctness follow-up: a focused regression test now protects the hit-weighted counting contract. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: the debugger triage panel now summarizes observed signal frequency before detailed trace review. The 50% target remains unmet.
 
 Dynamic-analysis follow-up: signal-frequency summaries can now be copied directly for case notes and handoff. The 50% target remains unmet.

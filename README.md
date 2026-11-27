@@ -137,6 +137,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
 - Dynamic-trace JSON also includes hit-weighted signal counts, separating breadth from repeated execution intensity.
 - Hit-weighted signal counts weight each unique observed address once, avoiding double-counting repeated trace entries.
+- A regression test protects the hit-weighted counting contract against future overcounting.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.
 - Dynamic-trace summaries show distinct flagged-function breadth separately from flagged addresses.
 - Dynamic-trace summaries also show execution intensity separately from flagged-address breadth.
