@@ -12,6 +12,8 @@ Performance follow-up: dynamic trace annotation lookups now use one indexed addr
 
 Dynamic-analysis follow-up: trace JSON now separates distinct flagged functions from flagged instruction addresses for clearer defensive triage. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: trace JSON now carries deduplicated flagged function names for downstream defensive review. The 50% target remains unmet.
+
 Release update: **Lens 0.6.480 — Fourier** expands defensive behavior taxonomy and adds focused high/medium triage handoff controls. The 50% target remains unmet.
 
 Release update: **Lens 0.6.479 — Fourier** adds structured dynamic-trace export, hotspot navigation and clipboard handoff, triage filtering, distinct-address summaries, and a stronger multi-capability heuristic. The 50% target remains unmet.
