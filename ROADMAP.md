@@ -2,6 +2,8 @@
 
 Authoritative current build: **Lens 0.6.469 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
 
+Audit note: the x86 lifter already covers BMI bit extraction/deposit, byte swaps, population/zero counts, rotates, double-width shifts, and variable shifts; the next decompiler gains should target deeper type recovery and cross-call SSA rather than duplicate those semantics.
+
 Release update: **Lens 0.6.469 — Fourier** adds PowerPC rotate-and-mask idioms and MIPS doubleword extraction/rotation lifting for compiler-generated bitfield and address code. The 50% target remains unmet.
 
 Release update: **Lens 0.6.468 — Fourier** adds PowerPC count-trailing-zero, bit-permute, and rotate/insert idioms plus M68k swap/extend/test-and-set lifting. The 50% target remains unmet.
