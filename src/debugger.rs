@@ -652,13 +652,15 @@ impl LensApp {
                         if ui.small_button("Clear trace").clicked() { d.trace.clear(); }
                         if ui.add_enabled(!d.trace.is_empty(), egui::Button::new("Export trace…")).clicked() {
                             if let Some(path) = rfd::FileDialog::new().set_title("Export instruction trace").set_file_name("lens-trace.txt").save_file() {
+                                let mut hits = std::collections::HashMap::<u64, usize>::new();
+                                for address in &d.trace { *hits.entry(*address).or_default() += 1; }
                                 let text = d.trace.iter().enumerate().map(|(i, address)| {
                                     let annotation = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, risky)| {
                                         format!("  {name}  {}", if *risky { "heuristic-signal" } else { "" })
                                     }).unwrap_or_default();
-                                    format!("{i:06}  {address:016X}{annotation}")
+                                    format!("{i:06}  {address:016X}  hits={}{}", hits.get(address).copied().unwrap_or(1), annotation)
                                 }).collect::<Vec<_>>().join("\n");
-                                match std::fs::write(&path, format!("# Lens instruction trace\n# columns: step address function signal\n{text}\n")) {
+                                match std::fs::write(&path, format!("# Lens instruction trace\n# columns: step address hits function signal\n{text}\n")) {
                                     Ok(_) => d.console.push(format!("trace exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace export failed: {error}")),
                                 }
