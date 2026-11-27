@@ -1476,7 +1476,8 @@ impl<'a> Dc<'a> {
         if let Some(p) = &proto {
             for (k, a) in args.iter_mut().enumerate() {
                 let Some(ty) = p.params.get(k).map(|(t, _)| t.as_str()) else { continue };
-                if ty.ends_with('*') && !matches!(a, Ex::Cast(_, _) | Ex::CastOwned(_, _)) {
+                let pointer_like = ty.ends_with('*') || ty.contains("(*") || ty.starts_with("fn(");
+                if pointer_like && !matches!(a, Ex::Cast(_, _) | Ex::CastOwned(_, _)) {
                     let old = std::mem::replace(a, Ex::Num(0));
                     *a = Ex::CastOwned(ty.to_string(), Box::new(old));
                 }
