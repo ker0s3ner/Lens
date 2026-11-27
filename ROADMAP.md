@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.465 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.466 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.466 — Fourier** adds RISC-V Zbs bit operations, shifted-add address idioms, `adduw`, and MIPS bit insertion lifting for packed flags and pointer arithmetic. The 50% target remains unmet.
 
 Release update: **Lens 0.6.465 — Fourier** adds MIPS floating-point min/max and conversion lifting plus generic RISC-V conversion lifting, keeping common numeric routines readable across both families. The 50% target remains unmet.
 

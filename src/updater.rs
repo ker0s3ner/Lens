@@ -29,6 +29,14 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V bset, bclr, binv, and bext now lift to explicit bit semantics.",
+    "RISC-V sh1add, sh2add, and sh3add now lift to shifted-add arithmetic.",
+    "RISC-V adduw now preserves its 32-bit unsigned addend semantics.",
+    "MIPS ins, dins, dinsu, and dinsm remain visible as bit insertion operations.",
+    "Packed-flag and pointer-arithmetic idioms no longer fall through to generic output.",
+    "Operand order is preserved across the new bit-manipulation families.",
+    "The existing 135-test regression suite remains green after the bit-manipulation extension.",
+    "Smoke and golden-analysis checks remain part of the release gate.",
     "RISC-V fcvt* conversion forms now lift to named conversion operations.",
     "RISC-V integer/floating and width-conversion value flow remains readable.",
     "MIPS cvt* conversion forms now lift to named conversion operations.",

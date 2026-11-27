@@ -1490,6 +1490,13 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let width = dc.g_val(st, o(3), None);
             set(dc, st, 0, Ex::Call(Box::new(var("bit_extract")), vec![value, pos, width]));
         }
+        (Fam::Mips, "ins" | "dins" | "dinsu" | "dinsm") if ops.len() >= 4 => {
+            let dst = dc.g_val(st, o(0), None);
+            let src = dc.g_val(st, o(1), None);
+            let pos = dc.g_val(st, o(2), None);
+            let width = dc.g_val(st, o(3), None);
+            set(dc, st, 0, Ex::Call(Box::new(var("bit_insert")), vec![dst, src, pos, width]));
+        }
         (Fam::Mips, "rotr" | "rotrv") if ops.len() >= 3 => {
             let value = dc.g_val(st, o(1), None);
             let amount = dc.g_val(st, o(2), None);
@@ -1866,6 +1873,31 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 _ => Ex::Un("~", Box::new(bin("^", a, b))),
             };
             set(dc, st, 0, v);
+        }
+        // RISC-V Zbs single-bit operations are common in packed flags and
+        // bitmap code. Keep their mask/value flow explicit in pseudocode.
+        (Fam::Rv, "bset" | "bclr" | "binv" | "bext") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let bit = dc.g_val(st, o(2), None);
+            let mask = bin("<<", Ex::Num(1), bit);
+            let result = match base_mn {
+                "bset" => bin("|", value, mask),
+                "bclr" => bin("&", value, Ex::Un("~", Box::new(mask))),
+                "binv" => bin("^", value, mask),
+                _ => bin("!=", bin("&", value, mask), Ex::Num(0)),
+            };
+            set(dc, st, 0, result);
+        }
+        (Fam::Rv, "sh1add" | "sh2add" | "sh3add") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let shift = match base_mn { "sh1add" => 1, "sh2add" => 2, _ => 3 };
+            set(dc, st, 0, bin("+", bin("<<", left, Ex::Num(shift)), right));
+        }
+        (Fam::Rv, "adduw") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            set(dc, st, 0, bin("+", Ex::Cast("uint32_t", Box::new(left)), right));
         }
         (Fam::Rv, "rol" | "rolw" | "ror" | "rorw") if ops.len() >= 3 => {
             let left = base_mn.starts_with("rol");
