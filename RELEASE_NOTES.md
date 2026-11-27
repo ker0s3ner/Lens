@@ -1,3 +1,22 @@
+# Lens 0.6.473 — Fourier
+
+- `char8_t` now sizes as a one-byte portable character type.
+- `char16_t` now sizes as a two-byte portable character type.
+- `char32_t` now sizes as a four-byte portable character type.
+- `nullptr_t` now sizes as a target-sized pointer type.
+- `off_t` now sizes as an eight-byte POSIX file-offset type.
+- `time_t` now sizes as an eight-byte POSIX time type.
+- `pid_t` now sizes as a four-byte POSIX process identifier.
+- `socklen_t` now sizes as a four-byte POSIX socket-length type.
+- `HRESULT` now sizes as a four-byte Windows ABI status type.
+- `ULONG` now sizes as a four-byte Windows ABI scalar type.
+- `ULONG_PTR` now sizes as a target-sized Windows pointer integer.
+- `DWORD_PTR` now sizes as a target-sized Windows pointer integer.
+- `WPARAM`, `LPARAM`, and `LRESULT` now size correctly on 64-bit targets.
+- Added regression coverage for portable, POSIX, and Windows layouts.
+- The existing regression suite now passes 145 tests.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.472 — Fourier
 
 - Direct pointer typedef returns now resolve to their pointee targets.

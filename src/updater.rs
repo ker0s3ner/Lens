@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Portable char8_t, char16_t, and char32_t layouts now size correctly.",
+    "nullptr_t now sizes as a target-sized pointer type.",
+    "Common POSIX off_t, time_t, pid_t, and socklen_t types are recognized.",
+    "Common Windows HRESULT, ULONG, ULONG_PTR, DWORD_PTR, WPARAM, LPARAM, and LRESULT types are recognized.",
+    "Added regression coverage for portable, POSIX, and Windows layouts.",
+    "The existing regression suite now passes 145 tests.",
     "Pointer typedef returns resolve to their pointee targets.",
     "Local, casted, conditional, and arithmetic pointer aliases work in indexed access.",
     "Nested arithmetic pointer aliases retain their target types.",
