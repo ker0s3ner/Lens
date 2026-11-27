@@ -197,6 +197,9 @@ impl Fmt<'_> {
         for qualifier in ["const ", "volatile ", "restrict "] {
             qualified = qualified.trim_start_matches(qualifier).trim().to_string();
         }
+        for qualifier in [" const", " volatile", " restrict"] {
+            qualified = qualified.trim_end_matches(qualifier).trim().to_string();
+        }
         let mut name = qualified.as_str();
         let mut seen = std::collections::HashSet::new();
         for _ in 0..=self.structs.len() {
