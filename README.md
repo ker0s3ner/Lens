@@ -120,6 +120,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Threading/timing and cryptographic imports are surfaced as additional low-severity behavior clues.
 - Desktop and UI interaction imports are surfaced as a separate low-severity clue.
 - Binaries with six or more capability categories receive an explainable broad-profile prioritization clue.
+- The triage panel summarizes high, medium, and note-level signal counts before listing evidence.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.

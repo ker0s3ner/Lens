@@ -423,6 +423,10 @@ impl LensApp {
                         if !det.threat_signals.is_empty() {
                             card(ui, &p, "Malware triage signals (heuristic)", |ui| {
                                 ui.label(RichText::new("These are behavior clues for analyst review, not a malware verdict.").small().color(p.muted));
+                                let high = det.threat_signals.iter().filter(|s| s.severity >= 3).count();
+                                let medium = det.threat_signals.iter().filter(|s| s.severity == 2).count();
+                                let notes = det.threat_signals.iter().filter(|s| s.severity <= 1).count();
+                                ui.label(RichText::new(format!("{high} high · {medium} medium · {notes} note")).small().color(p.muted));
                                 if ui.small_button("Copy triage summary").clicked() {
                                     let summary = det.threat_signals.iter().map(|signal| format!("[{}] {}: {}", signal.severity, signal.name, signal.evidence)).collect::<Vec<_>>().join("\n");
                                     ui.ctx().copy_text(format!("Lens malware triage (heuristic; not a verdict)\n{summary}"));
