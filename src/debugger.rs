@@ -566,6 +566,8 @@ impl LensApp {
             }).collect(),
             _ => vec![],
         };
+        let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
+        let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, risky)| *risky).count();
         let cursor = self.nav.cursor;
         let mut start = false;
         let mut stop = false;
@@ -671,6 +673,7 @@ impl LensApp {
                     });
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
+                        ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic matches", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count)).small().color(p.muted));
                         for (address, name, risky) in dynamic_trace.iter().take(8) {
                             let color = if *risky { p.edge_not } else { p.muted };
                             ui.label(RichText::new(format!("{address:016X}  {name}{}", if *risky { "  · heuristic signal" } else { "" })).monospace().small().color(color));
