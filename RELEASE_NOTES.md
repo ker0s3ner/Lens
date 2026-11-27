@@ -1,3 +1,13 @@
+# Lens 0.6.482 — Fourier
+
+- Added dynamic trace path metrics for entry volume, unique addresses, flagged addresses, heuristic matches, observed signal names, hot addresses, and maximum hit counts.
+- Added structured per-record heuristic signal names for explainable defensive review exports.
+- Added clipboard handoff for observed dynamic signals and runtime hotspots.
+- Synchronized the in-app What's New feed with the current defensive triage and dynamic-analysis work.
+- Dense call-graph rendering now skips off-screen relationships and uses lighter curve sampling for smoother pan and zoom.
+- Updated README, roadmap, and GitHub Pages release navigation.
+- Regression suite: 154 tests passing; no device build or installation performed.
+
 # Lens 0.6.481 — Fourier
 
 - Added ASLR-disabled posture triage.
