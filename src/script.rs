@@ -88,8 +88,33 @@ fn arr_u64(v: &[u64]) -> Array {
     v.iter().map(|x| Dynamic::from(*x as INT)).collect()
 }
 
+fn graph_adjacency(snap: &Snap) -> (HashMap<u64, Vec<(u64, String)>>, HashMap<u64, Vec<(u64, String)>>) {
+    let normalize = |addr: u64| snap.funcs.iter()
+        .find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size))
+        .map(|(start, _, _, _)| *start)
+        .unwrap_or(addr);
+    let mut out = HashMap::new();
+    for (from, refs) in &snap.out_xref_details {
+        let edges = out.entry(normalize(*from)).or_insert_with(Vec::new);
+        edges.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump"))
+            .map(|(to, kind)| (normalize(*to), kind.clone())));
+    }
+    let mut incoming = HashMap::new();
+    for (target, refs) in &snap.xref_details {
+        let edges = incoming.entry(normalize(*target)).or_insert_with(Vec::new);
+        edges.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump"))
+            .map(|(from, kind)| (normalize(*from), kind.clone())));
+    }
+    for refs in out.values_mut().chain(incoming.values_mut()) {
+        refs.sort_unstable();
+        refs.dedup();
+    }
+    (out, incoming)
+}
+
 pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let snap = Rc::new(snap);
+    let (graph_out, graph_in) = graph_adjacency(&snap);
     let cmds: Rc<RefCell<Vec<Cmd>>> = Rc::new(RefCell::new(vec![]));
     let out: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
     let mut e = Engine::new();
@@ -116,7 +141,9 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     e.register_fn("script_api_version", || -> INT { API_VERSION as INT });
     let s = snap.clone();
     e.register_fn("functions", move || -> Array {
-        s.funcs
+        let mut funcs = s.funcs.clone();
+        funcs.sort_by_key(|(addr, _, _, _)| *addr);
+        funcs
             .iter()
             .map(|(a, n, size, blocks)| {
                 let mut m = Map::new();
@@ -131,7 +158,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let s = snap.clone();
     e.register_fn("function_at", move |a: INT| -> Map {
         let addr = a as u64;
-        s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, name, size, blocks)| {
+        s.funcs.iter().filter(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).min_by_key(|(start, _, _, _)| *start).map(|(start, name, size, blocks)| {
             let mut m = Map::new();
             m.insert("addr".into(), Dynamic::from(*start as INT));
             m.insert("name".into(), Dynamic::from(name.clone()));
@@ -143,7 +170,9 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     let s = snap.clone();
     e.register_fn("name_at", move |a: INT| -> String { s.names.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
-    e.register_fn("find", move |n: &str| -> INT { s.names.iter().find(|(_, v)| v.as_str() == n).map(|(a, _)| *a as INT).unwrap_or(0) });
+    e.register_fn("find", move |n: &str| -> INT {
+        s.names.iter().filter(|(_, v)| v.as_str() == n).map(|(a, _)| *a).min().unwrap_or(0) as INT
+    });
     let s = snap.clone();
     e.register_fn("search", move |query: &str| -> Array {
         let q = query.to_lowercase();
@@ -184,13 +213,25 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                 out.push(Dynamic::from_map(m));
             }
         }
-        out.sort_by_key(|v| v.clone_cast::<Map>().get("addr").and_then(|a| a.clone().try_cast::<INT>()).unwrap_or(0));
+        out.sort_by_key(|v| {
+            let map = v.clone_cast::<Map>();
+            (
+                map.get("addr").and_then(|a| a.clone().try_cast::<INT>()).unwrap_or(0),
+                map.get("kind").and_then(|k| k.clone().try_cast::<String>()).unwrap_or_default(),
+                map.get("text").and_then(|t| t.clone().try_cast::<String>()).unwrap_or_default(),
+            )
+        });
         out
     });
     let s = snap.clone();
     e.register_fn("comment_at", move |a: INT| -> String { s.comments.get(&(a as u64)).cloned().unwrap_or_default() });
     let s = snap.clone();
-    e.register_fn("bookmarks", move || -> Array { arr_u64(&s.bookmarks) });
+    e.register_fn("bookmarks", move || -> Array {
+        let mut bookmarks = s.bookmarks.clone();
+        bookmarks.sort_unstable();
+        bookmarks.dedup();
+        arr_u64(&bookmarks)
+    });
     let s = snap.clone();
     e.register_fn("data_at", move |a: INT| -> INT { s.data_defs.get(&(a as u64)).copied().unwrap_or(0) as INT });
     let s = snap.clone();
@@ -238,43 +279,25 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
             Dynamic::from_map(m)
         }).collect()).unwrap_or_default()
     });
+    let graph_in_for_queries = graph_in.clone();
     let s = snap.clone();
     e.register_fn("callers", move |a: INT| -> Array {
         let target = s.funcs.iter().find(|(start, _, size, _)| (a as u64) >= *start && (a as u64) < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(a as u64);
-        let mut callers: Vec<u64> = s.xref_details.get(&target).into_iter().flatten().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(from, _)| {
-            s.funcs.iter().find(|(start, _, size, _)| *from >= *start && *from < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(*from)
-        }).collect();
+        let mut callers: Vec<u64> = graph_in_for_queries.get(&target).into_iter().flatten().map(|(from, _)| *from).collect();
         callers.sort_unstable();
         callers.dedup();
         arr_u64(&callers)
     });
+    let graph_out_for_callees = graph_out.clone();
     let s = snap.clone();
     e.register_fn("callees", move |a: INT| -> Array {
         let start = s.funcs.iter().find(|(candidate, _, size, _)| (a as u64) >= *candidate && (a as u64) < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(a as u64);
-        let mut callees: Vec<u64> = s.out_xref_details.iter().filter(|(from, _)| s.funcs.iter().any(|(candidate, _, size, _)| **from >= *candidate && **from < candidate.saturating_add(*size as u64) && *candidate == start)).flat_map(|(_, refs)| refs.iter()).filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, _)| {
-            s.funcs.iter().find(|(candidate, _, size, _)| *to >= *candidate && *to < candidate.saturating_add(*size as u64)).map(|(candidate, _, _, _)| *candidate).unwrap_or(*to)
-        }).collect();
+        if !s.funcs.iter().any(|(candidate, _, _, _)| *candidate == start) { return Array::new(); }
+        let mut callees: Vec<u64> = graph_out_for_callees.get(&start).into_iter().flatten().map(|(to, _)| *to).collect();
         callees.sort_unstable();
         callees.dedup();
         arr_u64(&callees)
     });
-    let normalize_graph_addr = |addr: u64| snap.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size)).map(|(start, _, _, _)| *start).unwrap_or(addr);
-    let mut graph_out: HashMap<u64, Vec<(u64, String)>> = HashMap::new();
-    for (from, refs) in &snap.out_xref_details {
-        let source = normalize_graph_addr(*from);
-        let out = graph_out.entry(source).or_default();
-        out.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(to, kind)| (normalize_graph_addr(*to), kind.clone())));
-    }
-    let mut graph_in: HashMap<u64, Vec<(u64, String)>> = HashMap::new();
-    for (target, refs) in &snap.xref_details {
-        let destination = normalize_graph_addr(*target);
-        let incoming = graph_in.entry(destination).or_default();
-        incoming.extend(refs.iter().filter(|(_, kind)| matches!(kind.as_str(), "call" | "jump")).map(|(from, kind)| (normalize_graph_addr(*from), kind.clone())));
-    }
-    for refs in graph_out.values_mut().chain(graph_in.values_mut()) {
-        refs.sort_unstable();
-        refs.dedup();
-    }
     let s = snap.clone();
     e.register_fn("call_graph", move |a: INT, depth: INT| -> Array {
         let normalize = |addr: u64| s.funcs.iter().find(|(start, _, size, _)| addr >= *start && addr < start.saturating_add(*size as u64)).map(|(start, _, _, _)| *start).unwrap_or(addr);

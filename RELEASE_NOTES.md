@@ -1,3 +1,18 @@
+# Lens 0.6.448 — Fourier
+
+- RISC-V `sltu` and `sltiu` now lift with unsigned comparison semantics.
+- MIPS unsigned-set-less-than forms now retain unsigned comparison semantics.
+- Scripted call-graph adjacency is built once per script run and reused by graph queries.
+- Scripted `callers(a)` now reads the indexed incoming graph instead of rescanning all xrefs.
+- Scripted `callees(a)` now reads the indexed outgoing graph instead of rescanning all functions.
+- Function listings returned by scripts are sorted by address for repeatable automation.
+- `function_at(a)` now resolves overlapping matches by the lowest function start.
+- `find(name)` now returns the lowest matching address instead of hash-map iteration order.
+- Search results now sort by address, result kind, and text for stable output.
+- Bookmark results are sorted and deduplicated before scripts receive them.
+- Graph adjacency construction is centralized so callers, callees, and call graphs share normalization rules.
+- The regression suite now covers 135 deterministic tests, including unsigned comparison semantics.
+
 # Lens 0.6.447 — Fourier
 
 - Call-graph depth changes now reset the viewport and invalidate stale graph data.

@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V sltu and sltiu now lift with unsigned comparison semantics.",
+    "MIPS unsigned-set-less-than forms now retain unsigned comparison semantics.",
+    "Scripted call-graph adjacency is built once per script run and reused by graph queries.",
+    "Scripted callers(a) and callees(a) now use indexed incoming and outgoing graph data.",
+    "Function listings, find(name), and function_at(a) now have deterministic address behavior.",
+    "Search results now sort by address, result kind, and text for stable automation.",
+    "Bookmark results are sorted and deduplicated before scripts receive them.",
+    "Graph adjacency construction is centralized so all script graph queries share normalization rules.",
+    "The regression suite now covers 135 deterministic tests, including unsigned comparison semantics.",
     "Call-graph depth changes reset the viewport and invalidate stale graph data.",
     "Call-graph cache misses now show a recovery state instead of panicking during rendering.",
     "Drag and scroll panning are bounded for smoother navigation.",

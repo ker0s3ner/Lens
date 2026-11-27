@@ -107,6 +107,14 @@ mod tests {
         let decoded = multiarch::disasm(Arch::Arm64, false, &[0x20, 0x1C, 0x62, 0x6E], 0x1000, 1);
         assert_eq!(decoded.first().map(|x| (x.mnemonic.as_str(), x.ops.as_str())), Some(("bsl", "v0.16b, v1.16b, v2.16b")));
     }
+
+    #[test]
+    fn unsigned_compare_families_keep_unsigned_operator() {
+        assert_eq!(compare_operator("slt"), "<");
+        assert_eq!(compare_operator("slti"), "<");
+        assert_eq!(compare_operator("sltu"), "<u");
+        assert_eq!(compare_operator("sltiu"), "<u");
+    }
 }
 
 fn base_mnemonic(mn: &str) -> &str {
@@ -123,6 +131,10 @@ fn a64_float_minmax_helper(mn: &str) -> Option<&'static str> {
         "fmax" => Some("fmax"),
         _ => None,
     }
+}
+
+fn compare_operator(mn: &str) -> &'static str {
+    if matches!(mn, "sltu" | "sltiu") { "<u" } else { "<" }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1695,7 +1707,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         }
         (Fam::Rv | Fam::Mips, "slt" | "slti" | "sltu" | "sltiu") => {
             let (a, b) = (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None));
-            set(dc, st, 0, Ex::Bin("<", Box::new(a), Box::new(b)));
+            set(dc, st, 0, Ex::Bin(compare_operator(base_mn), Box::new(a), Box::new(b)));
         }
         (Fam::Rv, "seqz") => {
             let a = dc.g_val(st, o(1), None);
