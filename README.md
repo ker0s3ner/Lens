@@ -122,6 +122,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Binaries with six or more capability categories receive an explainable broad-profile prioritization clue.
 - The triage panel summarizes high, medium, and note-level signal counts before listing evidence.
 - Protection context now distinguishes ASLR disabled from ASLR enabled, with conservative explanatory evidence.
+- DEP/NX-disabled posture is also surfaced as a separate executable-memory hardening clue.
 - Analysts can copy only high-severity signals for focused defensive handoff.
 - Analysts can also copy the combined medium-and-high signal set for escalation notes.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
