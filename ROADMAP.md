@@ -552,6 +552,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Dynamic trace exports now include per-address hit counts for basic hot-path and loop triage.
 - Analysts can copy a compact triage summary from the Overview for defensive case handoff.
 - Static triage now highlights co-occurring behavior categories as a prioritization clue with explicit evidence text.
+- Static triage now calls out runtime code loading as an explainable unpacking and late-bound-execution clue.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.
 - The debugger can filter its visible trace list to heuristic-matched entries for faster behavior triage.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.

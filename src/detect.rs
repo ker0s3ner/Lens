@@ -133,6 +133,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Memory tricks") {
         out.push(ThreatSignal { severity: 2, name: "Executable memory or process tampering".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Loads code at run time") {
+        out.push(ThreatSignal { severity: 2, name: "Runtime code loading".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
     if let Some(c) = has("Network") {
         out.push(ThreatSignal { severity: 1, name: "Network communication".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }

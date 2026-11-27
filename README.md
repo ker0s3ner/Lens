@@ -114,6 +114,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Exported dynamic traces include per-address hit counts, making repeated loop or hot-path behavior visible during review.
 - The Overview triage panel can copy a compact, explicitly heuristic summary for case notes and handoff.
 - Triage adds an explainable multi-capability signal when several behavior categories co-occur.
+- Runtime code-loading behavior is now surfaced as a separate triage clue for unpacking and late-bound execution review.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.
