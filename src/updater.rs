@@ -29,6 +29,10 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V fmin, fmax, fsgnj, fsgnjn, and fsgnjx forms now lift to readable FP semantics.",
+    "RISC-V floating-point min/max and sign-injection operands preserve decoded order.",
+    "Numeric and bit-level FP idioms no longer fall through to generic unsupported output.",
+    "The existing 135-test regression suite remains green after the RISC-V FP extension.",
     "RISC-V feq, flt, and fle forms now produce explicit boolean comparison results.",
     "MIPS c.eq, c.lt, and c.le forms now populate floating-point comparison state.",
     "MIPS unordered comparison aliases remain visible in condition tracking.",

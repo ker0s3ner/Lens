@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.463 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.464 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.464 — Fourier** adds RISC-V floating-point min/max and sign-injection semantics for numeric and bit-level idioms. The 50% target remains unmet.
 
 Release update: **Lens 0.6.463 — Fourier** adds MIPS and RISC-V floating-point comparison semantics for explicit conditions and boolean results. The 50% target remains unmet.
 

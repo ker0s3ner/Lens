@@ -1111,6 +1111,17 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let operator = match base_mn { "feq" => "==", "flt" => "<", _ => "<=" };
             set(dc, st, 0, Ex::Bin(operator, Box::new(left), Box::new(right)));
         }
+        (Fam::Rv, "fmin" | "fmax") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let operator = if base_mn == "fmin" { "<" } else { ">" };
+            set(dc, st, 0, Ex::Tern(Box::new(Ex::Bin(operator, Box::new(left.clone()), Box::new(right.clone()))), Box::new(left), Box::new(right)));
+        }
+        (Fam::Rv, "fsgnj" | "fsgnjn" | "fsgnjx") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), vec![left, right]));
+        }
         (Fam::Mips, m) if matches!(m, "c.eq" | "c.lt" | "c.le" | "c.ueq" | "c.ult" | "c.ule") && ops.len() >= 2 => {
             let left = dc.g_val(st, o(0), None);
             let right = dc.g_val(st, o(1), None);

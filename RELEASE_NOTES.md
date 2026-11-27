@@ -1,3 +1,18 @@
+# Lens 0.6.464 — Fourier
+
+- RISC-V `fmin.s` and `fmin.d` now lift to explicit minimum selection.
+- RISC-V `fmax.s` and `fmax.d` now lift to explicit maximum selection.
+- RISC-V `fsgnj.s` and `fsgnj.d` remain visible as named sign-injection calls.
+- RISC-V `fsgnjn.s` and `fsgnjn.d` remain visible as named negated-sign calls.
+- RISC-V `fsgnjx.s` and `fsgnjx.d` remain visible as named sign-XOR calls.
+- Floating-point min/max operands preserve decoded source order.
+- Sign-injection operands preserve decoded source order.
+- These operations compose with existing RISC-V FP arithmetic and comparisons.
+- Numeric and bit-level FP idioms no longer fall through to generic unsupported output.
+- Scalar `.s` and `.d` suffix normalization is reused by the new operations.
+- The existing 135-test regression suite remains green after the RISC-V FP extension.
+- The 0.6.463 comparison improvements remain included.
+
 # Lens 0.6.463 — Fourier
 
 - RISC-V `feq.s` and `feq.d` now produce explicit equality results.
