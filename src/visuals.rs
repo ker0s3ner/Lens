@@ -1090,8 +1090,8 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     // Keep the first render bounded even if a future caller supplies an
     // untrusted depth (the UI currently exposes only 1..=3).
     let depth = depth.min(3);
-    let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::new();
-    let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
+    let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     let mut cached_callees = |addr: u64| -> Vec<u64> {
         callees_cache.entry(addr).or_insert_with(|| callees_of(l, addr)).clone()
     };
@@ -1118,9 +1118,10 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     let mut idx: HashMap<u64, usize> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     idx.insert(center, 0);
     for dir in [1i32, -1] {
-        let mut frontier = vec![center];
+        let mut frontier = Vec::with_capacity(CALL_GRAPH_MAX_NODES.min(CALL_GRAPH_MAX_NEIGHBORS + 1));
+        frontier.push(center);
         for d in 1..=depth as i32 {
-            let mut next = vec![];
+            let mut next = Vec::with_capacity(CALL_GRAPH_MAX_NEIGHBORS);
             for a in &frontier {
                 let list = if dir > 0 { cached_callees(*a) } else { cached_callers(*a) };
                 for c in list.into_iter().take(CALL_GRAPH_MAX_NEIGHBORS) {
