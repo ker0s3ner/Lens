@@ -131,6 +131,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Analysts can also copy the combined medium-and-high signal set for escalation notes.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
+- Structured dynamic-trace records now include the matching heuristic signal names, not only a boolean flag.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.
 - Hot-address controls include resolved function names as well as addresses and hit counts.
 - Hotspot lists can be copied as tab-separated function, address, and hit-count records.

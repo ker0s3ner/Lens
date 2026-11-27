@@ -573,6 +573,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - The Overview supports a combined medium-and-high escalation handoff.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.
 - The debugger can filter its visible trace list to heuristic-matched entries for faster behavior triage.
+- Dynamic-trace JSON now preserves the names of matching heuristic signals for explainable downstream review.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
 - Runtime hotspot navigation now shows the resolved function name beside each address and hit count.
 - Runtime hotspot lists support clipboard handoff as tab-separated analyst records.

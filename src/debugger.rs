@@ -558,18 +558,18 @@ impl LensApp {
         let p = self.p;
         let mut open = true;
         let ready = self.loaded().is_some();
-        let dynamic_trace: Vec<(u64, String, bool)> = match (&self.dbg, self.loaded()) {
+        let dynamic_trace: Vec<(u64, String, Vec<String>)> = match (&self.dbg, self.loaded()) {
             (Some(d), Some(l)) => d.trace.iter().rev().filter_map(|address| {
                 let function = l.an.function_containing(*address)?;
                 let name = l.names.get(&function.start).map(|(n, _)| n.clone()).unwrap_or_else(|| format!("sub_{:X}", function.start));
-                let risky = l.det.threat_signals.iter().any(|signal| signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| name.contains(api.trim()))).unwrap_or(false));
-                Some((*address, name, risky))
+                let signals = l.det.threat_signals.iter().filter(|signal| signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| name.contains(api.trim()))).unwrap_or(false)).map(|signal| signal.name.clone()).collect();
+                Some((*address, name, signals))
             }).collect(),
             _ => vec![],
         };
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
-        let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, risky)| *risky).count();
-        let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, risky)| *risky).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
+        let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
+        let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
         let hot_trace: Vec<(u64, usize)> = match &self.dbg {
             Some(d) => {
                 let mut counts = std::collections::HashMap::<u64, usize>::new();
@@ -668,8 +668,8 @@ impl LensApp {
                                 let mut hits = std::collections::HashMap::<u64, usize>::new();
                                 for address in &d.trace { *hits.entry(*address).or_default() += 1; }
                                 let text = d.trace.iter().enumerate().map(|(i, address)| {
-                                    let annotation = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, risky)| {
-                                        format!("  {name}  {}", if *risky { "heuristic-signal" } else { "" })
+                                    let annotation = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, signals)| {
+                                        format!("  {name}  {}", if signals.is_empty() { "".into() } else { format!("heuristic: {}", signals.join(", ")) })
                                     }).unwrap_or_default();
                                     format!("{i:06}  {address:016X}  hits={}{}", hits.get(address).copied().unwrap_or(1), annotation)
                                 }).collect::<Vec<_>>().join("\n");
@@ -690,7 +690,8 @@ impl LensApp {
                                         "address": address,
                                         "hits": hits.get(address).copied().unwrap_or(1),
                                         "function": resolved.map(|(_, name, _)| name),
-                                        "heuristic_signal": resolved.map(|(_, _, risky)| *risky).unwrap_or(false),
+                                        "heuristic_signal": resolved.map(|(_, _, signals)| !signals.is_empty()).unwrap_or(false),
+                                        "heuristic_signals": resolved.map(|(_, _, signals)| signals.clone()).unwrap_or_default(),
                                     })
                                 }).collect::<Vec<_>>();
                                 let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "records": records});
@@ -725,9 +726,10 @@ impl LensApp {
                                 }
                             });
                         }
-                        for (address, name, risky) in dynamic_trace.iter().filter(|(_, _, risky)| !ui_state.triage_only || *risky).take(8) {
-                            let color = if *risky { p.edge_not } else { p.muted };
-                            ui.label(RichText::new(format!("{address:016X}  {name}{}", if *risky { "  · heuristic signal" } else { "" })).monospace().small().color(color));
+                        for (address, name, signals) in dynamic_trace.iter().filter(|(_, _, signals)| !ui_state.triage_only || !signals.is_empty()).take(8) {
+                            let flagged = !signals.is_empty();
+                            let color = if flagged { p.edge_not } else { p.muted };
+                            ui.label(RichText::new(format!("{address:016X}  {name}{}", if flagged { format!("  · {}", signals.join(", ")) } else { String::new() })).monospace().small().color(color));
                         }
                     }
                     ui.separator();
