@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V lr.w, lr.d, sc.w, and sc.d now lift as readable atomic operations.",
+    "MIPS sc now lifts the stored value and explicit success status.",
+    "Atomic memory operands reuse the existing generic memory parser and typed write paths.",
+    "ARM, RISC-V, and MIPS synchronization instructions now share readable pseudocode conventions.",
+    "Atomic instructions no longer fall through to opaque unsupported-instruction output.",
+    "The existing 135-test regression suite remains green after the multi-architecture atomic lifting.",
     "ARM/Thumb rbit now lifts to an explicit bit-reverse helper call.",
     "ARM ldrex, ldrexb, ldrexh, and ldrexd now lift as readable exclusive loads.",
     "ARM strex, strexb, strexh, and strexd now preserve stored values and success status.",

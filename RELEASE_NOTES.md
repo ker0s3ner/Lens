@@ -1,3 +1,18 @@
+# Lens 0.6.452 — Fourier
+
+- RISC-V `lr.w` now lifts as a readable 32-bit load-reserve operation.
+- RISC-V `lr.d` now preserves 64-bit load-reserve width.
+- RISC-V `sc.w` now lifts the stored value and writes an explicit success status.
+- RISC-V `sc.d` now preserves 64-bit store-conditional width.
+- MIPS `sc` now lifts the stored value instead of falling through to an opaque intrinsic.
+- MIPS `sc` now writes an explicit zero success status after the modeled store.
+- RISC-V atomic memory operands reuse the existing generic memory parser.
+- Atomic stores reuse the existing typed write and register-state paths.
+- ARM, RISC-V, and MIPS synchronization instructions now share readable pseudocode conventions.
+- Atomic instructions no longer disappear into generic unsupported-instruction comments.
+- The existing 135-test regression suite remains green after the multi-architecture atomic lifting.
+- The 0.6.451 ARM/Thumb bit-reverse and exclusive-memory improvements remain included.
+
 # Lens 0.6.451 — Fourier
 
 - ARM/Thumb `rbit` now lifts to an explicit bit-reverse helper call.

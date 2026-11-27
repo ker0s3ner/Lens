@@ -1950,6 +1950,25 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 if let Some(r) = r0 { dc.g_wr(st, r, Ex::Deref(Box::new(Ex::Num(n)), 4), addr); }
             }
         }
+        (Fam::Rv, m) if matches!(m, "lr.w" | "lr.d") => {
+            let width = if m.ends_with(".d") { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) { dc.g_load(st, reg(0), &mm, width, false, addr); }
+        }
+        (Fam::Rv, m) if matches!(m, "sc.w" | "sc.d") => {
+            let width = if m.ends_with(".d") { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 2) {
+                let value = reg(1).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                dc.g_store(st, value, reg(1), &mm, width, addr);
+                if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
+            }
+        }
+        (Fam::Mips, "sc") if ops.len() >= 2 => {
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) {
+                let value = reg(0).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                dc.g_store(st, value, reg(0), &mm, 4, addr);
+                if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
+            }
+        }
         (Fam::Rv | Fam::Mips | Fam::Ppc, m) if matches!(m.trim_start_matches("c."), "lw" | "ld" | "lb" | "lbu" | "lh" | "lhu" | "lwu" | "lwz" | "lbz" | "lhz" | "lha" | "lwa" | "lwzu" | "lbzu" | "ldu" | "lwsp" | "ldsp" | "ll" | "lwl" | "lwr") => {
             let rd = reg(0);
             if let Some((mm, _)) = parse_mem(fm, ops, 1) {
