@@ -208,7 +208,10 @@ impl Fmt<'_> {
     }
 
     fn pointer_target(&self, ty: &str) -> Option<String> {
-        let mut current = ty.trim().trim_start_matches("const ").trim().to_string();
+        let mut current = ty.trim().to_string();
+        for qualifier in ["const ", "volatile ", "restrict "] {
+            current = current.trim_start_matches(qualifier).trim().to_string();
+        }
         let mut seen = std::collections::HashSet::new();
         let mut pointer = false;
         for _ in 0..=self.structs.len() {
@@ -228,6 +231,9 @@ impl Fmt<'_> {
             };
             if pointer && !def.fields.is_empty() { return Some(current); }
             current = def.alias_of.as_deref()?.trim().to_string();
+            for qualifier in ["const ", "volatile ", "restrict "] {
+                current = current.trim_start_matches(qualifier).trim().to_string();
+            }
         }
         None
     }
@@ -3631,7 +3637,7 @@ mod tests {
         let empty = HashMap::new();
         let defs = [base, alias];
         let fmt = Fmt { rename: &empty, types: &empty_types, structs: &defs };
-        let call = Ex::CastOwned("PairPtr".into(), Box::new(Ex::Call(Box::new(var("unknown")), vec![])));
+        let call = Ex::CastOwned("volatile PairPtr".into(), Box::new(Ex::Call(Box::new(var("unknown")), vec![])));
         assert_eq!(fmt.pointee_type(&call, 4), "struct Pair");
     }
 
