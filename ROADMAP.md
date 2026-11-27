@@ -579,6 +579,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Dynamic-trace JSON now includes distinct flagged-address metrics for triage breadth analysis.
 - Dynamic-trace JSON now separates total heuristic matches from distinct flagged-address breadth.
 - Dynamic-trace JSON now exposes deduplicated observed signal names for compact reporting.
+- Dynamic-trace JSON now reports hot-address count and maximum hit count for loop-intensity analysis.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
 - Runtime hotspot navigation now shows the resolved function name beside each address and hit count.
 - Runtime hotspot lists support clipboard handoff as tab-separated analyst records.
