@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Protection triage now explains ASLR, DEP/NX, stack, CFG, signatures, RELRO, fortification, and PIE posture.",
+    "Dynamic trace JSON now includes observed signal names, hot-address metrics, and distinct flagged-address counts.",
+    "The debugger can copy observed heuristic signals and hotspot records for defensive case handoff.",
+    "Dynamic trace entries resolve to analyzed function names and can be filtered to heuristic-matched behavior.",
+    "Overview triage supports focused high-severity and medium-plus-high clipboard handoffs.",
+    "Static behavior signals now cover runtime loading, filesystem activity, discovery, threading, crypto, and UI interaction.",
+    "Broad multi-capability profiles are surfaced as explainable prioritization clues, not malware verdicts.",
+    "Rhai, CLI, database JSON, smoke checks, and golden analysis preserve the same defensive triage evidence.",
+    "The regression suite now passes 154 tests.",
     "Safe identical ternary branches now collapse to one expression.",
     "Repeated and complementary boolean conditions now normalize to explicit comparisons.",
     "Boolean-result ternaries and double logical negation now normalize for scalar expressions.",
