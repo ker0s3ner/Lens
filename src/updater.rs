@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Corrected hit-weighted signal counts so each unique address contributes its execution count once.",
     "Dynamic-trace JSON now includes hit-weighted signal counts, separating breadth from repeated execution intensity.",
     "Dynamic-trace summaries now show distinct flagged-function breadth separately from flagged addresses.",
     "Signal-frequency summaries are ranked by count with deterministic tie-breaking for repeatable review.",

@@ -718,8 +718,8 @@ impl LensApp {
                                 for signals in dynamic_lookup.values().map(|(_, signals)| signals) {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
-                                for address in &d.trace {
-                                    if let Some((_, signals)) = dynamic_lookup.get(address) {
+                                for (address, (_, signals)) in &dynamic_lookup {
+                                    if !signals.is_empty() {
                                         let hits_for_address = hits.get(address).copied().unwrap_or(1);
                                         for signal in signals { *signal_hit_counts.entry(signal.clone()).or_default() += hits_for_address; }
                                     }
