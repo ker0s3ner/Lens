@@ -574,6 +574,10 @@ impl LensApp {
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
         let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
+        let mut dynamic_signal_counts = std::collections::BTreeMap::<String, usize>::new();
+        for signals in dynamic_lookup.values().map(|(_, signals)| signals) {
+            for signal in signals { *dynamic_signal_counts.entry(signal.clone()).or_default() += 1; }
+        }
         let hot_trace: Vec<(u64, usize)> = match &self.dbg {
             Some(d) => {
                 let mut counts = std::collections::HashMap::<u64, usize>::new();
@@ -729,6 +733,10 @@ impl LensApp {
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
+                        if !dynamic_signal_counts.is_empty() {
+                            let summary = dynamic_signal_counts.iter().map(|(name, count)| format!("{name} ×{count}")).collect::<Vec<_>>().join(" · ");
+                            ui.label(RichText::new(format!("Observed signal frequency: {summary}")).small().color(p.muted));
+                        }
                         if dynamic_signal_count > 0 && ui.small_button("Copy observed signals").clicked() {
                             let mut names = dynamic_lookup.values().flat_map(|(_, signals)| signals.iter().cloned()).collect::<Vec<_>>();
                             names.sort();
