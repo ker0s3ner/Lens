@@ -1141,4 +1141,20 @@ mod tests {
         assert!(signals.iter().any(|s| s.name == "Broad capability profile"));
         assert!(signals.iter().any(|s| s.name == "Multiple behavior categories"));
     }
+
+    #[test]
+    fn disabled_protections_are_explained() {
+        let protections = vec![
+            ("ASLR".into(), false),
+            ("DEP".into(), false),
+            ("stack".into(), false),
+            ("CFG".into(), false),
+            ("RELRO".into(), false),
+            ("fortify".into(), false),
+        ];
+        let signals = threat_signals(&[], &[], &protections, 4.0);
+        for name in ["ASLR disabled", "DEP or NX disabled", "Stack protection disabled", "Control-flow guard disabled", "RELRO disabled", "Runtime fortification unavailable"] {
+            assert!(signals.iter().any(|signal| signal.name == name), "missing {name}");
+        }
+    }
 }
