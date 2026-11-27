@@ -1,3 +1,14 @@
+# Lens 0.6.477 — Fourier
+
+- Safe identical ternary branches now collapse to one expression.
+- Repeated boolean conditions now normalize to explicit comparisons.
+- Complementary boolean identities now fold (`x || !x`, `x && !x`).
+- Boolean-result ternaries now normalize to comparisons.
+- Double logical negation now normalizes for scalar expressions.
+- Call-graph frontier and cache allocations are bounded and pre-sized.
+- Graph address snapshots now use bounded preallocation.
+- Added regression coverage; the suite now passes 151 tests.
+
 # Lens 0.6.476 — Fourier
 
 - Recursive decompiler expression folding now simplifies constant subexpressions inside larger pseudocode expressions.

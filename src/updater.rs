@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Safe identical ternary branches now collapse to one expression.",
+    "Repeated and complementary boolean conditions now normalize to explicit comparisons.",
+    "Boolean-result ternaries and double logical negation now normalize for scalar expressions.",
+    "Call-graph frontier, cache, and address collections now use bounded preallocation.",
+    "Added regression coverage; the existing suite now passes 151 tests.",
     "Recursive decompiler expression folding now simplifies constant subexpressions inside larger pseudocode expressions.",
     "Added C++ array ABI runtime prototypes and failure helpers.",
     "Added Win32 synchronization, event, thread-pool, file-mapping, and asynchronous-I/O prototypes.",
