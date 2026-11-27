@@ -558,7 +558,7 @@ impl LensApp {
         let mut open = true;
         let ready = self.loaded().is_some();
         let dynamic_trace: Vec<(u64, String, bool)> = match (&self.dbg, self.loaded()) {
-            (Some(d), Some(l)) => d.trace.iter().rev().take(64).filter_map(|address| {
+            (Some(d), Some(l)) => d.trace.iter().rev().filter_map(|address| {
                 let function = l.an.function_containing(*address)?;
                 let name = l.names.get(&function.start).map(|(n, _)| n.clone()).unwrap_or_else(|| format!("sub_{:X}", function.start));
                 let risky = l.det.threat_signals.iter().any(|signal| signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| name.contains(api.trim()))).unwrap_or(false));
@@ -650,8 +650,13 @@ impl LensApp {
                         if ui.small_button("Clear trace").clicked() { d.trace.clear(); }
                         if ui.add_enabled(!d.trace.is_empty(), egui::Button::new("Export trace…")).clicked() {
                             if let Some(path) = rfd::FileDialog::new().set_title("Export instruction trace").set_file_name("lens-trace.txt").save_file() {
-                                let text = d.trace.iter().enumerate().map(|(i, address)| format!("{i:06}  {address:016X}")).collect::<Vec<_>>().join("\n");
-                                match std::fs::write(&path, format!("# Lens instruction trace\n{text}\n")) {
+                                let text = d.trace.iter().enumerate().map(|(i, address)| {
+                                    let annotation = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, risky)| {
+                                        format!("  {name}  {}", if *risky { "heuristic-signal" } else { "" })
+                                    }).unwrap_or_default();
+                                    format!("{i:06}  {address:016X}{annotation}")
+                                }).collect::<Vec<_>>().join("\n");
+                                match std::fs::write(&path, format!("# Lens instruction trace\n# columns: step address function signal\n{text}\n")) {
                                     Ok(_) => d.console.push(format!("trace exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace export failed: {error}")),
                                 }
