@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb VFP vabs and vsqrt now lift to explicit unary helpers.",
+    "ARM/Thumb vcmp and vcmpe now record floating-point comparison flags.",
+    "PowerPC fcmpu and fcmpo now record ordered and unordered comparison flags.",
+    "Floating-point comparisons now feed the existing conditional-branch structurer.",
+    "Unary floating-point operations remain readable instead of opaque intrinsic assignments.",
+    "The existing 135-test regression suite remains green after the FP comparison extension.",
     "ARM/Thumb VFP vadd, vsub, vmul, vdiv, and vneg now lift to readable arithmetic.",
     "PowerPC fadd, fsub, fmul, fdiv, and fneg now lift to readable arithmetic.",
     "ARM/Thumb and PowerPC precision suffixes such as .f32 and .f64 now normalize before dispatch.",

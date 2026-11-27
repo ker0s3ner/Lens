@@ -1,3 +1,18 @@
+# Lens 0.6.458 — Fourier
+
+- ARM/Thumb VFP `vabs` now lifts to an explicit absolute-value helper.
+- ARM/Thumb VFP `vsqrt` now lifts to an explicit square-root helper.
+- ARM/Thumb `vcmp` now records floating-point comparison flags.
+- ARM/Thumb `vcmpe` now records floating-point comparison flags.
+- PowerPC `fcmpu` now records unordered floating-point comparison flags.
+- PowerPC `fcmpo` now records ordered floating-point comparison flags.
+- Floating-point comparison results now feed the existing conditional-branch structurer.
+- Unary floating-point operations now remain readable instead of opaque intrinsic assignments.
+- Operand order is preserved for ARM/Thumb and PowerPC comparison forms.
+- Existing `.f32` and `.f64` suffix normalization is reused by the new operations.
+- The existing 135-test regression suite remains green after the FP comparison extension.
+- The 0.6.457 arithmetic lifting remains included.
+
 # Lens 0.6.457 — Fourier
 
 - ARM/Thumb VFP `vadd` now lifts to readable floating-point addition.

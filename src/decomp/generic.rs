@@ -1098,6 +1098,21 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, bin("-", Ex::Num(0), value));
         }
+        (Fam::A32, "vabs" | "vsqrt") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            let helper = if base_mn == "vabs" { "fabs" } else { "sqrt" };
+            set(dc, st, 0, Ex::Call(Box::new(var(helper)), vec![value]));
+        }
+        (Fam::A32, "vcmp" | "vcmpe") if ops.len() >= 2 => {
+            let left = dc.g_val(st, o(0), None);
+            let right = dc.g_val(st, o(1), None);
+            st.flags = Flags::Cmp(left, right);
+        }
+        (Fam::Ppc, "fcmpu" | "fcmpo") if ops.len() >= 3 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            st.flags = Flags::Cmp(left, right);
+        }
         (Fam::A64, "fmin" | "fmax") => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
