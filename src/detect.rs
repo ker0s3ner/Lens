@@ -142,6 +142,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Files") {
         out.push(ThreatSignal { severity: 1, name: "Filesystem activity".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("System info") {
+        out.push(ThreatSignal { severity: 1, name: "System information discovery".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
     if capabilities.len() >= 3 {
         out.push(ThreatSignal {
             severity: 2,
