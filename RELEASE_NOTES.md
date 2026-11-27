@@ -1,3 +1,18 @@
+# Lens 0.6.462 — Fourier
+
+- RISC-V `fadd.s` and `fadd.d` now lift to readable floating-point addition.
+- RISC-V `fsub.s` and `fsub.d` now lift to readable floating-point subtraction.
+- RISC-V `fmul.s` and `fmul.d` now lift to readable floating-point multiplication.
+- RISC-V `fdiv.s` and `fdiv.d` now lift to readable floating-point division.
+- RISC-V `fneg` and `fabs` now lift to readable unary expressions.
+- RISC-V `fmv` now preserves floating-point value moves.
+- MIPS `add.s` and `add.d` now lift to readable floating-point addition.
+- MIPS `sub.s`, `mul.s`, and `div.s` now lift to readable arithmetic.
+- MIPS floating-point negation, absolute-value, and move forms now preserve value flow.
+- Scalar FP suffixes `.s` and `.d` now normalize before generic dispatch.
+- MIPS and RISC-V FP operations no longer fall through to opaque unsupported output.
+- The existing 135-test regression suite remains green after the scalar FP extension.
+
 # Lens 0.6.461 — Fourier
 
 - PowerPC `frsp` now remains visible as a single-precision conversion.

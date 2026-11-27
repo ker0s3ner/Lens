@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V and MIPS fadd, fsub, fmul, and fdiv forms now lift to readable arithmetic.",
+    "RISC-V and MIPS fneg, fabs, and fmv forms now preserve floating-point value flow.",
+    "Scalar FP suffixes .s and .d now normalize before generic dispatch.",
+    "MIPS and RISC-V FP operations no longer fall through to opaque unsupported output.",
+    "The existing 135-test regression suite remains green after the scalar FP extension.",
     "PowerPC frsp, fcti*, and fcfid conversions now remain visible as named operations.",
     "PowerPC fmr, fabs, and fnabs now lift to readable floating-point expressions.",
     "PowerPC conversion and move operands preserve decoded source order.",

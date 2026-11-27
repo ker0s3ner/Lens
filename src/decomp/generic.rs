@@ -120,7 +120,9 @@ mod tests {
 }
 
 fn base_mnemonic(mn: &str) -> &str {
-    mn.trim_end_matches(".f32")
+    mn.trim_end_matches(".s")
+        .trim_end_matches(".d")
+        .trim_end_matches(".f32")
         .trim_end_matches(".f64")
         .trim_end_matches(".s32")
         .trim_end_matches(".u32")
@@ -1093,6 +1095,15 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::A32 | Fam::Ppc, "vadd" | "vsub" | "vmul" | "vdiv" | "fadd" | "fsub" | "fmul" | "fdiv") => {
             let op = match base_mn { "vadd" | "fadd" => "+", "vsub" | "fsub" => "-", "vmul" | "fmul" => "*", _ => "/" };
             arith(dc, st, op, false);
+        }
+        (Fam::Rv | Fam::Mips, "fadd" | "fsub" | "fmul" | "fdiv") => {
+            let op = match base_mn { "fadd" => "+", "fsub" => "-", "fmul" => "*", _ => "/" };
+            arith(dc, st, op, false);
+        }
+        (Fam::Rv | Fam::Mips, "fneg" | "fabs" | "fmv") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            let value = match base_mn { "fneg" => bin("-", Ex::Num(0), value), "fabs" => Ex::Call(Box::new(var("fabs")), vec![value]), _ => value };
+            set(dc, st, 0, value);
         }
         (Fam::A32, "vmla" | "vmls" | "vnmla" | "vnmls") if ops.len() >= 3 => {
             let accumulator = dc.g_val(st, o(0), None);

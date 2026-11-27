@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.461 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.462 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.462 — Fourier** adds MIPS and RISC-V scalar floating-point arithmetic and value-flow lifting with `.s`/`.d` normalization. The 50% target remains unmet.
 
 Release update: **Lens 0.6.461 — Fourier** adds PowerPC floating-point conversion, move, and absolute-value lifting for clearer value flow. The 50% target remains unmet.
 
