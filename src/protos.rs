@@ -307,6 +307,8 @@ int socket(int domain, int type, int proto); int connect(int fd, const void *add
 int accept(int fd, void *addr, socklen_t *len); ssize_t send(int fd, const void *buf, size_t n, int flags); ssize_t recv(int fd, void *buf, size_t n, int flags);
 ssize_t sendto(int fd, const void *buf, size_t n, int flags, const void *addr, socklen_t len); ssize_t recvfrom(int fd, void *buf, size_t n, int flags, void *addr, socklen_t *len);
 int setsockopt(int fd, int level, int opt, const void *val, socklen_t len); int getaddrinfo(const char *node, const char *svc, const void *hints, void **res); int select(int n, void *r, void *w, void *e, void *tv);
+void freeaddrinfo(void *res); int getnameinfo(const void *addr, socklen_t len, char *host, socklen_t hostlen, char *svc, socklen_t svclen, int flags); const char *inet_ntop(int family, const void *src, char *dst, socklen_t size);
+int poll(void *fds, unsigned long nfds, int timeout); int epoll_create1(int flags); int epoll_ctl(int epfd, int op, int fd, void *event); int epoll_wait(int epfd, void *events, int maxevents, int timeout);
 // ---- threads
 int pthread_create(void *t, const void *attr, void *(*fn)(void *), void *arg); int pthread_join(void *t, void **ret); int pthread_mutex_lock(void *m); int pthread_mutex_unlock(void *m);
 int pthread_mutex_init(void *m, const void *attr); void pthread_exit(void *ret) noreturn;
@@ -436,6 +438,13 @@ mod tests {
         assert_eq!(find("UnmapViewOfFile").unwrap().params.len(), 1);
         assert_eq!(find("WaitForMultipleObjects").unwrap().params.len(), 4);
         assert_eq!(find("GetExitCodeProcess").unwrap().params.len(), 2);
+        assert_eq!(find("freeaddrinfo").unwrap().params.len(), 1);
+        assert_eq!(find("getnameinfo").unwrap().params.len(), 7);
+        assert_eq!(find("inet_ntop").unwrap().params.len(), 4);
+        assert_eq!(find("poll").unwrap().params.len(), 3);
+        assert_eq!(find("epoll_create1").unwrap().params.len(), 1);
+        assert_eq!(find("epoll_ctl").unwrap().params.len(), 4);
+        assert_eq!(find("epoll_wait").unwrap().params.len(), 4);
     }
 
     #[test]
