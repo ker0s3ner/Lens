@@ -10,7 +10,7 @@
 - Added Overview severity counts for high, medium, and note-level signals.
 - Added high-severity-only clipboard handoff.
 - Added combined medium-and-high escalation handoff.
-- Regression suite: 152 tests passing; no device build or installation performed.
+- Regression suite: 153 tests passing; no device build or installation performed.
 
 # Lens 0.6.479 — Fourier
 
