@@ -219,8 +219,17 @@ pub const NORETURN: &[&str] = &[
     "swift_fatalError", "fatalError", "fatal", "builtin_trap", "__builtin_trap", "builtin_unreachable", "std::unreachable", "trap", "cxa_pure_virtual",
     "ubsan_handle_builtin_unreachable", "ubsan_handle_type_mismatch_v1",
     "runtime.gopanic", "runtime.throw", "runtime.fatalpanic", "runtime.fatal", "runtime.panichandler",
+    "runtime.panicSliceB", "runtime.panicSlice3", "runtime.panicIndex", "runtime.panicdivide",
     "__rustc::rust_begin_unwind", "core::panicking::panic_nounwind_fmt", "core::panicking::panic_bounds_check",
+    "core::panicking::panic_display", "std::panicking::begin_panic", "std::panicking::panic_any",
+    "__cxa_bad_cast", "__cxa_bad_typeid", "objc_exception_throw", "swift_unexpectedError",
+    "fatalErrorMessage", "__assert_rtn", "__stack_chk_fail",
 ];
+
+fn strip_rust_hash(name: &str) -> &str {
+    let Some((base, hash)) = name.rsplit_once("::h") else { return name };
+    if hash.len() >= 8 && hash.bytes().all(|b| b.is_ascii_hexdigit()) { base } else { name }
+}
 
 pub fn is_noreturn_name(name: &str) -> bool {
     let mut n = name.trim();
@@ -230,6 +239,7 @@ pub fn is_noreturn_name(name: &str) -> bool {
     n = n.split('@').next().unwrap_or(n);
     n = n.strip_suffix(".cold").unwrap_or(n);
     n = n.strip_suffix("() ").unwrap_or(n).trim_end_matches("()").trim();
+    n = strip_rust_hash(n);
     let short = n.rsplit("::").next().unwrap_or(n);
     NORETURN.iter().any(|x| *x == n || *x == short)
         || n == "runtime.goexit"
@@ -2035,6 +2045,10 @@ mod tests {
         assert!(is_noreturn_name("__builtin_unreachable"));
         assert!(is_noreturn_name("std::unreachable"));
         assert!(is_noreturn_name("panic_bounds_check.cold"));
+        assert!(is_noreturn_name("core::panicking::panic_display::h0123456789abcdef"));
+        assert!(is_noreturn_name("objc_exception_throw"));
+        assert!(is_noreturn_name("swift_unexpectedError"));
+        assert!(is_noreturn_name("runtime.panicSliceB"));
     }
 
     #[test]

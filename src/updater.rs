@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Rust panic symbols with compiler hash suffixes now normalize to known no-return bases.",
+    "Go slice, index, divide, and panic runtime variants now terminate control-flow propagation.",
+    "Rust panic_display, begin_panic, and panic_any now participate in no-return recognition.",
+    "C++ bad-cast and bad-typeid runtimes now mark callers as no-return.",
+    "Objective-C objc_exception_throw now participates in no-return analysis.",
+    "Swift swift_unexpectedError now participates in no-return analysis.",
+    "Windows fatalErrorMessage and Apple assert_rtn now normalize as terminating runtimes.",
+    "Stack-check aliases continue to normalize through symbol decoration and version suffixes.",
+    "The existing 135-test regression suite remains green with new runtime fixtures.",
     "Switch-table bounds and entry addressing are now checked across supported architectures.",
     "Oversized switch bounds now fall back safely instead of overflowing.",
     "ARM64 absolute, signed-offset, byte, and halfword table walks now stop safely on overflow.",

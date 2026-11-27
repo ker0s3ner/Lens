@@ -1,3 +1,18 @@
+# Lens 0.6.450 — Fourier
+
+- Rust panic symbols with compiler hash suffixes now normalize to their known no-return bases.
+- Go slice, index, divide, and panic runtime variants now terminate control-flow propagation.
+- Rust `panic_display` now participates in no-return recognition.
+- Rust `std::panicking::begin_panic` is recognized as terminating.
+- Rust `std::panicking::panic_any` is recognized as terminating.
+- C++ `__cxa_bad_cast` and `__cxa_bad_typeid` now mark callers as no-return.
+- Objective-C `objc_exception_throw` now participates in no-return analysis.
+- Swift `swift_unexpectedError` now participates in no-return analysis.
+- Windows-style `fatalErrorMessage` is recognized as terminating.
+- Apple `__assert_rtn` and stack-check aliases now normalize through symbol decoration.
+- The normalization still handles versioned, cold, underscore-decorated, and parenthesized symbols.
+- The existing 135-test regression suite remains green with new runtime fixtures.
+
 # Lens 0.6.449 — Fourier
 
 - Added checked switch-table entry addressing for architecture-neutral table walks.

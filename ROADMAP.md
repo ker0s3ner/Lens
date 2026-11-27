@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.449 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.450 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.450 — Fourier** broadens no-return recognition across Rust, Go, Swift, Objective-C, C++, and Windows/Apple runtime symbols, including hashed Rust panic names. The 50% target remains unmet.
 
 Release update: **Lens 0.6.449 — Fourier** hardens switch-table recovery with checked bounds and entry addressing across ARM64, Thumb, RISC-V, MIPS, PowerPC, and x86-style tables. The 50% target remains unmet.
 
