@@ -1510,6 +1510,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).map(|s| dc.g_val(st, s, None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
+        (Fam::Ppc, "rlwinm" | "rlwimi" | "rlwnm" | "rldicl" | "rldicr" | "rldimi") if ops.len() >= 3 => {
+            let args = ops.iter().skip(1).map(|s| dc.g_val(st, s, None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
         (Fam::Mips, "wsbh") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Call(Box::new(var("byteswap16")), vec![value]));
@@ -1528,6 +1532,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let pos = dc.g_val(st, o(2), None);
             let width = dc.g_val(st, o(3), None);
             set(dc, st, 0, Ex::Call(Box::new(var("bit_extract")), vec![value, pos, width]));
+        }
+        (Fam::Mips, "dext" | "dextm" | "dextu" | "drotr" | "drotr32") if ops.len() >= 3 => {
+            let args = ops.iter().skip(1).map(|s| dc.g_val(st, s, None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
         (Fam::Mips, "ins" | "dins" | "dinsu" | "dinsm") if ops.len() >= 4 => {
             let dst = dc.g_val(st, o(0), None);

@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "PowerPC rlwinm, rlwimi, rlwnm, rldicl, rldicr, and rldimi remain visible.",
+    "MIPS dext, dextm, and dextu remain visible as doubleword extraction operations.",
+    "MIPS drotr and drotr32 remain visible as doubleword rotate operations.",
+    "Compiler-generated bitfield and address idioms no longer fall through to generic output.",
+    "The existing 135-test regression suite remains green after this extension.",
     "PowerPC cnttzw and cnttzd now lift to named trailing-zero operations.",
     "PowerPC bpermd now remains visible as a bit-permutation operation.",
     "PowerPC extlwi, extrwi, inslwi, and insrwi remain visible in pseudocode.",

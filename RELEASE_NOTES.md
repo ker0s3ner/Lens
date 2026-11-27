@@ -1,3 +1,19 @@
+# Lens 0.6.469 — Fourier
+
+- PowerPC `rlwinm` now remains visible as a rotate-and-mask operation.
+- PowerPC `rlwimi` now remains visible as a rotate-and-mask insert operation.
+- PowerPC `rlwnm` now remains visible as a variable rotate-and-mask operation.
+- PowerPC `rldicl` now remains visible as a 64-bit rotate-and-mask operation.
+- PowerPC `rldicr` now remains visible as a 64-bit rotate-and-mask operation.
+- PowerPC `rldimi` now remains visible as a 64-bit rotate-and-mask insert operation.
+- MIPS `dext` now remains visible as a doubleword extraction operation.
+- MIPS `dextm` now remains visible as a doubleword extraction operation.
+- MIPS `dextu` now remains visible as a doubleword extraction operation.
+- MIPS `drotr` now remains visible as a doubleword rotate operation.
+- MIPS `drotr32` now remains visible as a 32-bit doubleword rotate operation.
+- Compiler-generated bitfield and address idioms no longer fall through to generic output.
+- The existing 135-test regression suite remains green after this extension.
+
 # Lens 0.6.468 — Fourier
 
 - PowerPC `cnttzw` and `cnttzd` now lift to named trailing-zero operations.
