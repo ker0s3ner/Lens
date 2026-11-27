@@ -342,6 +342,8 @@ BOOL GetFileSizeEx(HANDLE h, void *size); BOOL SetFilePointerEx(HANDLE h, long l
 HANDLE CreateFileMapping(HANDLE h, void *sec, DWORD protect, DWORD high, DWORD low, LPCWSTR name); LPVOID MapViewOfFile(HANDLE map, DWORD access, DWORD high, DWORD low, size_t n); BOOL UnmapViewOfFile(LPVOID addr);
 DWORD GetLastError(void); HANDLE CreateThread(void *sec, size_t stack, void *fn, LPVOID arg, DWORD flags, DWORD *id); HANDLE CreateProcess(LPCWSTR app, LPWSTR cmd, void *pa, void *ta, BOOL inherit, DWORD flags, LPVOID env, LPCWSTR dir, void *si, void *pi);
 DWORD WaitForMultipleObjects(DWORD count, const HANDLE *handles, BOOL waitall, DWORD ms); BOOL GetExitCodeProcess(HANDLE h, DWORD *code);
+BOOL InitializeCriticalSection(void *cs); void EnterCriticalSection(void *cs); void LeaveCriticalSection(void *cs); void DeleteCriticalSection(void *cs);
+HANDLE CreateEvent(void *sec, BOOL manual, BOOL initial, LPCWSTR name); BOOL SetEvent(HANDLE event); BOOL ResetEvent(HANDLE event); DWORD QueueUserWorkItem(void *fn, void *ctx, DWORD flags);
 int MessageBox(HANDLE wnd, LPCWSTR text, LPCWSTR caption, UINT type); HANDLE HeapAlloc(HANDLE heap, DWORD flags, size_t n); BOOL HeapFree(HANDLE heap, DWORD flags, LPVOID p);
 HANDLE GetProcessHeap(void); BOOL IsDebuggerPresent(void); DWORD WaitForSingleObject(HANDLE h, DWORD ms); LONG RegOpenKeyEx(HANDLE key, LPCWSTR sub, DWORD opt, DWORD sam, HANDLE *out);
 int WSAStartup(WORD ver, void *data); int closesocket(int s);
@@ -497,6 +499,11 @@ mod tests {
         assert!(find("asprintf").unwrap().variadic);
         assert_eq!(find("getline").unwrap().params.len(), 3);
         assert_eq!(find("getdelim").unwrap().params.len(), 4);
+        assert_eq!(find("InitializeCriticalSection").unwrap().params.len(), 1);
+        assert_eq!(find("EnterCriticalSection").unwrap().params.len(), 1);
+        assert_eq!(find("CreateEventW").unwrap().params.len(), 4);
+        assert_eq!(find("SetEvent").unwrap().params.len(), 1);
+        assert_eq!(find("QueueUserWorkItem").unwrap().params.len(), 3);
     }
 
     #[test]
