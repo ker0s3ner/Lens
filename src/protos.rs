@@ -312,6 +312,10 @@ int poll(void *fds, unsigned long nfds, int timeout); int epoll_create1(int flag
 // ---- threads
 int pthread_create(void *t, const void *attr, void *(*fn)(void *), void *arg); int pthread_join(void *t, void **ret); int pthread_mutex_lock(void *m); int pthread_mutex_unlock(void *m);
 int pthread_mutex_init(void *m, const void *attr); void pthread_exit(void *ret) noreturn;
+int pthread_cond_init(void *cond, const void *attr); int pthread_cond_wait(void *cond, void *mutex); int pthread_cond_signal(void *cond); int pthread_cond_broadcast(void *cond);
+int pthread_rwlock_init(void *lock, const void *attr); int pthread_rwlock_rdlock(void *lock); int pthread_rwlock_wrlock(void *lock); int pthread_rwlock_unlock(void *lock);
+int sem_init(void *sem, int shared, unsigned value); int sem_wait(void *sem); int sem_post(void *sem); int sem_destroy(void *sem);
+int pthread_attr_init(void *attr); int pthread_attr_destroy(void *attr); int pthread_attr_setstacksize(void *attr, size_t size);
 // ---- runtime
 void assert_rtn(const char *func, const char *file, int line, const char *expr) noreturn; void stack_chk_fail(void) noreturn; void cxa_throw(void *ex, void *type, void *dtor) noreturn;
 void *cxa_allocate_exception(size_t n); void cxa_free_exception(void *exception); int cxa_atexit(void (*fn)(void *), void *arg, void *dso); void *cxa_begin_catch(void *exception); void cxa_end_catch(void); void cxa_rethrow(void) noreturn; void cxa_pure_virtual(void) noreturn; int cxa_guard_acquire(unsigned long long *guard); void cxa_guard_release(unsigned long long *guard); void cxa_guard_abort(unsigned long long *guard); void *cxa_vec_new(size_t count, size_t size, size_t padding, void *ctor, void *dtor); void cxa_vec_delete(void *array, size_t size, size_t padding, void *dtor); void cxa_vec_cleanup(void *array, size_t count, size_t size, void *dtor); void longjmp(void *env, int val) noreturn; int setjmp(void *env);
@@ -445,6 +449,12 @@ mod tests {
         assert_eq!(find("epoll_create1").unwrap().params.len(), 1);
         assert_eq!(find("epoll_ctl").unwrap().params.len(), 4);
         assert_eq!(find("epoll_wait").unwrap().params.len(), 4);
+        assert_eq!(find("pthread_cond_wait").unwrap().params.len(), 2);
+        assert_eq!(find("pthread_cond_broadcast").unwrap().params.len(), 1);
+        assert_eq!(find("pthread_rwlock_wrlock").unwrap().params.len(), 1);
+        assert_eq!(find("sem_init").unwrap().params.len(), 3);
+        assert_eq!(find("sem_post").unwrap().params.len(), 1);
+        assert_eq!(find("pthread_attr_setstacksize").unwrap().params.len(), 2);
     }
 
     #[test]
