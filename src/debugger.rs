@@ -583,6 +583,15 @@ impl LensApp {
         for signals in dynamic_lookup.values().map(|(_, signals)| signals) {
             for signal in signals { *dynamic_signal_counts.entry(signal.clone()).or_default() += 1; }
         }
+        let mut dynamic_signal_hit_counts = std::collections::BTreeMap::<String, usize>::new();
+        if let Some(d) = &self.dbg {
+            let mut hits = std::collections::HashMap::<u64, usize>::new();
+            for address in &d.trace { *hits.entry(*address).or_default() += 1; }
+            for (address, (_, signals)) in &dynamic_lookup {
+                let weight = hits.get(address).copied().unwrap_or(1);
+                for signal in signals { *dynamic_signal_hit_counts.entry(signal.clone()).or_default() += weight; }
+            }
+        }
         let hot_trace: Vec<(u64, usize)> = match &self.dbg {
             Some(d) => {
                 let mut counts = std::collections::HashMap::<u64, usize>::new();
@@ -751,6 +760,11 @@ impl LensApp {
                             let summary = ranked.iter().map(|(name, count)| format!("{name} ×{count}")).collect::<Vec<_>>().join(" · ");
                             ui.label(RichText::new(format!("Observed signal frequency: {summary}")).small().color(p.muted));
                             if ui.small_button("Copy signal frequencies").clicked() { ui.ctx().copy_text(summary); }
+                            if !dynamic_signal_hit_counts.is_empty() && ui.small_button("Copy signal intensity").clicked() {
+                                let mut ranked = dynamic_signal_hit_counts.iter().map(|(name, count)| (name, *count)).collect::<Vec<_>>();
+                                ranked.sort_by(|(a_name, a_count), (b_name, b_count)| b_count.cmp(a_count).then(a_name.cmp(b_name)));
+                                ui.ctx().copy_text(ranked.iter().map(|(name, count)| format!("{name}\t{count}")).collect::<Vec<_>>().join("\n"));
+                            }
                         }
                         if dynamic_signal_count > 0 && ui.small_button("Copy observed signals").clicked() {
                             let mut names = dynamic_lookup.values().flat_map(|(_, signals)| signals.iter().cloned()).collect::<Vec<_>>();

@@ -28,6 +28,8 @@ Dynamic-analysis follow-up: signal-frequency summaries can now be copied directl
 
 Dynamic-analysis follow-up: signal-frequency summaries are ranked by count with deterministic tie-breaking for repeatable review. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: a separate signal-intensity handoff copies hit-weighted counts for repeated behavior review. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: trace summaries now show distinct flagged-function breadth separately from flagged addresses. The 50% target remains unmet.
 
 Dynamic-analysis follow-up: trace summaries now show execution intensity separately from flagged-address breadth. The 50% target remains unmet.
