@@ -696,7 +696,8 @@ impl LensApp {
                                 }).collect::<Vec<_>>();
                                 let unique_addresses = hits.len();
                                 let flagged_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "flagged_addresses": flagged_addresses, "records": records});
+                                let heuristic_matches = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "flagged_addresses": flagged_addresses, "heuristic_matches": heuristic_matches, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),

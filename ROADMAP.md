@@ -576,6 +576,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Dynamic-trace JSON now preserves the names of matching heuristic signals for explainable downstream review.
 - Dynamic-trace JSON now includes entry-volume and unique-address metrics for downstream behavior analysis.
 - Dynamic-trace JSON now includes distinct flagged-address metrics for triage breadth analysis.
+- Dynamic-trace JSON now separates total heuristic matches from distinct flagged-address breadth.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
 - Runtime hotspot navigation now shows the resolved function name beside each address and hit count.
 - Runtime hotspot lists support clipboard handoff as tab-separated analyst records.
