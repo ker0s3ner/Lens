@@ -557,6 +557,15 @@ impl LensApp {
         let p = self.p;
         let mut open = true;
         let ready = self.loaded().is_some();
+        let dynamic_trace: Vec<(u64, String, bool)> = match (&self.dbg, self.loaded()) {
+            (Some(d), Some(l)) => d.trace.iter().rev().take(64).filter_map(|address| {
+                let function = l.an.function_containing(*address)?;
+                let name = l.names.get(&function.start).map(|(n, _)| n.clone()).unwrap_or_else(|| format!("sub_{:X}", function.start));
+                let risky = l.det.threat_signals.iter().any(|signal| signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| name.contains(api.trim()))).unwrap_or(false));
+                Some((*address, name, risky))
+            }).collect(),
+            _ => vec![],
+        };
         let cursor = self.nav.cursor;
         let mut start = false;
         let mut stop = false;
@@ -655,6 +664,13 @@ impl LensApp {
                             if ui.small_button(format!("{address:016X}")).clicked() { goto = Some(*address); }
                         }
                     });
+                    if !dynamic_trace.is_empty() {
+                        ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
+                        for (address, name, risky) in dynamic_trace.iter().take(8) {
+                            let color = if *risky { p.edge_not } else { p.muted };
+                            ui.label(RichText::new(format!("{address:016X}  {name}{}", if *risky { "  · heuristic signal" } else { "" })).monospace().small().color(color));
+                        }
+                    }
                     ui.separator();
                     ui.columns(2, |cols| {
                         cols[0].label(RichText::new("REGISTERS").small().color(p.faint));

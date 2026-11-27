@@ -4,6 +4,8 @@ Authoritative current build: **Lens 0.6.477 — Fourier**. The release archive a
 
 Release update: **Lens 0.6.477 — Fourier** adds boolean and ternary decompiler normalization plus bounded call-graph frontier, cache, and address allocation. The 50% target remains unmet.
 
+Current follow-up: the debugger now resolves recent LLDB trace PCs to analyzed function names and highlights entries that match static analyst-triage clues. Dynamic behavior correlation and malware-analysis heuristics are now a first-class roadmap track; the 50% target remains unmet.
+
 Release update: **Lens 0.6.476 — Fourier** adds recursive decompiler constant folding and expands native prototypes across POSIX, C++, Win32, sockets, threads, processes, filesystems, signals, randomness, clocks, and stdio. The 50% target remains unmet.
 
 Release update: **Lens 0.6.475 — Fourier** expands built-in native prototypes across POSIX, C++, Win32, sockets, threads, processes, filesystems, signals, randomness, and stdio. The 50% target remains unmet.
@@ -131,6 +133,8 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Phase 5 - Debugger
 - Replace the LLDB-driven backend with native platform backends (ptrace / Mach / Windows debug API), or document a deliberate LLDB dependency.
 - Improve target/session management, platform coverage, reconnect/error recovery, and debugger UI synchronization.
+- Correlate runtime traces with static capabilities, imports, protections, packing/entropy clues, and suspicious behavior categories; keep every signal explainable and clearly labeled as heuristic triage rather than a malware verdict.
+- Add structured dynamic-event capture and export so analysts can review process, filesystem, registry, memory, anti-debugging, and network activity alongside the instruction trace.
 - Decode hardware processor trace streams (such as Intel PT) and connect them to static analysis; the current instruction trace is bounded LLDB single-stepping, not hardware trace decoding.
 
 ## Phase 6 - Scripting and plugins
