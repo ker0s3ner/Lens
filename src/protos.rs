@@ -264,6 +264,7 @@ int main(int argc, char **argv, char **envp);
 // ---- string / memory
 void *memcpy(void *dst, const void *src, size_t n); void *memmove(void *dst, const void *src, size_t n);
 void *memset(void *s, int c, size_t n); int memcmp(const void *a, const void *b, size_t n); void *memchr(const void *s, int c, size_t n);
+int memset_s(void *s, size_t smax, int c, size_t n); void *memccpy(void *dst, const void *src, int c, size_t n);
 size_t strlen(const char *s); size_t strnlen(const char *s, size_t n); char *strcpy(char *dst, const char *src); char *strncpy(char *dst, const char *src, size_t n);
 char *strcat(char *dst, const char *src); char *strncat(char *dst, const char *src, size_t n); int strcmp(const char *a, const char *b);
 int strncmp(const char *a, const char *b, size_t n); int strcasecmp(const char *a, const char *b); int strncasecmp(const char *a, const char *b, size_t n);
@@ -290,6 +291,8 @@ void err(int eval, const char *fmt, ...) noreturn; void errx(int eval, const cha
 char *setlocale(int cat, const char *loc); int fchmod(int fd, mode_t mode); int rmdir(const char *path); int readlink(const char *path, char *buf, size_t n);
 // ---- POSIX
 int open(const char *path, int flags, ...); int close(int fd); ssize_t read(int fd, void *buf, size_t n); ssize_t write(int fd, const void *buf, size_t n);
+ssize_t pread(int fd, void *buf, size_t n, off_t off); ssize_t pwrite(int fd, const void *buf, size_t n, off_t off);
+ssize_t readv(int fd, const void *iov, int count); ssize_t writev(int fd, const void *iov, int count);
 off_t lseek(int fd, off_t off, int whence); int stat(const char *path, void *st); int fstat(int fd, void *st); int unlink(const char *path); int access(const char *path, int mode);
 int mkdir(const char *path, mode_t mode); int chdir(const char *path); char *getcwd(char *buf, size_t n); int dup(int fd); int dup2(int from, int to); int pipe(int fds[2]);
 pid_t fork(void); pid_t getpid(void); int execve(const char *path, char *const argv[], char *const envp[]); int execv(const char *path, char *const argv[]);
@@ -297,6 +300,7 @@ int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
 int fcntl(int fd, int cmd, ...); int isatty(int fd); int getopt(int argc, char *const argv[], const char *opts); uid_t getuid(void); int chmod(const char *path, mode_t mode);
+char *realpath(const char *path, char *resolved); int strerror_r(int errnum, char *buf, size_t buflen);
 time_t time(time_t *t); int gettimeofday(void *tv, void *tz); int nanosleep(const void *req, void *rem); int signal(int sig, void *handler); int sigaction(int sig, const void *act, void *old);
 // ---- sockets
 int socket(int domain, int type, int proto); int connect(int fd, const void *addr, socklen_t len); int bind(int fd, const void *addr, socklen_t len); int listen(int fd, int backlog);
@@ -309,6 +313,7 @@ int pthread_mutex_init(void *m, const void *attr); void pthread_exit(void *ret) 
 // ---- runtime
 void assert_rtn(const char *func, const char *file, int line, const char *expr) noreturn; void stack_chk_fail(void) noreturn; void cxa_throw(void *ex, void *type, void *dtor) noreturn;
 void *cxa_allocate_exception(size_t n); void cxa_free_exception(void *exception); int cxa_atexit(void (*fn)(void *), void *arg, void *dso); void *cxa_begin_catch(void *exception); void cxa_end_catch(void); void cxa_rethrow(void) noreturn; void cxa_pure_virtual(void) noreturn; int cxa_guard_acquire(unsigned long long *guard); void cxa_guard_release(unsigned long long *guard); void cxa_guard_abort(unsigned long long *guard); void *cxa_vec_new(size_t count, size_t size, size_t padding, void *ctor, void *dtor); void cxa_vec_delete(void *array, size_t size, size_t padding, void *dtor); void cxa_vec_cleanup(void *array, size_t count, size_t size, void *dtor); void longjmp(void *env, int val) noreturn; int setjmp(void *env);
+void cxa_vec_ctor(void *array, size_t count, size_t size, void *ctor); void cxa_vec_dtor(void *array, size_t count, size_t size, void *dtor); void cxa_vec_cleanup2(void *array, size_t count, size_t size, void *dtor);
 void objc_msgSend(void *self, const char *sel, ...); void *objc_alloc(void *cls); void *objc_retain(void *o); void objc_release(void *o); void *objc_getClass(const char *name);
 void *sel_registerName(const char *name); void CFRelease(const void *cf); const void *CFRetain(const void *cf); void NSLog(void *fmt, ...);
 // ---- Win32
@@ -400,6 +405,16 @@ mod tests {
         assert_eq!(find("__cxa_guard_release").unwrap().params.len(), 1);
         assert_eq!(find("__cxa_vec_new").unwrap().ret, "void *");
         assert_eq!(find("__cxa_vec_delete").unwrap().params.len(), 4);
+        assert_eq!(find("pread").unwrap().params.len(), 4);
+        assert_eq!(find("pwrite").unwrap().params.len(), 4);
+        assert_eq!(find("readv").unwrap().params.len(), 3);
+        assert_eq!(find("writev").unwrap().params.len(), 3);
+        assert_eq!(find("realpath").unwrap().ret, "char *");
+        assert_eq!(find("strerror_r").unwrap().params.len(), 3);
+        assert_eq!(find("memset_s").unwrap().params.len(), 4);
+        assert_eq!(find("memccpy").unwrap().params.len(), 4);
+        assert_eq!(find("__cxa_vec_ctor").unwrap().params.len(), 4);
+        assert_eq!(find("__cxa_vec_dtor").unwrap().params.len(), 4);
     }
 
     #[test]
