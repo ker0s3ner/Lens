@@ -1,3 +1,21 @@
+# Lens 0.6.465 — Fourier
+
+- RISC-V `fcvt*` conversion forms now lift to named conversion operations.
+- RISC-V integer-to-floating conversions remain visible in pseudocode.
+- RISC-V floating-to-integer conversions remain visible in pseudocode.
+- RISC-V floating-width conversions preserve their decoded source value.
+- RISC-V conversion families no longer fall through to generic unsupported output.
+- MIPS `cvt*` conversion forms now lift to named conversion operations.
+- MIPS floating-width conversions remain visible in pseudocode.
+- MIPS floating-to-integer conversions remain visible in pseudocode.
+- MIPS integer-to-floating conversions remain visible in pseudocode.
+- MIPS `min` and `max` now lift to explicit conditional selection.
+- MIPS min/max operands preserve decoded source order.
+- MIPS min/max value flow composes with existing branch and expression structuring.
+- The new conversion paths reuse scalar FP suffix normalization.
+- The 135-test regression suite remains green after the conversion extension.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.464 — Fourier
 
 - RISC-V `fmin.s` and `fmin.d` now lift to explicit minimum selection.

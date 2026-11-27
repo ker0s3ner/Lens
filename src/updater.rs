@@ -29,6 +29,16 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V fcvt* conversion forms now lift to named conversion operations.",
+    "RISC-V integer/floating and width-conversion value flow remains readable.",
+    "MIPS cvt* conversion forms now lift to named conversion operations.",
+    "MIPS floating-width and integer/floating conversions remain visible.",
+    "MIPS min and max now lift to explicit conditional selection.",
+    "MIPS min/max operands preserve decoded source order.",
+    "Conversion families no longer fall through to generic unsupported output.",
+    "The new conversion paths reuse scalar FP suffix normalization.",
+    "The existing 135-test regression suite remains green after the conversion extension.",
+    "Smoke and golden-analysis checks remain part of the release gate.",
     "RISC-V fmin, fmax, fsgnj, fsgnjn, and fsgnjx forms now lift to readable FP semantics.",
     "RISC-V floating-point min/max and sign-injection operands preserve decoded order.",
     "Numeric and bit-level FP idioms no longer fall through to generic unsupported output.",
