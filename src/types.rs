@@ -55,7 +55,7 @@ pub fn is_pointer_type(ty: &str, structs: &[StructDef]) -> bool {
 
 fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
     let t = ty.trim();
-    if t.ends_with('*') {
+    if t.ends_with('*') || matches!(t, "nullptr_t" | "std::nullptr_t") {
         return Some((ptr, ptr));
     }
     let t = t.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict")).collect::<Vec<_>>().join(" ");
@@ -646,6 +646,13 @@ mod tests {
         let def = parse_c("struct Chars { char8_t a; char16_t b; char32_t c; wchar_t d; }", 8, &[]).unwrap();
         assert_eq!(def.size, 12);
         assert_eq!(def.fields.iter().map(|f| f.size).collect::<Vec<_>>(), vec![1, 2, 4, 2]);
+    }
+
+    #[test]
+    fn sizes_null_pointer_types_as_target_pointers() {
+        let def = parse_c("struct Nulls { nullptr_t a; }", 8, &[]).unwrap();
+        assert_eq!(def.size, 8);
+        assert_eq!(def.fields.iter().map(|f| f.size).collect::<Vec<_>>(), vec![8]);
     }
 
     #[test]
