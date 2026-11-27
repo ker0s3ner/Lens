@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.469 — Fourier**. Added PowerPC rotate-and-mask semantics and MIPS doubleword extraction/rotation lifting. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
+Latest shipped build: **0.6.470 — Fourier**. Added cross-call pointer type propagation through casts, conditionals, and nested arithmetic. Read the [in-app-style What's New archive](docs/whats-new.html) or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 

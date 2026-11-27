@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.469 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.470 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.470 — Fourier** adds cross-call pointer type propagation through explicit casts, conditional results, pointer arithmetic, nested arithmetic, and typed struct-field rendering. The 50% target remains unmet.
 
 Audit note: the x86 lifter already covers BMI bit extraction/deposit, byte swaps, population/zero counts, rotates, double-width shifts, and variable shifts; the next decompiler gains should target deeper type recovery and cross-call SSA rather than duplicate those semantics.
 

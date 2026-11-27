@@ -1,3 +1,20 @@
+# Lens 0.6.470 — Fourier
+
+- Direct prototype return types now survive explicit pointer casts around calls.
+- Casted allocator and factory results now retain their pointee types.
+- Calls nested inside conditional expressions now infer a common return type.
+- Conditional pointer results now participate in typed struct-field resolution.
+- Conditional pointer results now participate in typed array-field resolution.
+- Pointer return types now survive safe `+` arithmetic adjustments.
+- Pointer return types now survive safe `-` arithmetic adjustments.
+- Nested pointer arithmetic continues to carry the original pointee type.
+- Struct-field formatting now parenthesizes conditional pointer bases correctly.
+- Function-call return inference now recurses through call expressions.
+- Typed pointer flow now composes with existing prototype and function-pointer recovery.
+- Added regression coverage for casts, conditionals, arithmetic, and nested arithmetic.
+- The existing regression suite now passes 140 tests.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.469 — Fourier
 
 - PowerPC `rlwinm` now remains visible as a rotate-and-mask operation.

@@ -29,6 +29,16 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Prototype pointer returns now survive explicit casts around calls.",
+    "Casted allocator and factory results retain their pointee types.",
+    "Conditional calls now infer a common return type.",
+    "Conditional pointer results participate in typed struct and array fields.",
+    "Pointer return types survive safe positive and negative arithmetic adjustments.",
+    "Nested pointer arithmetic continues to carry the original pointee type.",
+    "Conditional pointer field formatting now preserves correct precedence.",
+    "Function-call return inference now recurses through call expressions.",
+    "Added regression coverage for casts, conditionals, and nested arithmetic.",
+    "The existing regression suite now passes 140 tests.",
     "PowerPC rlwinm, rlwimi, rlwnm, rldicl, rldicr, and rldimi remain visible.",
     "MIPS dext, dextm, and dextu remain visible as doubleword extraction operations.",
     "MIPS drotr and drotr32 remain visible as doubleword rotate operations.",
