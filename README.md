@@ -125,6 +125,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - DEP/NX-disabled posture is also surfaced as a separate executable-memory hardening clue.
 - Disabled stack protection is surfaced as a separate hardening-posture clue.
 - Control-flow-guard-disabled posture is surfaced as a separate indirect-control-flow hardening clue.
+- Unavailable code-signature validation is surfaced as a conservative provenance clue when reported by the loader.
 - Analysts can copy only high-severity signals for focused defensive handoff.
 - Analysts can also copy the combined medium-and-high signal set for escalation notes.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
