@@ -143,6 +143,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Dynamic-trace JSON includes a deduplicated top-level list of observed heuristic signal names.
 - Dynamic-trace JSON also reports hot-address count and maximum address hit count for loop intensity analysis.
 - The debugger can copy the deduplicated set of observed heuristic signal names for quick handoff.
+- The debugger can also copy deduplicated flagged function names for a focused defensive handoff.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.
 - Hot-address controls include resolved function names as well as addresses and hit counts.
 - Hotspot lists can be copied as tab-separated function, address, and hit-count records.

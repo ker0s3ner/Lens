@@ -731,6 +731,10 @@ impl LensApp {
                             names.dedup();
                             ui.ctx().copy_text(names.join("\n"));
                         }
+                        if dynamic_lookup.values().any(|(_, signals)| !signals.is_empty()) && ui.small_button("Copy flagged functions").clicked() {
+                            let names = dynamic_lookup.values().filter(|(_, signals)| !signals.is_empty()).map(|(name, _)| name.clone()).collect::<std::collections::BTreeSet<_>>();
+                            ui.ctx().copy_text(names.into_iter().collect::<Vec<_>>().join("\n"));
+                        }
                         if hot_trace.len() > 1 {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
                             if ui.small_button("Copy hotspots").clicked() {
