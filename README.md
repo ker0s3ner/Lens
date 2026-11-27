@@ -110,6 +110,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - `threat_signals()` returns explainable static analyst-triage clues with severity, name and evidence fields for defensive automation; these are heuristics, not malware verdicts.
 - `--report` prints the same triage clues for terminal workflows, while `--json` includes them in the `threat_signals` array.
 - Smoke and golden-analysis checks assert that triage data remains present in machine-readable reports.
+- Database JSON exports also preserve `threat_signals`, keeping defensive review context attached to shared analysis.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.

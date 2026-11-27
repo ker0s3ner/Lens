@@ -784,6 +784,11 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 "schema_id": "lens.analysis.v1",
                 "file": l.bin.file_name, "format": l.bin.format, "arch": l.bin.arch_name, "entry": l.bin.entry,
                 "sha256": l.det.sha256,
+                "threat_signals": l.det.threat_signals.iter().map(|signal| serde_json::json!({
+                    "severity": signal.severity,
+                    "name": signal.name,
+                    "evidence": signal.evidence,
+                })).collect::<Vec<_>>(),
                 "segments": l.bin.segments.iter().map(|s| serde_json::json!({"name": s.name, "start": s.start, "end": s.end()})).collect::<Vec<_>>(),
                 "functions": l.an.functions.values().map(|f| serde_json::json!({
                     "start": f.start, "end": f.end, "name": l.names.get(&f.start).map(|n| n.0.clone()),
