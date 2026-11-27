@@ -22,6 +22,8 @@ Dynamic-analysis follow-up: signal-frequency summaries can now be copied directl
 
 Dynamic-analysis follow-up: signal-frequency summaries are ranked by count with deterministic tie-breaking for repeatable review. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: trace summaries now show distinct flagged-function breadth separately from flagged addresses. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: the debugger can copy deduplicated flagged function names directly for focused defensive handoff. The 50% target remains unmet.
 
 Release update: **Lens 0.6.480 — Fourier** expands defensive behavior taxonomy and adds focused high/medium triage handoff controls. The 50% target remains unmet.

@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Dynamic-trace summaries now show distinct flagged-function breadth separately from flagged addresses.",
     "Signal-frequency summaries are ranked by count with deterministic tie-breaking for repeatable review.",
     "Signal-frequency summaries can now be copied directly from the debugger for case notes and handoff.",
     "The debugger triage panel now summarizes observed signal frequency before detailed trace review.",

@@ -574,6 +574,7 @@ impl LensApp {
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
         let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
+        let dynamic_flagged_function_count = dynamic_lookup.values().filter(|(_, signals)| !signals.is_empty()).map(|(name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let mut dynamic_signal_counts = std::collections::BTreeMap::<String, usize>::new();
         for signals in dynamic_lookup.values().map(|(_, signals)| signals) {
             for signal in signals { *dynamic_signal_counts.entry(signal.clone()).or_default() += 1; }
@@ -732,7 +733,7 @@ impl LensApp {
                     });
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
-                        ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
+                        ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses · {} functions)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses, dynamic_flagged_function_count)).small().color(p.muted));
                         if !dynamic_signal_counts.is_empty() {
                             let mut ranked = dynamic_signal_counts.iter().map(|(name, count)| (name, *count)).collect::<Vec<_>>();
                             ranked.sort_by(|(a_name, a_count), (b_name, b_count)| b_count.cmp(a_count).then(a_name.cmp(b_name)));
