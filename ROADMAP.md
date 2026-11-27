@@ -561,6 +561,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Static triage now distinguishes desktop and UI interaction imports as a separate behavior category.
 - Static triage now highlights unusually broad capability profiles for cross-category review.
 - The Overview triage card now summarizes signal severity counts for faster analyst scanning.
+- Protection triage now distinguishes ASLR-disabled posture from ASLR-enabled hardening context.
 - The Overview supports focused clipboard handoff of high-severity heuristic signals.
 - The Overview supports a combined medium-and-high escalation handoff.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.

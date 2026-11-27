@@ -177,6 +177,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if protections.iter().any(|(name, enabled)| *enabled && name.to_ascii_lowercase().contains("aslr")) {
         out.push(ThreatSignal { severity: 1, name: "ASLR enabled".into(), evidence: "hardening context; not inherently suspicious".into() });
     }
+    if protections.iter().any(|(name, enabled)| !*enabled && name.to_ascii_lowercase().contains("aslr")) {
+        out.push(ThreatSignal { severity: 1, name: "ASLR disabled".into(), evidence: "weaker address-randomization posture; review with other evidence".into() });
+    }
     out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
     out
 }
