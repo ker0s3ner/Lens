@@ -108,6 +108,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
 - `data_at(addr)` reads a persisted data-definition code, and `data_definitions()` returns sorted `{addr, code}` records.
 - `threat_signals()` returns explainable static analyst-triage clues with severity, name and evidence fields for defensive automation; these are heuristics, not malware verdicts.
+- `--report` prints the same triage clues for terminal workflows, while `--json` includes them in the `threat_signals` array.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.

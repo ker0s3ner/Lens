@@ -408,6 +408,11 @@ fn cli(args: &[String]) -> bool {
                 "name": name,
                 "kind": format!("{:?}", kind).to_lowercase(),
             })).collect::<Vec<_>>(),
+            "threat_signals": det.threat_signals.iter().map(|signal| serde_json::json!({
+                "severity": signal.severity,
+                "name": signal.name,
+                "evidence": signal.evidence,
+            })).collect::<Vec<_>>(),
             "strings": an.strings.len(),
             "imports": bin.imports.len(),
             "exports": bin.exports.len(),
@@ -434,6 +439,7 @@ fn cli(args: &[String]) -> bool {
         if let Some(a) = &det.asar { println!("asar: {} files, {} js, {} bytes at {}", a.files, a.js_files, a.bytes, a.path.display()); if let Some(i) = args.iter().position(|x| x == "--extract") { if let Some(d) = args.get(i + 1) { println!("extracted {:?}", source::extract_asar(&a.path, std::path::Path::new(d))); } } }
         println!("main: {:?}", det.main.as_ref().map(|(a, h)| format!("{a:X} via {h}")));
         for c in &det.capabilities { println!("cap {}: {}", c.name, c.apis.join(", ")); }
+        for signal in &det.threat_signals { println!("triage[{}] {}: {}", signal.severity, signal.name, signal.evidence); }
         for p in &det.plan { println!("plan: {p}"); }
         println!("{}", an.stats);
     }
