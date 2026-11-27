@@ -333,6 +333,7 @@ impl Fmt<'_> {
                 _ => None,
             },
             Ex::Tern(_, _, _) => call_return_type(e),
+            Ex::Bin(op, base, _) if *op == "+" || *op == "-" => call_return_type(base),
             _ => None,
         };
         let ty = ty.or_else(|| match e {
@@ -3690,6 +3691,18 @@ mod tests {
         crate::protos::set_user("struct Pair *make_pair(void);");
         let call = Ex::Call(Box::new(var("make_pair")), vec![]);
         let adjusted = Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)));
+        assert_eq!(call_return_type(&adjusted).as_deref(), Some("struct Pair *"));
+    }
+
+    #[test]
+    fn preserves_nested_pointer_type_through_arithmetic() {
+        crate::protos::set_user("struct Pair *make_pair(void);");
+        let call = Ex::Call(Box::new(var("make_pair")), vec![]);
+        let adjusted = Ex::Bin(
+            "+",
+            Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))),
+            Box::new(Ex::Num(4)),
+        );
         assert_eq!(call_return_type(&adjusted).as_deref(), Some("struct Pair *"));
     }
 
