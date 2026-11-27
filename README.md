@@ -135,6 +135,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Structured dynamic-trace JSON also reports distinct flagged functions separately from flagged addresses, reducing noise in defensive triage summaries.
 - The same export includes deduplicated flagged function names so downstream review tools can present actionable context without reparsing records.
 - Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
+- Dynamic-trace JSON also includes hit-weighted signal counts, separating breadth from repeated execution intensity.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.
 - Dynamic-trace summaries show distinct flagged-function breadth separately from flagged addresses.
 - Signal-frequency summaries can be copied directly for case notes and handoff.

@@ -16,6 +16,8 @@ Dynamic-analysis follow-up: trace JSON now carries deduplicated flagged function
 
 Dynamic-analysis follow-up: trace JSON now includes per-signal observation counts for prioritizing repeated behavior categories. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: trace JSON now includes hit-weighted signal counts, separating behavior breadth from repeated execution intensity. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: the debugger triage panel now summarizes observed signal frequency before detailed trace review. The 50% target remains unmet.
 
 Dynamic-analysis follow-up: signal-frequency summaries can now be copied directly for case notes and handoff. The 50% target remains unmet.
