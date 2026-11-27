@@ -900,6 +900,14 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             dc.g_wr(st, r, v, addr);
         }
     };
+    let m68k_size = || if mn.ends_with(".b") { 1 } else if mn.ends_with(".w") { 2 } else { 4 };
+    let m68k_value = |dc: &mut Dc, st: &mut St, k: usize| {
+        if let Some((mem, _)) = parse_mem(fm, ops, k) {
+            dc.g_mem(st, &mem, m68k_size()).0
+        } else {
+            dc.g_val(st, o(k), None)
+        }
+    };
     // ARM condition suffix on data ops (movne, addeq …): only `mov` family is lifted conditionally
     if fm == Fam::A32 {
         for cc in ["eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl", "vs", "vc", "hi", "ls", "ge", "lt", "gt", "le"] {
@@ -926,18 +934,30 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             }
         }
     }
-    // three-operand arithmetic: dest, a, b (two-operand forms reuse dest as a)
+    // Most three-operand ISAs spell arithmetic as dest, a, b. Motorola 68000
+    // spells its two-operand operations as source, dest.
     let arith = |dc: &mut Dc, st: &mut St, op: &'static str, flags_set: bool| {
-        let (a, b) = if ops.len() >= 3 {
-            (dc.g_val(st, o(1), None), shifted(dc, st, 2))
+        let (a, b, dst) = if fm == Fam::M68k && ops.len() >= 2 {
+            (m68k_value(dc, st, 1), m68k_value(dc, st, 0), 1)
+        } else if ops.len() >= 3 {
+            (dc.g_val(st, o(1), None), shifted(dc, st, 2), 0)
         } else {
-            (dc.g_val(st, o(0), None), shifted(dc, st, 1))
+            (dc.g_val(st, o(0), None), shifted(dc, st, 1), 0)
         };
         let v = bin(op, a.clone(), b.clone());
         if flags_set {
             st.flags = if op == "-" { Flags::Cmp(a, b) } else { Flags::Op(v.clone()) };
         }
-        set(dc, st, 0, v);
+        if fm == Fam::M68k {
+            if let Some((mem, _)) = parse_mem(fm, ops, dst) {
+                let size = m68k_size();
+                dc.g_store(st, v, None, &mem, size, addr);
+            } else {
+                set(dc, st, dst, v);
+            }
+        } else {
+            set(dc, st, dst, v);
+        }
     };
     match (fm, base_mn) {
         // ---------------------------------------------------------- moves
@@ -1153,7 +1173,19 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let sh = ops.get(2).and_then(|s| s.split_whitespace().last()).and_then(parse_imm).unwrap_or(0);
             set(dc, st, 0, Ex::Num(!(v << sh)));
         }
-        (Fam::A64 | Fam::A32, "mvn" | "mvns") | (Fam::Rv | Fam::Mips | Fam::M68k, "not") => {
+        (Fam::M68k, "not" | "clr") if !ops.is_empty() => {
+            let size = if mn.ends_with(".b") { 1 } else if mn.ends_with(".w") { 2 } else { 4 };
+            let mem = parse_mem(fm, ops, 0).map(|(mem, _)| mem);
+            let value = if let Some(mem) = &mem { dc.g_mem(st, mem, size).0 } else { dc.g_val(st, o(0), None) };
+            let result = if base_mn == "clr" { Ex::Num(0) } else { Ex::Un("~", Box::new(value)) };
+            st.flags = Flags::Op(result.clone());
+            if let Some(mem) = &mem {
+                dc.g_store(st, result, None, mem, size, addr);
+            } else {
+                set(dc, st, 0, result);
+            }
+        }
+        (Fam::A64 | Fam::A32, "mvn" | "mvns") | (Fam::Rv | Fam::Mips, "not") => {
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, Ex::Un("~", Box::new(v)));
         }
@@ -1180,7 +1212,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 let v = bin("+", a, match b { Ex::Num(n) => Ex::Num(n << 16), x => bin("<<", x, Ex::Num(16)) });
                 set(dc, st, 0, v);
             } else {
-                arith(dc, st, "+", false)
+                arith(dc, st, "+", fm == Fam::M68k && base_mn != "adda")
             }
         }
         (Fam::Rv, "sh1add" | "sh2add" | "sh3add" | "sh1add.uw" | "sh2add.uw" | "sh3add.uw") if ops.len() >= 3 => {
@@ -1202,7 +1234,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             set(dc, st, 0, bin(op, left, right));
         }
         (Fam::A64 | Fam::A32, "adds") => arith(dc, st, "+", true),
-        (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") | (Fam::M68k, "sub" | "suba" | "subq") => arith(dc, st, "-", false),
+        (Fam::A64 | Fam::A32, "sub") | (Fam::Rv, "sub" | "subw") | (Fam::Mips, "sub" | "subu" | "dsubu") | (Fam::M68k, "sub" | "suba" | "subq") => arith(dc, st, "-", fm == Fam::M68k && base_mn != "suba"),
         (Fam::A64 | Fam::A32, "subs") => arith(dc, st, "-", true),
         (Fam::Ppc, "subf") => {
             let a = dc.g_val(st, o(1), None);
@@ -1220,11 +1252,26 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let b = dc.g_val(st, o(2), None);
             set(dc, st, 0, bin("-", b, a));
         }
-        (Fam::A64, "neg") | (Fam::Rv, "neg") | (Fam::Mips, "negu") | (Fam::Ppc, "neg") | (Fam::M68k, "neg") => {
+        (Fam::M68k, "neg") if !ops.is_empty() => {
+            let size = if mn.ends_with(".b") { 1 } else if mn.ends_with(".w") { 2 } else { 4 };
+            let value = if let Some((mem, _)) = parse_mem(fm, ops, 0) {
+                dc.g_mem(st, &mem, size).0
+            } else {
+                dc.g_val(st, o(0), None)
+            };
+            let result = bin("-", Ex::Num(0), value);
+            st.flags = Flags::Op(result.clone());
+            if let Some((mem, _)) = parse_mem(fm, ops, 0) {
+                dc.g_store(st, result, None, &mem, size, addr);
+            } else {
+                set(dc, st, 0, result);
+            }
+        }
+        (Fam::A64, "neg") | (Fam::Rv, "neg") | (Fam::Mips, "negu") | (Fam::Ppc, "neg") => {
             let v = dc.g_val(st, o(1), None);
             set(dc, st, 0, bin("-", Ex::Num(0), v));
         }
-        (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") | (Fam::M68k, "mulu" | "muls") => arith(dc, st, "*", false),
+        (Fam::A64 | Fam::A32 | Fam::Mips | Fam::Rv, "mul" | "mulw" | "dmul") | (Fam::Ppc, "mullw" | "mulld" | "mulli") | (Fam::M68k, "mulu" | "muls") => arith(dc, st, "*", fm == Fam::M68k),
         (Fam::Rv, "mulh" | "mulhu" | "mulhsu") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
@@ -1410,10 +1457,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let field = if width == 32 { u64::from(u32::MAX) } else { ((1u64 << width) - 1) << lsb };
             set(dc, st, 0, bin("&", dst, Ex::Num((!(field as u32)) as i64)));
         }
-        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") | (Fam::M68k, "divu" | "divs") => arith(dc, st, "/", false),
+        (Fam::A64 | Fam::A32, "sdiv" | "udiv") | (Fam::Rv, "div" | "divu" | "divw" | "divuw") | (Fam::Ppc, "divw" | "divwu" | "divd" | "divdu") | (Fam::M68k, "divu" | "divs") => arith(dc, st, "/", fm == Fam::M68k),
         (Fam::Ppc, "modsw" | "moduw" | "modsd" | "modud") => arith(dc, st, "%", false),
         (Fam::Rv, "rem" | "remu" | "remw" | "remuw") => arith(dc, st, "%", false),
-        (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") | (Fam::M68k, "and") => arith(dc, st, "&", false),
+        (Fam::A64 | Fam::A32, "and") | (Fam::Rv | Fam::Mips, "and" | "andi") | (Fam::Ppc, "and" | "andi." | "andis.") | (Fam::M68k, "and") => arith(dc, st, "&", fm == Fam::M68k),
         (Fam::A64 | Fam::A32, "bic" | "bics" | "orn" | "orns" | "eon" | "eons") if ops.len() >= 3 => {
             let a = dc.g_val(st, o(1), None);
             let b = dc.g_val(st, o(2), None);
@@ -1440,10 +1487,10 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 let b = dc.g_val(st, o(2), None);
                 set(dc, st, 0, bin("|", a, match b { Ex::Num(n) => Ex::Num(n << 16), x => x }));
             } else {
-                arith(dc, st, "|", false)
+                arith(dc, st, "|", fm == Fam::M68k)
             }
         }
-        (Fam::A64 | Fam::A32, "eor") | (Fam::Rv | Fam::Mips, "xor" | "xori") | (Fam::Ppc, "xor" | "xori") | (Fam::M68k, "eor") => arith(dc, st, "^", false),
+        (Fam::A64 | Fam::A32, "eor") | (Fam::Rv | Fam::Mips, "xor" | "xori") | (Fam::Ppc, "xor" | "xori") | (Fam::M68k, "eor") => arith(dc, st, "^", fm == Fam::M68k),
         (Fam::A64 | Fam::A32, "bic") => {
             let a = dc.g_val(st, o(1), None);
             let b = shifted(dc, st, 2);
@@ -1574,11 +1621,19 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
-        (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") | (Fam::M68k, "lsl") => arith(dc, st, "<<", false),
-        (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") | (Fam::M68k, "lsr") => arith(dc, st, ">>", false),
+        (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") | (Fam::M68k, "lsl" | "asl") => arith(dc, st, "<<", fm == Fam::M68k),
+        (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") | (Fam::M68k, "lsr") => arith(dc, st, ">>", fm == Fam::M68k),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") | (Fam::M68k, "asr") => {
-            let (a, b) = if ops.len() >= 3 { (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None)) } else { (dc.g_val(st, o(0), None), dc.g_val(st, o(1), None)) };
-            set(dc, st, 0, bin(">>", Ex::Cast("int64_t", Box::new(a)), b));
+            let (a, b, dst) = if fm == Fam::M68k && ops.len() >= 2 {
+                (dc.g_val(st, o(1), None), dc.g_val(st, o(0), None), 1)
+            } else if ops.len() >= 3 {
+                (dc.g_val(st, o(1), None), dc.g_val(st, o(2), None), 0)
+            } else {
+                (dc.g_val(st, o(0), None), dc.g_val(st, o(1), None), 0)
+            };
+            let result = bin(">>", Ex::Cast("int64_t", Box::new(a)), b);
+            if fm == Fam::M68k { st.flags = Flags::Op(result.clone()); }
+            set(dc, st, dst, result);
         }
         (Fam::A64, "sxtw" | "sxth" | "sxtb") | (Fam::A32, "sxtb" | "sxth") | (Fam::Rv, "sext.w" | "sext.b" | "sext.h") | (Fam::Ppc, "extsw" | "extsh" | "extsb") => {
             let v = dc.g_val(st, o(1), None);
@@ -1713,7 +1768,12 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let value = if m == "st" { Ex::Num(1) } else if m == "sf" { Ex::Num(0) } else { Ex::Tern(Box::new(cond), Box::new(Ex::Num(1)), Box::new(Ex::Num(0))) };
             set(dc, st, 0, value);
         }
-        (Fam::A64 | Fam::A32, "cmp") | (Fam::M68k, "cmp" | "cmpi") => {
+        (Fam::M68k, "cmp" | "cmpi") if ops.len() >= 2 => {
+            let source = m68k_value(dc, st, 0);
+            let destination = m68k_value(dc, st, 1);
+            st.flags = Flags::Cmp(destination, source);
+        }
+        (Fam::A64 | Fam::A32, "cmp") => {
             let (a, b) = (dc.g_val(st, o(0), None), shifted(dc, st, 1));
             st.flags = Flags::Cmp(a, b);
         }
