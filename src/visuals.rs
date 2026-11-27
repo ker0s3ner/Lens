@@ -1137,9 +1137,9 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for c in cached_callees(*a) {
             if let Some(&j) = idx.get(&c) {
                 if i != j {
-                if edges.len() < CALL_GRAPH_MAX_EDGES {
-                    edges.push((i, j));
-                }
+                    if !edges.contains(&(i, j)) && edges.len() < CALL_GRAPH_MAX_EDGES {
+                        edges.push((i, j));
+                    }
                 }
             }
         }
