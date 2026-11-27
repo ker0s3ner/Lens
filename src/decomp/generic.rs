@@ -1239,6 +1239,23 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let cond = if base_mn == "movz" { bin("==", test, Ex::Num(0)) } else { bin("!=", test, Ex::Num(0)) };
             set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(value), Box::new(old)));
         }
+        (Fam::Rv, "czero.eqz" | "czero.nez") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let test = dc.g_val(st, o(2), None);
+            let zero = Ex::Num(0);
+            let cond = if base_mn == "czero.eqz" { bin("==", test, zero.clone()) } else { bin("!=", test, Ex::Num(0)) };
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(zero), Box::new(value)));
+        }
+        (Fam::Rv, "cmix" | "cmov" | "fsl" | "fsr" | "bcompress" | "bdecompress") if ops.len() >= 3 => {
+            let args = ops.iter().skip(1).map(|s| dc.g_val(st, s, None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
+        }
+        (Fam::Mips, "movt" | "movf") if ops.len() >= 3 => {
+            let value = dc.g_val(st, o(1), None);
+            let old = dc.g_val(st, o(0), None);
+            let cond = Ex::Raw(if base_mn == "movt" { "fp_condition".into() } else { "!fp_condition".into() });
+            set(dc, st, 0, Ex::Tern(Box::new(cond), Box::new(value), Box::new(old)));
+        }
         (Fam::A64, "cset" | "csetm") if ops.len() >= 2 => {
             let c = ops.last().and_then(|s| cc_of(s)).unwrap_or(CC::e);
             let cond = cc_expr(c, &st.flags);

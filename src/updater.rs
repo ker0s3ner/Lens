@@ -29,6 +29,14 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "RISC-V czero.eqz and czero.nez now lift to explicit zero-selection semantics.",
+    "RISC-V cmix and cmov remain visible as conditional bit operations.",
+    "RISC-V fsl and fsr remain visible as funnel shifts.",
+    "RISC-V bcompress and bdecompress remain visible as bit permutations.",
+    "MIPS movt and movf now lift to floating-condition selections.",
+    "Branchless optimized code no longer falls through to generic unsupported output.",
+    "Operand order remains visible across the conditional-move families.",
+    "The existing 135-test regression suite remains green after the conditional-move extension.",
     "RISC-V bset, bclr, binv, and bext now lift to explicit bit semantics.",
     "RISC-V sh1add, sh2add, and sh3add now lift to shifted-add arithmetic.",
     "RISC-V adduw now preserves its 32-bit unsigned addend semantics.",

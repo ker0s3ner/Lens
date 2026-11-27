@@ -1,3 +1,20 @@
+# Lens 0.6.467 — Fourier
+
+- RISC-V `czero.eqz` now lifts to explicit zero-selection semantics.
+- RISC-V `czero.nez` now lifts to explicit nonzero-selection semantics.
+- RISC-V `cmix` now remains visible as conditional bit mixing.
+- RISC-V `cmov` now remains visible as conditional bit movement.
+- RISC-V `fsl` now remains visible as funnel left shifting.
+- RISC-V `fsr` now remains visible as funnel right shifting.
+- RISC-V `bcompress` now remains visible as bit compression.
+- RISC-V `bdecompress` now remains visible as bit decompression.
+- MIPS `movt` now lifts to floating-condition selection.
+- MIPS `movf` now lifts to inverted floating-condition selection.
+- Branchless optimized code no longer falls through to generic unsupported output.
+- Operand order remains visible across the conditional-move families.
+- The existing 135-test regression suite remains green after the conditional-move extension.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.466 — Fourier
 
 - RISC-V `bset`, `bclr`, `binv`, and `bext` now lift to explicit bit semantics.
