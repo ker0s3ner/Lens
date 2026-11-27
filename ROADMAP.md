@@ -22,6 +22,8 @@ Dynamic-analysis follow-up: trace JSON now includes hit-weighted signal counts, 
 
 Dynamic-analysis follow-up: structured traces now carry bounded LLDB stop/exit events alongside instruction records. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: trace JSON exposes event count and capacity so consumers can detect bounded-history truncation. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: the debugger displays the four most recent captured stop/exit events below trace triage. The 50% target remains unmet.
 
 Dynamic-analysis follow-up: recent debug events can now be copied as a compact runtime handoff. The 50% target remains unmet.

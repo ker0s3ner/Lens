@@ -137,6 +137,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
 - Dynamic-trace JSON also includes hit-weighted signal counts, separating breadth from repeated execution intensity.
 - Structured dynamic-trace JSON now carries a bounded list of LLDB stop/exit events alongside instruction records.
+- Trace JSON includes explicit event count and capacity fields so consumers can detect bounded-history truncation.
 - The debugger shows the four most recent captured stop/exit events below the trace triage panel.
 - Recent debug events can be copied as a compact runtime handoff.
 - Debug-event history can be cleared independently from the instruction trace for a clean session handoff.

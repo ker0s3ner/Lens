@@ -767,7 +767,7 @@ impl LensApp {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
                                 let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "events": d.dynamic_events, "records": records});
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "event_count": d.dynamic_events.len(), "event_capacity": 512, "events": d.dynamic_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),
