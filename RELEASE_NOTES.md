@@ -1,3 +1,16 @@
+# Lens 0.6.479 — Fourier
+
+- Exported text traces now include per-address hit counts.
+- Added structured `lens.dynamic-trace.v1` JSON export with step, address, hits, function, and heuristic fields.
+- Added debugger hotspot summaries for frequently executed addresses.
+- Hotspot controls now resolve function names and navigate directly to the listing.
+- Added clipboard export for tab-separated hotspot records.
+- Added a debugger “Triage only” filter for heuristic-matched runtime entries.
+- Dynamic summaries now distinguish repeated heuristic hits from distinct flagged addresses.
+- Added an explainable multi-capability heuristic when several behavior categories co-occur.
+- Hotspot and triage behavior is documented across README and roadmap workflows.
+- Regression suite remains at 152 passing tests; no device build or installation is performed.
+
 # Lens 0.6.478 — Fourier
 
 - Added explainable static malware-triage signals for process, persistence, capture, anti-analysis, memory-tampering, network, packing, entropy, and protection clues.

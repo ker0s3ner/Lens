@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.478 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.479 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.479 — Fourier** adds structured dynamic-trace export, hotspot navigation and clipboard handoff, triage filtering, distinct-address summaries, and a stronger multi-capability heuristic. The 50% target remains unmet.
 
 Release update: **Lens 0.6.478 — Fourier** adds explainable static malware-triage signals and dynamic trace correlation across the debugger, exports, scripts, CLI reports, database JSON, and regression gates. The 50% target remains unmet.
 
