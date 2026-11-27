@@ -431,6 +431,10 @@ impl LensApp {
                                     let summary = det.threat_signals.iter().map(|signal| format!("[{}] {}: {}", signal.severity, signal.name, signal.evidence)).collect::<Vec<_>>().join("\n");
                                     ui.ctx().copy_text(format!("Lens malware triage (heuristic; not a verdict)\n{summary}"));
                                 }
+                                if high > 0 && ui.small_button("Copy high signals").clicked() {
+                                    let summary = det.threat_signals.iter().filter(|signal| signal.severity >= 3).map(|signal| format!("[HIGH] {}: {}", signal.name, signal.evidence)).collect::<Vec<_>>().join("\n");
+                                    ui.ctx().copy_text(format!("Lens high-priority triage (heuristic; not a verdict)\n{summary}"));
+                                }
                                 for signal in &det.threat_signals {
                                     let (label, color) = match signal.severity {
                                         3 => ("HIGH", p.edge_not),
