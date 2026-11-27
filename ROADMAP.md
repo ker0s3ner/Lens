@@ -566,6 +566,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Protection triage now distinguishes disabled stack protection as another conservative hardening clue.
 - Protection triage now distinguishes control-flow-guard-disabled posture as an indirect-control-flow hardening clue.
 - Protection triage now surfaces unavailable code-signature validation as a separate provenance clue.
+- Protection triage now surfaces RELRO-disabled and unavailable runtime-fortification posture.
 - The Overview supports focused clipboard handoff of high-severity heuristic signals.
 - The Overview supports a combined medium-and-high escalation handoff.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.

@@ -192,6 +192,12 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if protections.iter().any(|(name, enabled)| !*enabled && (name.to_ascii_lowercase().contains("signature") || name.to_ascii_lowercase().contains("signed"))) {
         out.push(ThreatSignal { severity: 1, name: "Code signature unavailable".into(), evidence: "signature protection or validation is unavailable; review provenance separately".into() });
     }
+    if protections.iter().any(|(name, enabled)| !*enabled && name.to_ascii_lowercase().contains("relro")) {
+        out.push(ThreatSignal { severity: 1, name: "RELRO disabled".into(), evidence: "relocation read-only hardening is reduced; review with other evidence".into() });
+    }
+    if protections.iter().any(|(name, enabled)| !*enabled && (name.to_ascii_lowercase().contains("fortify") || name.to_ascii_lowercase().contains("fortified"))) {
+        out.push(ThreatSignal { severity: 1, name: "Runtime fortification unavailable".into(), evidence: "library-call fortification is reduced; review with other evidence".into() });
+    }
     out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
     out
 }
