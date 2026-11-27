@@ -120,6 +120,8 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("||", x, Num(0)) | ("||", Num(0), x) => bin("!=", x.clone(), Num(0)),
         ("&&", x, y) if x == y && side_effect_free(x) => bin("!=", x.clone(), Num(0)),
         ("||", x, y) if x == y && side_effect_free(x) => bin("!=", x.clone(), Num(0)),
+        ("||", x, Un("!", y)) | ("||", Un("!", y), x) if *x == **y && side_effect_free(x) => Num(1),
+        ("&&", x, Un("!", y)) | ("&&", Un("!", y), x) if *x == **y && side_effect_free(x) => Num(0),
         ("^", x, y) if x == y => Num(0),
         ("-", x, y) if x == y => Num(0),
         ("==", x, y) if x == y && matches!(x, Var(_) | Num(_)) => Num(1),
@@ -3856,6 +3858,9 @@ mod tests {
         let condition = var("condition");
         assert_eq!(bin("&&", condition.clone(), condition.clone()), bin("!=", var("condition"), Ex::Num(0)));
         assert_eq!(bin("||", condition.clone(), condition), bin("!=", var("condition"), Ex::Num(0)));
+        let value = var("value");
+        assert_eq!(bin("||", value.clone(), Ex::Un("!", Box::new(value.clone()))), Ex::Num(1));
+        assert_eq!(bin("&&", value.clone(), Ex::Un("!", Box::new(value))), Ex::Num(0));
     }
 
     #[test]
