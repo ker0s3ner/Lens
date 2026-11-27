@@ -1113,8 +1113,9 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         }
         CNode { addr, layer, y: 0.0, name, sub, import, noreturn: f.map(|f| f.noreturn).unwrap_or(false) }
     };
-    let mut nodes = vec![mk(center, 0)];
-    let mut idx: HashMap<u64, usize> = HashMap::new();
+    let mut nodes = Vec::with_capacity(CALL_GRAPH_MAX_NODES);
+    nodes.push(mk(center, 0));
+    let mut idx: HashMap<u64, usize> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     idx.insert(center, 0);
     for dir in [1i32, -1] {
         let mut frontier = vec![center];
@@ -1134,8 +1135,8 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         }
     }
     // edges among the nodes shown
-    let mut edges: Vec<(usize, usize)> = vec![];
-    let mut seen_edges: HashSet<(usize, usize)> = HashSet::new();
+    let mut edges: Vec<(usize, usize)> = Vec::with_capacity(CALL_GRAPH_MAX_EDGES);
+    let mut seen_edges: HashSet<(usize, usize)> = HashSet::with_capacity(CALL_GRAPH_MAX_EDGES);
     let addrs: Vec<u64> = nodes.iter().map(|n| n.addr).collect();
     for (i, a) in addrs.iter().enumerate() {
         for c in cached_callees(*a) {
