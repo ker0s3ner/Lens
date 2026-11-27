@@ -198,6 +198,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if protections.iter().any(|(name, enabled)| !*enabled && (name.to_ascii_lowercase().contains("fortify") || name.to_ascii_lowercase().contains("fortified"))) {
         out.push(ThreatSignal { severity: 1, name: "Runtime fortification unavailable".into(), evidence: "library-call fortification is reduced; review with other evidence".into() });
     }
+    if protections.iter().any(|(name, enabled)| !*enabled && name.to_ascii_lowercase().contains("pie")) {
+        out.push(ThreatSignal { severity: 1, name: "PIE disabled".into(), evidence: "position-independent executable hardening is reduced; review with other evidence".into() });
+    }
     out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
     out
 }
