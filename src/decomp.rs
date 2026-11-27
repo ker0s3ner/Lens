@@ -278,6 +278,7 @@ impl Fmt<'_> {
             Ex::Var(name) => self.types.get(name).cloned(),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Cast(ty, _) => Some((*ty).to_string()),
+            Ex::Tern(_, _, _) => call_return_type(base),
             Ex::Call(callee, _) => match &**callee {
                 Ex::Var(name) => crate::protos::find(name).map(|proto| proto.ret),
                 Ex::Cast(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
@@ -302,7 +303,8 @@ impl Fmt<'_> {
             }
         }
         let def = self.struct_def(ty)?;
-        let base_text = self.at(base, 99);
+        let rendered_base = self.at(base, 99);
+        let base_text = if matches!(&**base, Ex::Tern(_, _, _)) { format!("({rendered_base})") } else { rendered_base };
         let path = self.resolve_struct_path(def, byte_offset, 0)?;
         Some(format!("{base_text}->{path}"))
     }
@@ -329,6 +331,7 @@ impl Fmt<'_> {
                 Ex::Var(n) => crate::protos::find(n).map(|p| p.ret),
                 _ => None,
             },
+            Ex::Tern(_, _, _) => call_return_type(e),
             _ => None,
         };
         let ty = ty.or_else(|| match e {
@@ -3663,6 +3666,22 @@ mod tests {
             Box::new(Ex::Call(Box::new(var("malloc")), vec![])),
         );
         assert_eq!(call_return_type(&expression).as_deref(), Some("void *"));
+    }
+
+    #[test]
+    fn renders_struct_field_from_conditional_pointer_call() {
+        crate::protos::set_user("struct Pair *make_pair(void); struct Pair *make_other(void);");
+        let def = crate::types::parse_c("struct Pair { uint32_t first; uint32_t second; }", 8, &[]).unwrap();
+        let empty_types = HashMap::new();
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty_types, structs: &[def] };
+        let call = Ex::Tern(
+            Box::new(Ex::Var("condition".into())),
+            Box::new(Ex::Call(Box::new(var("make_pair")), vec![])),
+            Box::new(Ex::Call(Box::new(var("make_other")), vec![])),
+        );
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "(condition ? make_pair() : make_other())->second");
     }
 
     #[test]
