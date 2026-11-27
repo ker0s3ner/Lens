@@ -295,6 +295,8 @@ ssize_t pread(int fd, void *buf, size_t n, off_t off); ssize_t pwrite(int fd, co
 ssize_t readv(int fd, const void *iov, int count); ssize_t writev(int fd, const void *iov, int count);
 off_t lseek(int fd, off_t off, int whence); int stat(const char *path, void *st); int fstat(int fd, void *st); int unlink(const char *path); int access(const char *path, int mode);
 int mkdir(const char *path, mode_t mode); int chdir(const char *path); char *getcwd(char *buf, size_t n); int dup(int fd); int dup2(int from, int to); int pipe(int fds[2]);
+int fchmodat(int dirfd, const char *path, mode_t mode, int flags); int fchown(int fd, uid_t owner, gid_t group); int chown(const char *path, uid_t owner, gid_t group); mode_t umask(mode_t mask);
+int mkstemp(char *template); int mkstemps(char *template, int suffixlen); int statx(int dirfd, const char *path, int flags, unsigned mask, void *buf);
 pid_t fork(void); pid_t getpid(void); int execve(const char *path, char *const argv[], char *const envp[]); int execv(const char *path, char *const argv[]);
 int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *status, int options); int kill(pid_t pid, int sig); unsigned sleep(unsigned s); int usleep(unsigned us);
 int posix_spawn(pid_t *pid, const char *path, const void *actions, const void *attr, char *const argv[], char *const envp[]); int posix_spawnp(pid_t *pid, const char *file, const void *actions, const void *attr, char *const argv[], char *const envp[]);
@@ -475,6 +477,13 @@ mod tests {
         assert_eq!(find("setpgid").unwrap().params.len(), 2);
         assert_eq!(find("clock_gettime").unwrap().params.len(), 2);
         assert_eq!(find("clock_getres").unwrap().params.len(), 2);
+        assert_eq!(find("fchmodat").unwrap().params.len(), 4);
+        assert_eq!(find("fchown").unwrap().params.len(), 3);
+        assert_eq!(find("chown").unwrap().params.len(), 3);
+        assert_eq!(find("umask").unwrap().params.len(), 1);
+        assert_eq!(find("mkstemp").unwrap().params.len(), 1);
+        assert_eq!(find("mkstemps").unwrap().params.len(), 2);
+        assert_eq!(find("statx").unwrap().params.len(), 5);
     }
 
     #[test]
