@@ -314,6 +314,9 @@ int pthread_mutex_init(void *m, const void *attr); void pthread_exit(void *ret) 
 void assert_rtn(const char *func, const char *file, int line, const char *expr) noreturn; void stack_chk_fail(void) noreturn; void cxa_throw(void *ex, void *type, void *dtor) noreturn;
 void *cxa_allocate_exception(size_t n); void cxa_free_exception(void *exception); int cxa_atexit(void (*fn)(void *), void *arg, void *dso); void *cxa_begin_catch(void *exception); void cxa_end_catch(void); void cxa_rethrow(void) noreturn; void cxa_pure_virtual(void) noreturn; int cxa_guard_acquire(unsigned long long *guard); void cxa_guard_release(unsigned long long *guard); void cxa_guard_abort(unsigned long long *guard); void *cxa_vec_new(size_t count, size_t size, size_t padding, void *ctor, void *dtor); void cxa_vec_delete(void *array, size_t size, size_t padding, void *dtor); void cxa_vec_cleanup(void *array, size_t count, size_t size, void *dtor); void longjmp(void *env, int val) noreturn; int setjmp(void *env);
 void cxa_vec_ctor(void *array, size_t count, size_t size, void *ctor); void cxa_vec_dtor(void *array, size_t count, size_t size, void *dtor); void cxa_vec_cleanup2(void *array, size_t count, size_t size, void *dtor);
+void *cxa_vec_new2(size_t count, size_t size, size_t padding, void *ctor, void *dtor, void *alloc); void cxa_vec_delete2(void *array, size_t size, size_t padding, void *dtor, void *dealloc);
+void *cxa_vec_new3(size_t count, size_t size, size_t padding, void *ctor, void *dtor, void *alloc); void cxa_vec_delete3(void *array, size_t size, size_t padding, void *dtor, void *dealloc);
+void cxa_throw_bad_array_new_length(void) noreturn; void cxa_bad_alloc(void) noreturn; void cxa_call_unexpected(void *exception) noreturn;
 void objc_msgSend(void *self, const char *sel, ...); void *objc_alloc(void *cls); void *objc_retain(void *o); void objc_release(void *o); void *objc_getClass(const char *name);
 void *sel_registerName(const char *name); void CFRelease(const void *cf); const void *CFRetain(const void *cf); void NSLog(void *fmt, ...);
 // ---- Win32
@@ -415,6 +418,13 @@ mod tests {
         assert_eq!(find("memccpy").unwrap().params.len(), 4);
         assert_eq!(find("__cxa_vec_ctor").unwrap().params.len(), 4);
         assert_eq!(find("__cxa_vec_dtor").unwrap().params.len(), 4);
+        assert_eq!(find("__cxa_vec_new2").unwrap().params.len(), 6);
+        assert_eq!(find("__cxa_vec_delete2").unwrap().params.len(), 5);
+        assert_eq!(find("__cxa_vec_new3").unwrap().params.len(), 6);
+        assert_eq!(find("__cxa_vec_delete3").unwrap().params.len(), 5);
+        assert!(find("__cxa_bad_alloc").unwrap().noreturn);
+        assert!(find("__cxa_throw_bad_array_new_length").unwrap().noreturn);
+        assert!(find("__cxa_call_unexpected").unwrap().noreturn);
     }
 
     #[test]
