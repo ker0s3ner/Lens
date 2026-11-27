@@ -2717,6 +2717,9 @@ fn decompile_inner(
     propagate_single_predecessor_constant(&mut outs, f);
     propagate_convergent_copy(&mut outs, f);
     propagate_convergent_constant(&mut outs, f);
+    for out in &mut outs {
+        fold_constant_term(out);
+    }
 
     // pass 3: liveness of registers
     let mut live_in: Vec<BTreeSet<u8>> = vec![BTreeSet::new(); n];
