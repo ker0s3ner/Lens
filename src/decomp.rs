@@ -819,6 +819,7 @@ fn reg_index(r: Register) -> Option<u8> {
 #[derive(Clone)]
 pub struct Abi {
     pub names: Vec<String>,
+    pub word_bytes: u8,
     pub ret: u8,
     pub sp: u8,
     pub args: Vec<u8>,
@@ -2452,7 +2453,7 @@ fn decompile_inner(
 ) -> Decompiled {
     let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
     let x86 = bin.arch.is_x86();
-    ABI.with(|a| *a.borrow_mut() = Some(if x86 { Abi { names: vec![], ret: RAX, sp: RSP, args: vec![], caller_saved: vec![], callee_saved: vec![], x86: true } } else { generic::abi_for(bin.arch) }));
+    ABI.with(|a| *a.borrow_mut() = Some(if x86 { Abi { names: vec![], word_bytes: (bin.arch.bits() / 8) as u8, ret: RAX, sp: RSP, args: vec![], caller_saved: vec![], callee_saved: vec![], x86: true } } else { generic::abi_for(bin.arch) }));
     let mut dc = Dc { bin, an, names, conv, word, fp: false, locals: BTreeMap::new(), stack_args: BTreeSet::new(), tmp: 0, dem: Default::default(), spills: BTreeSet::new(), enum_constants };
     let name = names.get(&f.start).map(|n| display_symbol(&n.0)).unwrap_or_else(|| format!("sub_{:X}", f.start));
     if f.blocks.is_empty() {

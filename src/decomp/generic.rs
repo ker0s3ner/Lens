@@ -70,6 +70,24 @@ mod tests {
     }
 
     #[test]
+    fn native_register_width_matches_each_risc_architecture_mode() {
+        let cases = [
+            (Arch::RiscV32, Fam::Rv, "a0", 4),
+            (Arch::RiscV64, Fam::Rv, "a0", 8),
+            (Arch::Mips32, Fam::Mips, "$a0", 4),
+            (Arch::Mips64, Fam::Mips, "$a0", 8),
+            (Arch::Ppc32, Fam::Ppc, "r3", 4),
+            (Arch::Ppc64, Fam::Ppc, "r3", 8),
+        ];
+
+        for (arch, family, name, width) in cases {
+            ABI.with(|abi| *abi.borrow_mut() = Some(abi_for(arch)));
+            assert_eq!(parse_reg(family, name).map(|reg| reg.w), Some(width), "{arch:?} {name}");
+        }
+        ABI.with(|abi| *abi.borrow_mut() = None);
+    }
+
+    #[test]
     fn a64_float_minmax_dispatches_to_named_helpers() {
         assert_eq!(a64_float_minmax_helper("fmin"), Some("fmin"));
         assert_eq!(a64_float_minmax_helper("fmax"), Some("fmax"));
@@ -153,7 +171,7 @@ pub fn abi_for(arch: Arch) -> Abi {
             (n, 0, 15, vec![], vec![0, 1, 8, 9], (2..=7).chain(10..15).collect())
         }
     };
-    Abi { names, ret, sp, args, caller_saved: caller, callee_saved: callee, x86: false }
+    Abi { names, word_bytes: (arch.bits() / 8) as u8, ret, sp, args, caller_saved: caller, callee_saved: callee, x86: false }
 }
 
 fn parse_imm(s: &str) -> Option<i64> {
@@ -176,6 +194,7 @@ fn ppc_mask(mb: u32, me: u32) -> Option<i64> {
 }
 
 fn parse_reg(f: Fam, tok: &str) -> Option<R> {
+    let native_width = ABI.with(|abi| abi.borrow().as_ref().map(|a| a.word_bytes).unwrap_or(4));
     let t = tok.trim().trim_start_matches('%').trim_end_matches('!').split('.').next().unwrap_or(tok.trim());
     let num = |p: &str, max: u8| t.strip_prefix(p).and_then(|d| if d.is_empty() || !d.chars().all(|c| c.is_ascii_digit()) { None } else { d.parse::<u8>().ok() }).filter(|n| *n <= max);
     match f {
@@ -199,15 +218,15 @@ fn parse_reg(f: Fam, tok: &str) -> Option<R> {
             "sb" => Some(R { i: 9, w: 4 }),
             _ => num("r", 15).map(|i| R { i, w: 4 }),
         },
-        Fam::Rv => RV.iter().position(|n| *n == t).map(|i| R { i: if i == 0 { ZERO } else { i as u8 }, w: 8 }).or_else(|| if t == "fp" { Some(R { i: 8, w: 8 }) } else { num("x", 31).map(|i| R { i: if i == 0 { ZERO } else { i }, w: 8 }) }),
+        Fam::Rv => RV.iter().position(|n| *n == t).map(|i| R { i: if i == 0 { ZERO } else { i as u8 }, w: native_width }).or_else(|| if t == "fp" { Some(R { i: 8, w: native_width }) } else { num("x", 31).map(|i| R { i: if i == 0 { ZERO } else { i }, w: native_width }) }),
         Fam::Mips => {
             if !t.starts_with('$') {
                 return None;
             }
             let t = t.trim_start_matches('$');
-            MIPS.iter().position(|n| *n == t).map(|i| R { i: if i == 0 { ZERO } else { i as u8 }, w: 4 })
+            MIPS.iter().position(|n| *n == t).map(|i| R { i: if i == 0 { ZERO } else { i as u8 }, w: native_width })
         }
-        Fam::Ppc => num("r", 31).map(|i| R { i, w: 4 }),
+        Fam::Ppc => num("r", 31).map(|i| R { i, w: native_width }),
         Fam::M68k => {
             let t = t.to_ascii_lowercase();
             t.strip_prefix('d').and_then(|n| n.parse::<u8>().ok()).filter(|n| *n < 8).map(|i| R { i, w: 4 })

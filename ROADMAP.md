@@ -86,6 +86,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Done so far (toward parity)
 - Motorola 68000 arithmetic now follows source,destination operand order, writes effective-address destinations, and carries result/compare state into condition-code reconstruction.
+- Generic RISC-V, MIPS, and PowerPC decompilation now uses the selected 32-bit or 64-bit architecture width for native registers.
 - JSON analysis reports now declare the `lens.analysis.v1` schema, and the smoke corpus validates human-readable plus JSON output for every discovered executable.
 - Call graph expansion now bounds high-fanout neighborhoods and visibly reports when a graph is truncated for responsiveness.
 - Imported indirect calls now contribute explicit call-graph edges, with regression coverage separate from forwarding-thunk analysis.
