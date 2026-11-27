@@ -1109,4 +1109,15 @@ mod tests {
         assert!(signals.iter().any(|s| s.name == "Network communication"));
         assert!(signals.windows(2).all(|pair| pair[0].severity >= pair[1].severity));
     }
+
+    #[test]
+    fn expanded_behavior_categories_remain_visible() {
+        let names = ["Processes", "Files", "System info", "Loads code at run time", "Threads & timing", "Cryptography"];
+        let caps = names.iter().map(|name| Capability { name: (*name).into(), apis: vec![format!("{name}_api")] }).collect::<Vec<_>>();
+        let signals = threat_signals(&caps, &[], &[], 4.0);
+        assert!(signals.iter().any(|s| s.name == "Runtime code loading"));
+        assert!(signals.iter().any(|s| s.name == "Filesystem activity"));
+        assert!(signals.iter().any(|s| s.name == "Broad capability profile"));
+        assert!(signals.iter().any(|s| s.name == "Multiple behavior categories"));
+    }
 }
