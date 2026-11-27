@@ -117,6 +117,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Runtime code-loading behavior is now surfaced as a separate triage clue for unpacking and late-bound execution review.
 - Filesystem activity is surfaced as its own low-severity behavior clue, separate from persistence detection.
 - System-information discovery is surfaced as a separate reconnaissance clue.
+- Threading/timing and cryptographic imports are surfaced as additional low-severity behavior clues.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.

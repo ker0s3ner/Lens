@@ -145,6 +145,12 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("System info") {
         out.push(ThreatSignal { severity: 1, name: "System information discovery".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Threads & timing") {
+        out.push(ThreatSignal { severity: 1, name: "Threading or timing behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("Cryptography") {
+        out.push(ThreatSignal { severity: 1, name: "Cryptographic activity".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
+    }
     if capabilities.len() >= 3 {
         out.push(ThreatSignal {
             severity: 2,

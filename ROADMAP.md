@@ -555,6 +555,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Static triage now calls out runtime code loading as an explainable unpacking and late-bound-execution clue.
 - Static triage now distinguishes general filesystem activity from persistence behavior.
 - Static triage now distinguishes system-information discovery as a reconnaissance behavior.
+- Static triage now includes threading/timing and cryptographic activity as separate evidence-backed clues.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.
 - The debugger can filter its visible trace list to heuristic-matched entries for faster behavior triage.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
