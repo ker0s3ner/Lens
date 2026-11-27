@@ -1,3 +1,13 @@
+# Lens 0.6.483 — Fourier
+
+- Added ranked signal-frequency summaries in the debugger triage panel with deterministic tie-breaking.
+- Added copyable signal-frequency and flagged-function handoff controls.
+- Added distinct flagged-function breadth to dynamic summaries and JSON exports.
+- Added deduplicated flagged function names to structured dynamic-trace JSON.
+- Added per-signal observation counts and hit-weighted signal counts to `lens.dynamic-trace.v1` exports.
+- Updated README, roadmap, and in-app What's New documentation.
+- Regression suite: 154 tests passing; no device build or installation performed.
+
 # Lens 0.6.482 — Fourier
 
 - Added dynamic trace path metrics for entry volume, unique addresses, flagged addresses, heuristic matches, observed signal names, hot addresses, and maximum hit counts.

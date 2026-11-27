@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.482 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.483 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.483 — Fourier** adds ranked signal-frequency summaries, copyable triage handoff, distinct flagged-function breadth, and hit-weighted dynamic signal counts. The 50% target remains unmet.
 
 Release update: **Lens 0.6.482 — Fourier** consolidates the defensive dynamic-trace metrics, in-app release-note synchronization, and dense call-graph rendering improvements shipped since 0.6.481. The 50% target remains unmet.
 
