@@ -563,6 +563,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - The Overview triage card now summarizes signal severity counts for faster analyst scanning.
 - Protection triage now distinguishes ASLR-disabled posture from ASLR-enabled hardening context.
 - Protection triage now distinguishes DEP/NX-disabled posture as an executable-memory hardening clue.
+- Protection triage now distinguishes disabled stack protection as another conservative hardening clue.
 - The Overview supports focused clipboard handoff of high-severity heuristic signals.
 - The Overview supports a combined medium-and-high escalation handoff.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.

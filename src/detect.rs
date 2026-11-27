@@ -183,6 +183,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if protections.iter().any(|(name, enabled)| !*enabled && (name.to_ascii_lowercase().contains("dep") || name.to_ascii_lowercase().contains("nx"))) {
         out.push(ThreatSignal { severity: 1, name: "DEP or NX disabled".into(), evidence: "executable-memory hardening is reduced; review with other evidence".into() });
     }
+    if protections.iter().any(|(name, enabled)| !*enabled && name.to_ascii_lowercase().contains("stack")) {
+        out.push(ThreatSignal { severity: 1, name: "Stack protection disabled".into(), evidence: "stack-hardening posture is reduced; review with other evidence".into() });
+    }
     out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
     out
 }
