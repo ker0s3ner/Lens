@@ -1081,6 +1081,9 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
 }
 
 pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>) {
+    if !l.an.functions.contains_key(&center) {
+        return (Vec::new(), Vec::new());
+    }
     // Keep the first render bounded even if a future caller supplies an
     // untrusted depth (the UI currently exposes only 1..=3).
     let depth = depth.min(3);
