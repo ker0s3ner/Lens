@@ -719,6 +719,12 @@ impl LensApp {
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
+                        if dynamic_signal_count > 0 && ui.small_button("Copy observed signals").clicked() {
+                            let mut names = dynamic_trace.iter().flat_map(|(_, _, signals)| signals.iter().cloned()).collect::<Vec<_>>();
+                            names.sort();
+                            names.dedup();
+                            ui.ctx().copy_text(names.join("\n"));
+                        }
                         if hot_trace.len() > 1 {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
                             if ui.small_button("Copy hotspots").clicked() {
