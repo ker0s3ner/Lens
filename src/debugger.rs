@@ -83,6 +83,7 @@ pub struct DbgUi {
     pub memory_address: String,
     pub hardware_breakpoints: bool,
     pub trace: bool,
+    pub triage_only: bool,
     pub confirm: bool,
     pub input: String,
     pub follow: bool,
@@ -656,6 +657,7 @@ impl LensApp {
                     d.trace_enabled = ui_state.trace;
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut ui_state.trace, "Record stop trace").on_hover_text("Records up to 5,000 program-counter locations observed at stops.");
+                        ui.checkbox(&mut ui_state.triage_only, "Triage only").on_hover_text("Show only dynamic trace entries matching static heuristic signals.");
                         if ui.add_enabled(d.state == RunState::Stopped && d.queue_idle(), egui::Button::new("Trace 100 instructions")).clicked() { trace_instructions = Some(100); }
                         if ui.add_enabled(d.state == RunState::Stopped && d.queue_idle(), egui::Button::new("Trace 1,000")).clicked() { trace_instructions = Some(1000); }
                         if ui.add_enabled(d.trace_active, egui::Button::new("Stop trace")).clicked() { stop_instruction_trace = true; }
@@ -715,7 +717,7 @@ impl LensApp {
                                 }
                             });
                         }
-                        for (address, name, risky) in dynamic_trace.iter().take(8) {
+                        for (address, name, risky) in dynamic_trace.iter().filter(|(_, _, risky)| !ui_state.triage_only || *risky).take(8) {
                             let color = if *risky { p.edge_not } else { p.muted };
                             ui.label(RichText::new(format!("{address:016X}  {name}{}", if *risky { "  · heuristic signal" } else { "" })).monospace().small().color(color));
                         }
