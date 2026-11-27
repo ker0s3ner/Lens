@@ -1,3 +1,17 @@
+# Lens 0.6.480 — Fourier
+
+- Added runtime code-loading triage for unpacking and late-bound execution review.
+- Added filesystem activity as a separate clue from persistence behavior.
+- Added system-information discovery as a reconnaissance clue.
+- Added threading/timing behavior triage.
+- Added cryptographic activity triage.
+- Added desktop/UI interaction triage.
+- Added broad capability-profile prioritization for six or more categories.
+- Added Overview severity counts for high, medium, and note-level signals.
+- Added high-severity-only clipboard handoff.
+- Added combined medium-and-high escalation handoff.
+- Regression suite: 152 tests passing; no device build or installation performed.
+
 # Lens 0.6.479 — Fourier
 
 - Exported text traces now include per-address hit counts.
