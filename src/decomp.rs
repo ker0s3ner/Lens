@@ -340,7 +340,7 @@ impl Fmt<'_> {
             Ex::Var(v) => self.types.get(v).cloned(),
             _ => None,
         });
-        ty.and_then(|t| t.trim().strip_suffix('*').map(str::trim).filter(|t| !t.is_empty()).map(str::to_string))
+        ty.and_then(|t| self.pointer_target(&t))
             .unwrap_or_else(|| int_type(size).to_string())
     }
 
@@ -3620,6 +3620,18 @@ mod tests {
         let call = Ex::Call(Box::new(var("make_pair")), vec![]);
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "make_pair()->second");
+    }
+
+    #[test]
+    fn resolves_pointee_type_through_pointer_typedef() {
+        let base = crate::types::parse_c("struct Pair { uint32_t first; uint32_t second; }", 8, &[]).unwrap();
+        let alias = crate::types::parse_c("typedef struct Pair *PairPtr;", 8, &[base.clone()]).unwrap();
+        let empty_types = HashMap::new();
+        let empty = HashMap::new();
+        let defs = [base, alias];
+        let fmt = Fmt { rename: &empty, types: &empty_types, structs: &defs };
+        let call = Ex::CastOwned("PairPtr".into(), Box::new(Ex::Call(Box::new(var("unknown")), vec![])));
+        assert_eq!(fmt.pointee_type(&call, 4), "struct Pair");
     }
 
     #[test]
