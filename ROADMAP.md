@@ -556,6 +556,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Static triage now distinguishes general filesystem activity from persistence behavior.
 - Static triage now distinguishes system-information discovery as a reconnaissance behavior.
 - Static triage now includes threading/timing and cryptographic activity as separate evidence-backed clues.
+- Static triage now distinguishes desktop and UI interaction imports as a separate behavior category.
 - Structured dynamic-trace JSON export now supports downstream defensive tooling without text parsing.
 - The debugger can filter its visible trace list to heuristic-matched entries for faster behavior triage.
 - Dynamic summaries distinguish repeated flagged executions from distinct flagged addresses.
