@@ -1,3 +1,20 @@
+# Lens 0.6.471 — Fourier
+
+- Ordinary pointer parameters retain their declared prototype types.
+- Computed pointer arguments retain their declared prototype types.
+- Positive pointer arithmetic arguments retain their declared types.
+- Negative pointer arithmetic arguments retain their declared types.
+- Nested arithmetic pointer arguments retain their declared types.
+- Callback/function-pointer parameters now retain their prototype types.
+- `fn(...)` normalized callback parameters now retain their prototype types.
+- C function-pointer declaration parameters now retain their prototype types.
+- Array parameters now preserve their pointer-decay intent at call sites.
+- Existing explicit argument casts are not double-wrapped.
+- Prototype-aware argument typing composes with enum constant substitution.
+- Prototype-aware argument typing composes with OS constant substitution.
+- The existing regression suite passes 140 tests after the call-site typing extension.
+- Smoke and golden-analysis checks remain part of the release gate.
+
 # Lens 0.6.470 — Fourier
 
 - Direct prototype return types now survive explicit pointer casts around calls.

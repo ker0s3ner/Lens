@@ -29,6 +29,14 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Pointer parameters retain declared prototype types at call sites.",
+    "Computed, positive, negative, and nested pointer arguments retain types.",
+    "Callback and function-pointer parameters now retain prototype types.",
+    "Normalized fn(...) callback parameters retain prototype types.",
+    "Array parameters preserve pointer-decay intent at call sites.",
+    "Existing explicit argument casts are not double-wrapped.",
+    "Call-site typing composes with enum and OS constant substitution.",
+    "The existing regression suite passes 140 tests after the call-site typing extension.",
     "Prototype pointer returns now survive explicit casts around calls.",
     "Casted allocator and factory results retain their pointee types.",
     "Conditional calls now infer a common return type.",
