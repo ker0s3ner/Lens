@@ -324,7 +324,10 @@ HANDLE CreateFile(LPCWSTR name, DWORD access, DWORD share, void *sec, DWORD disp
 BOOL WriteFile(HANDLE h, LPCVOID buf, DWORD n, DWORD *written, void *ov); BOOL CloseHandle(HANDLE h); HMODULE LoadLibrary(LPCWSTR name); void *GetProcAddress(HMODULE m, LPCSTR name);
 HMODULE GetModuleHandle(LPCWSTR name); LPVOID VirtualAlloc(LPVOID addr, size_t n, DWORD type, DWORD prot); BOOL VirtualFree(LPVOID addr, size_t n, DWORD type);
 BOOL VirtualProtect(LPVOID addr, size_t n, DWORD prot, DWORD *old); void ExitProcess(UINT code) noreturn; void ExitThread(DWORD code) noreturn; void Sleep(DWORD ms);
+BOOL GetFileSizeEx(HANDLE h, void *size); BOOL SetFilePointerEx(HANDLE h, long long distance, long long *newpos, DWORD method); BOOL ReadFileEx(HANDLE h, LPVOID buf, DWORD n, void *offset, void *complete);
+HANDLE CreateFileMapping(HANDLE h, void *sec, DWORD protect, DWORD high, DWORD low, LPCWSTR name); LPVOID MapViewOfFile(HANDLE map, DWORD access, DWORD high, DWORD low, size_t n); BOOL UnmapViewOfFile(LPVOID addr);
 DWORD GetLastError(void); HANDLE CreateThread(void *sec, size_t stack, void *fn, LPVOID arg, DWORD flags, DWORD *id); HANDLE CreateProcess(LPCWSTR app, LPWSTR cmd, void *pa, void *ta, BOOL inherit, DWORD flags, LPVOID env, LPCWSTR dir, void *si, void *pi);
+DWORD WaitForMultipleObjects(DWORD count, const HANDLE *handles, BOOL waitall, DWORD ms); BOOL GetExitCodeProcess(HANDLE h, DWORD *code);
 int MessageBox(HANDLE wnd, LPCWSTR text, LPCWSTR caption, UINT type); HANDLE HeapAlloc(HANDLE heap, DWORD flags, size_t n); BOOL HeapFree(HANDLE heap, DWORD flags, LPVOID p);
 HANDLE GetProcessHeap(void); BOOL IsDebuggerPresent(void); DWORD WaitForSingleObject(HANDLE h, DWORD ms); LONG RegOpenKeyEx(HANDLE key, LPCWSTR sub, DWORD opt, DWORD sam, HANDLE *out);
 int WSAStartup(WORD ver, void *data); int closesocket(int s);
@@ -425,6 +428,14 @@ mod tests {
         assert!(find("__cxa_bad_alloc").unwrap().noreturn);
         assert!(find("__cxa_throw_bad_array_new_length").unwrap().noreturn);
         assert!(find("__cxa_call_unexpected").unwrap().noreturn);
+        assert_eq!(find("GetFileSizeEx").unwrap().params.len(), 2);
+        assert_eq!(find("SetFilePointerEx").unwrap().params.len(), 4);
+        assert_eq!(find("ReadFileEx").unwrap().params.len(), 5);
+        assert_eq!(find("CreateFileMappingW").unwrap().params.len(), 6);
+        assert_eq!(find("MapViewOfFile").unwrap().params.len(), 5);
+        assert_eq!(find("UnmapViewOfFile").unwrap().params.len(), 1);
+        assert_eq!(find("WaitForMultipleObjects").unwrap().params.len(), 4);
+        assert_eq!(find("GetExitCodeProcess").unwrap().params.len(), 2);
     }
 
     #[test]
