@@ -61,9 +61,9 @@ fn scalar(ty: &str, ptr: u32) -> Option<(u32, u32)> {
     let t = t.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict")).collect::<Vec<_>>().join(" ");
     let t = t.trim_start_matches("unsigned ").trim_start_matches("signed ").trim();
     Some(match t {
-        "char" | "bool" | "_Bool" | "int8_t" | "uint8_t" | "u8" | "i8" | "BYTE" | "byte" | "" => (1, 1),
-        "short" | "int16_t" | "uint16_t" | "u16" | "i16" | "WORD" | "wchar_t" => (2, 2),
-        "int" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" | "DWORD" | "long32" => (4, 4),
+        "char" | "char8_t" | "bool" | "_Bool" | "int8_t" | "uint8_t" | "u8" | "i8" | "BYTE" | "byte" | "" => (1, 1),
+        "short" | "char16_t" | "int16_t" | "uint16_t" | "u16" | "i16" | "WORD" | "wchar_t" => (2, 2),
+        "int" | "char32_t" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" | "DWORD" | "long32" => (4, 4),
         "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" | "size_t" | "ssize_t" | "intptr_t" | "uintptr_t" | "QWORD" | "ptrdiff_t" => (8, 8),
         "__int128" | "__uint128" | "__int128_t" | "__uint128_t" => (16, 16),
         _ => return None,
@@ -639,6 +639,13 @@ mod tests {
         assert_eq!(def.size, 32);
         assert_eq!(aliases.size, 32);
         assert_eq!(def.fields.iter().map(|f| f.off).collect::<Vec<_>>(), vec![0, 16]);
+    }
+
+    #[test]
+    fn sizes_portable_character_types() {
+        let def = parse_c("struct Chars { char8_t a; char16_t b; char32_t c; wchar_t d; }", 8, &[]).unwrap();
+        assert_eq!(def.size, 12);
+        assert_eq!(def.fields.iter().map(|f| f.size).collect::<Vec<_>>(), vec![1, 2, 4, 2]);
     }
 
     #[test]
