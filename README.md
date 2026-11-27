@@ -139,6 +139,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Structured dynamic-trace JSON now carries a bounded list of LLDB stop/exit events alongside instruction records.
 - The debugger shows the four most recent captured stop/exit events below the trace triage panel.
 - Recent debug events can be copied as a compact runtime handoff.
+- Debug-event history can be cleared independently from the instruction trace for a clean session handoff.
 - Hit-weighted signal counts weight each unique observed address once, avoiding double-counting repeated trace entries.
 - A regression test protects the hit-weighted counting contract against future overcounting.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.

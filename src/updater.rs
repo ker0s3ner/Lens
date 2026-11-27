@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Debug-event history can now be cleared independently from the instruction trace for a clean session handoff.",
     "Recent debugger stop/exit events can now be copied as a compact runtime handoff.",
     "The debugger now displays the four most recent captured stop/exit events below trace triage.",
     "Structured dynamic-trace JSON now carries bounded LLDB stop/exit events alongside instruction records.",

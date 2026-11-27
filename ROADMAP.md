@@ -26,6 +26,8 @@ Dynamic-analysis follow-up: the debugger displays the four most recent captured 
 
 Dynamic-analysis follow-up: recent debug events can now be copied as a compact runtime handoff. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: debug-event history can be cleared independently from the instruction trace. The 50% target remains unmet.
+
 Correctness follow-up: hit-weighted signal counts now apply each address hit count once, avoiding repeated-entry overcounting. The 50% target remains unmet.
 
 Correctness follow-up: a focused regression test now protects the hit-weighted counting contract. The 50% target remains unmet.
