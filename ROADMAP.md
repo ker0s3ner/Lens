@@ -548,6 +548,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Smoke and golden-analysis gates now protect the triage export contract across supported fixture architectures.
 - Lens database JSON exports now preserve triage evidence alongside analyst annotations and function data.
 - Dynamic trace exports now include per-address hit counts for basic hot-path and loop triage.
+- Analysts can copy a compact triage summary from the Overview for defensive case handoff.
 - Rhai scripts can read saved analyst notes with `comment_at(addr)` and bookmark addresses with `bookmarks()`.
 - Rhai scripts can inspect persisted byte/word/dword/qword, pointer, string and undefinition choices through `data_at(addr)` and `data_definitions()`.
 - Rhai scripts can search names, strings, comments, and generated pseudocode through a single case-insensitive `search(query)` API.
