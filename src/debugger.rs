@@ -676,6 +676,27 @@ impl LensApp {
                                 }
                             }
                         }
+                        if ui.add_enabled(!d.trace.is_empty(), egui::Button::new("Export trace JSON…")).clicked() {
+                            if let Some(path) = rfd::FileDialog::new().set_title("Export JSON instruction trace").set_file_name("lens-trace.json").save_file() {
+                                let mut hits = std::collections::HashMap::<u64, usize>::new();
+                                for address in &d.trace { *hits.entry(*address).or_default() += 1; }
+                                let records = d.trace.iter().enumerate().map(|(step, address)| {
+                                    let resolved = dynamic_trace.iter().find(|(seen, _, _)| seen == address);
+                                    serde_json::json!({
+                                        "step": step,
+                                        "address": address,
+                                        "hits": hits.get(address).copied().unwrap_or(1),
+                                        "function": resolved.map(|(_, name, _)| name),
+                                        "heuristic_signal": resolved.map(|(_, _, risky)| *risky).unwrap_or(false),
+                                    })
+                                }).collect::<Vec<_>>();
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "records": records});
+                                match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
+                                    Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
+                                    Err(error) => d.console.push(format!("trace JSON export failed: {error}")),
+                                }
+                            }
+                        }
                         ui.label(RichText::new(format!("{} instructions", d.trace.len())).small().color(p.muted));
                     });
                     ScrollArea::vertical().id_salt("dbg_trace").max_height(90.0).show(ui, |ui| {

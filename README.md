@@ -114,6 +114,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Exported dynamic traces include per-address hit counts, making repeated loop or hot-path behavior visible during review.
 - The Overview triage panel can copy a compact, explicitly heuristic summary for case notes and handoff.
 - Triage adds an explainable multi-capability signal when several behavior categories co-occur.
+- Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.
