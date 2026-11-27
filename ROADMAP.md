@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.455 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.456 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.456 — Fourier** adds AArch64 compare-and-swap, swap, and atomic read-modify-write families as named operations. The 50% target remains unmet.
 
 Release update: **Lens 0.6.455 — Fourier** adds AArch64 exclusive load/store lifting across acquire/release and byte/halfword/word/doubleword forms. The 50% target remains unmet.
 

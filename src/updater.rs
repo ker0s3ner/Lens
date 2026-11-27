@@ -29,6 +29,10 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 cas*, swp*, ldadd*, ldset*, ldclr*, and ldeor* families now remain visible as named atomic calls.",
+    "AArch64 byte, halfword, acquire, and release atomic variants preserve their decoded forms.",
+    "Atomic helper arguments preserve decoded operand order for readable pseudocode.",
+    "The existing 135-test regression suite remains green after the AArch64 atomic family extension.",
     "AArch64 ldxr, ldaxr, ldxrb, ldaxrb, ldxrh, and ldaxrh now lift as readable exclusive loads.",
     "AArch64 stxr, stlxr, stxrb, stlxrb, stxrh, and stlxrh now preserve stores and status.",
     "AArch64 word and doubleword store-conditional widths are inferred from decoded registers.",

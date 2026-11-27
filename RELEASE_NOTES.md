@@ -1,3 +1,18 @@
+# Lens 0.6.456 — Fourier
+
+- AArch64 `cas*` families now remain visible as named compare-and-swap calls.
+- AArch64 byte and halfword compare-and-swap variants are preserved.
+- AArch64 acquire/release compare-and-swap variants are preserved.
+- AArch64 `swp*` families now remain visible as named atomic swap calls.
+- AArch64 byte and halfword swap variants are preserved.
+- AArch64 acquire/release swap variants are preserved.
+- AArch64 `ldadd*` families now remain visible as named atomic add calls.
+- AArch64 `ldset*` families now remain visible as named atomic set calls.
+- AArch64 `ldclr*` families now remain visible as named atomic clear calls.
+- AArch64 `ldeor*` families now remain visible as named atomic exclusive-or calls.
+- Atomic helper arguments preserve decoded operand order for readable pseudocode.
+- The existing 135-test regression suite remains green after the AArch64 atomic family extension.
+
 # Lens 0.6.455 — Fourier
 
 - AArch64 `ldxr` now lifts as a readable word/doubleword exclusive load.

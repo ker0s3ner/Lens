@@ -1957,6 +1957,18 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
             }
         }
+        (Fam::A64, m) if m.starts_with("cas") && ops.len() >= 3 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(m)), args));
+        }
+        (Fam::A64, m) if matches!(m, "swp" | "swpa" | "swpl" | "swpal" | "swpb" | "swph" | "swpab" | "swpah" | "swplb" | "swplh" | "swpalb" | "swpalh") && ops.len() >= 3 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(m)), args));
+        }
+        (Fam::A64, m) if matches!(m, "ldadd" | "ldadda" | "ldaddl" | "ldaddal" | "ldset" | "ldseta" | "ldsetl" | "ldsetal" | "ldclr" | "ldclra" | "ldclrl" | "ldclral" | "ldeor" | "ldeora" | "ldeorl" | "ldeoral") && ops.len() >= 3 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var(m)), args));
+        }
         (Fam::A32, m) if matches!(m, "ldrex" | "ldrexb" | "ldrexh" | "ldrexd" | "strex" | "strexb" | "strexh" | "strexd") => {
             let load = m.starts_with("ld");
             let width = if m.ends_with('b') { 1 } else if m.ends_with('h') { 2 } else if m.ends_with('d') { 8 } else { 4 };
