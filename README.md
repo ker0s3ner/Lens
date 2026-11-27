@@ -132,6 +132,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Analysts can copy only high-severity signals for focused defensive handoff.
 - Analysts can also copy the combined medium-and-high signal set for escalation notes.
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
+- Structured dynamic-trace JSON also reports distinct flagged functions separately from flagged addresses, reducing noise in defensive triage summaries.
 - Dynamic trace annotations are indexed once per debugger frame, keeping full-trace review responsive at the 5,000-entry cap.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Structured dynamic-trace records now include the matching heuristic signal names, not only a boolean flag.
