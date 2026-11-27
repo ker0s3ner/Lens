@@ -139,6 +139,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Hit-weighted signal counts weight each unique observed address once, avoiding double-counting repeated trace entries.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.
 - Dynamic-trace summaries show distinct flagged-function breadth separately from flagged addresses.
+- Dynamic-trace summaries also show execution intensity separately from flagged-address breadth.
 - Signal-frequency summaries can be copied directly for case notes and handoff.
 - Signal-frequency summaries are ranked by count with deterministic alphabetical tie-breaking.
 - Dynamic trace annotations are indexed once per debugger frame, keeping full-trace review responsive at the 5,000-entry cap.
