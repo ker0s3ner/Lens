@@ -146,6 +146,7 @@ fn un(op: &'static str, a: Ex) -> Ex {
         ("-", Ex::Num(x)) => Ex::Num(x.wrapping_neg()),
         ("~", Ex::Num(x)) => Ex::Num(!x),
         ("!", Ex::Num(x)) => Ex::Num((*x == 0) as i64),
+        ("!", Ex::Un("!", value)) if side_effect_free(value) => bin("!=", (**value).clone(), Ex::Num(0)),
         _ => Ex::Un(op, Box::new(a)),
     }
 }
@@ -3834,6 +3835,7 @@ mod tests {
         assert_eq!(un("-", Ex::Num(4)), Ex::Num(-4));
         assert_eq!(un("~", Ex::Num(0)), Ex::Num(-1));
         assert_eq!(un("!", Ex::Num(0)), Ex::Num(1));
+        assert_eq!(un("!", Ex::Un("!", Box::new(var("value")))), bin("!=", var("value"), Ex::Num(0)));
     }
 
     #[test]
