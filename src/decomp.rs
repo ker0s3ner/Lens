@@ -621,6 +621,54 @@ fn propagate_adjacent_copy(o: &mut BlockOut) {
     }
 }
 
+/// Propagate a compiler-generated temporary holding a literal constant through
+/// the next safe use.  Keeping this separate from copy propagation avoids
+/// rewriting symbolic values whose meaning may change across a block.
+fn propagate_adjacent_constant(o: &mut BlockOut) {
+    let mut i = 0;
+    while i < o.stmts.len() {
+        let (dst, value) = match &o.stmts[i].1 {
+            Stmt::Assign(Ex::Var(dst), value)
+                if (dst.starts_with('v') || dst.starts_with('t'))
+                    && matches!(value, Ex::Num(_)) => (dst.clone(), value.clone()),
+            _ => { i += 1; continue; }
+        };
+        let mut changed = false;
+        let mut j = i + 1;
+        while j < o.stmts.len() {
+            if writes_var(&o.stmts[j].1, &dst) { break; }
+            let old = std::mem::replace(&mut o.stmts[j].1, Stmt::Comment(String::new()));
+            let (new, did_change) = match old {
+                Stmt::Assign(left, right) => {
+                    let l = subst(&left, &Ex::Var(dst.clone()), &value);
+                    let r = subst(&right, &Ex::Var(dst.clone()), &value);
+                    (Stmt::Assign(l.clone(), r.clone()), l != left || r != right)
+                }
+                Stmt::Expr(expr) => {
+                    let n = subst(&expr, &Ex::Var(dst.clone()), &value);
+                    (Stmt::Expr(n.clone()), n != expr)
+                }
+                Stmt::Comment(text) => (Stmt::Comment(text), false),
+            };
+            o.stmts[j].1 = new;
+            changed |= did_change;
+            j += 1;
+        }
+        if j == o.stmts.len() {
+            let old = std::mem::replace(&mut o.term, Term::Stop);
+            let (new, did_change) = match old {
+                Term::Ret(Some(expr)) => { let n = subst(&expr, &Ex::Var(dst.clone()), &value); (Term::Ret(Some(n.clone())), n != expr) }
+                Term::Indirect(expr) => { let n = subst(&expr, &Ex::Var(dst.clone()), &value); (Term::Indirect(n.clone()), n != expr) }
+                Term::Cond { cond, taken, fall } => { let n = subst(&cond, &Ex::Var(dst.clone()), &value); (Term::Cond { cond: n.clone(), taken, fall }, n != cond) }
+                other => (other, false),
+            };
+            o.term = new;
+            changed |= did_change;
+        }
+        if changed { o.stmts.remove(i); } else { i += 1; }
+    }
+}
+
 fn writes_var(s: &Stmt, name: &str) -> bool {
     matches!(s, Stmt::Assign(Ex::Var(dst), _) if dst == name)
 }
@@ -2571,6 +2619,7 @@ fn decompile_inner(
     }
     for out in &mut outs {
         propagate_adjacent_copy(out);
+        propagate_adjacent_constant(out);
         propagate_forward_copy(out);
         inline_adjacent_call_temp(out);
         fold_constant_term(out);
@@ -3465,6 +3514,21 @@ mod tests {
         propagate_adjacent_copy(&mut ret);
         assert!(ret.stmts.is_empty());
         assert!(matches!(ret.term, Term::Ret(Some(Ex::Var(ref v))) if v == "rax"));
+    }
+
+    #[test]
+    fn folds_adjacent_temporary_constant() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(Ex::Var("v1".into()), Ex::Num(42))),
+                (1, Stmt::Assign(Ex::Var("x".into()), Ex::Bin("+", Box::new(Ex::Var("v1".into())), Box::new(Ex::Num(1))))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 2,
+        };
+        propagate_adjacent_constant(&mut out);
+        assert_eq!(out.stmts.len(), 1);
+        assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Num(42)));
+        assert!(matches!(out.term, Term::Ret(Some(Ex::Num(42)))));
     }
 
     #[test]
