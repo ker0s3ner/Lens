@@ -41,6 +41,7 @@ grep -q 'return 0x2A;' <<<"$json" || { echo "golden: pseudocode return mismatch"
 for field in function_records pseudocode_records instruction_records block_records call_records; do
   grep -q "\"$field\":" <<<"$json" || { echo "golden: missing $field" >&2; exit 1; }
 done
+grep -q '"threat_signals"' <<<"$json" || { echo "golden: missing threat_signals" >&2; exit 1; }
 
 arm_json="$(cd "$root" && cargo run --quiet -- "$fixture_arm" --arch arm64 --base 0x1000 --entry 0x1000 --json 2>/dev/null)"
 grep -q '"architecture": "ARM64"' <<<"$arm_json" || { echo "golden: ARM64 architecture mismatch" >&2; exit 1; }
