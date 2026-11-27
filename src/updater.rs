@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Decompiler temporaries now propagate compile-time constants through arithmetic, unary expressions, casts, and constant ternaries.",
+    "Constant propagation now crosses single-predecessor successor blocks and identical merge branches.",
+    "Constant branch expressions now fold into direct jumps after data-flow propagation.",
+    "Call graphs reject invalid centers before graph construction.",
+    "Duplicate call-graph edges no longer consume the relationship cap.",
+    "Call-graph edge deduplication uses a constant-time set for dense graphs.",
+    "The UI now reports when the call-graph edge limit hides relationships.",
+    "Added regression coverage for the new constant-flow and graph-safety paths.",
+    "The existing regression suite now passes 150 tests.",
     "Portable char8_t, char16_t, and char32_t layouts now size correctly.",
     "nullptr_t now sizes as a target-sized pointer type.",
     "Common POSIX off_t, time_t, pid_t, and socklen_t types are recognized.",

@@ -1,3 +1,16 @@
+# Lens 0.6.474 — Fourier
+
+- Temporary constants now propagate through arithmetic, unary expressions, casts, and constant ternaries.
+- Constant propagation crosses safe single-predecessor control-flow edges.
+- Identical constants propagate through converging merge blocks.
+- Propagated constant conditions are re-folded into direct jumps.
+- Branch terms containing compile-time expressions now fold directly.
+- Invalid call-graph centers fail closed before graph construction.
+- Duplicate call-graph edges no longer consume the edge cap.
+- Dense graph edge deduplication now uses a set for lower-cost rendering.
+- The UI reports when the graph edge limit hides relationships.
+- Added regression coverage; the suite now passes 150 tests.
+
 # Lens 0.6.473 — Fourier
 
 - `char8_t` now sizes as a one-byte portable character type.
