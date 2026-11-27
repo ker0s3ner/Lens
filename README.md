@@ -118,6 +118,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Dynamic summaries separate repeated heuristic hits from the number of distinct flagged addresses.
 - Hot-address controls include resolved function names as well as addresses and hit counts.
+- Hotspot lists can be copied as tab-separated function, address, and hit-count records.
 - `search(query)` returns case-insensitive `{addr, kind, text}` matches across names, strings, comments, and generated pseudocode.
 - `function_at(addr)` resolves an address to its containing recovered function record.
 - Compare two program versions by function shape and name.

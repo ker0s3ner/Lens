@@ -712,6 +712,12 @@ impl LensApp {
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic hits ({} addresses)", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count, dynamic_signal_addresses)).small().color(p.muted));
                         if hot_trace.len() > 1 {
                             ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
+                            if ui.small_button("Copy hotspots").clicked() {
+                                ui.ctx().copy_text(hot_trace.iter().map(|(address, hits)| {
+                                    let name = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, _)| name.as_str()).unwrap_or("unknown");
+                                    format!("{name}\t{address:016X}\t{hits}")
+                                }).collect::<Vec<_>>().join("\n"));
+                            }
                             ui.horizontal_wrapped(|ui| {
                                 for (address, hits) in &hot_trace {
                                     let label = dynamic_trace.iter().find(|(seen, _, _)| seen == address).map(|(_, name, _)| name.as_str()).unwrap_or("unknown");
