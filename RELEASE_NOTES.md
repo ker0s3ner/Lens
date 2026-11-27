@@ -1,3 +1,17 @@
+# Lens 0.6.481 — Fourier
+
+- Added ASLR-disabled posture triage.
+- Added DEP/NX-disabled executable-memory hardening triage.
+- Added stack-protection-disabled posture triage.
+- Added control-flow-guard-disabled posture triage.
+- Added unavailable code-signature validation provenance triage.
+- Added RELRO-disabled relocation-hardening triage.
+- Added unavailable runtime-fortification triage.
+- Added conservative explanatory evidence for every protection signal.
+- Added regression coverage for the complete protection signal family.
+- Updated current release documentation and parity tracking.
+- Regression suite: 154 tests passing; no device build or installation performed.
+
 # Lens 0.6.480 — Fourier
 
 - Added runtime code-loading triage for unpacking and late-bound execution review.

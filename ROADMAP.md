@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.480 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.481 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.481 — Fourier** adds protection-posture triage for common mitigation gaps and regression coverage for the complete signal family. The 50% target remains unmet.
 
 Release update: **Lens 0.6.480 — Fourier** expands defensive behavior taxonomy and adds focused high/medium triage handoff controls. The 50% target remains unmet.
 
