@@ -1,3 +1,14 @@
+# Lens 0.6.476 — Fourier
+
+- Recursive decompiler expression folding now simplifies constant subexpressions inside larger pseudocode expressions.
+- Added C++ array ABI runtime prototypes and failure helpers.
+- Added Win32 synchronization, event, thread-pool, file-mapping, and asynchronous-I/O prototypes.
+- Added POSIX socket, epoll, poll, synchronization, process, clock, filesystem, and signal prototypes.
+- Added dynamic-loader, randomness, entropy, numeric-conversion, and wide-character prototypes.
+- Added stdio formatted-allocation and line-reading prototypes.
+- Expanded prototype lookup regression coverage across the native library.
+- Regression suite: 151 tests passing.
+
 # Lens 0.6.475 — Fourier
 
 - Expanded POSIX, C++, Win32, socket, event-loop, thread, process, filesystem, signal, randomness, and stdio prototypes.

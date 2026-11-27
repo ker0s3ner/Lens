@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.475 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.476 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.476 — Fourier** adds recursive decompiler constant folding and expands native prototypes across POSIX, C++, Win32, sockets, threads, processes, filesystems, signals, randomness, clocks, and stdio. The 50% target remains unmet.
 
 Release update: **Lens 0.6.475 — Fourier** expands built-in native prototypes across POSIX, C++, Win32, sockets, threads, processes, filesystems, signals, randomness, and stdio. The 50% target remains unmet.
 

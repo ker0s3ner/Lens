@@ -29,6 +29,14 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Recursive decompiler expression folding now simplifies constant subexpressions inside larger pseudocode expressions.",
+    "Added C++ array ABI runtime prototypes and failure helpers.",
+    "Added Win32 synchronization, event, thread-pool, file-mapping, and asynchronous-I/O prototypes.",
+    "Added POSIX socket, epoll, poll, synchronization, process, clock, filesystem, and signal prototypes.",
+    "Added dynamic-loader, randomness, entropy, numeric-conversion, and wide-character prototypes.",
+    "Added stdio formatted-allocation and line-reading prototypes.",
+    "Expanded prototype lookup regression coverage across the native library.",
+    "The existing regression suite now passes 151 tests.",
     "Expanded native prototypes for POSIX I/O, sockets, event loops, synchronization, processes, clocks, filesystems, signals, and stdio.",
     "Added C++ array ABI allocation, deallocation, construction, destruction, and failure-runtime signatures.",
     "Added Win32 file mapping, asynchronous I/O, wait, and process-status signatures.",
