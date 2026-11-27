@@ -1132,12 +1132,13 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     }
     // edges among the nodes shown
     let mut edges: Vec<(usize, usize)> = vec![];
+    let mut seen_edges: HashSet<(usize, usize)> = HashSet::new();
     let addrs: Vec<u64> = nodes.iter().map(|n| n.addr).collect();
     for (i, a) in addrs.iter().enumerate() {
         for c in cached_callees(*a) {
             if let Some(&j) = idx.get(&c) {
                 if i != j {
-                    if !edges.contains(&(i, j)) && edges.len() < CALL_GRAPH_MAX_EDGES {
+                    if seen_edges.insert((i, j)) && edges.len() < CALL_GRAPH_MAX_EDGES {
                         edges.push((i, j));
                     }
                 }
