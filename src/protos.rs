@@ -297,12 +297,14 @@ off_t lseek(int fd, off_t off, int whence); int stat(const char *path, void *st)
 int mkdir(const char *path, mode_t mode); int chdir(const char *path); char *getcwd(char *buf, size_t n); int dup(int fd); int dup2(int from, int to); int pipe(int fds[2]);
 pid_t fork(void); pid_t getpid(void); int execve(const char *path, char *const argv[], char *const envp[]); int execv(const char *path, char *const argv[]);
 int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *status, int options); int kill(pid_t pid, int sig); unsigned sleep(unsigned s); int usleep(unsigned us);
+int posix_spawn(pid_t *pid, const char *path, const void *actions, const void *attr, char *const argv[], char *const envp[]); int posix_spawnp(pid_t *pid, const char *file, const void *actions, const void *attr, char *const argv[], char *const envp[]);
+pid_t waitid(int idtype, unsigned id, void *info, int options); int getrusage(int who, void *usage); pid_t setsid(void); pid_t setpgid(pid_t pid, pid_t pgid);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
 int dladdr(const void *addr, void *info); char *dlerror(void); void *dlvsym(void *h, const char *name, const char *version);
 int fcntl(int fd, int cmd, ...); int isatty(int fd); int getopt(int argc, char *const argv[], const char *opts); uid_t getuid(void); int chmod(const char *path, mode_t mode);
 char *realpath(const char *path, char *resolved); int strerror_r(int errnum, char *buf, size_t buflen);
-time_t time(time_t *t); int gettimeofday(void *tv, void *tz); int nanosleep(const void *req, void *rem); int signal(int sig, void *handler); int sigaction(int sig, const void *act, void *old);
+time_t time(time_t *t); int gettimeofday(void *tv, void *tz); int clock_gettime(int clockid, void *tp); int clock_getres(int clockid, void *res); int nanosleep(const void *req, void *rem); int signal(int sig, void *handler); int sigaction(int sig, const void *act, void *old);
 int sigprocmask(int how, const void *set, void *old); int sigemptyset(void *set); int sigaddset(void *set, int sig); int raise(int sig); int killpg(int pgrp, int sig);
 // ---- sockets
 int socket(int domain, int type, int proto); int connect(int fd, const void *addr, socklen_t len); int bind(int fd, const void *addr, socklen_t len); int listen(int fd, int backlog);
@@ -465,6 +467,14 @@ mod tests {
         assert_eq!(find("sigaddset").unwrap().params.len(), 2);
         assert_eq!(find("raise").unwrap().params.len(), 1);
         assert_eq!(find("killpg").unwrap().params.len(), 2);
+        assert_eq!(find("posix_spawn").unwrap().params.len(), 6);
+        assert_eq!(find("posix_spawnp").unwrap().params.len(), 6);
+        assert_eq!(find("waitid").unwrap().params.len(), 4);
+        assert_eq!(find("getrusage").unwrap().params.len(), 2);
+        assert_eq!(find("setsid").unwrap().params.len(), 0);
+        assert_eq!(find("setpgid").unwrap().params.len(), 2);
+        assert_eq!(find("clock_gettime").unwrap().params.len(), 2);
+        assert_eq!(find("clock_getres").unwrap().params.len(), 2);
     }
 
     #[test]
