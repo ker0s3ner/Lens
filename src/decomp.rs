@@ -70,6 +70,7 @@ fn call_return_type(callee: &Ex) -> Option<String> {
             .or_else(|| if matches!(inner.as_ref(), Ex::Call(_, _)) { Some(ty.trim().to_string()) } else { None })
             .filter(|ret| ret != "void"),
         Ex::Call(callee, _) => call_return_type(callee),
+        Ex::Bin(op, base, _) if *op == "+" || *op == "-" => call_return_type(base),
         Ex::Tern(_, yes, no) => {
             let yes = call_return_type(yes)?;
             let no = call_return_type(no)?;
@@ -3682,6 +3683,14 @@ mod tests {
         );
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "(condition ? make_pair() : make_other())->second");
+    }
+
+    #[test]
+    fn preserves_pointer_type_through_pointer_arithmetic() {
+        crate::protos::set_user("struct Pair *make_pair(void);");
+        let call = Ex::Call(Box::new(var("make_pair")), vec![]);
+        let adjusted = Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)));
+        assert_eq!(call_return_type(&adjusted).as_deref(), Some("struct Pair *"));
     }
 
     #[test]
