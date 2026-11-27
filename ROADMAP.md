@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.452 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.453 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.453 — Fourier** adds explicit Motorola 68000 bit-test/set/clear/change and rotate semantics for packed flags and dispatch code. The 50% target remains unmet.
 
 Release update: **Lens 0.6.452 — Fourier** adds readable RISC-V and MIPS atomic load/store lifting with explicit success status, building on the ARM synchronization semantics from 0.6.451. The 50% target remains unmet.
 

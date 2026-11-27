@@ -1685,6 +1685,29 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
             set(dc, st, 0, Ex::Call(Box::new(var(base_mn)), args));
         }
+        (Fam::M68k, "btst" | "bset" | "bclr" | "bchg") if ops.len() >= 2 => {
+            let bit = dc.g_val(st, o(0), None);
+            let mask = bin("<<", Ex::Num(1), bit);
+            let size = if mn.ends_with(".b") { 1 } else { 4 };
+            let (value, mem) = if let Some((m, _)) = parse_mem(fm, ops, 1) {
+                (dc.g_mem(st, &m, size).0, Some(m))
+            } else { (dc.g_val(st, o(1), None), None) };
+            st.flags = Flags::Cmp(bin("&", value.clone(), mask.clone()), Ex::Num(0));
+            if base_mn != "btst" {
+                let result = match base_mn {
+                    "bset" => bin("|", value, mask),
+                    "bclr" => bin("&", value, Ex::Un("~", Box::new(mask))),
+                    _ => bin("^", value, mask),
+                };
+                if let Some(m) = mem { dc.g_store(st, result, None, &m, size, addr); } else { set(dc, st, 1, result); }
+            }
+        }
+        (Fam::M68k, "rol" | "ror" | "roxl" | "roxr") if ops.len() >= 2 => {
+            let amount = dc.g_val(st, o(0), None);
+            let value = dc.g_val(st, o(1), None);
+            let helper = match base_mn { "ror" => "ror", "roxl" => "rol_with_extend", "roxr" => "ror_with_extend", _ => "rol" };
+            set(dc, st, 1, Ex::Call(Box::new(var(helper)), vec![value, amount]));
+        }
         (Fam::A64, "lsl" | "lslv") | (Fam::A32, "lsl") | (Fam::Rv, "sll" | "slli" | "sllw" | "slliw") | (Fam::Mips, "sll" | "sllv" | "dsll") | (Fam::Ppc, "slw" | "slwi" | "sld") | (Fam::M68k, "lsl" | "asl") => arith(dc, st, "<<", fm == Fam::M68k),
         (Fam::A64, "lsr" | "lsrv") | (Fam::A32, "lsr") | (Fam::Rv, "srl" | "srli" | "srlw" | "srliw") | (Fam::Mips, "srl" | "srlv" | "dsrl") | (Fam::Ppc, "srw" | "srwi" | "srd") | (Fam::M68k, "lsr") => arith(dc, st, ">>", fm == Fam::M68k),
         (Fam::A64, "asr" | "asrv") | (Fam::A32, "asr") | (Fam::Rv, "sra" | "srai" | "sraw" | "sraiw") | (Fam::Mips, "sra" | "srav") | (Fam::Ppc, "sraw" | "srawi" | "srad") | (Fam::M68k, "asr") => {

@@ -1,3 +1,18 @@
+# Lens 0.6.453 — Fourier
+
+- M68k `btst` now preserves the tested-bit condition in flags.
+- M68k `bset` now lifts to an explicit mask-set expression.
+- M68k `bclr` now lifts to an explicit mask-clear expression.
+- M68k `bchg` now lifts to an explicit mask-toggle expression.
+- M68k bit operations now support register destinations.
+- M68k bit operations now support memory destinations and typed stores.
+- M68k bit operations now preserve byte-width memory forms.
+- M68k `rol` and `ror` now lift to readable rotate helper calls.
+- M68k `roxl` and `roxr` now preserve rotate-through-extend intent.
+- M68k rotate operands retain the source-count and destination order used by Capstone.
+- Packed-flag operations no longer fall through to opaque unsupported-instruction output.
+- The existing 135-test regression suite remains green after the M68k semantic additions.
+
 # Lens 0.6.452 — Fourier
 
 - RISC-V `lr.w` now lifts as a readable 32-bit load-reserve operation.
