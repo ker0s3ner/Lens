@@ -1,3 +1,18 @@
+# Lens 0.6.459 — Fourier
+
+- ARM/Thumb `vldr` now lifts as a typed floating-point memory load.
+- ARM/Thumb `vstr` now lifts as a typed floating-point memory store.
+- Single-register VFP memory widths now follow the decoded register width.
+- Double-register VFP memory widths now preserve eight-byte loads and stores.
+- ARM/Thumb `vcvt*` conversions now remain visible as named conversion calls.
+- Conversion operands preserve the decoded source order.
+- VFP memory operations reuse the existing ARM addressing and writeback model.
+- VFP memory operations no longer fall through to generic unsupported output.
+- VFP conversions no longer fall through to opaque intrinsic assignments.
+- The new paths compose with the existing VFP arithmetic and comparison lifting.
+- The existing 135-test regression suite remains green after the VFP memory extension.
+- The 0.6.458 FP comparison and unary improvements remain included.
+
 # Lens 0.6.458 — Fourier
 
 - ARM/Thumb VFP `vabs` now lifts to an explicit absolute-value helper.

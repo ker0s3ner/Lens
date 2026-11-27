@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb vldr and vstr now lift as typed floating-point memory operations.",
+    "VFP memory widths follow decoded single- and double-register widths.",
+    "ARM/Thumb vcvt* conversions now remain visible as named conversion calls.",
+    "VFP memory and conversion paths reuse the existing ARM addressing model.",
+    "VFP memory and conversion instructions no longer fall through to opaque unsupported output.",
+    "The existing 135-test regression suite remains green after the VFP memory extension.",
     "ARM/Thumb VFP vabs and vsqrt now lift to explicit unary helpers.",
     "ARM/Thumb vcmp and vcmpe now record floating-point comparison flags.",
     "PowerPC fcmpu and fcmpo now record ordered and unordered comparison flags.",

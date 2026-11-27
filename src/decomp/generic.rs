@@ -2013,6 +2013,21 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 }
             }
         }
+        (Fam::A32, m) if m == "vldr" || m == "vstr" => {
+            let register = reg(0);
+            let width = register.map(|r| r.w).unwrap_or(if m == "vldr" { 8 } else { 4 });
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) {
+                if m == "vldr" { dc.g_load(st, register, &mm, width, false, addr); }
+                else {
+                    let value = register.map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                    dc.g_store(st, value, register, &mm, width, addr);
+                }
+            }
+        }
+        (Fam::A32, m) if m.starts_with("vcvt") && ops.len() >= 2 => {
+            let args = ops.iter().skip(1).enumerate().map(|(i, _)| dc.g_val(st, o(i + 1), None)).collect();
+            set(dc, st, 0, Ex::Call(Box::new(var("vcvt")), args));
+        }
         (Fam::A32, m) if m.starts_with("ldr") || m.starts_with("str") => {
             let r0 = reg(0);
             if let Some((mm, _)) = parse_mem(fm, ops, 1) {
