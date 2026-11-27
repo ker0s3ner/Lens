@@ -1094,6 +1094,22 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
             let op = match base_mn { "vadd" | "fadd" => "+", "vsub" | "fsub" => "-", "vmul" | "fmul" => "*", _ => "/" };
             arith(dc, st, op, false);
         }
+        (Fam::A32, "vmla" | "vmls" | "vnmla" | "vnmls") if ops.len() >= 3 => {
+            let accumulator = dc.g_val(st, o(0), None);
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let product = bin("*", left, right);
+            let value = if matches!(base_mn, "vmls" | "vnmls") { bin("-", accumulator, product) } else { bin("+", accumulator, product) };
+            set(dc, st, 0, if matches!(base_mn, "vnmla" | "vnmls") { bin("-", Ex::Num(0), value) } else { value });
+        }
+        (Fam::Ppc, "fmadd" | "fmsub" | "fnmadd" | "fnmsub") if ops.len() >= 4 => {
+            let left = dc.g_val(st, o(1), None);
+            let right = dc.g_val(st, o(2), None);
+            let addend = dc.g_val(st, o(3), None);
+            let product = bin("*", left, right);
+            let value = if matches!(base_mn, "fmsub" | "fnmsub") { bin("-", product, addend) } else { bin("+", product, addend) };
+            set(dc, st, 0, if matches!(base_mn, "fnmadd" | "fnmsub") { bin("-", Ex::Num(0), value) } else { value });
+        }
         (Fam::A32 | Fam::Ppc, "vneg" | "fneg") if ops.len() >= 2 => {
             let value = dc.g_val(st, o(1), None);
             set(dc, st, 0, bin("-", Ex::Num(0), value));

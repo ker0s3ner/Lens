@@ -29,6 +29,12 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb VFP vmla, vmls, vnmla, and vnmls now lift to explicit fused arithmetic.",
+    "PowerPC fmadd, fmsub, fnmadd, and fnmsub now lift to explicit fused arithmetic.",
+    "Fused operations preserve decoded accumulator, multiplicand, and addend order.",
+    "Fused operations compose with existing FP comparisons and control-flow structuring.",
+    "Fused operations no longer fall through to generic unsupported output on these families.",
+    "The existing 135-test regression suite remains green after the fused FP extension.",
     "ARM/Thumb vldr and vstr now lift as typed floating-point memory operations.",
     "VFP memory widths follow decoded single- and double-register widths.",
     "ARM/Thumb vcvt* conversions now remain visible as named conversion calls.",

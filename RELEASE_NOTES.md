@@ -1,3 +1,18 @@
+# Lens 0.6.460 — Fourier
+
+- ARM/Thumb VFP `vmla` now lifts to explicit fused multiply-add structure.
+- ARM/Thumb VFP `vmls` now lifts to explicit fused multiply-subtract structure.
+- ARM/Thumb VFP `vnmla` now preserves negated fused multiply-add intent.
+- ARM/Thumb VFP `vnmls` now preserves negated fused multiply-subtract intent.
+- PowerPC `fmadd` now lifts to explicit multiply-plus-add structure.
+- PowerPC `fmsub` now lifts to explicit multiply-minus-addend structure.
+- PowerPC `fnmadd` now preserves negated fused multiply-add intent.
+- PowerPC `fnmsub` now preserves negated fused multiply-subtract intent.
+- Fused operations preserve decoded accumulator, multiplicand, and addend order.
+- Fused operations compose with existing FP comparisons and control-flow structuring.
+- Fused operations no longer fall through to generic unsupported output on these families.
+- The existing 135-test regression suite remains green after the fused FP extension.
+
 # Lens 0.6.459 — Fourier
 
 - ARM/Thumb `vldr` now lifts as a typed floating-point memory load.
