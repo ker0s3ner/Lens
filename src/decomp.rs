@@ -61,8 +61,14 @@ fn function_pointer_proto(ty: &str) -> Option<crate::protos::Proto> {
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
-        Ex::Cast(ty, _) => function_pointer_proto(ty).map(|p| p.ret).filter(|ret| ret != "void"),
-        Ex::CastOwned(ty, _) => function_pointer_proto(ty).map(|p| p.ret).filter(|ret| ret != "void"),
+        Ex::Cast(ty, inner) => function_pointer_proto(ty)
+            .map(|p| p.ret)
+            .or_else(|| if matches!(inner.as_ref(), Ex::Call(_, _)) { Some(ty.trim().to_string()) } else { None })
+            .filter(|ret| ret != "void"),
+        Ex::CastOwned(ty, inner) => function_pointer_proto(ty)
+            .map(|p| p.ret)
+            .or_else(|| if matches!(inner.as_ref(), Ex::Call(_, _)) { Some(ty.trim().to_string()) } else { None })
+            .filter(|ret| ret != "void"),
         _ => None,
     }
 }
@@ -264,6 +270,8 @@ impl Fmt<'_> {
         if byte_offset < 0 { return None; }
         let ty_owned = match &**base {
             Ex::Var(name) => self.types.get(name).cloned(),
+            Ex::CastOwned(ty, _) => Some(ty.clone()),
+            Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::Call(callee, _) => match &**callee {
                 Ex::Var(name) => crate::protos::find(name).map(|proto| proto.ret),
                 Ex::Cast(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
@@ -3612,6 +3620,17 @@ mod tests {
         let call = Ex::Call(Box::new(callee), vec![]);
         let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
         assert_eq!(fmt.show(&expression), "(*(struct Pair *(*)(void))fp)()->second");
+    }
+
+    #[test]
+    fn preserves_explicit_pointer_cast_on_call_return() {
+        let def = crate::types::parse_c("struct Pair { uint32_t first; uint32_t second; }", 8, &[]).unwrap();
+        let empty_types = HashMap::new();
+        let empty = HashMap::new();
+        let fmt = Fmt { rename: &empty, types: &empty_types, structs: &[def] };
+        let call = Ex::CastOwned("struct Pair *".into(), Box::new(Ex::Call(Box::new(var("malloc")), vec![])));
+        let expression = Ex::Deref(Box::new(Ex::Bin("+", Box::new(call), Box::new(Ex::Num(4)))), 4);
+        assert_eq!(fmt.show(&expression), "(struct Pair *)malloc()->second");
     }
 
     #[test]
