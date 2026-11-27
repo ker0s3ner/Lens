@@ -55,7 +55,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls is expanding; typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, and pointer typedefs are implemented with regression coverage. Broader SSA-based propagation and more complex array/pointer reconstruction remain.
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
-- Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, calling-convention inference.
+- Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, and broader calling-convention inference. M68k LINK/A6 frames now recover stack parameters from the correct first-argument offset; call-site stack-argument collection and other conventions remain planned.
 - Thumb/Thumb-2 in the main loader and additional PPC extras.
 - Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
 
@@ -85,6 +85,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Improve collaboration and interchange; IDC/Ghidra script and JSON/map exports and partial IDC/Ghidra import already exist, but richer database import remains.
 
 ## Done so far (toward parity)
+- M68k LINK frames now account for the saved frame pointer and map the first stack parameter at the correct A6-relative offset, with a pseudocode fixture guarding the result.
 - Motorola 68000 arithmetic now follows source,destination operand order, writes effective-address destinations, and carries result/compare state into condition-code reconstruction.
 - Generic RISC-V, MIPS, and PowerPC decompilation now uses the selected 32-bit or 64-bit architecture width for native registers.
 - JSON analysis reports now declare the `lens.analysis.v1` schema, and the smoke corpus validates human-readable plus JSON output for every discovered executable.

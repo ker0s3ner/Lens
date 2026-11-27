@@ -53,6 +53,14 @@ mod tests {
     }
 
     #[test]
+    fn m68k_link_accounts_for_saved_frame_pointer_in_stack_pass() {
+        assert_eq!(
+            sp_delta(Fam::M68k, "link.w", &["a6".into(), "-4".into()]),
+            -8
+        );
+    }
+
+    #[test]
     fn m68k_parses_percent_prefixed_parenthesized_addressing() {
         let ops = vec!["(%a0)".to_string()];
         let (mem, used) = parse_mem(Fam::M68k, &ops, 0).expect("m68k indirect address");
@@ -322,6 +330,7 @@ fn cc_of(n: &str) -> Option<CC> {
 
 /// Change of the stack pointer caused by an instruction (negative = frame grows).
 fn sp_delta(f: Fam, mn: &str, ops: &[String]) -> i64 {
+    let base = base_mnemonic(mn);
     let spn = |s: &str| parse_reg(f, s).map(|r| r.i == abi_sp()).unwrap_or(false);
     match f {
         Fam::A64 => {
@@ -341,8 +350,11 @@ fn sp_delta(f: Fam, mn: &str, ops: &[String]) -> i64 {
             }
             0
         }
-        Fam::M68k => match mn {
-            "link" if ops.len() >= 2 && spn(&ops[0]) => parse_imm(&ops[1]).unwrap_or(0),
+        Fam::M68k => match base {
+            // LINK pushes the previous frame pointer before establishing A6.
+            "link" if ops.len() >= 2 && parse_reg(f, &ops[0]).map(|r| r.i == 14).unwrap_or(false) => {
+                parse_imm(&ops[1]).unwrap_or(0) - 4
+            }
             "unlk" => 0,
             _ => 0,
         }
@@ -389,13 +401,16 @@ fn sp_delta(f: Fam, mn: &str, ops: &[String]) -> i64 {
 
 /// `fp = sp + N` (frame pointer set-up) — returns N.
 fn fp_set(f: Fam, mn: &str, ops: &[String]) -> Option<i64> {
+    let base = base_mnemonic(mn);
     let is_fp = |s: &str| matches!(parse_reg(f, s), Some(r) if match f { Fam::A64 => r.i == 29, Fam::A32 => r.i == 11, Fam::Rv => r.i == 8, Fam::Mips => r.i == 30, Fam::Ppc => r.i == 31, Fam::M68k => r.i == 14 });
     let is_sp = |s: &str| parse_reg(f, s).map(|r| r.i == abi_sp()).unwrap_or(false);
     if ops.is_empty() || !is_fp(&ops[0]) {
         return None;
     }
-    match mn {
-        "link" if f == Fam::M68k => Some(0),
+    match base {
+        // A6 points four bytes below the function-entry SP after LINK stores
+        // the previous frame pointer. Keep that bias in the symbolic frame.
+        "link" if f == Fam::M68k => Some(-4),
         "mov" | "move" | "mr" | "or" | "c.mv" | "mv" if ops.len() >= 2 && is_sp(&ops[1]) => Some(0),
         "add" | "addi" | "addiu" | "add.w" | "addw" if ops.len() == 3 && is_sp(&ops[1]) => parse_imm(&ops[2]),
         _ => None,
@@ -417,6 +432,13 @@ pub(super) fn sp_pass(dc: &Dc, f: &Function, idx: &HashMap<u64, usize>) -> Vec<O
         for a in &f.blocks[b].insns {
             let Some(r) = multiarch::one(dc.bin, *a) else { continue };
             let ops = split_ops(&r.ops);
+            if fm == Fam::M68k && base_mnemonic(&r.mnemonic) == "unlk" {
+                if let Some(frame) = bp {
+                    sp = frame + 4; // restore SP, then pop the saved A6.
+                }
+                bp = None;
+                continue;
+            }
             if let Some(n) = fp_set(fm, &r.mnemonic, &ops) {
                 bp = Some(sp + n);
             }
@@ -520,7 +542,13 @@ impl<'a> Dc<'a> {
         if off >= 0 {
             let k = self.bin.arch.bits() as usize / 8;
             let nregs = ABI.with(|a| a.borrow().as_ref().map(|x| x.args.len()).unwrap_or(0));
-            let k = nregs + (off as usize / k.max(1)) + 1;
+            let k = if fam(self.bin.arch) == Fam::M68k {
+                // At entry, (sp) is the return address; the first argument is
+                // therefore 4 bytes above entry SP, or 8(A6) after LINK.
+                ((off.saturating_sub(4) as usize) / k.max(1)) + 1
+            } else {
+                nregs + (off as usize / k.max(1)) + 1
+            };
             self.stack_args.insert(k);
             return Ex::Var(format!("a{k}"));
         }
@@ -722,7 +750,8 @@ pub(super) fn exec(dc: &mut Dc, f: &Function, bi: usize, sp_in: i64, bp_in: Opti
         let o = |k: usize| ops.get(k).map(|s| s.as_str()).unwrap_or("");
         let reg = |k: usize| parse_reg(fm, o(k));
         // ---- stack frame housekeeping: skipped, only tracked
-        if fm == Fam::M68k && mn == "link" {
+        if fm == Fam::M68k && base_mnemonic(mn) == "link" {
+            st.sp -= 4; // LINK saves the old frame pointer before setting A6.
             st.bp = Some(st.sp);
             st.sp += parse_imm(ops.get(1).map(String::as_str).unwrap_or("0")).unwrap_or(0);
             continue;
@@ -731,9 +760,9 @@ pub(super) fn exec(dc: &mut Dc, f: &Function, bi: usize, sp_in: i64, bp_in: Opti
             st.bp = Some(st.sp + n);
             continue;
         }
-        if fm == Fam::M68k && mn == "unlk" {
+        if fm == Fam::M68k && base_mnemonic(mn) == "unlk" {
             if let Some(bp) = st.bp {
-                st.sp = bp;
+                st.sp = bp + 4; // restore SP, then pop the saved A6.
             }
             st.bp = None;
             continue;
@@ -982,11 +1011,11 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         // ---------------------------------------------------------- moves
         (_, "nop" | "pacibsp" | "paciasp" | "autiasp" | "autibsp" | "bti" | "hint" | "c.nop" | "dmb" | "dsb" | "isb" | "fence" | "sync" | "isync") => {}
         (Fam::M68k, m) if m.starts_with("move") && ops.len() >= 2 => {
-            let size = if m.ends_with(".b") { 1 } else if m.ends_with(".w") { 2 } else if m.ends_with(".q") { 8 } else { 4 };
-            if let Some((mm, _)) = parse_mem(fm, ops, 0) {
+            let size = if mn.ends_with(".b") { 1 } else if mn.ends_with(".w") { 2 } else if mn.ends_with(".q") { 8 } else { 4 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) {
                 let value = dc.g_val(st, o(0), None);
-                dc.g_store(st, value, reg(1), &mm, size, addr);
-            } else if let Some((mm, _)) = parse_mem(fm, ops, 1) {
+                dc.g_store(st, value, reg(0), &mm, size, addr);
+            } else if let Some((mm, _)) = parse_mem(fm, ops, 0) {
                 dc.g_load(st, reg(1), &mm, size, false, addr);
             } else if let Some(r) = reg(1) {
                 let value = dc.g_val(st, o(0), None);

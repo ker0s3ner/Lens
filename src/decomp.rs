@@ -3333,6 +3333,21 @@ mod tests {
     }
 
     #[test]
+    fn m68k_link_frame_recovers_first_stack_argument() {
+        let bin = raw_binary(&RawSpec {
+            path: "m68k-stack-arg".into(), name: "m68k-stack-arg".into(), arch: Arch::M68k, big: true,
+            // link.w a6, #-4; move.l 8(a6), d0; unlk a6; rts
+            segs: vec![(0x1000, vec![0x4E, 0x56, 0xFF, 0xFC, 0x20, 0x2E, 0x00, 0x08, 0x4E, 0x5E, 0x4E, 0x75])],
+            entry: Some(0x1000), format: "test".into(),
+        });
+        let an = analyze(&bin, &Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() }, Arc::new(AtomicU32::new(0)));
+        let f = an.functions.get(&0x1000).unwrap();
+        let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+        assert!(text.contains("a1"), "expected first stack argument a1:\n{text}");
+        assert!(!text.contains("a3"), "first stack argument was misnumbered:\n{text}");
+    }
+
+    #[test]
     fn scalar_sse_registers_get_float_declarations() {
         let bin = raw_binary(&RawSpec {
             path: "sse".into(), name: "sse".into(), arch: Arch::X64, big: false,
