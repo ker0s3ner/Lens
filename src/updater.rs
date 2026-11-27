@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "The debug-event panel now shows retained count against its bounded 512-event capacity.",
     "Debug-event history can now be cleared independently from the instruction trace for a clean session handoff.",
     "Recent debugger stop/exit events can now be copied as a compact runtime handoff.",
     "The debugger now displays the four most recent captured stop/exit events below trace triage.",

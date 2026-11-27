@@ -828,7 +828,7 @@ impl LensApp {
                         }
                     }
                     if !d.dynamic_events.is_empty() {
-                        ui.label(RichText::new("RECENT DEBUG EVENTS").small().color(p.faint));
+                        ui.label(RichText::new(format!("RECENT DEBUG EVENTS · {}/512 retained", d.dynamic_events.len())).small().color(p.faint));
                         if ui.small_button("Copy debug events").clicked() { ui.ctx().copy_text(d.dynamic_events.iter().rev().cloned().collect::<Vec<_>>().join("\n")); }
                         if ui.small_button("Clear debug events").clicked() { d.dynamic_events.clear(); }
                         for event in d.dynamic_events.iter().rev().take(4) {
