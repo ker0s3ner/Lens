@@ -827,6 +827,12 @@ impl LensApp {
                             ui.label(RichText::new(format!("{address:016X}  {name}{}", if flagged { format!("  · {}", signals.join(", ")) } else { String::new() })).monospace().small().color(color));
                         }
                     }
+                    if !d.dynamic_events.is_empty() {
+                        ui.label(RichText::new("RECENT DEBUG EVENTS").small().color(p.faint));
+                        for event in d.dynamic_events.iter().rev().take(4) {
+                            ui.label(RichText::new(event).small().color(p.muted));
+                        }
+                    }
                     ui.separator();
                     ui.columns(2, |cols| {
                         cols[0].label(RichText::new("REGISTERS").small().color(p.faint));
