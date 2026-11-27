@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.446 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.447 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.447 — Fourier** hardens call-graph rendering with bounded pan/zoom input, safe cache fallback, deterministic adjacency ordering, malformed-edge guards, and lower-cost curve painting. The 50% target remains unmet. Current audit marker remains **38.7% weighted capability / about 40–45% practical workflow**.
 
 Release update: **Lens 0.6.446 — Fourier** adds deterministic ARM64 NEON `bsl` decode coverage for the new mask-combine semantics. The 50% target remains unmet.
 

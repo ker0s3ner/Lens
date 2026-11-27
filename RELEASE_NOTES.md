@@ -1,3 +1,18 @@
+# Lens 0.6.447 — Fourier
+
+- Call-graph depth changes now reset the viewport and invalidate stale graph data.
+- Call-graph cache misses now show a recovery state instead of panicking during rendering.
+- Drag panning is bounded on both axes to prevent runaway coordinates.
+- Scroll panning is bounded per frame for smoother, predictable navigation.
+- Non-finite pan coordinates are repaired automatically.
+- Non-finite zoom values are repaired automatically.
+- Call-graph callees use unstable sorting for faster deterministic adjacency preparation.
+- Call-graph callers use unstable sorting before deduplication.
+- Edge drawing validates node indices before indexing the render cache.
+- Edge curves use fewer control samples, reducing paint work on dense graphs.
+- The existing node and edge caps remain enforced while preserving readable truncation behavior.
+- Repository verification now covers 134 deterministic tests after the stability batch.
+
 # Lens 0.6.446 — Fourier
 
 - Added deterministic ARM64 NEON `bsl v0.16b, v1.16b, v2.16b` decoding coverage using the real little-endian instruction encoding.

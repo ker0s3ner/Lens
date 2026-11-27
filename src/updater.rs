@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Call-graph depth changes reset the viewport and invalidate stale graph data.",
+    "Call-graph cache misses now show a recovery state instead of panicking during rendering.",
+    "Drag and scroll panning are bounded for smoother navigation.",
+    "Non-finite pan coordinates and zoom values are repaired automatically.",
+    "Call-graph adjacency preparation uses deterministic sorting with lower overhead.",
+    "Edge drawing validates node indices before indexing the render cache.",
+    "Edge curves use fewer control samples, reducing paint work on dense graphs.",
+    "The existing node and edge caps remain enforced during rendering.",
+    "Repository verification now covers 134 deterministic tests after the stability batch.",
     "Added deterministic ARM64 NEON bsl operand-order coverage using the real little-endian instruction encoding.",
     "The regression protects the mask-combine lift from decoder or encoding drift.",
     "ARM64 NEON bsl, bit, and bif now lift to explicit bit-select and mask-combine expressions.",

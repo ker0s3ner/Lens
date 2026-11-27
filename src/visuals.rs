@@ -668,6 +668,9 @@ impl LensApp {
             for d in 1..=3usize {
                 if ui.add(egui::Button::selectable(vis.cg_depth == d, d.to_string())).clicked() {
                     vis.cg_depth = d;
+                    vis.cg_pan = Vec2::ZERO;
+                    vis.cg_zoom = 1.0;
+                    vis.cg_cache = None;
                 }
             }
             ui.add_space(10.0);
@@ -677,7 +680,10 @@ impl LensApp {
             let (nodes, edges) = build_callgraph(l, fs, vis.cg_depth);
             vis.cg_cache = Some((fs, vis.cg_depth, l.version, nodes, edges));
         }
-        let (_, _, _, nodes, edges) = vis.cg_cache.as_ref().expect("call graph cache populated");
+        let Some((_, _, _, nodes, edges)) = vis.cg_cache.as_ref() else {
+            ui.centered_and_justified(|ui| ui.label(RichText::new("Call graph is still preparing…").color(p.muted)));
+            return;
+        };
         if nodes.len() >= CALL_GRAPH_MAX_NODES {
             ui.label(RichText::new("large graph truncated for responsiveness").small().color(p.nav_unexplored));
         }
@@ -686,6 +692,8 @@ impl LensApp {
         painter.rect_filled(area, 0.0, p.panel_alt);
         if resp.dragged() {
             vis.cg_pan += resp.drag_delta();
+            vis.cg_pan.x = vis.cg_pan.x.clamp(-20000.0, 20000.0);
+            vis.cg_pan.y = vis.cg_pan.y.clamp(-20000.0, 20000.0);
         }
         if resp.hovered() {
             let (scroll, zoom_d, cmd) = ui.input(|i| (i.smooth_scroll_delta, i.zoom_delta(), i.modifiers.command));
@@ -693,14 +701,16 @@ impl LensApp {
                 let f = if (zoom_d - 1.0).abs() > 1e-4 { zoom_d } else { (scroll.y * 0.003).exp() };
                 let old = vis.cg_zoom;
                 vis.cg_zoom = (vis.cg_zoom * f).clamp(0.25, 2.5);
+                if !vis.cg_zoom.is_finite() { vis.cg_zoom = 1.0; }
                 if let Some(mp) = resp.hover_pos() {
                     let rel = mp - (area.center() + vis.cg_pan);
                     vis.cg_pan += rel - rel * (vis.cg_zoom / old);
                 }
             } else {
-                vis.cg_pan += scroll;
+                vis.cg_pan += scroll.clamp(vec2(-1200.0, -1200.0), vec2(1200.0, 1200.0));
             }
         }
+        if !vis.cg_pan.x.is_finite() || !vis.cg_pan.y.is_finite() { vis.cg_pan = Vec2::ZERO; }
         let z = vis.cg_zoom;
         let origin = area.center() + vis.cg_pan;
         let (nw, nh) = (214.0f32, 40.0f32);
@@ -709,15 +719,16 @@ impl LensApp {
         let hovered = nodes.iter().position(|n| hover.map(|h| rect_of(n).contains(h)).unwrap_or(false));
         // edges
         for (a, b) in edges {
+            if *a >= nodes.len() || *b >= nodes.len() { continue; }
             let (ra, rb) = (rect_of(&nodes[*a]), rect_of(&nodes[*b]));
             let (s, e) = (pos2(ra.right(), ra.center().y), pos2(rb.left(), rb.center().y));
             let hot = hovered == Some(*a) || hovered == Some(*b);
             let col = if hot { p.accent } else { p.faint.gamma_multiply(0.7) };
             let dx = ((e.x - s.x).abs() * 0.5).max(40.0 * z);
             let (c1, c2) = (s + vec2(dx, 0.0), e - vec2(dx, 0.0));
-            let pts: Vec<Pos2> = (0..=18)
+            let pts: Vec<Pos2> = (0..=12)
                 .map(|i| {
-                    let t = i as f32 / 18.0;
+                    let t = i as f32 / 12.0;
                     let u = 1.0 - t;
                     pos2(
                         u * u * u * s.x + 3.0 * u * u * t * c1.x + 3.0 * u * t * t * c2.x + t * t * t * e.x,
@@ -1048,7 +1059,7 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
             v.extend(targets.iter().copied().filter(|target| l.an.functions.contains_key(target)));
         }
     }
-    v.sort();
+    v.sort_unstable();
     v.dedup();
     v
 }
@@ -1063,7 +1074,7 @@ fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
     refs.sort_by_key(|x| x.from);
     refs.truncate(CALL_GRAPH_MAX_CALLER_XREFS);
     let mut v: Vec<u64> = refs.into_iter().filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect();
-    v.sort();
+    v.sort_unstable();
     v.dedup();
     v.truncate(CALL_GRAPH_MAX_NEIGHBORS * 4);
     v
