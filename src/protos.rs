@@ -299,9 +299,11 @@ pid_t fork(void); pid_t getpid(void); int execve(const char *path, char *const a
 int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *status, int options); int kill(pid_t pid, int sig); unsigned sleep(unsigned s); int usleep(unsigned us);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
+int dladdr(const void *addr, void *info); char *dlerror(void); void *dlvsym(void *h, const char *name, const char *version);
 int fcntl(int fd, int cmd, ...); int isatty(int fd); int getopt(int argc, char *const argv[], const char *opts); uid_t getuid(void); int chmod(const char *path, mode_t mode);
 char *realpath(const char *path, char *resolved); int strerror_r(int errnum, char *buf, size_t buflen);
 time_t time(time_t *t); int gettimeofday(void *tv, void *tz); int nanosleep(const void *req, void *rem); int signal(int sig, void *handler); int sigaction(int sig, const void *act, void *old);
+int sigprocmask(int how, const void *set, void *old); int sigemptyset(void *set); int sigaddset(void *set, int sig); int raise(int sig); int killpg(int pgrp, int sig);
 // ---- sockets
 int socket(int domain, int type, int proto); int connect(int fd, const void *addr, socklen_t len); int bind(int fd, const void *addr, socklen_t len); int listen(int fd, int backlog);
 int accept(int fd, void *addr, socklen_t *len); ssize_t send(int fd, const void *buf, size_t n, int flags); ssize_t recv(int fd, void *buf, size_t n, int flags);
@@ -455,6 +457,14 @@ mod tests {
         assert_eq!(find("sem_init").unwrap().params.len(), 3);
         assert_eq!(find("sem_post").unwrap().params.len(), 1);
         assert_eq!(find("pthread_attr_setstacksize").unwrap().params.len(), 2);
+        assert_eq!(find("dladdr").unwrap().params.len(), 2);
+        assert_eq!(find("dlerror").unwrap().ret, "char *");
+        assert_eq!(find("dlvsym").unwrap().params.len(), 3);
+        assert_eq!(find("sigprocmask").unwrap().params.len(), 3);
+        assert_eq!(find("sigemptyset").unwrap().params.len(), 1);
+        assert_eq!(find("sigaddset").unwrap().params.len(), 2);
+        assert_eq!(find("raise").unwrap().params.len(), 1);
+        assert_eq!(find("killpg").unwrap().params.len(), 2);
     }
 
     #[test]
