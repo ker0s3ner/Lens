@@ -688,6 +688,20 @@ fn constant_value(e: &Ex) -> Option<Ex> {
     matches!(value, Ex::Num(_)).then_some(value)
 }
 
+fn fold_expression(e: Ex) -> Ex {
+    let folded = match e {
+        Ex::Bin(op, left, right) => bin(op, fold_expression(*left), fold_expression(*right)),
+        Ex::Un(op, value) => un(op, fold_expression(*value)),
+        Ex::Cast(ty, value) => Ex::Cast(ty, Box::new(fold_expression(*value))),
+        Ex::CastOwned(ty, value) => Ex::CastOwned(ty, Box::new(fold_expression(*value))),
+        Ex::Deref(value, size) => Ex::Deref(Box::new(fold_expression(*value)), size),
+        Ex::Call(func, args) => Ex::Call(Box::new(fold_expression(*func)), args.into_iter().map(fold_expression).collect()),
+        Ex::Tern(cond, yes, no) => tern(fold_expression(*cond), fold_expression(*yes), fold_expression(*no)),
+        other => other,
+    };
+    constant_value(&folded).unwrap_or(folded)
+}
+
 /// Propagate a temporary copy across safe intervening statements. Stop before
 /// either side is reassigned so the pass never crosses a value-version change.
 fn propagate_forward_copy(o: &mut BlockOut) {
@@ -2724,6 +2738,24 @@ fn decompile_inner(
         outs.push(if x86 { dc.exec(f, b, sp, bp, b == 0) } else { generic::exec(&mut dc, f, b, sp, bp) });
     }
     for out in &mut outs {
+        for (_, stmt) in &mut out.stmts {
+            match stmt {
+                Stmt::Assign(left, right) => {
+                    *left = fold_expression(std::mem::replace(left, Ex::Num(0)));
+                    *right = fold_expression(std::mem::replace(right, Ex::Num(0)));
+                }
+                Stmt::Expr(expr) => {
+                    *expr = fold_expression(std::mem::replace(expr, Ex::Num(0)));
+                }
+                Stmt::Comment(_) => {}
+            }
+        }
+        out.term = match std::mem::replace(&mut out.term, Term::Stop) {
+            Term::Ret(Some(expr)) => Term::Ret(Some(fold_expression(expr))),
+            Term::Indirect(expr) => Term::Indirect(fold_expression(expr)),
+            Term::Cond { cond, taken, fall } => Term::Cond { cond: fold_expression(cond), taken, fall },
+            other => other,
+        };
         propagate_adjacent_copy(out);
         propagate_adjacent_constant(out);
         propagate_forward_copy(out);
@@ -3795,6 +3827,16 @@ mod tests {
         let bits = var("bits");
         assert_eq!(bin("&", bits.clone(), Ex::Num(-1)), bits);
         assert_eq!(bin("|", var("bits"), Ex::Num(-1)), Ex::Num(-1));
+    }
+
+    #[test]
+    fn folds_nested_expression_constants() {
+        let expression = Ex::Bin(
+            "+",
+            Box::new(Ex::Var("value".into())),
+            Box::new(Ex::Bin("*", Box::new(Ex::Num(3)), Box::new(Ex::Num(4)))),
+        );
+        assert_eq!(fold_expression(expression), Ex::Bin("+", Box::new(Ex::Var("value".into())), Box::new(Ex::Num(12))));
     }
 
     #[test]
