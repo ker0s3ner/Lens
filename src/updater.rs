@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Recent debugger stop/exit events can now be copied as a compact runtime handoff.",
     "The debugger now displays the four most recent captured stop/exit events below trace triage.",
     "Structured dynamic-trace JSON now carries bounded LLDB stop/exit events alongside instruction records.",
     "Added regression coverage for hit-weighted dynamic signal counting to prevent repeated-entry overcounting.",
