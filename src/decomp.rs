@@ -215,6 +215,9 @@ impl Fmt<'_> {
         let mut seen = std::collections::HashSet::new();
         let mut pointer = false;
         for _ in 0..=self.structs.len() {
+            for qualifier in [" const", " volatile", " restrict"] {
+                current = current.trim_end_matches(qualifier).trim().to_string();
+            }
             if let Some(target) = current.strip_suffix('*') {
                 pointer = true;
                 current = target.trim().to_string();
@@ -3637,7 +3640,7 @@ mod tests {
         let empty = HashMap::new();
         let defs = [base, alias];
         let fmt = Fmt { rename: &empty, types: &empty_types, structs: &defs };
-        let call = Ex::CastOwned("volatile PairPtr".into(), Box::new(Ex::Call(Box::new(var("unknown")), vec![])));
+        let call = Ex::CastOwned("PairPtr const".into(), Box::new(Ex::Call(Box::new(var("unknown")), vec![])));
         assert_eq!(fmt.pointee_type(&call, 4), "struct Pair");
     }
 
