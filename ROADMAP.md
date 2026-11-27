@@ -541,6 +541,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Recovered switch-case xrefs now feed the call graph as outgoing control-flow edges, keeping graph navigation aligned with the listing.
 - Rhai scripts can retrieve typed C-like pseudocode with `decompile(addr)` for automated audits and reports.
 - The Rhai API exposes a compatibility version through `script_api_version()`, allowing plugins to guard newer capabilities.
+- Rhai scripts can now read the explainable static malware-triage signals, including severity, category and evidence, for defensive review workflows.
 - Rhai scripts can read saved analyst notes with `comment_at(addr)` and bookmark addresses with `bookmarks()`.
 - Rhai scripts can inspect persisted byte/word/dword/qword, pointer, string and undefinition choices through `data_at(addr)` and `data_definitions()`.
 - Rhai scripts can search names, strings, comments, and generated pseudocode through a single case-insensitive `search(query)` API.
