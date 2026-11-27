@@ -275,7 +275,8 @@ char *strerror(int errnum); char *strpbrk(const char *s, const char *accept); si
 void *malloc(size_t size); void *calloc(size_t n, size_t size); void *realloc(void *p, size_t size); void free(void *p);
 void *operator new(size_t size); void operator delete(void *p); void *operator new[](size_t size); void operator delete[](void *p);
 void exit(int status) noreturn; void abort(void) noreturn; void _exit(int status) noreturn; int atexit(void (*fn)(void));
-int atoi(const char *s); long atol(const char *s); long strtol(const char *s, char **end, int base); unsigned long strtoul(const char *s, char **end, int base);
+int atoi(const char *s); long atol(const char *s); long strtol(const char *s, char **end, int base); unsigned long strtoul(const char *s, char **end, int base); long long strtoll(const char *s, char **end, int base); unsigned long long strtoull(const char *s, char **end, int base);
+long wcstol(const void *s, void **end, int base); unsigned long wcstoul(const void *s, void **end, int base); int getentropy(void *buf, size_t len); unsigned arc4random(void); void arc4random_buf(void *buf, size_t n);
 double strtod(const char *s, char **end); double atof(const char *s); char *getenv(const char *name); int setenv(const char *name, const char *value, int overwrite);
 int putenv(char *s); int system(const char *cmd); int abs(int x); long labs(long x); int rand(void); void srand(unsigned seed);
 void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)); void *bsearch(const void *key, const void *base, size_t n, size_t size, int (*cmp)(const void *, const void *));
@@ -484,6 +485,13 @@ mod tests {
         assert_eq!(find("mkstemp").unwrap().params.len(), 1);
         assert_eq!(find("mkstemps").unwrap().params.len(), 2);
         assert_eq!(find("statx").unwrap().params.len(), 5);
+        assert_eq!(find("strtoll").unwrap().params.len(), 3);
+        assert_eq!(find("strtoull").unwrap().params.len(), 3);
+        assert_eq!(find("wcstol").unwrap().params.len(), 3);
+        assert_eq!(find("wcstoul").unwrap().params.len(), 3);
+        assert_eq!(find("getentropy").unwrap().params.len(), 2);
+        assert_eq!(find("arc4random").unwrap().params.len(), 0);
+        assert_eq!(find("arc4random_buf").unwrap().params.len(), 2);
     }
 
     #[test]
