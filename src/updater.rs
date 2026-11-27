@@ -29,6 +29,15 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Switch-table bounds and entry addressing are now checked across supported architectures.",
+    "Oversized switch bounds now fall back safely instead of overflowing.",
+    "ARM64 absolute, signed-offset, byte, and halfword table walks now stop safely on overflow.",
+    "Thumb table reads now stop safely when scaled offsets overflow.",
+    "MIPS32 and MIPS64 table reads now use checked width-aware addresses.",
+    "PowerPC and RISC-V table reads now use checked entry addresses.",
+    "x86-style indexed switch tables now use checked pointer-sized addresses.",
+    "Corrupted high-address tables now terminate analysis cleanly instead of wrapping memory.",
+    "The existing 135-test regression suite remains green after malformed-table hardening.",
     "RISC-V sltu and sltiu now lift with unsigned comparison semantics.",
     "MIPS unsigned-set-less-than forms now retain unsigned comparison semantics.",
     "Scripted call-graph adjacency is built once per script run and reused by graph queries.",

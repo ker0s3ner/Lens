@@ -355,32 +355,37 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     }
     let Some((tbl, size)) = table else { return vec![] };
     if !bin.is_mapped(tbl) { return vec![]; }
-    let count = bound.map(|b| (b + 1) as usize).filter(|c| (2..=1024).contains(c)).unwrap_or(256);
+    let count = switch_count(bound);
     let mut out = vec![];
     for k in 0..count {
         let t = match size {
             8 => {
-                let b = bin.read(tbl + 8 * k as u64, 8);
+                let Some(addr) = switch_entry_addr(tbl, k, 8) else { break };
+                let b = bin.read(addr, 8);
                 if b.len() < 8 { break; }
                 if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
             }
             9 => {
-                let b = bin.read(tbl + 4 * k as u64, 4);
+                let Some(addr) = switch_entry_addr(tbl, k, 4) else { break };
+                let b = bin.read(addr, 4);
                 if b.len() < 4 { break; }
                 if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 }
             }
             4 => {
-                let b = bin.read(tbl + 4 * k as u64, 4);
+                let Some(addr) = switch_entry_addr(tbl, k, 4) else { break };
+                let b = bin.read(addr, 4);
                 if b.len() < 4 { break; }
                 let raw = if bin.big_endian { i32::from_be_bytes([b[0], b[1], b[2], b[3]]) } else { i32::from_le_bytes([b[0], b[1], b[2], b[3]]) };
                 (base.unwrap_or(tbl) as i64 + raw as i64) as u64
             }
             1 => {
-                let Some(bs) = bin.byte(tbl + k as u64) else { break };
+                let Some(addr) = switch_entry_addr(tbl, k, 1) else { break };
+                let Some(bs) = bin.byte(addr) else { break };
                 base.unwrap_or(tbl) + ((bs as u64) << shift)
             }
             _ => {
-                let b = bin.read(tbl + 2 * k as u64, 2);
+                let Some(addr) = switch_entry_addr(tbl, k, 2) else { break };
+                let b = bin.read(addr, 2);
                 if b.len() < 2 { break; }
                 let raw = if bin.big_endian { u16::from_be_bytes([b[0], b[1]]) } else { u16::from_le_bytes([b[0], b[1]]) };
                 base.unwrap_or(tbl) + ((raw as u64) << shift)
@@ -434,7 +439,8 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
         };
         let mut raw_entries = Vec::new();
         for k in 0..count {
-            let b = bin.read(table + (k * 4) as u64, 4);
+            let Some(addr) = switch_entry_addr(table, k, 4) else { break };
+            let b = bin.read(addr, 4);
             if b.len() != 4 { break; }
             raw_entries.push(if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 });
         }
@@ -568,7 +574,8 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     };
     let mut raw_entries = Vec::new();
     for k in 0..count {
-        let b = bin.read(table + (k * 4) as u64, 4);
+        let Some(addr) = switch_entry_addr(table, k, 4) else { break };
+        let b = bin.read(addr, 4);
         if b.len() != 4 { break; }
         raw_entries.push(if bin.big_endian { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as u64 } else { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64 });
     }
@@ -633,7 +640,8 @@ fn mips_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstar
     let count = bound.unwrap_or(256).clamp(2, 1024);
     let mut raw_entries = Vec::new();
     for k in 0..count {
-        let b = bin.read(table + (k * width) as u64, width);
+        let Some(addr) = switch_entry_addr(table, k, width) else { break };
+        let b = bin.read(addr, width);
         if b.len() != width { break; }
         let raw = if width == 8 {
             if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
@@ -703,7 +711,8 @@ fn ppc_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart
     let count = bound.unwrap_or(256).clamp(2, 1024);
     let mut raw_entries = Vec::new();
     for k in 0..count {
-        let b = bin.read(table + (k * 4) as u64, 4);
+        let Some(addr) = switch_entry_addr(table, k, 4) else { break };
+        let b = bin.read(addr, 4);
         if b.len() != 4 { break; }
         raw_entries.push(if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 });
     }
@@ -760,7 +769,8 @@ fn riscv_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     let count = bound.unwrap_or(256).clamp(2, 1024);
     let mut raw_entries = Vec::new();
     for k in 0..count {
-        let b = bin.read(table + (k * width) as u64, width);
+        let Some(addr) = switch_entry_addr(table, k, width) else { break };
+        let b = bin.read(addr, width);
         if b.len() != width { break; }
         let raw = if width == 8 {
             if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
@@ -798,6 +808,16 @@ fn parse_riscv_signed(text: &str) -> Option<i64> {
         digits.parse::<i64>().ok()?
     };
     Some(if negative { -value } else { value })
+}
+
+fn switch_count(bound: Option<u64>) -> usize {
+    bound.and_then(|value| value.checked_add(1))
+        .filter(|count| (2..=1024).contains(count))
+        .unwrap_or(256) as usize
+}
+
+fn switch_entry_addr(base: u64, index: usize, width: usize) -> Option<u64> {
+    base.checked_add((index as u64).checked_mul(width as u64)?)
 }
 
 fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u64) -> Vec<u64> {
@@ -873,7 +893,7 @@ fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u6
     if !bin.is_mapped(table) {
         return vec![];
     }
-    let count = bound.map(|b| (b + 1) as usize).filter(|c| (2..=1024).contains(c)).unwrap_or(256);
+    let count = switch_count(bound);
     let mut out: Vec<u64> = vec![];
     for k in 0..count {
         let t = if rel {

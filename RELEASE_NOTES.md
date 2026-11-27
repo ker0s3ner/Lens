@@ -1,3 +1,18 @@
+# Lens 0.6.449 — Fourier
+
+- Added checked switch-table entry addressing for architecture-neutral table walks.
+- Oversized switch bounds now fall back safely instead of overflowing `bound + 1`.
+- ARM64 absolute pointer-table reads now stop safely on address overflow.
+- ARM64 signed-offset table reads now use checked entry addresses.
+- ARM64 byte and halfword table walks now use checked entry addresses.
+- Thumb table reads now stop safely when scaled offsets overflow.
+- MIPS32 and MIPS64 table reads now use checked width-aware addresses.
+- PowerPC table reads now use checked four-byte entry addresses.
+- RISC-V table reads now use checked native-width entry addresses.
+- x86-style indexed switch tables now use checked pointer-sized addresses.
+- Corrupted high-address tables now terminate analysis cleanly instead of wrapping into unrelated memory.
+- The existing 135-test regression suite remains green after the malformed-table hardening.
+
 # Lens 0.6.448 — Fourier
 
 - RISC-V `sltu` and `sltiu` now lift with unsigned comparison semantics.

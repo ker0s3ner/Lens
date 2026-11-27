@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.448 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.449 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.449 — Fourier** hardens switch-table recovery with checked bounds and entry addressing across ARM64, Thumb, RISC-V, MIPS, PowerPC, and x86-style tables. The 50% target remains unmet.
 
 Release update: **Lens 0.6.448 — Fourier** corrects unsigned RISC-V/MIPS comparison lifting and makes scripted function, search, bookmark, and call-graph results deterministic while reusing one indexed graph. The 50% target remains unmet.
 
