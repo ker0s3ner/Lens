@@ -568,6 +568,16 @@ impl LensApp {
         };
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, risky)| *risky).count();
+        let hot_trace: Vec<(u64, usize)> = match &self.dbg {
+            Some(d) => {
+                let mut counts = std::collections::HashMap::<u64, usize>::new();
+                for address in &d.trace { *counts.entry(*address).or_default() += 1; }
+                let mut hot: Vec<_> = counts.into_iter().collect();
+                hot.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                hot.into_iter().take(5).collect()
+            }
+            None => vec![],
+        };
         let cursor = self.nav.cursor;
         let mut start = false;
         let mut stop = false;
@@ -676,6 +686,12 @@ impl LensApp {
                     if !dynamic_trace.is_empty() {
                         ui.label(RichText::new("DYNAMIC TRACE TRIAGE").small().color(p.faint));
                         ui.label(RichText::new(format!("{} trace entries · {} functions · {} heuristic matches", dynamic_trace.len(), dynamic_function_count, dynamic_signal_count)).small().color(p.muted));
+                        if hot_trace.len() > 1 {
+                            ui.label(RichText::new("HOT ADDRESSES").small().color(p.faint));
+                            ui.horizontal_wrapped(|ui| {
+                                for (address, hits) in &hot_trace { ui.label(RichText::new(format!("{address:016X} ×{hits}")).monospace().small().color(p.muted)); }
+                            });
+                        }
                         for (address, name, risky) in dynamic_trace.iter().take(8) {
                             let color = if *risky { p.edge_not } else { p.muted };
                             ui.label(RichText::new(format!("{address:016X}  {name}{}", if *risky { "  · heuristic signal" } else { "" })).monospace().small().color(color));
