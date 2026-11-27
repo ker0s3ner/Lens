@@ -687,6 +687,9 @@ impl LensApp {
         if nodes.len() >= CALL_GRAPH_MAX_NODES {
             ui.label(RichText::new("large graph truncated for responsiveness").small().color(p.nav_unexplored));
         }
+        if edges.len() >= CALL_GRAPH_MAX_EDGES {
+            ui.label(RichText::new("edge limit reached; some relationships are hidden").small().color(p.nav_unexplored));
+        }
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let area = resp.rect;
         painter.rect_filled(area, 0.0, p.panel_alt);
