@@ -1,3 +1,13 @@
+# Lens 0.6.484 — Fourier
+
+- Added bounded structured LLDB stop/exit event capture alongside instruction traces.
+- Added debugger display, copy, clear, and retained-capacity visibility for runtime events.
+- Added event count and capacity metadata to `lens.dynamic-trace.v1` exports.
+- Corrected hit-weighted signal counting so repeated trace entries are not double-counted.
+- Added regression coverage for the weighted signal-counting contract.
+- Updated README, roadmap, and in-app What's New documentation.
+- Regression suite: 155 tests passing; no device build or installation performed.
+
 # Lens 0.6.483 — Fourier
 
 - Added ranked signal-frequency summaries in the debugger triage panel with deterministic tie-breaking.

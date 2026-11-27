@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.483 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.484 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.484 — Fourier** adds structured LLDB stop/exit events, event handoff and clearing, bounded-history metadata, and corrected hit-weighted dynamic triage. The 50% target remains unmet.
 
 Release update: **Lens 0.6.483 — Fourier** adds ranked signal-frequency summaries, copyable triage handoff, distinct flagged-function breadth, and hit-weighted dynamic signal counts. The 50% target remains unmet.
 
