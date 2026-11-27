@@ -14,6 +14,8 @@ Dynamic-analysis follow-up: trace JSON now separates distinct flagged functions 
 
 Dynamic-analysis follow-up: trace JSON now carries deduplicated flagged function names for downstream defensive review. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: trace JSON now includes per-signal observation counts for prioritizing repeated behavior categories. The 50% target remains unmet.
+
 Dynamic-analysis follow-up: the debugger can copy deduplicated flagged function names directly for focused defensive handoff. The 50% target remains unmet.
 
 Release update: **Lens 0.6.480 — Fourier** expands defensive behavior taxonomy and adds focused high/medium triage handoff controls. The 50% target remains unmet.

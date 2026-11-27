@@ -29,6 +29,7 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "Dynamic-trace JSON now includes per-signal observation counts for prioritizing repeated behavior categories.",
     "The debugger can copy deduplicated flagged function names for focused defensive handoff.",
     "Dynamic-trace JSON now includes deduplicated flagged function names for downstream defensive review.",
     "Dynamic-trace JSON now separates distinct flagged functions from flagged instruction addresses for clearer triage.",

@@ -134,6 +134,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - Dynamic traces can be exported as structured `lens.dynamic-trace.v1` JSON with addresses, hit counts, function names, and heuristic flags.
 - Structured dynamic-trace JSON also reports distinct flagged functions separately from flagged addresses, reducing noise in defensive triage summaries.
 - The same export includes deduplicated flagged function names so downstream review tools can present actionable context without reparsing records.
+- Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
 - Dynamic trace annotations are indexed once per debugger frame, keeping full-trace review responsive at the 5,000-entry cap.
 - The debugger includes a Triage only filter for quickly reviewing trace entries that match static heuristic signals.
 - Structured dynamic-trace records now include the matching heuristic signal names, not only a boolean flag.
