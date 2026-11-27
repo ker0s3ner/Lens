@@ -136,6 +136,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 - The same export includes deduplicated flagged function names so downstream review tools can present actionable context without reparsing records.
 - Dynamic-trace JSON includes per-signal observation counts for prioritizing repeated behavior categories.
 - Dynamic-trace JSON also includes hit-weighted signal counts, separating breadth from repeated execution intensity.
+- Structured dynamic-trace JSON now carries a bounded list of LLDB stop/exit events alongside instruction records.
 - Hit-weighted signal counts weight each unique observed address once, avoiding double-counting repeated trace entries.
 - A regression test protects the hit-weighted counting contract against future overcounting.
 - The debugger triage panel summarizes observed signal frequency before the detailed trace rows.

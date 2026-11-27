@@ -63,6 +63,8 @@ pub struct Dbg {
     pub watch_values: HashMap<String, String>,
     /// Program counters observed at debugger stops while stop tracing is enabled.
     pub trace: Vec<u64>,
+    /// Bounded, human-readable stop/exit events captured alongside the trace.
+    pub dynamic_events: Vec<String>,
     pub trace_enabled: bool,
     trace_active: bool,
     trace_remaining: usize,
@@ -229,6 +231,7 @@ impl Dbg {
             bt: vec![],
             watch_values: HashMap::new(),
             trace: Vec::new(),
+            dynamic_events: Vec::new(),
             trace_enabled: false,
             trace_active: false,
             trace_remaining: 0,
@@ -446,9 +449,15 @@ impl Dbg {
             }
             Kind::Launch | Kind::Resume | Kind::TraceStep => {
                 self.console.extend(lines.iter().cloned());
+                if let Some(reason) = lines.iter().find(|line| line.contains("stop reason")) {
+                    self.dynamic_events.push(reason.clone());
+                    if self.dynamic_events.len() > 512 { self.dynamic_events.remove(0); }
+                }
                 if joined.contains("exited with status") || (joined.contains("Process") && joined.contains("exited")) {
                     self.state = RunState::Exited;
                     self.pc = None;
+                    self.dynamic_events.push(lines.iter().find(|line| line.contains("exited")).cloned().unwrap_or_else(|| "process exited".into()));
+                    if self.dynamic_events.len() > 512 { self.dynamic_events.remove(0); }
                 } else if joined.contains("error:") && !joined.contains("stop reason") {
                     self.state = RunState::Exited;
                 } else {
@@ -758,7 +767,7 @@ impl LensApp {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
                                 let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "records": records});
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "events": d.dynamic_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),

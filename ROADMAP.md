@@ -20,6 +20,8 @@ Dynamic-analysis follow-up: trace JSON now includes per-signal observation count
 
 Dynamic-analysis follow-up: trace JSON now includes hit-weighted signal counts, separating behavior breadth from repeated execution intensity. The 50% target remains unmet.
 
+Dynamic-analysis follow-up: structured traces now carry bounded LLDB stop/exit events alongside instruction records. The 50% target remains unmet.
+
 Correctness follow-up: hit-weighted signal counts now apply each address hit count once, avoiding repeated-entry overcounting. The 50% target remains unmet.
 
 Correctness follow-up: a focused regression test now protects the hit-weighted counting contract. The 50% target remains unmet.
