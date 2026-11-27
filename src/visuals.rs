@@ -755,17 +755,19 @@ impl LensApp {
         // Dense graphs can contain thousands of cached relationships. Avoid
         // allocating curve points for edges whose endpoints are both far
         // outside the viewport; this keeps panning/zooming responsive.
-        let edge_view = area.expand(240.0);
+        let edge_view = area.expand(8.0 * z.max(1.0));
         // edges
         for (a, b) in edges {
             if *a >= nodes.len() || *b >= nodes.len() { continue; }
             let (ra, rb) = (rect_of(&nodes[*a]), rect_of(&nodes[*b]));
-            if !ra.intersects(edge_view) && !rb.intersects(edge_view) { continue; }
             let (s, e) = (pos2(ra.right(), ra.center().y), pos2(rb.left(), rb.center().y));
             let hot = hovered == Some(*a) || hovered == Some(*b);
             let col = if hot { p.accent } else { p.faint.gamma_multiply(0.7) };
             let dx = ((e.x - s.x).abs() * 0.5).max(40.0 * z);
             let (c1, c2) = (s + vec2(dx, 0.0), e - vec2(dx, 0.0));
+            // A curve can cross the viewport even when both nodes are outside it.
+            let bounds = Rect::from_two_pos(s, e).union(Rect::from_two_pos(c1, c2));
+            if !bounds.intersects(edge_view) { continue; }
             let pts: Vec<Pos2> = (0..=6)
                 .map(|i| {
                     let t = i as f32 / 6.0;
@@ -1129,12 +1131,6 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     let depth = depth.min(3);
     let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
-    let mut cached_callees = |addr: u64| -> Vec<u64> {
-        callees_cache.entry(addr).or_insert_with(|| callees_of(l, addr)).clone()
-    };
-    let mut cached_callers = |addr: u64| -> Vec<u64> {
-        callers_cache.entry(addr).or_insert_with(|| callers_of(l, addr)).clone()
-    };
     let mk = |addr: u64, layer: i32| -> CNode {
         let f = l.an.functions.get(&addr);
         let name = l.name(addr).map(display_symbol).unwrap_or_else(|| format!("{addr:X}"));
@@ -1160,8 +1156,13 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for d in 1..=depth as i32 {
             let mut next = Vec::with_capacity(CALL_GRAPH_MAX_NEIGHBORS);
             for a in &frontier {
-                let list = if dir > 0 { cached_callees(*a) } else { cached_callers(*a) };
-                for c in list.into_iter().take(CALL_GRAPH_MAX_NEIGHBORS) {
+                if nodes.len() >= CALL_GRAPH_MAX_NODES { break; }
+                let list = if dir > 0 {
+                    callees_cache.entry(*a).or_insert_with(|| callees_of(l, *a))
+                } else {
+                    callers_cache.entry(*a).or_insert_with(|| callers_of(l, *a))
+                };
+                for &c in list.iter().take(CALL_GRAPH_MAX_NEIGHBORS) {
                     if !idx.contains_key(&c) && nodes.len() < CALL_GRAPH_MAX_NODES {
                         idx.insert(c, nodes.len());
                         nodes.push(mk(c, dir * d));
@@ -1177,40 +1178,45 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
     let mut seen_edges: HashSet<(usize, usize)> = HashSet::with_capacity(CALL_GRAPH_MAX_EDGES);
     let mut addrs: Vec<u64> = Vec::with_capacity(nodes.len());
     addrs.extend(nodes.iter().map(|n| n.addr));
-    for (i, a) in addrs.iter().enumerate() {
-        for c in cached_callees(*a) {
-            if let Some(&j) = idx.get(&c) {
+    'collect_edges: for (i, a) in addrs.iter().enumerate() {
+        for c in callees_cache.entry(*a).or_insert_with(|| callees_of(l, *a)).iter() {
+            if let Some(&j) = idx.get(c) {
                 if i != j {
-                    if seen_edges.insert((i, j)) && edges.len() < CALL_GRAPH_MAX_EDGES {
+                    if seen_edges.insert((i, j)) {
                         edges.push((i, j));
+                        if edges.len() == CALL_GRAPH_MAX_EDGES { break 'collect_edges; }
                     }
                 }
             }
         }
     }
     edges.sort();
-    edges.dedup();
+    let mut neighbors = vec![Vec::new(); nodes.len()];
+    for &(from, to) in &edges {
+        neighbors[from].push(to);
+        neighbors[to].push(from);
+    }
     // vertical order: closest layer first by name, then by the average height of neighbours
     let max_layer = depth as i32;
     for layer in 1..=max_layer {
         for dir in [1i32, -1] {
             let lay = dir * layer;
             let mut members: Vec<usize> = (0..nodes.len()).filter(|i| nodes[*i].layer == lay).collect();
-            let key = |i: usize, nodes: &Vec<CNode>| -> f32 {
-                let ys: Vec<f32> = edges
-                    .iter()
-                    .filter_map(|(a, b)| if *a == i && nodes[*b].layer == lay - dir && layer > 1 { Some(nodes[*b].y) } else if *b == i && nodes[*a].layer == lay - dir && layer > 1 { Some(nodes[*a].y) } else { None })
-                    .collect();
-                if ys.is_empty() {
-                    0.0
-                } else {
-                    ys.iter().sum::<f32>() / ys.len() as f32
-                }
-            };
             if layer == 1 {
                 members.sort_by(|a, b| nodes[*a].name.cmp(&nodes[*b].name));
             } else {
-                members.sort_by(|a, b| key(*a, &nodes).total_cmp(&key(*b, &nodes)).then(nodes[*a].name.cmp(&nodes[*b].name)));
+                let mut heights = vec![0.0f32; nodes.len()];
+                for &i in &members {
+                    let mut count = 0;
+                    for &j in &neighbors[i] {
+                        if nodes[j].layer == lay - dir {
+                            heights[i] += nodes[j].y;
+                            count += 1;
+                        }
+                    }
+                    heights[i] /= count.max(1) as f32;
+                }
+                members.sort_by(|a, b| heights[*a].total_cmp(&heights[*b]).then_with(|| nodes[*a].name.cmp(&nodes[*b].name)));
             }
             let n = members.len() as f32;
             for (k, m) in members.iter().enumerate() {
