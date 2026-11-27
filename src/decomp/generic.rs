@@ -1945,6 +1945,18 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 dc.g_store(st, v, rs, &mm, size, addr);
             }
         }
+        (Fam::A64, m) if matches!(m, "ldxr" | "ldaxr" | "ldxrb" | "ldaxrb" | "ldxrh" | "ldaxrh") => {
+            let width = if m.ends_with('b') { 1 } else if m.ends_with('h') { 2 } else if reg(0).map(|r| r.w).unwrap_or(8) <= 4 { 4 } else { 8 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 1) { dc.g_load(st, reg(0), &mm, width, false, addr); }
+        }
+        (Fam::A64, m) if matches!(m, "stxr" | "stlxr" | "stxrb" | "stlxrb" | "stxrh" | "stlxrh") => {
+            let width = if m.ends_with('b') { 1 } else if m.ends_with('h') { 2 } else if reg(1).map(|r| r.w).unwrap_or(8) <= 4 { 4 } else { 8 };
+            if let Some((mm, _)) = parse_mem(fm, ops, 2) {
+                let value = reg(1).map(|r| dc.g_rd(st, r)).unwrap_or(Ex::Num(0));
+                dc.g_store(st, value, reg(1), &mm, width, addr);
+                if let Some(status) = reg(0) { dc.g_wr(st, status, Ex::Num(0), addr); }
+            }
+        }
         (Fam::A32, m) if matches!(m, "ldrex" | "ldrexb" | "ldrexh" | "ldrexd" | "strex" | "strexb" | "strexh" | "strexd") => {
             let load = m.starts_with("ld");
             let width = if m.ends_with('b') { 1 } else if m.ends_with('h') { 2 } else if m.ends_with('d') { 8 } else { 4 };

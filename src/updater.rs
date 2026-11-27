@@ -29,6 +29,10 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "AArch64 ldxr, ldaxr, ldxrb, ldaxrb, ldxrh, and ldaxrh now lift as readable exclusive loads.",
+    "AArch64 stxr, stlxr, stxrb, stlxrb, stxrh, and stlxrh now preserve stores and status.",
+    "AArch64 word and doubleword store-conditional widths are inferred from decoded registers.",
+    "The existing 135-test regression suite remains green after the AArch64 atomic extension.",
     "PowerPC lwarx, ldarx, stwcx., and stdcx. now lift as readable reservation operations.",
     "RISC-V AMO families now remain visible as named atomic helper calls.",
     "PowerPC reservation operands reuse the generic memory parser and typed write paths.",

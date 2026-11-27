@@ -1,3 +1,18 @@
+# Lens 0.6.455 — Fourier
+
+- AArch64 `ldxr` now lifts as a readable word/doubleword exclusive load.
+- AArch64 `ldaxr` now preserves acquire-load intent.
+- AArch64 `ldxrb` now preserves byte-width exclusive loads.
+- AArch64 `ldaxrb` now preserves acquire byte-load intent.
+- AArch64 `ldxrh` now preserves halfword-width exclusive loads.
+- AArch64 `ldaxrh` now preserves acquire halfword-load intent.
+- AArch64 `stxr` now lifts the stored value and zero success status.
+- AArch64 `stlxr` now preserves release-store intent.
+- AArch64 `stxrb` and `stlxrb` now preserve byte-width stores.
+- AArch64 `stxrh` and `stlxrh` now preserve halfword-width stores.
+- AArch64 word and doubleword store-conditional widths are inferred from decoded registers.
+- The existing 135-test regression suite remains green after the AArch64 atomic extension.
+
 # Lens 0.6.454 — Fourier
 
 - PowerPC `lwarx` now lifts as a readable 32-bit load-reserve operation.
