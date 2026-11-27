@@ -75,6 +75,8 @@ mod tests {
         assert_eq!(base_mnemonic("cmpi.w"), "cmpi");
         assert_eq!(base_mnemonic("ext.b"), "ext");
         assert_eq!(base_mnemonic("moveq"), "moveq");
+        assert_eq!(base_mnemonic("vadd.f32"), "vadd");
+        assert_eq!(base_mnemonic("fsub.f64"), "fsub");
     }
 
     #[test]
@@ -118,7 +120,12 @@ mod tests {
 }
 
 fn base_mnemonic(mn: &str) -> &str {
-    mn.trim_end_matches(".b")
+    mn.trim_end_matches(".f32")
+        .trim_end_matches(".f64")
+        .trim_end_matches(".s32")
+        .trim_end_matches(".u32")
+        .trim_end_matches(".i32")
+        .trim_end_matches(".b")
         .trim_end_matches(".w")
         .trim_end_matches(".l")
         .trim_end_matches(".q")
@@ -1082,6 +1089,14 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         (Fam::A64, "fadd" | "fsub" | "fmul" | "fdiv") => {
             let op = match base_mn { "fadd" => "+", "fsub" => "-", "fmul" => "*", _ => "/" };
             arith(dc, st, op, false);
+        }
+        (Fam::A32 | Fam::Ppc, "vadd" | "vsub" | "vmul" | "vdiv" | "fadd" | "fsub" | "fmul" | "fdiv") => {
+            let op = match base_mn { "vadd" | "fadd" => "+", "vsub" | "fsub" => "-", "vmul" | "fmul" => "*", _ => "/" };
+            arith(dc, st, op, false);
+        }
+        (Fam::A32 | Fam::Ppc, "vneg" | "fneg") if ops.len() >= 2 => {
+            let value = dc.g_val(st, o(1), None);
+            set(dc, st, 0, bin("-", Ex::Num(0), value));
         }
         (Fam::A64, "fmin" | "fmax") => {
             let a = dc.g_val(st, o(1), None);

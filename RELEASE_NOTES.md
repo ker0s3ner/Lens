@@ -1,3 +1,18 @@
+# Lens 0.6.457 — Fourier
+
+- ARM/Thumb VFP `vadd` now lifts to readable floating-point addition.
+- ARM/Thumb VFP `vsub` now lifts to readable floating-point subtraction.
+- ARM/Thumb VFP `vmul` now lifts to readable floating-point multiplication.
+- ARM/Thumb VFP `vdiv` now lifts to readable floating-point division.
+- ARM/Thumb VFP `vneg` now lifts to readable negation.
+- PowerPC scalar `fadd` now lifts to readable floating-point addition.
+- PowerPC scalar `fsub` now lifts to readable floating-point subtraction.
+- PowerPC scalar `fmul` and `fdiv` now lift to readable arithmetic.
+- PowerPC `fneg` now lifts to readable negation.
+- ARM/Thumb and PowerPC precision suffixes such as `.f32` and `.f64` now normalize before dispatch.
+- Floating-point operations no longer fall through to generic unsupported output on these families.
+- The existing 135-test regression suite remains green after the FP lifting extension.
+
 # Lens 0.6.456 — Fourier
 
 - AArch64 `cas*` families now remain visible as named compare-and-swap calls.

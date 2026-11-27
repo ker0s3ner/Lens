@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.456 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+Authoritative current build: **Lens 0.6.457 — Fourier**. The release archive and in-app What's New history are synchronized through this build; the 50% target remains unmet.
+
+Release update: **Lens 0.6.457 — Fourier** adds ARM/Thumb VFP and PowerPC floating-point arithmetic lifting with precision-suffix normalization. The 50% target remains unmet.
 
 Release update: **Lens 0.6.456 — Fourier** adds AArch64 compare-and-swap, swap, and atomic read-modify-write families as named operations. The 50% target remains unmet.
 

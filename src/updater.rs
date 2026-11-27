@@ -29,6 +29,11 @@ const ASSET: &str = "Lens-macos-arm64.zip";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 pub const CODENAME: &str = "Fourier";
 pub const CURRENT_WHATS_NEW: &[&str] = &[
+    "ARM/Thumb VFP vadd, vsub, vmul, vdiv, and vneg now lift to readable arithmetic.",
+    "PowerPC fadd, fsub, fmul, fdiv, and fneg now lift to readable arithmetic.",
+    "ARM/Thumb and PowerPC precision suffixes such as .f32 and .f64 now normalize before dispatch.",
+    "Floating-point operations no longer fall through to generic unsupported output on these families.",
+    "The existing 135-test regression suite remains green after the FP lifting extension.",
     "AArch64 cas*, swp*, ldadd*, ldset*, ldclr*, and ldeor* families now remain visible as named atomic calls.",
     "AArch64 byte, halfword, acquire, and release atomic variants preserve their decoded forms.",
     "Atomic helper arguments preserve decoded operand order for readable pseudocode.",
