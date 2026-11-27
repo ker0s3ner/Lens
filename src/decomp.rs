@@ -167,6 +167,12 @@ fn tern(c: Ex, a: Ex, b: Ex) -> Ex {
     if a == b && side_effect_free(&a) {
         return a;
     }
+    if side_effect_free(&c) && a == Ex::Num(1) && b == Ex::Num(0) {
+        return bin("!=", c, Ex::Num(0));
+    }
+    if side_effect_free(&c) && a == Ex::Num(0) && b == Ex::Num(1) {
+        return bin("==", c, Ex::Num(0));
+    }
     match c {
         Ex::Num(value) => if value != 0 { a } else { b },
         condition => Ex::Tern(Box::new(condition), Box::new(a), Box::new(b)),
@@ -3886,6 +3892,8 @@ mod tests {
         assert_eq!(tern(Ex::Num(0), var("left"), var("right")), var("right"));
         assert_eq!(tern(Ex::Num(1), var("left"), var("right")), var("left"));
         assert_eq!(tern(var("condition"), var("same"), var("same")), var("same"));
+        assert_eq!(tern(var("condition"), Ex::Num(1), Ex::Num(0)), bin("!=", var("condition"), Ex::Num(0)));
+        assert_eq!(tern(var("condition"), Ex::Num(0), Ex::Num(1)), bin("==", var("condition"), Ex::Num(0)));
         assert!(matches!(tern(var("condition"), var("left"), var("right")), Ex::Tern(..)));
     }
 
