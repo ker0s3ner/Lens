@@ -120,6 +120,10 @@ fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
         ("||", x, Num(0)) | ("||", Num(0), x) => bin("!=", x.clone(), Num(0)),
         ("^", x, y) if x == y => Num(0),
         ("-", x, y) if x == y => Num(0),
+        ("==", x, y) if x == y && matches!(x, Var(_) | Num(_)) => Num(1),
+        ("!=", x, y) if x == y && matches!(x, Var(_) | Num(_)) => Num(0),
+        ("<=", x, y) | (">=", x, y) if x == y && matches!(x, Var(_) | Num(_)) => Num(1),
+        ("<", x, y) | (">", x, y) if x == y && matches!(x, Var(_) | Num(_)) => Num(0),
         ("&", x, y) | ("|", x, y) if x == y => a.clone(),
         ("-", _, Num(c)) => bin("+", a, Num(c.wrapping_neg())),
         ("+", Bin("+", x, y), Num(c)) if matches!(**y, Num(_)) => {
@@ -3827,6 +3831,11 @@ mod tests {
         let bits = var("bits");
         assert_eq!(bin("&", bits.clone(), Ex::Num(-1)), bits);
         assert_eq!(bin("|", var("bits"), Ex::Num(-1)), Ex::Num(-1));
+        let value = var("value");
+        assert_eq!(bin("==", value.clone(), value.clone()), Ex::Num(1));
+        assert_eq!(bin("!=", value.clone(), value.clone()), Ex::Num(0));
+        assert_eq!(bin("<=", value.clone(), value.clone()), Ex::Num(1));
+        assert_eq!(bin(">", value.clone(), value), Ex::Num(0));
     }
 
     #[test]
