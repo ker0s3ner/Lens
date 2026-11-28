@@ -1,3 +1,29 @@
+# Lens 0.6.488 — Fourier
+
+- Launch a native child with quoted arguments passed directly to the program, without invoking a shell.
+- Set selected child environment variables with `NAME=VALUE` entries.
+- Remove inherited child environment variables with `-NAME` entries.
+- Choose the child's working directory for predictable relative file access.
+- Start a child stopped at its program entry on macOS and Linux.
+- Single-step a paused traced child one instruction at a time.
+- Forward target fault signals when resuming or stepping while suppressing tracer-generated stop signals.
+- Show the last native stop signal, including common fault and trap names.
+- Capture both stdout and stderr in a bounded 64 KiB output pane without blocking the UI.
+- Copy captured child output to the clipboard or clear it while the child continues running.
+- Record a bounded process lifecycle timeline with launch, stop, exit-code, and signal-termination events.
+- Copy or clear the native process event timeline and review its most recent entries.
+- Restart an exited child with the same arguments, environment, working directory, and start-paused setting.
+- Display and copy the child process ID for use in external debugging tools.
+- Preserve enum identity through unary plus, minus, and bitwise-complement expressions.
+- Model Motorola 68000 `TAS` condition flags from the signed byte tested by the instruction.
+- Add explainable static and runtime-correlatable triage for file deletion and truncation APIs.
+- Add separate triage for registry/configuration deletion APIs.
+- Highlight imported file-download APIs as a distinct behavior category.
+- Highlight process signaling and termination APIs as a distinct behavior category.
+- Update the IDA Pro parity estimate to 41.0% weighted capability coverage and about 42–47% practical workflow coverage; the 50% target remains unmet.
+- Update README, roadmap, in-app What's New notes, and GitHub Pages release history.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.487 — Fourier
 
 - Seeded local pointer declarations from known function prototypes.

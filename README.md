@@ -2,11 +2,11 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub release: **0.6.487 — Fourier**. Adds callback-aware type recovery, more accurate persistence heuristics, credential-store triage, and stronger runtime call-signal matching. Read [What's New in the app](docs/whats-new.html), the [0.6.487 release page](docs/release-0.6.487.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub release: **0.6.488 — Fourier**. Adds a more capable native child debugger, richer process and behavior triage, and additional decompiler/processor accuracy. Read [What's New in the app](docs/whats-new.html), the [0.6.488 release page](docs/release-0.6.488.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
-The current engineering estimate is **about 41–46% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **39.5% of IDA Pro's breadth**. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugger functionality is early, and large-file validation still needs a broader real-binary corpus. See the roadmap for scope and current evidence.
+The current engineering estimate is **about 42–47% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **41.0% of IDA Pro's breadth**. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, attach/remote debugging remains LLDB-based, and large-file validation still needs a broader real-binary corpus. See the roadmap for scope and current evidence.
 
 ## What it can do
 

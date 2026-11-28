@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.488 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.488 — Fourier</h1><p class="lead">Native child debugging, expanded behavior triage, and cross-architecture analysis fixes.</p><ul>
+<li>Native local-child launch supports safely parsed arguments, environment assignment/removal, and a configurable working directory.</li>
+<li>On macOS and Linux, traced launches can stop at program entry, single-step, and forward target fault signals when resumed.</li>
+<li>Child stdout and stderr are captured into a bounded 64 KiB output pane, with copy and clear controls.</li>
+<li>A bounded process timeline records launch, stop, exit-code, and signal-termination events, and supports copy and clear.</li>
+<li>Exited children can be restarted with the same configuration; the process ID is shown and can be copied.</li>
+<li>Static and runtime-correlatable behavior triage now covers file deletion/truncation, configuration deletion, file downloads, and process signaling/termination.</li>
+<li>Decompiler enum identity survives unary plus, minus, and complement expressions.</li>
+<li>Motorola 68000 TAS flags now reflect the signed byte tested by the instruction.</li>
+<li>Parity estimate: 41.0% weighted capability coverage; about 42–47% practical workflow capability. The 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.488">GitHub release</a></p></main></body></html>
