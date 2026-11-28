@@ -450,7 +450,15 @@ impl LensApp {
         ui.label(format!("Local child · {}", session.program.display()));
         let output = session.output.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
         if !output.is_empty() {
-            ui.label("Child output (last 64 KiB)");
+            ui.horizontal(|ui| {
+                ui.label("Child output (last 64 KiB)");
+                if ui.small_button("Copy").clicked() {
+                    ui.ctx().copy_text(output.clone());
+                }
+                if ui.small_button("Clear").clicked() {
+                    session.output.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clear();
+                }
+            });
             egui::ScrollArea::vertical().id_salt("native-child-output").max_height(120.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.monospace(output);
             });
