@@ -563,10 +563,10 @@ impl Fmt<'_> {
             Ex::Cast(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::CastOwned(t, a) => format!("({t}){}", self.at(a, 3)),
             Ex::Deref(a, sz) => {
-                if let Some(field) = self.struct_field(a) {
+                if let Some(field) = self.variable_struct_field(a) {
                     return field;
                 }
-                if let Some(field) = self.variable_struct_field(a) {
+                if let Some(field) = self.struct_field(a) {
                     return field;
                 }
                 if let Some((base, index)) = self.pointer_index(a) {
