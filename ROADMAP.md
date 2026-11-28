@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current release: **Lens 0.6.488 — Fourier**. This release batches 20 pushed commits with native child debugging, process-behavior triage, enum propagation, and M68k flag-accuracy improvements. The 50% target remains unmet.
+Authoritative current release: **Lens 0.6.489 — Fourier**. This release batches more than 10 app changes across conservative decompiler type recovery and interactive, persistent local-variable typing. The 50% target remains unmet.
+
+Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.488 — Fourier** adds configurable native child sessions, entry-stop and single-step controls, bounded output and process-event capture, restart and PID handoff, four new explainable behavior-triage categories, unary enum propagation, and corrected M68k `TAS` flags. The weighted estimate is **41.0%**; the 50% target remains unmet.
 
@@ -152,20 +154,20 @@ Release update: **Lens 0.6.438 — Fourier** adds source–destination-correct M
 
 Earlier baseline build: **Lens 0.6.437 — Fourier**. The golden corpus now checks ARM64 pseudocode for a recovered constant return. The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis. C++ vector-construction/destruction runtime prototypes are now built in. C++ thread-safe static-initialization guard prototypes are now built in. C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in. C++ operator new[] and operator delete[] prototypes now resolve by their full names. Built-in C++ operator new/delete prototypes now parse and resolve by their full names. ARM64 min/max helper selection now has direct regression coverage. ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers. x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls. Pseudocode now collapses identical conditional branches instead of printing redundant ternaries. Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion. Call graph now opens at one hop for a responsive first frame, while deeper expansion remains available on demand. M68k size-suffixed arithmetic and compare mnemonics now dispatch through the generic semantic lifter, with suffix normalization regression coverage. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; M68k now has a dedicated generic-decompiler register and ABI family with common arithmetic, memory-form move, frame, address, teardown, register-transform, and stack-state lifting; call graphs now reuse indexed call analysis, identify named forwarding thunks, and deduplicate caller functions before responsiveness caps; vtable JSON, desktop database exports, Rhai snapshots, and the Lists view retain or show owning segment and file-offset source context; bitfield matching now normalizes const, volatile, and restrict qualifiers across equivalent signed storage types; enum identity now survives safe constant `+`/`-` arithmetic in typed comparisons; x86 switch case-index recovery now handles both add and subtract normalization idioms; enum types also propagate through locals, casts, reassignment, typed call results, flag decomposition, and constant expressions; ARM32 and Thumb register-based switch recovery now handles signed PC-relative and backward `sub reg, pc, #imm` table bases; RISC-V and ARM64 switch reconstruction now accept signed address adjustments; the parallel regression gate is deterministic; the 50% target remains unmet.
 
-Current audit marker: **0.6.488 — Fourier**. The weighted estimate is **41.0%** engineering capability; the practical workflow estimate is **about 42–47%**. The latest work includes native local-child stepping and lifecycle/output capture, behavior-aware runtime call correlation, expanded file/process/configuration triage, enum type preservation, and M68k condition-flag accuracy. The 50% target is still unmet.
+Current audit marker: **0.6.489 — Fourier**. The weighted estimate is **41.8%** engineering capability; the practical workflow estimate is **about 42–47%**. Recent work includes native local-child stepping and lifecycle/output capture, explainable runtime behavior triage, more conservative nested pointer type recovery, and editable persistent local-variable types across UI and interchange workflows. The 50% target is still unmet.
 
-Status checked against the repository on 2026-11-28, at **Lens 0.6.488 — Fourier**. The practical workflow estimate is **about 42–47% of IDA Pro**; the weighted capability model below is **41.0% of IDA Pro's breadth** (plausible range: **33–42%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. A synthetic 128 MiB ELF was analyzed by GitHub Actions in 5.427 seconds at 393.36 MiB peak RSS; this is an initial controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-28, at **Lens 0.6.489 — Fourier**. The practical workflow estimate is **about 42–47% of IDA Pro**; the weighted capability model below is **41.8% of IDA Pro's breadth** (plausible range: **34–43%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. A synthetic 128 MiB ELF was analyzed by GitHub Actions in 5.427 seconds at 393.36 MiB peak RSS; this is an initial controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 27% | 5.4% |
 | Static analysis and navigation | 20% | 60% | 12.0% |
-| Decompiler and type recovery | 20% | 31% | 6.2% |
-| Type system and debug information | 10% | 41% | 4.1% |
+| Decompiler and type recovery | 20% | 32% | 6.4% |
+| Type system and debug information | 10% | 44% | 4.4% |
 | Debugging and tracing | 10% | 46% | 4.6% |
-| Workflow, scripting and interchange | 10% | 56% | 5.6% |
+| Workflow, scripting and interchange | 10% | 59% | 5.9% |
 | Reliability, performance and scale | 10% | 31% | 3.1% |
-| **Total** | **100%** |  | **41.0%** |
+| **Total** | **100%** |  | **41.8%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -189,7 +191,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, and broader calling-convention inference. M68k LINK/A6 frames now recover stack parameters from the correct first-argument offset; call-site stack-argument collection and other conventions remain planned.
 - Thumb/Thumb-2 in the main loader and additional PPC extras.
-- Interactive: retype variables and improve navigation/synchronization between pseudocode and disassembly; pseudocode local renaming is already implemented.
+- Interactive pseudocode variable renaming and validated local retyping are available and persist per function; navigation and synchronization with disassembly still need improvement.
 
 ## Phase 4 - Type system and libraries
 - Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays, packed layouts and simple packed integer bitfields are supported; compiler-specific bitfield ABI/layout rules remain.

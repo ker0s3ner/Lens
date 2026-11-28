@@ -1,3 +1,20 @@
+# Lens 0.6.489 — Fourier
+
+- Propagate recovered types through nested conditional expressions, pointer arithmetic, and dereferences.
+- Use one shared type-inference result for pseudocode rendering and declarations.
+- Require assignment branches to agree before inferring a local type; unknown or conflicting assignments no longer inherit a misleading type.
+- Resolve pointer targets through struct-pointer typedef aliases during type recovery.
+- Right-click a pseudocode variable to assign a persistent C type; double-click still edits its name.
+- Validate entered types against supported C declarations, user types, and debug-info types; report invalid types in the editor.
+- Emit analyst-selected local types in pseudocode declarations, even when automatic inference is unavailable or disagrees.
+- Keep type annotations attached to the original variable after its display name changes.
+- Apply typed-variable annotations consistently in the live view, pseudocode export, CLI output, and Rhai snapshots.
+- Preserve typed-variable annotations in undo/redo and Lens JSON database export/import.
+- Accept common `void *` and `const void *` annotations.
+- Update the weighted IDA Pro breadth estimate to 41.8%; practical workflow estimate remains about 42–47%. The 50% target remains unmet.
+- Update README, roadmap, in-app What's New, and the GitHub Pages release archive.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.488 — Fourier
 
 - Launch a native child with quoted arguments passed directly to the program, without invoking a shell.

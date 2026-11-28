@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.489 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.489 — Fourier</h1><p class="lead">More accurate decompiler type recovery and editable local-variable types.</p><ul>
+<li>Propagate recovered types through nested conditional expressions, pointer arithmetic, and dereferences.</li>
+<li>Use one shared type-inference result for pseudocode rendering and declarations.</li>
+<li>Require assignment branches to agree before inferring a local type; unknown or conflicting assignments no longer inherit a misleading type.</li>
+<li>Resolve pointer targets through struct-pointer typedef aliases during type recovery.</li>
+<li>Right-click a pseudocode variable to set a persistent C type; double-click still edits its name.</li>
+<li>Validate entered types against supported C declarations, user types, and debug-info types; display parser errors without closing the editor.</li>
+<li>Emit analyst-selected local types in pseudocode declarations, even when automatic inference is unavailable or disagrees.</li>
+<li>Keep type annotations attached to the original variable after its display name changes.</li>
+<li>Apply type annotations consistently in the live view, pseudocode export, CLI output, and Rhai snapshots.</li>
+<li>Preserve local types in undo/redo and Lens JSON database export/import.</li>
+<li>Accept common <code>void *</code> and <code>const void *</code> annotations.</li>
+<li>Parity estimate: 41.8% weighted capability coverage; about 42–47% practical workflow capability. The 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.489">GitHub release</a></p></main></body></html>
