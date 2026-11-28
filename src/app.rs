@@ -1384,7 +1384,7 @@ impl Loaded {
     }
 
     pub fn addr_to_off(&self, a: u64) -> Option<u64> {
-        let mut acc = 0;
+        let mut acc = 0u64;
         for s in &self.bin.segments {
             if s.contains(a) {
             return Some(acc.saturating_add(a - s.start));
@@ -1414,7 +1414,7 @@ fn build_nav(l: &Loaded) -> Vec<u8> {
     let mut nav = vec![0u8; NAV_BUCKETS];
     let total = l.total_span();
     let mut seg_off: Vec<(u64, u64, u64)> = vec![];
-    let mut acc = 0;
+    let mut acc = 0u64;
     for s in &l.bin.segments {
         seg_off.push((s.start, s.end(), acc));
         acc = acc.saturating_add(s.size);
