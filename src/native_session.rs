@@ -36,6 +36,7 @@ struct NativeSession {
     state: State,
     traced: bool,
     output: Arc<Mutex<String>>,
+    stop_reason: Option<String>,
 }
 
 fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
@@ -189,6 +190,7 @@ impl NativeSession {
             state: State::Running,
             traced: start_paused,
             output,
+            stop_reason: None,
         };
         if start_paused {
             session.wait_for_initial_stop()?;
@@ -210,6 +212,17 @@ impl NativeSession {
             if result > 0 {
                 if libc::WIFSTOPPED(status) {
                     self.state = State::Paused;
+                    let signal = libc::WSTOPSIG(status);
+                    let name = match signal {
+                        libc::SIGTRAP => "SIGTRAP",
+                        libc::SIGSTOP => "SIGSTOP",
+                        libc::SIGSEGV => "SIGSEGV",
+                        libc::SIGILL => "SIGILL",
+                        libc::SIGABRT => "SIGABRT",
+                        libc::SIGFPE => "SIGFPE",
+                        _ => "signal",
+                    };
+                    self.stop_reason = Some(format!("{name} ({signal})"));
                     return Ok(());
                 }
                 if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
@@ -466,6 +479,9 @@ impl LensApp {
         match session.state {
             State::Running | State::Paused => {
                 let paused = session.state == State::Paused;
+                if let Some(reason) = &session.stop_reason {
+                    ui.label(format!("Last stop: {reason}"));
+                }
                 ui.horizontal(|ui| {
                     ui.label(if paused { "Paused" } else { "Running" });
                     if paused && session.traced && ui.button("Step instruction").clicked() {
