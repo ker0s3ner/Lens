@@ -1289,7 +1289,7 @@ pub fn export_c(l: &Loaded, lg: Lang) -> String {
         if f.kind == FuncKind::Import {
             continue;
         }
-        let d = decomp::decompile_with_types(&l.bin, &l.an, &l.names, f, det.conv, "", &l.ann.structs);
+        let d = decomp::decompile_with_variable_types(&l.bin, &l.an, &l.names, f, det.conv, "", &l.ann.structs, &l.ann.var_types);
         s.push_str(&format!("{c} {:X}\n", f.start));
         s.push_str(&lang::render_text(&lang::render(&d, lg)));
         s.push('\n');

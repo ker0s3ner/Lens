@@ -577,7 +577,7 @@ impl LensApp {
             for source in sources { out_xrefs.entry(*source).or_default().push(*target); }
         }
         let pseudocode = l.an.functions.values().filter(|f| f.kind != FuncKind::Import).map(|f| {
-            let d = crate::decomp::decompile_with_types(&l.bin, &l.an, &l.names, f, l.det.conv, "", &l.ann.structs);
+            let d = crate::decomp::decompile_with_variable_types(&l.bin, &l.an, &l.names, f, l.det.conv, "", &l.ann.structs, &l.ann.var_types);
             (f.start, crate::decomp::render_text(&d))
         }).collect();
         Some(Snap {

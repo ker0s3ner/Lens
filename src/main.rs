@@ -154,7 +154,7 @@ fn cli(args: &[String]) -> bool {
         for (target, refs) in &an.xrefs_to { for x in refs { out_xref_details.entry(x.from).or_default().push((*target, x.kind.label().to_string())); } }
         for (target, sources) in &xrefs { for source in sources { out_xrefs.entry(*source).or_default().push(*target); } }
         let pseudocode = an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|f| {
-            let d = decomp::decompile_with_types(&bin, &an, &names, f, det.conv, "", &ann.structs);
+            let d = decomp::decompile_with_variable_types(&bin, &an, &names, f, det.conv, "", &ann.structs, &ann.var_types);
             (f.start, decomp::render_text(&d))
         }).collect();
         let snap = script::Snap {
@@ -238,7 +238,7 @@ fn cli(args: &[String]) -> bool {
                 "thunk_target": f.thunk_target,
             })).collect::<Vec<_>>(),
             "pseudocode_records": an.functions.values().filter(|f| f.kind != analysis::FuncKind::Import).map(|function| {
-                let code = decomp::decompile_with_types(&bin, &an, &names, function, det.conv, "", &ann.structs);
+                let code = decomp::decompile_with_variable_types(&bin, &an, &names, function, det.conv, "", &ann.structs, &ann.var_types);
                 serde_json::json!({
                     "address": function.start,
                     "name": names.get(&function.start).map(|(name, _)| name),
@@ -461,7 +461,7 @@ fn cli(args: &[String]) -> bool {
                 if f.kind == analysis::FuncKind::Import { continue; }
                 if std::env::var("LENS_TRACE2").is_ok() { eprintln!("start {a:X}"); }
                 let t0 = std::time::Instant::now();
-                let d = decomp::decompile_with_types(&bin, &an, &names, f, det.conv, "", &ann.structs);
+                let d = decomp::decompile_with_variable_types(&bin, &an, &names, f, det.conv, "", &ann.structs, &ann.var_types);
                 if std::env::var("LENS_TRACE").is_ok() && t0.elapsed().as_millis() > 100 { eprintln!("{a:X} {} blocks {} insns {}ms", f.blocks.len(), f.insn_count, t0.elapsed().as_millis()); }
                 let lg = match args.iter().position(|x| x == "--lang").and_then(|i| args.get(i + 1)).map(|s| s.as_str()) { Some("python") => lang::Lang::Python, Some("rust") => lang::Lang::Rust, Some("go") => lang::Lang::Go, Some("js") => lang::Lang::JavaScript, _ => lang::Lang::C };
                 println!("{}", lang::render_text(&lang::render(&d, lg)));
