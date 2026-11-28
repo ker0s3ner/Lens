@@ -3402,6 +3402,7 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
 }
 
 fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, String>, structs: &[crate::types::StructDef]) -> HashMap<String, String> {
+    let seeds = types.clone();
     let mut assignments = Vec::new();
     for out in outs {
         for (_, stmt) in &out.stmts {
@@ -3411,8 +3412,14 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
         }
     }
     for _ in 0..assignments.len().max(1) {
-        let mut changed = false;
+        let mut candidates = HashMap::<String, String>::new();
+        let mut conflicts = HashSet::<String>::new();
         for (name, rhs) in &assignments {
+            // Parameters with known prototypes keep their declared type even if
+            // the body later assigns to them.
+            if seeds.contains_key(name) {
+                continue;
+            }
             let ty = match rhs {
                 Ex::Call(c, _) => call_return_type_with_types(c, &types, structs),
                 Ex::Deref(inner, _) => render_pointee_type(inner, &types, structs),
@@ -3440,13 +3447,23 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
                 _ => None,
             };
             if let Some(ty) = ty {
-                if types.get(name) != Some(&ty) {
-                    types.insert(name.clone(), ty);
-                    changed = true;
+                if let Some(previous) = candidates.get(name) {
+                    if previous != &ty {
+                        conflicts.insert(name.clone());
+                    }
+                } else {
+                    candidates.insert(name.clone(), ty);
                 }
             }
         }
-        if !changed { break; }
+        let mut next = seeds.clone();
+        for (name, ty) in candidates {
+            if !conflicts.contains(&name) {
+                next.insert(name, ty);
+            }
+        }
+        if next == types { break; }
+        types = next;
     }
     types
 }
