@@ -424,7 +424,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             (vec![0u8; sh.sh_size.min(MAX_ZERO_FILL) as usize], None)
         } else {
             let s = sh.sh_offset as usize;
-            let e = (s + sh.sh_size as usize).min(bytes.len());
+            let e = s.saturating_add(sh.sh_size as usize).min(bytes.len());
             (bytes.get(s..e).unwrap_or(&[]).to_vec(), Some(sh.sh_offset))
         };
         bin.segments.push(Segment {
@@ -444,7 +444,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
                 continue;
             }
             let s = ph.p_offset as usize;
-            let e = (s + ph.p_filesz as usize).min(bytes.len());
+            let e = s.saturating_add(ph.p_filesz as usize).min(bytes.len());
             let mut data = bytes.get(s..e).unwrap_or(&[]).to_vec();
             data.resize(ph.p_memsz.min(MAX_ZERO_FILL) as usize, 0);
             bin.segments.push(Segment {
@@ -695,7 +695,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
         let name = s.name().unwrap_or("?").to_string();
         let vsize = (s.virtual_size.max(s.size_of_raw_data)) as u64;
         let st = s.pointer_to_raw_data as usize;
-        let en = (st + s.size_of_raw_data as usize).min(bytes.len());
+        let en = st.saturating_add(s.size_of_raw_data as usize).min(bytes.len());
         let mut data = bytes.get(st..en).unwrap_or(&[]).to_vec();
         data.resize(vsize.min(MAX_ZERO_FILL) as usize, 0);
         let ch = s.characteristics;
@@ -1059,7 +1059,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
     for lc in &m.load_commands {
         if let goblin::mach::load_command::CommandVariant::FunctionStarts(c) = &lc.command {
             let (o, n) = (c.dataoff as usize, c.datasize as usize);
-            if let Some(blob) = slice.get(o..o + n) {
+            if let Some(blob) = o.checked_add(n).and_then(|end| slice.get(o..end)) {
                 bin.func_hints = crate::hints::macho_starts(blob, text_base);
             }
         }
