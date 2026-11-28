@@ -131,6 +131,23 @@ fn is_pointer_type(ty: &str, structs: &[crate::types::StructDef]) -> bool {
         || function_pointer_proto_with_aliases(ty, structs).is_some()
 }
 
+fn merge_conditional_type(
+    yes: Option<String>,
+    no: Option<String>,
+    yes_expr: &Ex,
+    no_expr: &Ex,
+    structs: &[crate::types::StructDef],
+) -> Option<String> {
+    if yes == no { return yes; }
+    if constant_value(yes_expr) == Some(Ex::Num(0)) {
+        if let Some(ty) = no.filter(|ty| is_pointer_type(ty, structs)) { return Some(ty); }
+    }
+    if constant_value(no_expr) == Some(Ex::Num(0)) {
+        if let Some(ty) = yes.filter(|ty| is_pointer_type(ty, structs)) { return Some(ty); }
+    }
+    None
+}
+
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
@@ -327,9 +344,9 @@ impl Fmt<'_> {
                 self.pointer_target(&base_type).filter(|_| self.expression_type(offset).and_then(|ty| self.pointer_target(&ty)).is_none()).map(|_| base_type)
             }
             Ex::Tern(_, yes, no) => {
-                let yes = self.expression_type(yes);
-                let no = self.expression_type(no);
-                (yes == no).then_some(yes).flatten()
+                merge_conditional_type(
+                    self.expression_type(yes), self.expression_type(no), yes, no, self.structs,
+                )
             }
             Ex::Un("+" | "-", inner) => self.expression_type(inner),
             _ => None,
@@ -3800,7 +3817,7 @@ fn render_expression_type(expression: &Ex, types: &HashMap<String, String>, stru
         Ex::Tern(_, yes, no) => {
             let yes = render_expression_type(yes, types, structs);
             let no = render_expression_type(no, types, structs);
-            (yes == no).then_some(yes).flatten()
+            merge_conditional_type(yes, no, yes, no, structs)
         }
         _ => None,
     }
