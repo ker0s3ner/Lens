@@ -161,7 +161,6 @@ fn observed_runtime_calls(
         if !matches!(instruction.flow, Flow::Call | Flow::IndirectCall) { return None; }
         let caller = analysis.function_containing(from)?;
         let callee = analysis.function_containing(to)?;
-        if caller.start == callee.start { return None; }
         if instruction.flow == Flow::Call
             && (instruction.target == 0 || (instruction.target != to && instruction.target != callee.start)) { return None; }
         let name_at = |address: u64| names.get(&address).map(|(name, _)| name.clone()).unwrap_or_else(|| format!("sub_{address:X}"));
@@ -924,7 +923,7 @@ impl LensApp {
                         if ui.small_button("Copy observed calls").clicked() {
                             ui.ctx().copy_text(runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| format!("step {step}\t{caller}\t{from:016X}\t{callee}\t{to:016X}\t{}", signals.join(", "))).collect::<Vec<_>>().join("\n"));
                         }
-                        for (step, from, to, caller, callee, signals) in runtime_calls.iter().rev().take(8) {
+                        for (step, from, to, caller, callee, signals) in runtime_calls.iter().rev().filter(|(_, _, _, _, _, signals)| !ui_state.triage_only || !signals.is_empty()).take(8) {
                             let label = format!("step {step} · {caller} → {callee} · {to:016X}{}", if signals.is_empty() { String::new() } else { format!(" · {}", signals.join(", ")) });
                             if ui.add(egui::Button::new(RichText::new(label).small().color(if signals.is_empty() { p.muted } else { p.edge_not }))).clicked() { goto = Some(*to); }
                             ui.label(RichText::new(format!("call at {from:016X}")).monospace().small().color(p.muted));
