@@ -445,6 +445,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - CodeView fixed-array members now retain supported element counts and storage sizes in PDB layouts.
 - CodeView PDB fixed-array layout sizing now uses the PE target pointer width and recognizes `wchar_t`, `char16_t`, `char32_t`, and `HRESULT` element sizes.
 - PDB member extents are checked against their owning record size before a recovered layout is accepted.
+- PE ARM32, Thumb, and ARM64 function-boundary recovery now reads their 8-byte packed-unwind `.pdata` entries; x64 retains its 12-byte begin/end/unwind records.
 - CodeView const/volatile modifiers now survive PDB prototype and layout recovery.
 - Enum-typed CodeView members now retain their underlying storage widths in imported PDB layouts.
 - CodeView C++ class/interface records now contribute supported explicit data members to imported layouts.

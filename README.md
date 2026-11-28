@@ -18,7 +18,7 @@ The last full weighted audit (0.6.514) measured **41.8% of IDA Pro's breadth**; 
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
 - Cross-capability triage highlights static import combinations such as download plus runtime loading, capture plus network access, persistence plus downloads, and injection plus process control, with both evidence lists and a call-site review note.
 - Detect Electron `app.asar` archives and extract their JavaScript resources as source files.
-- Read function-start hints from ELF `.eh_frame`, dynamic `DT_INIT`/`DT_FINI` plus preinit/init/fini arrays, PE `.pdata` and TLS callbacks, and Mach-O `LC_FUNCTION_STARTS`, `LC_DATA_IN_CODE`, and `__unwind_info`. Mach-O embedded data ranges are excluded from code discovery. DWARF can supply function names and prototypes; PE files can import global procedure/public symbols from an adjacent CodeView PDB. Named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
+- Read function-start hints from ELF `.eh_frame`, dynamic `DT_INIT`/`DT_FINI` plus preinit/init/fini arrays, x64 PE `.pdata` (12-byte) and ARM/ARM64 PE `.pdata` (8-byte packed-unwind) records, PE TLS callbacks, and Mach-O `LC_FUNCTION_STARTS`, `LC_DATA_IN_CODE`, and `__unwind_info`. Mach-O embedded data ranges are excluded from code discovery. DWARF can supply function names and prototypes; PE files can import global procedure/public symbols from an adjacent CodeView PDB. Named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
 
 ### Analyze and navigate
 

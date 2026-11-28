@@ -108,14 +108,22 @@ pub fn macho_unwind_info(blob: &[u8], text_base: u64, bin: &Binary) -> Vec<u64> 
     out
 }
 
-/// PE x64/ARM64 .pdata: array of (begin RVA, end RVA, unwind RVA).
+/// PE x64 .pdata uses 12-byte records; ARM/ARM64 use 8-byte records with
+/// packed unwind data. Function starts occupy the first word in both forms.
 pub fn pe_pdata(bin: &Binary, base: u64) -> Vec<u64> {
     let mut out = vec![];
+    let arm_unwind = matches!(bin.arch, crate::loader::Arch::Arm32 | crate::loader::Arch::Thumb | crate::loader::Arch::Arm64);
+    let record_size = if arm_unwind { 8 } else { 12 };
     for s in bin.segments.iter().filter(|s| s.name.eq_ignore_ascii_case(".pdata")) {
-        for c in s.data.chunks_exact(12) {
+        for c in s.data.chunks_exact(record_size) {
             let b = u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u64;
-            let e = u32::from_le_bytes([c[4], c[5], c[6], c[7]]) as u64;
-            if b != 0 && e > b {
+            let valid_record = if arm_unwind {
+                b != 0
+            } else {
+                let e = u32::from_le_bytes([c[4], c[5], c[6], c[7]]) as u64;
+                b != 0 && e > b
+            };
+            if valid_record {
                 let Some(addr) = base.checked_add(b) else { continue };
                 if bin.is_exec(addr) {
                     out.push(addr);
@@ -268,15 +276,15 @@ mod tests {
             name: "test".into(),
             arch: crate::loader::Arch::Arm64,
             big: false,
-            segs: vec![(0x1000, vec![0; 0x100]), (0x2000, vec![0; 24])],
+            segs: vec![(0x1000, vec![0; 0x100]), (0x2000, vec![0; 16])],
             entry: Some(0x1000),
             format: "raw".into(),
         });
         bin.segments[1].name = ".pdata".into();
         bin.segments[1].data = std::sync::Arc::new(vec![
-            0x10, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
-            0x10, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
+            0x10, 0, 0, 0, 1, 0, 0, 0,
+            0x20, 0, 0, 0, 1, 0, 0, 0,
         ]);
-        assert_eq!(pe_pdata(&bin, 0x1000), vec![0x1010]);
+        assert_eq!(pe_pdata(&bin, 0x1000), vec![0x1010, 0x1020]);
     }
 }
