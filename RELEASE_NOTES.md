@@ -1,3 +1,32 @@
+# Lens 0.6.515 — Fourier
+
+- Require natural-loop backedges to target a block that dominates the latch, avoiding false loops from ordinary backward gotos.
+- Recover loop bodies from the CFG's natural-loop predecessor closure.
+- Keep loop structuring only for contiguous body blocks with no external entry into the loop interior.
+- Preserve explicit labels and gotos for irregular or irreducible control flow.
+- Remove duplicate predecessor edges before dominator and loop analysis.
+- Cap dominator analysis at 512 basic blocks to bound memory use on large functions.
+- Structure header-tested loops when the repeat edge is either the taken or fall-through edge.
+- Structure latch-tested loops when the repeat edge is either the taken or fall-through edge.
+- Orient loop conditions to the actual repeat edge.
+- Keep loops with non-adjacent exits in explicit control-flow form.
+- Capture bounded stack words at watched API call sites for runtime argument reporting.
+- Decode x86 cdecl/stdcall stack arguments from prototype-specific argument widths.
+- Decode System V x64 stack arguments after the six register arguments.
+- Decode Windows x64 stack arguments after the four register arguments and shadow space.
+- Decode AArch64 stack arguments after the eight register arguments.
+- Resolve x86 pointer, scalar, enum, and common Windows typedef widths before locating later arguments.
+- Include stack-passed argument values and locations in structured runtime event exports.
+- Extend opt-in narrow-string previews to stack-passed pointers.
+- Extend opt-in Windows UTF-16 previews to stack-passed pointers while preserving the four-preview limit.
+- Pass the analyzed architecture into the CLI debugger session setup.
+- Preserve pointer types when one conditional branch is null and the other has a known pointer type.
+- Use the same conservative null-branch merge for both call-argument formatting and local declaration inference.
+- Show OS-aware symbolic names for recognized runtime API flags and mode arguments alongside raw values.
+- Include symbolic runtime argument names in structured JSON event exports.
+- Keep the weighted IDA Pro score at 41.8% pending a full category re-audit; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.514 — Fourier
 
 - Resolve x86/x64 forwarding stubs that load a known function address into a register before a tail jump.
