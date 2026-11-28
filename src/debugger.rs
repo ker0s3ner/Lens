@@ -39,6 +39,8 @@ pub struct DynamicEvent {
     /// Register values captured at the stop, kept so call-site evidence remains
     /// attached to its own event after the debugger advances.
     pub registers: Vec<(String, String)>,
+    /// Stack words captured before a watched API call, in ascending address order.
+    pub stack_words: Vec<String>,
     pub string_arguments: Vec<(String, String)>,
 }
 
@@ -59,7 +61,7 @@ impl DynamicEvent {
         } else {
             ("stop", "info")
         };
-        Self { id, category: category.into(), severity: severity.into(), address: None, message, registers: Vec::new(), string_arguments: Vec::new() }
+        Self { id, category: category.into(), severity: severity.into(), address: None, message, registers: Vec::new(), stack_words: Vec::new(), string_arguments: Vec::new() }
     }
 }
 
@@ -186,6 +188,24 @@ fn parse_register_pointer(value: &str) -> Option<u64> {
     u64::from_str_radix(&value[..end], 16).ok()
 }
 
+fn parse_stack_words(lines: &[String]) -> Vec<String> {
+    lines.iter().filter_map(|line| line.split_once(':').map(|(_, values)| values))
+        .flat_map(|values| values.split_whitespace())
+        .filter_map(parse_register_pointer)
+        .map(|value| format!("0x{value:x}"))
+        .collect()
+}
+
+fn stack_argument_slot(register_count: usize, index: usize) -> Option<usize> {
+    if index < register_count { return None; }
+    match register_count {
+        6 => Some(index - 6), // System V: stack arguments start at caller RSP.
+        4 => Some(index),     // Windows x64: four shadow-space words precede arg 5.
+        8 => Some(index - 8),
+        _ => None,
+    }
+}
+
 fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<String>)>) -> std::collections::BTreeMap<String, usize> {
     let mut hits = HashMap::<u64, usize>::new();
     for address in trace { *hits.entry(*address).or_default() += 1; }
@@ -301,14 +321,25 @@ fn runtime_event_arguments(
         .map(|(name, value)| (name.to_ascii_lowercase(), value.clone())).collect();
     let argument_registers = abi_argument_registers(arch, format);
     let prototype = crate::protos::find(api);
-    argument_registers.iter().enumerate().filter_map(|(index, register)| {
+    let mut out = argument_registers.iter().enumerate().filter_map(|(index, register)| {
         let value = registers.get(*register)?.clone();
         let (ty, name) = prototype.as_ref().and_then(|prototype| prototype.params.get(index))
             .map(|(ty, name)| (ty.clone(), if name.trim().is_empty() { format!("arg{}", index + 1) } else { name.clone() }))
             .unwrap_or_else(|| ("?".into(), format!("arg{}", index + 1)));
         let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
         Some(RuntimeArgument { name, ty, register: (*register).to_string(), value, string_preview })
-    }).collect()
+    }).collect::<Vec<_>>();
+    if let Some(prototype) = &prototype {
+        for index in argument_registers.len()..prototype.params.len() {
+            let Some(slot) = stack_argument_slot(argument_registers.len(), index) else { continue };
+            let Some(value) = event.stack_words.get(slot).cloned() else { continue };
+            let (ty, parameter) = &prototype.params[index];
+            let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
+            let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
+            out.push(RuntimeArgument { name, ty: ty.clone(), register: format!("stack+0x{:x}", slot * 8), value, string_preview });
+        }
+    }
+    out
 }
 
 fn runtime_arguments_json(arguments: &[RuntimeArgument]) -> Vec<serde_json::Value> {
@@ -845,7 +876,42 @@ impl Dbg {
                     }
                 }
             }
-            Kind::Stack => self.stack = lines,
+            Kind::Stack => {
+                self.stack = lines;
+                let stack_words = parse_stack_words(&self.stack);
+                let event_id = self.dynamic_events.iter_mut().rev()
+                    .find(|event| event.address == self.pc && self.pc.is_some())
+                    .map(|event| {
+                        event.stack_words = stack_words.clone();
+                        event.id
+                    });
+                if self.capture_string_arguments {
+                    if let (Some(event_id), Some(address)) = (event_id, self.pc) {
+                        if let Some(api) = self.behavior_site_apis.get(&address).cloned() {
+                            if let Some(prototype) = crate::protos::find(&api) {
+                                let existing = self.dynamic_events.iter().find(|event| event.id == event_id)
+                                    .map(|event| event.string_arguments.len()).unwrap_or(0);
+                                let queued = self.queue.iter().filter(|request| matches!(
+                                    &request.kind,
+                                    Kind::StringArgument { event_id: queued_id, .. } if *queued_id == event_id
+                                )).count();
+                                let mut captured = existing + queued;
+                                for (index, (ty, parameter)) in prototype.params.iter().enumerate().skip(self.argument_registers.len()) {
+                                    if captured == 4 { break; }
+                                    let wide = wide_string_pointer(ty);
+                                    if !wide && !narrow_string_pointer(ty) { continue; }
+                                    let Some(slot) = stack_argument_slot(self.argument_registers.len(), index) else { continue };
+                                    let Some(pointer) = stack_words.get(slot).and_then(|value| parse_register_pointer(value)).filter(|pointer| *pointer != 0) else { continue };
+                                    let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
+                                    let byte_limit = if wide { 192 } else { 96 };
+                                    self.push(Kind::StringArgument { event_id, name, wide }, &format!("memory read -f x -s 1 -c {byte_limit} 0x{pointer:x}"));
+                                    captured += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Kind::Memory => self.memory = lines,
             Kind::Bt => self.bt = lines,
             Kind::Watch(expression) => {
