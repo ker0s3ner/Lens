@@ -99,17 +99,16 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
             let ty = types.get(&field_type)?.clone();
-            let field_size = if let Some(size) = enum_sizes.get(&field_type) { *size } else if let Some(size) = layout_sizes.get(&ty) { *size } else if ty.ends_with('*') || ty.starts_with("fn(") { ptr } else if let Some((base, count)) = ty.strip_suffix(']').and_then(|t| t.rsplit_once('[')) {
-                let element = match base { "char" | "int8_t" | "uint8_t" | "bool" => 1, "short" | "int16_t" | "uint16_t" => 2, "int" | "int32_t" | "uint32_t" | "float" => 4, "long" | "int64_t" | "uint64_t" | "double" => 8, _ if base.ends_with('*') => ptr, _ => 0 };
-                if element == 0 { return None; }
-                element.saturating_mul(count.parse::<u32>().ok()?)
-            } else { match ty.trim_start_matches("const ").trim_start_matches("volatile ") {
-                "char" | "int8_t" | "uint8_t" | "bool" => 1,
-                "short" | "int16_t" | "uint16_t" => 2,
-                "int" | "int32_t" | "uint32_t" | "float" => 4,
-                "long" | "int64_t" | "uint64_t" | "double" => 8,
-                _ => return None,
-            }};
+            let field_size = if let Some(size) = enum_sizes.get(&field_type) {
+                *size
+            } else if let Some(size) = layout_sizes.get(&ty) {
+                *size
+            } else if let Some((base, count)) = ty.strip_suffix(']').and_then(|t| t.rsplit_once('[')) {
+                let element = layout_sizes.get(base).copied().or_else(|| pdb_type_size(base, ptr))?;
+                element.checked_mul(count.parse::<u32>().ok()?)?
+            } else {
+                pdb_type_size(&ty, ptr)?
+            };
             if field_name.is_empty() || offset > u32::MAX as u64 { return None; }
             let (bit_offset, bit_width) = bitfields.get(&field_type).map(|(position, length)| (Some(*position), Some(*length))).unwrap_or((None, None));
             out.push(crate::types::Field { off: offset as u32, name: field_name, ty, size: field_size, bit_offset, bit_width });
@@ -183,7 +182,36 @@ fn primitive_name(p: pdb::PrimitiveType) -> String {
     }
 }
 
-fn pdb_types(db: &mut pdb::PDB<std::fs::File>) -> HashMap<pdb::TypeIndex, String> {
+fn pdb_type_size(ty: &str, ptr: u32) -> Option<u32> {
+    let mut ty = ty.trim();
+    loop {
+        if let Some(rest) = ["const ", "volatile ", "restrict "]
+            .iter()
+            .find_map(|qualifier| ty.strip_prefix(qualifier))
+        {
+            ty = rest.trim_start();
+            continue;
+        }
+        if let Some(qualifier) = [" const", " volatile", " restrict"]
+            .iter()
+            .find(|qualifier| ty.ends_with(**qualifier))
+        {
+            ty = ty[..ty.len() - qualifier.len()].trim_end();
+            continue;
+        }
+        break;
+    }
+    if ty.ends_with('*') || ty.starts_with("fn(") { return Some(ptr); }
+    Some(match ty {
+        "char" | "int8_t" | "uint8_t" | "bool" => 1,
+        "short" | "int16_t" | "uint16_t" | "wchar_t" | "char16_t" => 2,
+        "int" | "int32_t" | "uint32_t" | "float" | "char32_t" | "HRESULT" => 4,
+        "long" | "int64_t" | "uint64_t" | "double" => 8,
+        _ => return None,
+    })
+}
+
+fn pdb_types(db: &mut pdb::PDB<std::fs::File>, ptr: u32) -> HashMap<pdb::TypeIndex, String> {
     let Ok(info) = db.type_information() else { return HashMap::new() };
     let mut iter = info.iter();
     let mut out = HashMap::new();
@@ -205,14 +233,7 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>) -> HashMap<pdb::TypeIndex, String
             pdb::TypeData::ArgumentList(a) => a.arguments.iter().map(|i| type_name(*i, &out)).collect::<Vec<_>>().join(", "),
             pdb::TypeData::Array(a) => {
                 let element = type_name(a.element_type, &out);
-                let element_size = match element.trim_end_matches(" *") {
-                    "char" | "int8_t" | "uint8_t" | "bool" => 1,
-                    "short" | "int16_t" | "uint16_t" => 2,
-                    "int" | "int32_t" | "uint32_t" | "float" => 4,
-                    "long" | "int64_t" | "uint64_t" | "double" => 8,
-                    _ if element.ends_with('*') => 8,
-                    _ => 0,
-                };
+                let element_size = pdb_type_size(&element, ptr).unwrap_or(0);
                 let count = a.dimensions.last().copied().unwrap_or(0).checked_div(element_size).unwrap_or(0);
                 if element_size == 0 || count == 0 { continue; }
                 format!("{element}[{count}]")
@@ -258,7 +279,7 @@ pub fn symbols(path: &Path, ptr: u32) -> Option<(Vec<(u32, String)>, String, Vec
     let file = std::fs::File::open(path).ok()?;
     let mut db = pdb::PDB::open(file).ok()?;
     let map = db.address_map().ok()?;
-    let types = pdb_types(&mut db);
+    let types = pdb_types(&mut db, ptr);
     let enum_decls = pdb_enum_declarations(&mut db);
     let structs = pdb_structs(&mut db, &types, ptr);
     let mut out = Vec::new();
