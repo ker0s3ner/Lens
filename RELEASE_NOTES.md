@@ -1,3 +1,24 @@
+# Lens 0.6.486 — Fourier
+
+- Expanded DWARF fixed member-offset recovery to accept `DW_OP_constu` plus `DW_OP_plus` expressions.
+- Added support for nonnegative signed DWARF constants used in fixed member offsets.
+- Kept DWARF layout recovery conservative by rejecting negative, dynamic, and trailing-operation expressions.
+- Preserved pointer pointee types through dereferences after constant pointer arithmetic.
+- Preserved pointee types through variable integer offsets such as indexed pointer walks.
+- Propagated pointer types through conditional pointer expressions.
+- Seeded local decompiler type recovery from the function's own known prototype parameters.
+- Added observed direct-call transitions to debugger trace review.
+- Added observed indirect-call transitions when the runtime target resolves to a known function.
+- Added ordered call-transition rows with trace step, caller, call-site address, callee, and target address.
+- Matched observed callees against explainable static behavior signals.
+- Highlighted signal-matched runtime calls in the debugger.
+- Added a copyable observed-call handoff including any matched behavior signals.
+- Made observed callees clickable to navigate to their code.
+- Added observed call counts and call records to `lens.dynamic-trace.v1` exports.
+- Updated the IDA Pro parity estimate to 39.5% weighted capability coverage; the 50% target remains unmet.
+- Updated README, roadmap, in-app What's New notes, and GitHub Pages release archive.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.485 — Fourier
 
 - Added bounded offline instruction-trace replay with navigation through recorded PCs.

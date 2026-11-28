@@ -2,11 +2,11 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.485 — Fourier**. Adds offline trace replay, a consent-gated native local-child debugger session, DWARF member-offset recovery, M68k sign-extension fixes, call-graph responsiveness improvements, and a measured 128 MiB large-file gate. Read [What's New in the app](docs/whats-new.html), the [0.6.485 release page](docs/release-0.6.485.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub release: **0.6.486 — Fourier**. Adds prototype-seeded pointer recovery and a behavior-aware runtime call timeline, plus broader fixed-offset DWARF layouts. Read [What's New in the app](docs/whats-new.html), the [0.6.486 release page](docs/release-0.6.486.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
-The current engineering estimate is **about 40–45% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **38.7% of IDA Pro's breadth**. Recent work adds offline trace replay, a basic native local-child session, broader DWARF member-offset recovery, M68k sign extension, safer temporary propagation, and a repeatable large-file gate. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugger functionality is early, and performance results on large files are not yet measured. See the roadmap for scope and current evidence.
+The current engineering estimate is **about 41–46% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **39.5% of IDA Pro's breadth**. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugger functionality is early, and large-file validation still needs a broader real-binary corpus. See the roadmap for scope and current evidence.
 
 ## What it can do
 

@@ -5,6 +5,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build and publish (example: v0.6.486)
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -13,6 +18,8 @@ jobs:
   build:
     runs-on: macos-14       # Apple Silicon
     timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,10 +33,10 @@ jobs:
       - name: Run deterministic golden analysis
         run: ./scripts/golden-analysis.sh
       - name: Check tag matches Cargo.toml version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         run: |
           V=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
-          [ "v$V" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} != Cargo version v$V"; exit 1; }
+          [ "v$V" = "$RELEASE_TAG" ] || { echo "Tag $RELEASE_TAG != Cargo version v$V"; exit 1; }
       - name: Build Lens.app
         run: bash -x ./scripts/bundle-macos.sh
       - uses: actions/upload-artifact@v4
@@ -37,16 +44,17 @@ jobs:
           name: Lens-macos-arm64
           path: dist/Lens-macos-arm64.zip
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         run: |
-          awk -v ver="${GITHUB_REF_NAME#v}" '
+          awk -v ver="${RELEASE_TAG#v}" '
             /^# Lens / { if (found) exit; found = ($3 == ver) }
             found { print }
           ' RELEASE_NOTES.md > "$RUNNER_TEMP/whats-new.md"
           test -s "$RUNNER_TEMP/whats-new.md"
       - name: Upload versioned release notes and app
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: dist/Lens-macos-arm64.zip
           body_path: ${{ runner.temp }}/whats-new.md

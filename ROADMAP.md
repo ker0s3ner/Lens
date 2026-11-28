@@ -1,6 +1,8 @@
 # Roadmap: getting Lens as close to IDA Pro as possible
 
-Authoritative current build: **Lens 0.6.485 — Fourier**. This patch release batches debugger replay and local-child sessions, DWARF and M68k recovery, call-graph performance, and the first measured large-file gate; What's New history is synchronized through this build. The 50% target remains unmet.
+Authoritative current release: **Lens 0.6.486 — Fourier**. This patch release batches prototype-seeded pointer recovery, variable-offset dereferences, broader DWARF fixed-offset expressions, and behavior-aware runtime call tracing. The 50% target remains unmet.
+
+Release update: **Lens 0.6.486 — Fourier** adds common constant-plus DWARF member expressions, propagates prototype parameter types through pointer arithmetic and dereferences, and correlates observed debugger call transitions with explainable static behavior signals. Trace export now includes ordered caller/callee records and matched signals. The weighted estimate is **39.5%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.485 — Fourier** adds bounded offline trace replay, consent-gated native local-child debugging, DWARF fixed-offset member recovery, corrected M68k sign extension, safer decompiler copy propagation, smoother dense call graphs, and the measured large-file performance gate. A 134,225,920-byte synthetic ELF completed static analysis in 5.427 seconds at 393.36 MiB peak RSS on GitHub Actions. The 50% target remains unmet.
 
@@ -124,7 +126,7 @@ Release update: **Lens 0.6.449 — Fourier** hardens switch-table recovery with 
 
 Release update: **Lens 0.6.448 — Fourier** corrects unsigned RISC-V/MIPS comparison lifting and makes scripted function, search, bookmark, and call-graph results deterministic while reusing one indexed graph. The 50% target remains unmet.
 
-Release update: **Lens 0.6.447 — Fourier** hardens call-graph rendering with bounded pan/zoom input, safe cache fallback, deterministic adjacency ordering, malformed-edge guards, and lower-cost curve painting. The 50% target remains unmet. Current audit marker remains **38.7% weighted capability / about 40–45% practical workflow**.
+Release update: **Lens 0.6.447 — Fourier** hardens call-graph rendering with bounded pan/zoom input, safe cache fallback, deterministic adjacency ordering, malformed-edge guards, and lower-cost curve painting. At that build, the estimate was **38.7% weighted capability / about 40–45% practical workflow**.
 
 Release update: **Lens 0.6.446 — Fourier** adds deterministic ARM64 NEON `bsl` decode coverage for the new mask-combine semantics. The 50% target remains unmet.
 
@@ -146,20 +148,20 @@ Release update: **Lens 0.6.438 — Fourier** adds source–destination-correct M
 
 Earlier baseline build: **Lens 0.6.437 — Fourier**. The golden corpus now checks ARM64 pseudocode for a recovered constant return. The CLI now maps m68k/68k/m68000 aliases to Motorola 68000 raw analysis. C++ vector-construction/destruction runtime prototypes are now built in. C++ thread-safe static-initialization guard prototypes are now built in. C++ exception begin/end/rethrow and pure-virtual runtime prototypes are now built in. C++ operator new[] and operator delete[] prototypes now resolve by their full names. Built-in C++ operator new/delete prototypes now parse and resolve by their full names. ARM64 min/max helper selection now has direct regression coverage. ARM64 scalar and vector fmin/fmax instructions now lift to explicit helpers. x86 scalar and packed SSE/AVX min/max instructions now lift to explicit fmin/fmax calls. Pseudocode now collapses identical conditional branches instead of printing redundant ternaries. Call-graph startup now renders a bounded one-hop neighborhood before optional deeper expansion. Call graph now opens at one hop for a responsive first frame, while deeper expansion remains available on demand. M68k size-suffixed arithmetic and compare mnemonics now dispatch through the generic semantic lifter, with suffix normalization regression coverage. Golden analysis now covers x64, ARM32, Thumb, ARM64, RISC-V, PowerPC, and MIPS metadata; M68k now has a dedicated generic-decompiler register and ABI family with common arithmetic, memory-form move, frame, address, teardown, register-transform, and stack-state lifting; call graphs now reuse indexed call analysis, identify named forwarding thunks, and deduplicate caller functions before responsiveness caps; vtable JSON, desktop database exports, Rhai snapshots, and the Lists view retain or show owning segment and file-offset source context; bitfield matching now normalizes const, volatile, and restrict qualifiers across equivalent signed storage types; enum identity now survives safe constant `+`/`-` arithmetic in typed comparisons; x86 switch case-index recovery now handles both add and subtract normalization idioms; enum types also propagate through locals, casts, reassignment, typed call results, flag decomposition, and constant expressions; ARM32 and Thumb register-based switch recovery now handles signed PC-relative and backward `sub reg, pc, #imm` table bases; RISC-V and ARM64 switch reconstruction now accept signed address adjustments; the parallel regression gate is deterministic; the 50% target remains unmet.
 
-Current audit marker: **0.6.485 — Fourier**. The weighted estimate remains **38.7%** engineering capability; the practical workflow estimate remains **about 40–45%**. The latest roadmap work adds offline trace replay, an early native local-child session, DWARF fixed-offset expression recovery, M68k signed extension, conservative copy propagation, and the first measured large-file performance gate. The 50% target is still unmet.
+Current audit marker: **0.6.486 — Fourier**. The weighted estimate is **39.5%** engineering capability; the practical workflow estimate is **about 41–46%**. The latest work includes offline trace replay, an early native local-child session, broader DWARF fixed-offset recovery, prototype-seeded pointer analysis, behavior-aware runtime call correlation, and the first measured large-file performance gate. The 50% target is still unmet.
 
-Status checked against the repository on 2026-11-28, at **Lens 0.6.485 — Fourier**. The current practical workflow estimate is **about 40–45% of IDA Pro**; the weighted capability model below remains **38.7% of IDA Pro's breadth** (plausible range: **31–40%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. A synthetic 128 MiB ELF was analyzed by GitHub Actions in 5.427 seconds at 393.36 MiB peak RSS; this is an initial controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-28, at **Lens 0.6.486 — Fourier**. The current practical workflow estimate is **about 41–46% of IDA Pro**; the weighted capability model below is **39.5% of IDA Pro's breadth** (plausible range: **32–41%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. A synthetic 128 MiB ELF was analyzed by GitHub Actions in 5.427 seconds at 393.36 MiB peak RSS; this is an initial controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
 | File formats and processor breadth | 20% | 27% | 5.4% |
 | Static analysis and navigation | 20% | 58% | 11.6% |
-| Decompiler and type recovery | 20% | 28% | 5.6% |
-| Type system and debug information | 10% | 40% | 4.0% |
-| Debugging and tracing | 10% | 35% | 3.5% |
+| Decompiler and type recovery | 20% | 30% | 6.0% |
+| Type system and debug information | 10% | 41% | 4.1% |
+| Debugging and tracing | 10% | 38% | 3.8% |
 | Workflow, scripting and interchange | 10% | 55% | 5.5% |
 | Reliability, performance and scale | 10% | 31% | 3.1% |
-| **Total** | **100%** |  | **38.7%** |
+| **Total** | **100%** |  | **39.5%** |
 
 These are engineering estimates, not a feature-count comparison. Lens already has a broad usable workflow across loading, navigation, graphing, search, annotations, signatures, scripting, debugging, export, and multi-file project manifests. The score remains limited by the much shallower decompiler, partial architecture-specific analysis, narrower format/CPU coverage, small type system, LLDB dependency, and limited large-file validation.
 
@@ -669,5 +671,4 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Existing repository edits may be in progress. Update status only after confirming the corresponding behavior in source.
 
 ## Releasing
-Bump `version` in Cargo.toml, commit, push, then `git tag vX.Y.Z && git push --tags`. CI builds Apple Silicon
-and publishes the release; installed apps update themselves from Settings or Tools > Check for updates.
+Bump `version` in Cargo.toml and Cargo.lock, commit, push, then `git tag vX.Y.Z && git push --tags`. CI checks the version, builds Apple Silicon, and publishes release notes plus the app asset. The release workflow can also be manually dispatched from `main` with the existing `release_tag` input to attach a GitHub-built asset to its tag. Installed apps update themselves from Settings or Tools > Check for updates.
