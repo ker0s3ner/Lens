@@ -483,6 +483,8 @@ impl LensApp {
                 ui.monospace(output);
             });
         }
+        let mut restart = false;
+        let mut dismiss = false;
         match session.state {
             State::Running | State::Paused => {
                 let paused = session.state == State::Paused;
@@ -508,6 +510,7 @@ impl LensApp {
             }
             State::Exited(status) => {
                 ui.label(format!("Exited ({status})"));
+                restart = ui.button("Restart with same configuration").clicked();
             }
             State::OwnershipLost => {
                 ui.label("Child status unavailable.");
@@ -516,7 +519,37 @@ impl LensApp {
         if let Err(error) = result {
             ui.label(format!("Child process error: {error}"));
         }
-        if !session.live() && ui.button("Dismiss").clicked() {
+        if !session.live() && !restart {
+            dismiss = ui.button("Dismiss").clicked();
+        }
+        if restart {
+            let program = session.program.clone();
+            let args = parse_arguments(&self.native_debugger.args);
+            let environment = parse_environment(&self.native_debugger.environment);
+            let working_directory = (!self.native_debugger.working_directory.is_empty())
+                .then(|| Path::new(&self.native_debugger.working_directory).to_path_buf());
+            let start_paused = self.native_debugger.start_paused;
+            let launched = args.and_then(|args| environment.map(|environment| (args, environment)));
+            match launched {
+                Ok((args, environment)) => match NativeSession::launch(
+                    &program,
+                    &args,
+                    &environment,
+                    working_directory.as_deref(),
+                    start_paused,
+                ) {
+                    Ok(next) => self.native_debugger.session = Some(next),
+                    Err(error) => {
+                        self.modal_message("Couldn't restart local child", error.to_string());
+                        self.native_debugger.session = None;
+                    }
+                },
+                Err(error) => {
+                    self.modal_message("Couldn't restart local child", error.to_string());
+                    self.native_debugger.session = None;
+                }
+            }
+        } else if dismiss {
             self.native_debugger.session = None;
         }
         true
