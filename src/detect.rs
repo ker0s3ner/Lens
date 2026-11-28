@@ -115,6 +115,21 @@ impl Detection {
     }
 }
 
+fn correlated_signal(out: &mut Vec<ThreatSignal>, capabilities: &[Capability], left: &str, right: &str, severity: u8, name: &str, context: &str) {
+    let find = |name: &str| capabilities.iter().find(|c| c.name == name);
+    if let (Some(a), Some(b)) = (find(left), find(right)) {
+        out.push(ThreatSignal {
+            severity,
+            name: name.into(),
+            evidence: format!(
+                "{context}; {left}: {}; {right}: {}; inspect call sites to confirm a relationship",
+                a.apis.join(", "),
+                b.apis.join(", ")
+            ),
+        });
+    }
+}
+
 fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &[(String, bool)], entropy: f32) -> Vec<ThreatSignal> {
     let mut out = Vec::new();
     let has = |name: &str| capabilities.iter().find(|c| c.name == name);
@@ -166,6 +181,8 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Threads & timing") {
         out.push(ThreatSignal { severity: 1, name: "Threading or timing behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    // These pairings are prioritization hints based on imports in the same
+    // binary. They do not prove that the APIs are called together at runtime.
     if let Some(c) = has("Cryptography") {
         out.push(ThreatSignal { severity: 1, name: "Cryptographic activity".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
@@ -219,6 +236,16 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if protections.iter().any(|(name, enabled)| !*enabled && name.to_ascii_lowercase().contains("pie")) {
         out.push(ThreatSignal { severity: 1, name: "PIE disabled".into(), evidence: "position-independent executable hardening is reduced; review with other evidence".into() });
     }
+    correlated_signal(&mut out, capabilities, "File downloads", "Loads code at run time", 3, "Download and runtime loading", "download and dynamic-loading capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Credential store", "Network", 2, "Credential access with network capability", "credential-store and network capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Keyboard & screen capture", "Network", 3, "Capture with network capability", "input or screen capture and network capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Registry & settings", "Persistence mechanisms", 2, "Settings with persistence capability", "settings access and persistence capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Process injection primitives", "Process control", 3, "Injection with process control", "process-memory or thread-control primitives coexist with process control");
+    correlated_signal(&mut out, capabilities, "Anti-debugging", "Loads code at run time", 2, "Anti-analysis with runtime loading", "anti-analysis and dynamic-loading capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Data removal", "Persistence mechanisms", 2, "Data removal with persistence capability", "data-removal and persistence capabilities coexist");
+    correlated_signal(&mut out, capabilities, "File downloads", "Persistence mechanisms", 3, "Download with persistence capability", "download and persistence capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Credential store", "Persistence mechanisms", 2, "Credential access with persistence capability", "credential-store and persistence capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Processes", "File downloads", 2, "Process launch with download capability", "process-launch and download capabilities coexist");
     out.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.name.cmp(&b.name)));
     out
 }

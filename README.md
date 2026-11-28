@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub release: **0.6.491 — Fourier**. Improves cross-block pseudocode propagation, cross-platform process-behavior triage, native API type recovery, address safety, and high-fan-in call-graph responsiveness. Read [What's New in the app](docs/whats-new.html), the [0.6.491 release page](docs/release-0.6.491.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub release: **0.6.492 — Fourier**. Adds ten cross-capability behavior-triage clues and halves raw-byte listing rows on large unexplored segments. Read [What's New in the app](docs/whats-new.html), the [0.6.492 release page](docs/release-0.6.492.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
@@ -16,6 +16,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - Open raw binaries with a selected CPU, byte order, load address and entry point; the CLI accepts `--arch` (including `x64`/`amd64` aliases), `--big`, `--base`, and `--entry` for explicit firmware analysis.
 - Translate pasted hex, C byte arrays, `\\x` escapes, Intel HEX and S-record data into disassembly.
 - Inspect program metadata: operating system, CPU, likely compiler and language, packers, security flags, imports, capabilities, entropy and SHA-256.
+- Cross-capability triage highlights static import combinations such as download plus runtime loading, capture plus network access, persistence plus downloads, and injection plus process control, with both evidence lists and a call-site review note.
 - Detect Electron `app.asar` archives and extract their JavaScript resources as source files.
 - Read function-start hints from ELF `.eh_frame`, dynamic `DT_INIT`/`DT_FINI` plus preinit/init/fini arrays, PE `.pdata` and TLS callbacks, and Mach-O `LC_FUNCTION_STARTS`, `LC_DATA_IN_CODE`, and `__unwind_info`. Mach-O embedded data ranges are excluded from code discovery. DWARF can supply function names and prototypes; PE files can import global procedure/public symbols from an adjacent CodeView PDB. Named struct, union and enum layouts with supported member offsets can be imported into the Types tool and applied to data.
 
@@ -32,6 +33,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - Detect conservative vtable-like runs in read-only data by validating consecutive pointers into executable code, including Itanium C++ tables with offset-to-top and typeinfo headers; available RTTI symbols are converted to readable C++ names in Lists and JSON. Objective-C method/property-name sections in Mach-O files receive selector-aware `sel_` names, Swift `$s` symbols get readable component names, and Swift reflection/type-reference strings receive `swift_` names.
 - View synchronized disassembly, control-flow graph, hex, pseudocode, call graph, function map and program overview; recovered switch-case destinations also appear as graph edges.
 - Call-graph neighborhoods scan sorted caller xrefs with a hard cap before function lookups, then deduplicate callers so extreme fan-in stays responsive.
+- Large unexplored raw-byte regions use aligned 32-byte listing rows, halving their row count compared with the prior 16-byte grouping.
 - Dense call-graph rendering skips off-screen relationships and uses lighter curve sampling, reducing paint work while panning and zooming.
 - Browse discovered vtable-like and pointer tables from the Lists window and jump to their data addresses.
 - Browse persisted inferred arrays from the Lists window and jump to their first element.

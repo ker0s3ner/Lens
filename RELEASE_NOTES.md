@@ -1,3 +1,20 @@
+# Lens 0.6.492 — Fourier
+
+- Add a download plus runtime-loading clue with both supporting import lists.
+- Flag credential-store imports alongside network capability for focused call-path review.
+- Highlight input or screen-capture capability when network imports are also present.
+- Pair settings access with persistence imports in static behavior triage.
+- Pair process injection primitives with process-control imports for stronger review prioritization.
+- Surface anti-debugging imports together with dynamic code-loading capability.
+- Pair data-removal imports with persistence capability for analyst review.
+- Flag binaries that combine download and persistence imports.
+- Flag binaries that combine credential-store and persistence imports.
+- Pair process-launch imports with download capability for review.
+- Explain each combined clue with both import lists and a call-site confirmation note; these are static heuristics, not proof of runtime behavior.
+- Halve unexplored raw-byte listing rows on large segments with aligned 32-byte rows.
+- Weighted IDA Pro parity estimate remains 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.491 — Fourier
 
 - Propagate temporary copies and constants through forward single-predecessor block chains in address order, while preserving backward-edge and reassignment barriers.
