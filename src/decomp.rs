@@ -3254,6 +3254,20 @@ fn decompile_inner(
         _ => true,
         }
     });
+    // A person's explicit local type takes precedence over inferred assignment
+    // types and must also produce a typed declaration when inference found none.
+    let var_prefix = format!("{:X}:", f.start);
+    for (key, ty) in var_type_overrides {
+        let Some(original) = key.strip_prefix(&var_prefix) else { continue };
+        if original.starts_with('a') && original[1..].chars().all(|c| c.is_ascii_digit()) && !original[1..].is_empty() { continue; }
+        let shown = rename.get(original).cloned().unwrap_or_else(|| original.to_string());
+        let in_registers = decl_regs.contains(&shown);
+        let in_typed = typed.iter().any(|(_, name)| name == &shown);
+        if !in_registers && !in_typed { continue; }
+        decl_regs.retain(|name| name != &shown);
+        typed.retain(|(_, name)| name != &shown);
+        typed.push((ty.trim().to_string(), shown));
+    }
     typed.sort();
     // XMM temporaries used to be emitted as integer declarations even when the
     // instruction stream clearly identified scalar float/double or vector data.
