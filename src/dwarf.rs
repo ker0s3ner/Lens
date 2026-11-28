@@ -150,6 +150,24 @@ fn type_size<'a>(unit: &gimli::Unit<R<'a>>, off: Option<gimli::UnitOffset>, dept
     if let Some(n) = number(gimli::DW_AT_byte_size) { return u32::try_from(n).ok(); }
     match e.tag() {
         gimli::DW_TAG_pointer_type | gimli::DW_TAG_reference_type | gimli::DW_TAG_rvalue_reference_type => Some(unit.header.address_size() as u32),
+        gimli::DW_TAG_array_type => {
+            let element_type = match e.attr_value(gimli::DW_AT_type).ok().flatten()? {
+                AttributeValue::UnitRef(offset) => Some(offset),
+                _ => None,
+            };
+            let element_size = type_size(unit, element_type, depth + 1)?;
+            let dimensions = array_dimensions(unit, off);
+            if dimensions.is_empty() {
+                return None;
+            }
+            let count = dimensions
+                .into_iter()
+                .try_fold(1u32, |total, dimension| {
+                    let dimension = u32::try_from(dimension?).ok()?;
+                    total.checked_mul(dimension)
+                })?;
+            element_size.checked_mul(count)
+        }
         gimli::DW_TAG_typedef | gimli::DW_TAG_const_type | gimli::DW_TAG_volatile_type | gimli::DW_TAG_restrict_type | gimli::DW_TAG_atomic_type => {
             let inner = match e.attr_value(gimli::DW_AT_type).ok().flatten()? { AttributeValue::UnitRef(o) => Some(o), _ => None };
             type_size(unit, inner, depth + 1)
