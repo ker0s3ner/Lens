@@ -1,3 +1,23 @@
+# Lens 0.6.511 — Fourier
+
+- Repeat CFG copy and constant propagation until a full pass makes no change.
+- Propagate values through chains that cross several branch and merge blocks.
+- Continue after an earlier merge exposes a new value for a later merge.
+- Continue after block ordering leaves newly reachable values behind the current sweep.
+- Run propagation before register liveness and final pseudocode emission.
+- Revisit single-predecessor copies when a later merge resolves their source.
+- Revisit single-predecessor constants when a later merge resolves their value.
+- Revisit convergent copies after an upstream merge simplifies their inputs.
+- Revisit convergent constants after upstream propagation exposes a shared value.
+- Keep copy propagation stopped at either source or destination reassignment.
+- Keep constant propagation stopped at destination reassignment.
+- Skip backward-address merge edges in the iterative convergence passes.
+- Keep calls, memory reads, ternaries, and opaque expressions out of convergent copies.
+- Bound side-effect-free expressions eligible for merge propagation to 256 nodes.
+- Update block register definitions and branch/return/indirect terminators with propagated values.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.510 — Fourier
 
 - Sort Mach-O embedded-data address ranges once after parsing `LC_DATA_IN_CODE`.

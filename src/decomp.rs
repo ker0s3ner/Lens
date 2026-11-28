@@ -979,7 +979,7 @@ fn propagate_forward_copy(o: &mut BlockOut, has_successors: bool) {
 /// This is a deliberately conservative SSA step: the destination block must
 /// have exactly one predecessor, and propagation stops at either variable's
 /// next assignment.
-fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
+fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) -> bool {
     let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
     let mut pred_count = vec![0usize; f.blocks.len()];
     for block in &f.blocks {
@@ -991,6 +991,7 @@ fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
     // lets newly exposed copies flow across a whole chain in one bounded pass.
     let mut source_order: Vec<usize> = (0..f.blocks.len()).collect();
     source_order.sort_by_key(|&i| f.blocks[i].start);
+    let mut any_changed = false;
     for source in source_order {
         let Some((dst, src)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), Ex::Var(src))
@@ -1051,13 +1052,15 @@ fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
         if propagated && f.blocks[source].succs.len() == 1 {
             outs[source].stmts.pop();
         }
+        any_changed |= propagated;
     }
+    any_changed
 }
 
 /// Carry a literal temporary across a single-predecessor edge.  This is the
 /// constant analogue of the copy pass above and deliberately stops at any
 /// reassignment of the temporary.
-fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
+fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) -> bool {
     let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
     let mut pred_count = vec![0usize; f.blocks.len()];
     for block in &f.blocks {
@@ -1069,6 +1072,7 @@ fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
     // constants flow across chains without repeating a whole-function scan.
     let mut source_order: Vec<usize> = (0..f.blocks.len()).collect();
     source_order.sort_by_key(|&i| f.blocks[i].start);
+    let mut any_changed = false;
     for source in source_order {
         let Some((dst, value)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
@@ -1124,23 +1128,30 @@ fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
                 outs[source].stmts.pop();
             }
         }
+        any_changed |= propagated;
     }
+    any_changed
 }
 
 fn merge_safe_expression(e: &Ex) -> bool {
-    match e {
-        Ex::Num(_) | Ex::Var(_) => true,
-        Ex::Bin(_, a, b) => merge_safe_expression(a) && merge_safe_expression(b),
-        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => merge_safe_expression(a),
-        // Do not duplicate loads or calls across a control-flow merge.
-        Ex::Deref(..) | Ex::Call(..) | Ex::Tern(..) | Ex::Raw(..) => false,
+    fn visit(e: &Ex, budget: &mut usize) -> bool {
+        if *budget == 0 { return false; }
+        *budget -= 1;
+        match e {
+            Ex::Num(_) | Ex::Var(_) => true,
+            Ex::Bin(_, a, b) => visit(a, budget) && visit(b, budget),
+            Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => visit(a, budget),
+            // Do not duplicate loads, calls, ternaries, or opaque expressions across a merge.
+            Ex::Deref(..) | Ex::Call(..) | Ex::Tern(..) | Ex::Raw(..) => false,
+        }
     }
+    visit(e, &mut 256)
 }
 
 /// Fold a value through a merge block when every incoming edge assigns the
 /// same temporary from the same side-effect-free expression. This extends
 /// copy/constant propagation without requiring a complete SSA graph.
-fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
+fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) -> bool {
     let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
     let mut incoming: Vec<Vec<usize>> = vec![vec![]; f.blocks.len()];
     for (source, block) in f.blocks.iter().enumerate() {
@@ -1148,8 +1159,13 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
             if let Some(&ti) = index.get(target) { incoming[ti].push(source); }
         }
     }
-    for (target, preds) in incoming.iter().enumerate() {
+    let mut any_changed = false;
+    let mut merge_order: Vec<usize> = (0..f.blocks.len()).collect();
+    merge_order.sort_by_key(|&i| f.blocks[i].start);
+    for target in merge_order {
+        let preds = &incoming[target];
         if preds.len() < 2 { continue; }
+        if preds.iter().any(|&p| f.blocks[p].start >= f.blocks[target].start) { continue; }
         let Some((dst, value)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
@@ -1164,34 +1180,42 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
         let mut value_vars = HashMap::new();
         count_vars(&value, &mut value_vars);
         let mut stopped = false;
+        let mut changed = false;
         for (_, stmt) in &mut outs[target].stmts {
             if writes_var(stmt, &dst) || value_vars.keys().any(|name| writes_var(stmt, name)) { stopped = true; break; }
             let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
-            let new = match old {
+            let new = match old.clone() {
                 Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &value), subst(&right, &Ex::Var(dst.clone()), &value)),
                 Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &value)),
                 Stmt::Comment(text) => Stmt::Comment(text),
             };
+            changed |= old != new;
             *stmt = new;
         }
         if !stopped {
             for expression in outs[target].defs.values_mut() {
-                *expression = subst(expression, &Ex::Var(dst.clone()), &value);
+                let new = subst(expression, &Ex::Var(dst.clone()), &value);
+                changed |= *expression != new;
+                *expression = new;
             }
             let term = std::mem::replace(&mut outs[target].term, Term::Stop);
-            outs[target].term = match term {
+            let new = match term.clone() {
                 Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
                 Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &value)),
                 Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst), &value), taken, fall },
                 other => other,
             };
+            changed |= term != new;
+            outs[target].term = new;
         }
+        any_changed |= changed;
     }
+    any_changed
 }
 
 /// Fold an identical literal assignment through a merge block.  All incoming
 /// predecessors must agree on both the temporary and its value.
-fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) {
+fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) -> bool {
     let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
     let mut incoming: Vec<Vec<usize>> = vec![vec![]; f.blocks.len()];
     for (source, block) in f.blocks.iter().enumerate() {
@@ -1199,8 +1223,13 @@ fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) {
             if let Some(&ti) = index.get(target) { incoming[ti].push(source); }
         }
     }
-    for (target, preds) in incoming.iter().enumerate() {
+    let mut any_changed = false;
+    let mut merge_order: Vec<usize> = (0..f.blocks.len()).collect();
+    merge_order.sort_by_key(|&i| f.blocks[i].start);
+    for target in merge_order {
+        let preds = &incoming[target];
         if preds.len() < 2 { continue; }
+        if preds.iter().any(|&p| f.blocks[p].start >= f.blocks[target].start) { continue; }
         let Some((dst, value)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
@@ -1212,25 +1241,32 @@ fn propagate_convergent_constant(outs: &mut [BlockOut], f: &Function) {
             _ => None,
         }).flatten() else { continue };
         let mut stopped = false;
+        let mut changed = false;
         for (_, stmt) in &mut outs[target].stmts {
             if writes_var(stmt, &dst) { stopped = true; break; }
             let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
-            *stmt = match old {
+            let new = match old.clone() {
                 Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &value), subst(&right, &Ex::Var(dst.clone()), &value)),
                 Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &value)),
                 Stmt::Comment(text) => Stmt::Comment(text),
             };
+            changed |= old != new;
+            *stmt = new;
         }
         if !stopped {
             let term = std::mem::replace(&mut outs[target].term, Term::Stop);
-            outs[target].term = match term {
+            let new = match term.clone() {
                 Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
                 Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &value)),
                 Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst), &value), taken, fall },
                 other => other,
             };
+            changed |= term != new;
+            outs[target].term = new;
         }
+        any_changed |= changed;
     }
+    any_changed
 }
 
 fn inline_adjacent_call_temp(o: &mut BlockOut) {
@@ -1386,7 +1422,7 @@ fn is_callee_saved(i: u8, conv: CallConv) -> bool {
 
 // ------------------------------------------------------------------ statements
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum Stmt {
     Assign(Ex, Ex),
     Expr(Ex),
@@ -1401,7 +1437,7 @@ enum Flags {
     Op(Ex),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum Term {
     Ret(Option<Ex>),
     Jmp(u64),
@@ -3099,10 +3135,17 @@ fn decompile_inner(
         inline_adjacent_call_temp(out);
         fold_constant_term(out);
     }
-    propagate_single_predecessor_copy(&mut outs, f);
-    propagate_single_predecessor_constant(&mut outs, f);
-    propagate_convergent_copy(&mut outs, f);
-    propagate_convergent_constant(&mut outs, f);
+    // Repeat CFG propagation until no definitions move further. One pass is
+    // insufficient when block order differs from graph order or a merge
+    // exposes a value that can then flow through another edge.
+    loop {
+        let mut changed = false;
+        changed |= propagate_single_predecessor_copy(&mut outs, f);
+        changed |= propagate_single_predecessor_constant(&mut outs, f);
+        changed |= propagate_convergent_copy(&mut outs, f);
+        changed |= propagate_convergent_constant(&mut outs, f);
+        if !changed { break; }
+    }
     for out in &mut outs {
         fold_constant_term(out);
     }

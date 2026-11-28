@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.511 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.511 — Fourier</h1><p class="lead">Safe decompiler values now flow through longer CFG branch and merge chains.</p><ul>
+<li>Repeat CFG copy and constant propagation until a full pass makes no change.</li>
+<li>Carry resolved values through several branch and merge blocks.</li>
+<li>Revisit downstream merges when upstream propagation exposes new inputs.</li>
+<li>Run propagation before register liveness and final pseudocode emission.</li>
+<li>Keep copy propagation stopped at source or destination reassignment.</li>
+<li>Keep constant propagation stopped at destination reassignment.</li>
+<li>Skip backward-address merge edges in these iterative passes.</li>
+<li>Keep calls, loads, ternaries, and opaque expressions out of convergent copies.</li>
+<li>Limit eligible merged expressions to 256 nodes.</li>
+<li>Update block definitions and branch, return, and indirect terminators consistently.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.511">GitHub release</a></p></main></body></html>
