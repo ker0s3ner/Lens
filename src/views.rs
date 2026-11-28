@@ -175,7 +175,13 @@ impl LensApp {
             nav.visible = (range.start, range.end);
             for i in range {
                 let ln = l.an.lines[i];
-                let w = ui.available_width().max(x_cmt + 360.0);
+                let byte_row_width = if ln.kind == LineKind::Bytes {
+                    let hex_chars = (ln.len as f32 * 3.0 - 1.0).max(0.0);
+                    x_code + (21.0 + 4.0 + hex_chars + ln.len as f32) * cw + 24.0
+                } else {
+                    0.0
+                };
+                let w = ui.available_width().max(x_cmt + 360.0).max(byte_row_width);
                 let (rect, resp) = ui.allocate_exact_size(vec2(w, crate::custom::row_h()), Sense::click());
                 let painter = ui.painter_at(rect);
                 if i == nav.cursor_line {
