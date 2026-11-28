@@ -1974,7 +1974,10 @@ fn build_lines(bin: &Binary, a: &Analysis) -> Vec<Line> {
             }
             let mut p = addr;
             while p < run_end {
-                let n = (16 - (p % 16)).min(run_end - p);
+                // Keep unknown-byte listing rows compact on large images: each
+                // row represents a naturally aligned 32-byte window instead of
+                // creating one line for every 16 bytes across the whole segment.
+                let n = (32 - (p % 32)).min(run_end - p);
                 lines.push(Line { addr: p, kind: LineKind::Bytes, len: n as u32 });
                 p += n;
             }
