@@ -4,12 +4,12 @@
 use crate::app::LensApp;
 use eframe::egui;
 use std::ffi::OsString;
-use std::io;
+use std::io::{self, Read};
 use std::os::unix::process::CommandExt;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,6 +34,33 @@ struct NativeSession {
     program: PathBuf,
     state: State,
     traced: bool,
+    output: Arc<Mutex<String>>,
+}
+
+fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
+    const MAX_OUTPUT_BYTES: usize = 64 * 1024;
+    std::thread::spawn(move || {
+        let mut buffer = [0_u8; 4096];
+        let mut first_chunk = true;
+        loop {
+            let count = match reader.read(&mut buffer) {
+                Ok(0) | Err(_) => break,
+                Ok(count) => count,
+            };
+            let mut output = output.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if first_chunk {
+                output.push_str(label);
+                output.push('\n');
+                first_chunk = false;
+            }
+            output.push_str(&String::from_utf8_lossy(&buffer[..count]));
+            if output.len() > MAX_OUTPUT_BYTES {
+                let excess = output.len() - MAX_OUTPUT_BYTES;
+                let boundary = output.char_indices().find(|(index, _)| *index >= excess).map(|(index, _)| index).unwrap_or(output.len());
+                output.drain(..boundary);
+            }
+        }
+    });
 }
 
 #[cfg(target_os = "linux")]
@@ -106,8 +133,8 @@ impl NativeSession {
             .args(args)
             .envs(environment.iter().map(|(key, value)| (key, value)))
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         if start_paused {
             // SAFETY: the trace-me request is a single syscall in the child.
             // The kernel stops it after exec and before the first target instruction.
@@ -115,12 +142,20 @@ impl NativeSession {
                 command.pre_exec(trace_me);
             }
         }
-        let child = command.spawn()?;
+        let mut child = command.spawn()?;
+        let output = Arc::new(Mutex::new(String::new()));
+        if let Some(stdout) = child.stdout.take() {
+            capture_output(stdout, Arc::clone(&output), "[stdout]");
+        }
+        if let Some(stderr) = child.stderr.take() {
+            capture_output(stderr, Arc::clone(&output), "[stderr]");
+        }
         let mut session = Self {
             child,
             program,
             state: State::Running,
             traced: start_paused,
+            output,
         };
         if start_paused {
             session.wait_for_initial_stop()?;
@@ -333,7 +368,7 @@ impl LensApp {
                     .on_hover_text("Entries are passed directly to the child process. Values are not expanded by a shell.");
                 ui.checkbox(&mut self.native_debugger.start_paused, "Stop at program entry")
                     .on_hover_text("Stop the child before it begins executing the selected program.");
-                ui.checkbox(&mut confirmed, "I understand, run it");
+                ui.checkbox(&mut confirmed, "I understand, run it and capture local output");
                 ui.add_enabled(confirmed, egui::Button::new("Launch local child"))
                     .clicked()
             });
@@ -364,6 +399,13 @@ impl LensApp {
 
         let mut result = session.poll();
         ui.label(format!("Local child · {}", session.program.display()));
+        let output = session.output.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+        if !output.is_empty() {
+            ui.label("Child output (last 64 KiB)");
+            egui::ScrollArea::vertical().id_salt("native-child-output").max_height(120.0).stick_to_bottom(true).show(ui, |ui| {
+                ui.monospace(output);
+            });
+        }
         match session.state {
             State::Running | State::Paused => {
                 let paused = session.state == State::Paused;
