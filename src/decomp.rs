@@ -3195,7 +3195,7 @@ fn decompile_inner(
     // Keep that information through copy/cast chains so a temporary introduced by the
     // lifter does not erase useful pointer or scalar type information.
     let mut assigned: HashMap<String, (usize, Option<String>)> = HashMap::new();
-    let mut known_types: HashMap<String, String> = type_seeds;
+    let known_types = render_types.clone();
     let mut assignments = Vec::new();
     for o in &outs {
         for (_, st) in &o.stmts {
@@ -3205,72 +3205,10 @@ fn decompile_inner(
             }
         }
     }
-    // A block can be emitted before the block containing the source assignment. A
-    // small fixed-point pass handles those ordering differences without pretending
-    // that arithmetic expressions have a reliable type.
-    for _ in 0..assignments.len().max(1) {
-        let mut changed = false;
-        for (t, rhs) in &assignments {
-            let ty = match rhs {
-                Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
-                Ex::Deref(inner, _) => render_pointee_type(inner, &known_types, structs),
-                Ex::Cast(ty, _) => Some((*ty).to_string()),
-                Ex::CastOwned(ty, _) => Some(ty.clone()),
-                Ex::Var(v) => known_types.get(v).cloned(),
-                Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types, structs).is_none() => match &**left {
-                    Ex::Var(v) => known_types.get(v).cloned(),
-                    _ => None,
-                },
-                Ex::Tern(_, yes, no) => {
-                    let branch_type = |e: &Ex| match e {
-                        Ex::Var(v) => known_types.get(v).cloned(),
-                        Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
-                        Ex::Cast(t, _) => Some((*t).to_string()),
-                        Ex::CastOwned(t, _) => Some(t.clone()),
-                        _ => None,
-                    };
-                    let a = branch_type(yes);
-                    let b = branch_type(no);
-                    (a == b).then(|| a).flatten()
-                }
-                _ => None,
-            };
-            let old = known_types.get(t).cloned();
-            if let Some(ty) = ty { known_types.insert(t.clone(), ty); }
-            else { known_types.remove(t); }
-            if old != known_types.get(t).cloned() { changed = true; }
-        }
-        if !changed { break; }
-    }
     let mut type_candidates: HashMap<String, String> = HashMap::new();
     let mut type_conflicts = HashSet::new();
     for (t, rhs) in &assignments {
-        let ty = match rhs {
-            Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
-            Ex::Deref(inner, _) => render_pointee_type(inner, &known_types, structs),
-            Ex::Cast(ty, _) => Some((*ty).to_string()),
-            Ex::CastOwned(ty, _) => Some(ty.clone()),
-            Ex::Var(v) => known_types.get(v).cloned(),
-            Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types, structs).is_none() => match &**left {
-                Ex::Var(v) => known_types.get(v).cloned(),
-                _ => None,
-            },
-                Ex::Tern(_, yes, no) => match (&**yes, &**no) {
-                    (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
-                    _ => {
-                        let branch_type = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
-                            Ex::Cast(t, _) => Some((*t).to_string()),
-                            Ex::CastOwned(t, _) => Some(t.clone()),
-                            _ => None,
-                        };
-                        let a = branch_type(yes);
-                        let b = branch_type(no);
-                        (a == b).then(|| a).flatten()
-                    }
-                },
-            _ => None,
-        };
+        let ty = render_expression_type(rhs, &known_types, structs);
         if let Some(ty) = ty {
             if let Some(old) = type_candidates.get(t) {
                 if old != &ty { type_conflicts.insert(t.clone()); }
