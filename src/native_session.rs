@@ -5,6 +5,7 @@ use crate::app::LensApp;
 use eframe::egui;
 use std::ffi::OsString;
 use std::io;
+use std::os::unix::process::CommandExt;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -24,33 +25,130 @@ pub(crate) struct NativeDebugger {
     session: Option<NativeSession>,
     consent_for: Weak<crate::loader::Binary>,
     args: String,
+    start_paused: bool,
 }
 
 struct NativeSession {
     child: Child,
     program: PathBuf,
     state: State,
+    traced: bool,
+}
+
+#[cfg(target_os = "linux")]
+fn trace_me() -> io::Result<()> {
+    // SAFETY: PTRACE_TRACEME is called only in the freshly spawned child.
+    if unsafe {
+        libc::ptrace(
+            libc::PTRACE_TRACEME,
+            0,
+            std::ptr::null_mut::<libc::c_void>(),
+            0,
+        )
+    } == -1
+    {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn trace_me() -> io::Result<()> {
+    // SAFETY: PT_TRACE_ME is called only in the freshly spawned child.
+    if unsafe { libc::ptrace(libc::PT_TRACE_ME, 0, std::ptr::null_mut(), 0) } == -1 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
+    // SAFETY: this session owns the traced child PID and it is stopped.
+    if unsafe {
+        libc::ptrace(
+            libc::PTRACE_CONT,
+            pid,
+            std::ptr::null_mut::<libc::c_void>(),
+            std::ptr::null_mut::<libc::c_void>(),
+        )
+    } == -1
+    {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
+    // SAFETY: address 1 means continue from the child's current instruction.
+    if unsafe { libc::ptrace(libc::PT_CONTINUE, pid, 1_usize as *mut libc::c_char, 0) } == -1 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }
 
 impl NativeSession {
-    fn launch(program: &Path, args: &[OsString]) -> io::Result<Self> {
+    fn launch(program: &Path, args: &[OsString], start_paused: bool) -> io::Result<Self> {
         // Resolve even a bare filename against the current directory, bypassing PATH lookup.
         let program = std::path::absolute(program)?;
-        let child = Command::new(&program)
+        let mut command = Command::new(&program);
+        command
             .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
-        Ok(Self {
+            .stderr(Stdio::null());
+        if start_paused {
+            // SAFETY: the trace-me request is a single syscall in the child.
+            // The kernel stops it after exec and before the first target instruction.
+            unsafe {
+                command.pre_exec(trace_me);
+            }
+        }
+        let child = command.spawn()?;
+        let mut session = Self {
             child,
             program,
             state: State::Running,
-        })
+            traced: start_paused,
+        };
+        if start_paused {
+            session.wait_for_initial_stop()?;
+        }
+        Ok(session)
     }
 
     fn live(&self) -> bool {
         matches!(self.state, State::Running | State::Paused)
+    }
+
+    fn wait_for_initial_stop(&mut self) -> io::Result<()> {
+        let mut status = 0;
+        loop {
+            // SAFETY: this session owns the spawned child and a writable status word.
+            let result = unsafe {
+                libc::waitpid(self.child.id() as libc::pid_t, &mut status, libc::WUNTRACED)
+            };
+            if result > 0 {
+                if libc::WIFSTOPPED(status) {
+                    self.state = State::Paused;
+                    return Ok(());
+                }
+                if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
+                    self.state = State::Exited(ExitStatus::from_raw(status));
+                    return Ok(());
+                }
+                continue;
+            }
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(error);
+        }
     }
 
     fn poll(&mut self) -> io::Result<()> {
@@ -113,7 +211,17 @@ impl NativeSession {
     }
 
     fn resume(&mut self) -> io::Result<()> {
-        self.signal(libc::SIGCONT)
+        self.poll()?;
+        if !self.live() {
+            return Ok(());
+        }
+        if self.traced && self.state == State::Paused {
+            trace_continue(self.child.id() as libc::pid_t)?;
+            self.state = State::Running;
+            Ok(())
+        } else {
+            self.signal(libc::SIGCONT)
+        }
     }
 
     fn terminate(&mut self) -> io::Result<()> {
@@ -136,8 +244,11 @@ fn parse_arguments(input: &str) -> Result<Vec<OsString>, &'static str> {
             escaped = true;
             started = true;
         } else if let Some(delimiter) = quote {
-            if ch == delimiter { quote = None; }
-            else { current.push(ch); }
+            if ch == delimiter {
+                quote = None;
+            } else {
+                current.push(ch);
+            }
         } else if ch == '\'' || ch == '"' {
             quote = Some(ch);
             started = true;
@@ -151,9 +262,15 @@ fn parse_arguments(input: &str) -> Result<Vec<OsString>, &'static str> {
             started = true;
         }
     }
-    if escaped { return Err("Argument list ends with an incomplete escape."); }
-    if quote.is_some() { return Err("Argument list has an unclosed quote."); }
-    if started { args.push(OsString::from(current)); }
+    if escaped {
+        return Err("Argument list ends with an incomplete escape.");
+    }
+    if quote.is_some() {
+        return Err("Argument list has an unclosed quote.");
+    }
+    if started {
+        args.push(OsString::from(current));
+    }
     Ok(args)
 }
 
@@ -188,6 +305,8 @@ impl LensApp {
                     ui.text_edit_singleline(&mut self.native_debugger.args)
                         .on_hover_text("Space-separated arguments; single or double quotes group a value. Arguments are passed directly, without a shell.");
                 });
+                ui.checkbox(&mut self.native_debugger.start_paused, "Stop at program entry")
+                    .on_hover_text("Stop the child before it begins executing the selected program.");
                 ui.checkbox(&mut confirmed, "I understand, run it");
                 ui.add_enabled(confirmed, egui::Button::new("Launch local child"))
                     .clicked()
@@ -196,9 +315,15 @@ impl LensApp {
             if confirmed && launch.body_returned == Some(true) {
                 self.native_debugger.consent_for = Weak::new();
                 match parse_arguments(&self.native_debugger.args) {
-                    Ok(args) => match NativeSession::launch(Path::new(&bin.path), &args) {
+                    Ok(args) => match NativeSession::launch(
+                        Path::new(&bin.path),
+                        &args,
+                        self.native_debugger.start_paused,
+                    ) {
                         Ok(session) => self.native_debugger.session = Some(session),
-                        Err(error) => self.modal_message("Couldn't launch local child", error.to_string()),
+                        Err(error) => {
+                            self.modal_message("Couldn't launch local child", error.to_string())
+                        }
                     },
                     Err(error) => self.modal_message("Couldn't launch local child", error),
                 }
@@ -248,7 +373,7 @@ mod tests {
     use std::time::Instant;
 
     fn sleeper() -> NativeSession {
-        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")]).unwrap()
+        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")], false).unwrap()
     }
 
     fn await_state(session: &mut NativeSession, expected: State) {
@@ -280,7 +405,7 @@ mod tests {
     #[test]
     fn preserves_natural_exit_across_late_controls() {
         let args = [OsString::from("-c"), OsString::from("exit 7")];
-        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args).unwrap();
+        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args, false).unwrap();
         let status = State::Exited(ExitStatus::from_raw(7 << 8));
         await_state(&mut child, status);
         child.pause().unwrap();
