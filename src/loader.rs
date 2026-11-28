@@ -388,7 +388,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         }
         Ok(Object::PE(pe)) => {
             load_pe(&mut bin, &pe, &bytes);
-            if matches!(bin.arch, Arch::X64 | Arch::Arm64) {
+            if matches!(bin.arch, Arch::X64 | Arch::Arm64 | Arch::Arm32 | Arch::Thumb) {
                 bin.func_hints = crate::hints::pe_pdata(&bin, pe.image_base as u64);
             }
         }
