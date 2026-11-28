@@ -120,6 +120,7 @@ pub struct Dbg {
     bp_ids: HashMap<u64, u32>,
     bp_conditions: HashMap<u64, String>,
     pending_bps: Vec<u64>,
+    stack_arch: crate::loader::Arch,
     hardware_breakpoints: bool,
 }
 
@@ -196,14 +197,65 @@ fn parse_stack_words(lines: &[String]) -> Vec<String> {
         .collect()
 }
 
-fn stack_argument_slot(register_count: usize, index: usize) -> Option<usize> {
-    if index < register_count { return None; }
-    match register_count {
-        6 => Some(index - 6), // System V: stack arguments start at caller RSP.
-        4 => Some(index),     // Windows x64: four shadow-space words precede arg 5.
-        8 => Some(index - 8),
+fn x86_argument_width(ty: &str) -> Option<usize> {
+    match ty.trim() {
+        "BOOL" | "DWORD" | "LONG" | "ULONG" | "UINT" | "HRESULT" => return Some(4),
+        "BYTE" => return Some(1),
+        "WORD" => return Some(2),
+        "ULONGLONG" | "LONGLONG" => return Some(8),
+        _ => {}
+    }
+    let compact = ty.split_whitespace()
+        .filter(|word| !matches!(*word, "const" | "volatile" | "restrict"))
+        .collect::<Vec<_>>().join("").to_ascii_lowercase();
+    if compact.contains('*') || compact.contains('[')
+        || matches!(compact.as_str(), "handle" | "hmodule" | "hwnd" | "lpcstr" | "pcstr" | "lpstr" | "pstr" | "lpcwstr" | "pwstr" | "lpwstr" | "pcwstr" | "lpvoid" | "lpcvoid" | "lpcbyte" | "lpbyte")
+    { return Some(4); }
+    match compact.as_str() {
+        "char" | "signedchar" | "unsignedchar" | "int8_t" | "uint8_t" | "bool" | "_bool" => Some(1),
+        "short" | "shortint" | "signedshort" | "signedshortint" | "unsignedshort" | "unsignedshortint" | "int16_t" | "uint16_t" => Some(2),
+        "int" | "signed" | "signedint" | "unsigned" | "unsignedint" | "long" | "longint" | "signedlong" | "signedlongint" | "unsignedlong" | "unsignedlongint"
+        | "int32_t" | "uint32_t" | "size_t" | "ssize_t" | "uintptr_t" | "intptr_t" | "mode_t" | "pid_t" | "uid_t" | "gid_t"
+        | "int32" | "uint32" | "bool32" | "dword" | "word32" | "uint" | "long32" | "ulong" | "hresult" | "enum" | "float" => Some(4),
+        "wchar_t" => Some(2),
+        "longlong" | "longlongint" | "signedlonglong" | "signedlonglongint" | "unsignedlonglong" | "unsignedlonglongint" | "int64_t" | "uint64_t" | "int64" | "uint64" | "double" | "__int64" => Some(8),
+        other if other.starts_with("enum") => Some(4),
         _ => None,
     }
+}
+
+fn stack_argument_location(
+    arch: crate::loader::Arch,
+    register_count: usize,
+    index: usize,
+    parameters: &[(String, String)],
+) -> Option<(usize, usize)> {
+    if index < register_count { return None; }
+    match (arch, register_count) {
+        (crate::loader::Arch::X86, 0) => {
+            let mut offset = 0usize;
+            for (ty, _) in parameters.iter().take(index) {
+                let width = x86_argument_width(ty)?;
+                offset = offset.checked_add((width + 3) & !3)?;
+            }
+            Some((offset, x86_argument_width(&parameters.get(index)?.0)?))
+        }
+        (crate::loader::Arch::X64, 6) => Some(((index - 6) * 8, 8)), // System V caller RSP.
+        (crate::loader::Arch::X64, 4) => Some((index * 8, 8)),      // Windows shadow space.
+        (crate::loader::Arch::Arm64, 8) => Some(((index - 8) * 8, 8)),
+        _ => None,
+    }
+}
+
+fn read_stack_argument(words: &[String], offset: usize, width: usize) -> Option<u64> {
+    if width == 0 || width > 8 { return None; }
+    let mut value = 0u64;
+    for byte in 0..width {
+        let address = offset.checked_add(byte)?;
+        let word = parse_register_pointer(words.get(address / 8)?)?;
+        value |= ((word >> ((address % 8) * 8)) & 0xff) << (byte * 8);
+    }
+    Some(value)
 }
 
 fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<String>)>) -> std::collections::BTreeMap<String, usize> {
@@ -331,12 +383,13 @@ fn runtime_event_arguments(
     }).collect::<Vec<_>>();
     if let Some(prototype) = &prototype {
         for index in argument_registers.len()..prototype.params.len() {
-            let Some(slot) = stack_argument_slot(argument_registers.len(), index) else { continue };
-            let Some(value) = event.stack_words.get(slot).cloned() else { continue };
             let (ty, parameter) = &prototype.params[index];
+            let Some((offset, width)) = stack_argument_location(arch, argument_registers.len(), index, &prototype.params) else { continue };
+            let Some(raw) = read_stack_argument(&event.stack_words, offset, width) else { continue };
+            let value = if arch == crate::loader::Arch::X86 { format!("0x{raw:08x}") } else { format!("0x{raw:x}") };
             let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
             let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
-            out.push(RuntimeArgument { name, ty: ty.clone(), register: format!("stack+0x{:x}", slot * 8), value, string_preview });
+            out.push(RuntimeArgument { name, ty: ty.clone(), register: format!("stack+0x{offset:x}"), value, string_preview });
         }
     }
     out
@@ -461,7 +514,7 @@ fn observed_runtime_calls(
 }
 
 impl Dbg {
-    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>, behavior_sites: &[BehaviorCallSite], argument_registers: &[String], capture_string_arguments: bool) -> Result<Dbg, String> {
+    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>, behavior_sites: &[BehaviorCallSite], stack_arch: crate::loader::Arch, argument_registers: &[String], capture_string_arguments: bool) -> Result<Dbg, String> {
         let attach_pid = attach_pid.trim();
         if !attach_pid.is_empty() && !attach_pid.chars().all(|c| c.is_ascii_digit()) {
             return Err("Process ID must contain digits only.".into());
@@ -564,6 +617,7 @@ impl Dbg {
             bp_ids: HashMap::new(),
             bp_conditions: conditions.clone(),
             pending_bps: bps.to_vec(),
+            stack_arch,
             hardware_breakpoints,
         };
         d.push(Kind::Plain, "settings set auto-confirm true");
@@ -900,8 +954,9 @@ impl Dbg {
                                     if captured == 4 { break; }
                                     let wide = wide_string_pointer(ty);
                                     if !wide && !narrow_string_pointer(ty) { continue; }
-                                    let Some(slot) = stack_argument_slot(self.argument_registers.len(), index) else { continue };
-                                    let Some(pointer) = stack_words.get(slot).and_then(|value| parse_register_pointer(value)).filter(|pointer| *pointer != 0) else { continue };
+                                    let Some((offset, width)) = stack_argument_location(self.stack_arch, self.argument_registers.len(), index, &prototype.params) else { continue };
+                                    let Some(pointer) = read_stack_argument(&stack_words, offset, width) else { continue };
+                                    if pointer == 0 { continue; }
                                     let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
                                     let byte_limit = if wide { 192 } else { 96 };
                                     self.push(Kind::StringArgument { event_id, name, wide }, &format!("memory read -f x -s 1 -c {byte_limit} 0x{pointer:x}"));
@@ -970,7 +1025,7 @@ impl LensApp {
         let conditions = l.ann.bp_conditions.clone();
         let argument_registers = abi_argument_registers(l.bin.arch, &l.bin.format).iter().map(|register| (*register).to_string()).collect::<Vec<_>>();
         let capture_strings = self.tools2.dbg.behavior_watch && self.tools2.dbg.behavior_strings;
-        match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions, &behavior_sites, &argument_registers, capture_strings) {
+        match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions, &behavior_sites, l.bin.arch, &argument_registers, capture_strings) {
             Ok(d) => {
                 self.dbg = Some(d);
                 if watch_requested && !local_launch {
