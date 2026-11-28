@@ -640,8 +640,13 @@ impl LensApp {
                     }
                 }
                 if let Some(v) = hit_var {
-                    if resp.double_clicked() { rename_var = Some(v.clone()); }
-                    if resp.secondary_clicked() { type_var = Some(v); }
+                    let prefix = format!("{fs:X}:");
+                    let canonical = l.ann.vars.iter()
+                        .find(|(key, value)| key.starts_with(&prefix) && *value == &v)
+                        .and_then(|(key, _)| key.strip_prefix(&prefix))
+                        .map(str::to_string).unwrap_or(v);
+                    if resp.double_clicked() { rename_var = Some(canonical.clone()); }
+                    if resp.secondary_clicked() { type_var = Some(canonical); }
                 }
                 if ln.indent > 0 && ln.addr != 0 {
                     if let Some(refs) = l.an.xrefs_to.get(&ln.addr).filter(|refs| !refs.is_empty()) {

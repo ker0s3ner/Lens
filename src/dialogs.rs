@@ -172,7 +172,10 @@ impl LensApp {
                                     if !known.iter().any(|existing| existing.name == def.name) { known.push(def.clone()); }
                                 }
                                 let validation = if ty.is_empty() { Ok(()) } else {
-                                    crate::types::parse_c(&format!("typedef {ty} __lens_variable_type;"), l.bin.bitness() / 8, &known).map(|_| ())
+                                    let pointer_base = ty.trim().trim_end_matches('*').trim().trim_start_matches("const ").trim();
+                                    if ty.contains('*') && pointer_base == "void" { Ok(()) } else {
+                                        crate::types::parse_c(&format!("typedef {ty} __lens_variable_type;"), l.bin.bitness() / 8, &known).map(|_| ())
+                                    }
                                 };
                                 match validation {
                                     Ok(()) => {
