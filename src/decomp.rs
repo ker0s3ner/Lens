@@ -1050,9 +1050,19 @@ fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
     }
 }
 
-/// Fold a copy through a merge block when every incoming edge carries the
-/// identical temporary-to-source assignment. This is the small, safe subset
-/// of phi propagation that does not require constructing a full SSA graph.
+fn merge_safe_expression(e: &Ex) -> bool {
+    match e {
+        Ex::Num(_) | Ex::Var(_) => true,
+        Ex::Bin(_, a, b) => merge_safe_expression(a) && merge_safe_expression(b),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => merge_safe_expression(a),
+        // Do not duplicate loads or calls across a control-flow merge.
+        Ex::Deref(..) | Ex::Call(..) | Ex::Tern(..) | Ex::Raw(..) => false,
+    }
+}
+
+/// Fold a value through a merge block when every incoming edge assigns the
+/// same temporary from the same side-effect-free expression. This extends
+/// copy/constant propagation without requiring a complete SSA graph.
 fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
     let index: HashMap<u64, usize> = f.blocks.iter().enumerate().map(|(i, b)| (b.start, i)).collect();
     let mut incoming: Vec<Vec<usize>> = vec![vec![]; f.blocks.len()];
@@ -1063,21 +1073,26 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
     }
     for (target, preds) in incoming.iter().enumerate() {
         if preds.len() < 2 { continue; }
-        let Some((dst, src)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
-            Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => Some((dst.clone(), src.clone())),
+        let Some((dst, value)) = preds.iter().map(|&p| outs[p].stmts.last().and_then(|(_, stmt)| match stmt {
+            Stmt::Assign(Ex::Var(dst), value)
+                if (dst.starts_with('v') || dst.starts_with('t'))
+                    && !mentions(value, &Ex::Var(dst.clone()))
+                    && merge_safe_expression(value) => Some((dst.clone(), value.clone())),
             _ => None,
-        })).try_fold(None, |same: Option<(String, String)>, copy| match (same, copy) {
+        })).try_fold(None, |same: Option<(String, Ex)>, copy| match (same, copy) {
             (Some(a), Some(b)) if a == b => Some(Some(a)),
             (None, Some(b)) => Some(Some(b)),
             _ => None,
         }).flatten() else { continue };
+        let mut value_vars = HashMap::new();
+        count_vars(&value, &mut value_vars);
         let mut stopped = false;
         for (_, stmt) in &mut outs[target].stmts {
-            if writes_var(stmt, &dst) || writes_var(stmt, &src) { stopped = true; break; }
+            if writes_var(stmt, &dst) || value_vars.keys().any(|name| writes_var(stmt, name)) { stopped = true; break; }
             let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
             let new = match old {
-                Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &Ex::Var(src.clone())), subst(&right, &Ex::Var(dst.clone()), &Ex::Var(src.clone()))),
-                Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone()))),
+                Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &value), subst(&right, &Ex::Var(dst.clone()), &value)),
+                Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &value)),
                 Stmt::Comment(text) => Stmt::Comment(text),
             };
             *stmt = new;
@@ -1085,9 +1100,9 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
         if !stopped {
             let term = std::mem::replace(&mut outs[target].term, Term::Stop);
             outs[target].term = match term {
-                Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())))),
-                Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone()))),
-                Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst), &Ex::Var(src)), taken, fall },
+                Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
+                Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &value)),
+                Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst), &value), taken, fall },
                 other => other,
             };
         }
