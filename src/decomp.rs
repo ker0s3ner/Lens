@@ -66,6 +66,18 @@ fn function_pointer_cast_type(ty: &str) -> Option<String> {
     Some(format!("{} (*)({})", proto.ret, params.join(", ")))
 }
 
+fn function_pointer_proto_with_aliases(ty: &str, structs: &[crate::types::StructDef]) -> Option<crate::protos::Proto> {
+    let mut current = ty.trim().to_string();
+    let mut seen = HashSet::new();
+    for _ in 0..=structs.len() {
+        if let Some(proto) = function_pointer_proto(&current) { return Some(proto); }
+        let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+        if !seen.insert(name.to_string()) { return None; }
+        current = structs.iter().find(|def| def.name == name)?.alias_of.as_deref()?.trim().to_string();
+    }
+    None
+}
+
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
@@ -88,8 +100,14 @@ fn call_return_type(callee: &Ex) -> Option<String> {
     }
 }
 
-fn call_pointee_type(callee: &Ex) -> Option<String> {
-    call_return_type(callee).and_then(|ret| ret.strip_suffix('*').map(str::trim).filter(|ty| !ty.is_empty()).map(str::to_string))
+fn call_return_type_with_types(callee: &Ex, types: &HashMap<String, String>, structs: &[crate::types::StructDef]) -> Option<String> {
+    call_return_type(callee).or_else(|| match callee {
+        Ex::Var(name) => types.get(name).and_then(|ty| function_pointer_proto_with_aliases(ty, structs)).map(|proto| proto.ret),
+        Ex::Cast(ty, _) => function_pointer_proto_with_aliases(ty, structs).map(|proto| proto.ret),
+        Ex::CastOwned(ty, _) => function_pointer_proto_with_aliases(ty, structs).map(|proto| proto.ret),
+        Ex::Bin("+" | "-", base, _) => call_return_type_with_types(base, types, structs),
+        _ => None,
+    }).filter(|ret| ret != "void")
 }
 
 fn bin(op: &'static str, a: Ex, b: Ex) -> Ex {
@@ -229,15 +247,7 @@ struct Fmt<'a> {
 
 impl Fmt<'_> {
     fn function_proto(&self, ty: &str) -> Option<crate::protos::Proto> {
-        let mut current = ty.trim().to_string();
-        let mut seen = HashSet::new();
-        for _ in 0..=self.structs.len() {
-            if let Some(proto) = function_pointer_proto(&current) { return Some(proto); }
-            let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
-            if !seen.insert(name.to_string()) { return None; }
-            current = self.structs.iter().find(|def| def.name == name)?.alias_of.as_deref()?.trim().to_string();
-        }
-        None
+        function_pointer_proto_with_aliases(ty, self.structs)
     }
 
     fn call_proto(&self, callee: &Ex) -> Option<crate::protos::Proto> {
@@ -3062,7 +3072,7 @@ fn decompile_inner(
         proto.params.iter().enumerate().map(|(index, (ty, _))| (format!("a{}", index + 1), ty.trim().to_string())).collect()
     }).unwrap_or_default();
     let rename_ref = rename.clone();
-    let render_types = infer_render_types_with_seeds(&outs, type_seeds.clone());
+    let render_types = infer_render_types_with_seeds(&outs, type_seeds.clone(), structs);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
     let enum_vars = infer_enum_vars(&outs, &enum_params, &name, enum_return.as_deref());
@@ -3200,19 +3210,19 @@ fn decompile_inner(
         let mut changed = false;
         for (t, rhs) in &assignments {
             let ty = match rhs {
-                Ex::Call(c, _) => call_return_type(c),
-                Ex::Deref(inner, _) => render_pointee_type(inner, &known_types),
+                Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
+                Ex::Deref(inner, _) => render_pointee_type(inner, &known_types, structs),
                 Ex::Cast(ty, _) => Some((*ty).to_string()),
                 Ex::CastOwned(ty, _) => Some(ty.clone()),
                 Ex::Var(v) => known_types.get(v).cloned(),
-                Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types).is_none() => match &**left {
+                Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types, structs).is_none() => match &**left {
                     Ex::Var(v) => known_types.get(v).cloned(),
                     _ => None,
                 },
                 Ex::Tern(_, yes, no) => {
                     let branch_type = |e: &Ex| match e {
                         Ex::Var(v) => known_types.get(v).cloned(),
-                        Ex::Call(c, _) => call_return_type(c),
+                        Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
                         Ex::Cast(t, _) => Some((*t).to_string()),
                         Ex::CastOwned(t, _) => Some(t.clone()),
                         _ => None,
@@ -3234,12 +3244,12 @@ fn decompile_inner(
     let mut type_conflicts = HashSet::new();
     for (t, rhs) in &assignments {
         let ty = match rhs {
-            Ex::Call(c, _) => call_return_type(c),
-            Ex::Deref(inner, _) => render_pointee_type(inner, &known_types),
+            Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
+            Ex::Deref(inner, _) => render_pointee_type(inner, &known_types, structs),
             Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Var(v) => known_types.get(v).cloned(),
-            Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types).is_none() => match &**left {
+            Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types, structs).is_none() => match &**left {
                 Ex::Var(v) => known_types.get(v).cloned(),
                 _ => None,
             },
@@ -3247,7 +3257,7 @@ fn decompile_inner(
                     (Ex::Var(a), Ex::Var(b)) if known_types.get(a) == known_types.get(b) => known_types.get(a).cloned(),
                     _ => {
                         let branch_type = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_return_type(c),
+                            Ex::Call(c, _) => call_return_type_with_types(c, &known_types, structs),
                             Ex::Cast(t, _) => Some((*t).to_string()),
                             Ex::CastOwned(t, _) => Some(t.clone()),
                             _ => None,
@@ -3368,16 +3378,17 @@ pub fn render_text(d: &Decompiled) -> String {
     s
 }
 
-fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>) -> Option<String> {
+fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>, structs: &[crate::types::StructDef]) -> Option<String> {
     match expression {
-        Ex::Call(callee, _) => call_pointee_type(callee),
+        Ex::Call(callee, _) => call_return_type_with_types(callee, types, structs)
+            .and_then(|ret| ret.strip_suffix('*').map(str::trim).filter(|ty| !ty.is_empty()).map(str::to_string)),
         Ex::Var(name) => types.get(name).and_then(|ty| ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string())),
         Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
         Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
-        Ex::Bin("+" | "-", base, offset) if render_pointee_type(offset, types).is_none() => render_pointee_type(base, types),
+        Ex::Bin("+" | "-", base, offset) if render_pointee_type(offset, types, structs).is_none() => render_pointee_type(base, types, structs),
         Ex::Tern(_, yes, no) => {
-            let yes = render_pointee_type(yes, types);
-            let no = render_pointee_type(no, types);
+            let yes = render_pointee_type(yes, types, structs);
+            let no = render_pointee_type(no, types, structs);
             (yes == no).then_some(yes).flatten()
         }
         _ => None,
@@ -3385,10 +3396,10 @@ fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>) -> Opti
 }
 
 fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
-    infer_render_types_with_seeds(outs, HashMap::new())
+    infer_render_types_with_seeds(outs, HashMap::new(), &[])
 }
 
-fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, String>) -> HashMap<String, String> {
+fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, String>, structs: &[crate::types::StructDef]) -> HashMap<String, String> {
     let mut assignments = Vec::new();
     for out in outs {
         for (_, stmt) in &out.stmts {
@@ -3401,8 +3412,8 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
         let mut changed = false;
         for (name, rhs) in &assignments {
             let ty = match rhs {
-                Ex::Call(c, _) => call_return_type(c),
-                Ex::Deref(inner, _) => render_pointee_type(inner, &types),
+                Ex::Call(c, _) => call_return_type_with_types(c, &types, structs),
+                Ex::Deref(inner, _) => render_pointee_type(inner, &types, structs),
                 Ex::Cast(t, _) => Some((*t).to_string()),
                 Ex::CastOwned(t, _) => Some(t.clone()),
                 Ex::Var(source) => types.get(source).cloned(),
@@ -3414,7 +3425,7 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
                     (Ex::Var(a), Ex::Var(b)) if types.get(a) == types.get(b) => types.get(a).cloned(),
                     _ => {
                         let branch_type = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_return_type(c),
+                            Ex::Call(c, _) => call_return_type_with_types(c, &types, structs),
                             Ex::Cast(t, _) => Some((*t).to_string()),
                             Ex::CastOwned(t, _) => Some(t.clone()),
                             _ => None,
