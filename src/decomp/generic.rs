@@ -1560,7 +1560,7 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
         }
         (Fam::M68k, "tas") if ops.len() >= 1 => {
             let value = dc.g_val(st, o(0), None);
-            st.flags = Flags::Cmp(value.clone(), Ex::Num(0));
+            st.flags = Flags::Op(Ex::Cast("int8_t", Box::new(value.clone())));
             set(dc, st, 1, bin("|", value, Ex::Num(0x80)));
         }
         (Fam::Mips, "ext") if ops.len() >= 4 => {
