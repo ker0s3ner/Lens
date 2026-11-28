@@ -1,3 +1,20 @@
+# Lens 0.6.487 — Fourier
+
+- Seeded local pointer declarations from known function prototypes.
+- Included recursive calls in the debugger's observed runtime-call trace.
+- Propagated known pointer parameter types into decompiler call arguments.
+- Recovered callback signatures for local function-pointer calls.
+- Resolved function-pointer typedef aliases when recovering call parameters.
+- Rendered null callback arguments using C-compatible function-pointer casts.
+- Propagated callback return types into local declarations and pointer dereferences.
+- Separated persistence signals from general registry and preference access.
+- Added explainable triage for service, task, and login-item persistence APIs.
+- Added credential-store access as a distinct analyst-triage clue.
+- Improved runtime call highlighting so import matching remains reliable with explanatory evidence text.
+- IDA Pro parity estimate remains 39.5% weighted capability coverage; the 50% target remains unmet.
+- Updated README, roadmap, in-app What's New notes, and GitHub Pages release history.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.486 — Fourier
 
 - Expanded DWARF fixed member-offset recovery to accept `DW_OP_constu` plus `DW_OP_plus` expressions.
