@@ -110,7 +110,11 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
                     .map(|count| count.map(|n| n.to_string()).unwrap_or_default())
                     .map(|count| format!("[{count}]"))
                     .collect::<String>();
-                format!("{t}{suffix}")
+                if let Some(existing_dimensions) = t.find('[') {
+                    format!("{}{suffix}{}", &t[..existing_dimensions], &t[existing_dimensions..])
+                } else {
+                    format!("{t}{suffix}")
+                }
             }
         }
         gimli::DW_TAG_subroutine_type => {
