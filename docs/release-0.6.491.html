@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.491 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.491 — Fourier</h1><p class="lead">Decompiler, process-behavior triage, type recovery, address safety, and call-graph improvements.</p><ul>
+<li>Propagate temporary copies and constants through forward single-predecessor block chains in address order, while preserving backward-edge and reassignment barriers.</li>
+<li>Pair Linux <code>process_vm_writev</code> with <code>ptrace</code> for explainable process-injection triage.</li>
+<li>Recognize Windows APC queueing and thread-context APIs in the paired injection heuristic.</li>
+<li>Recognize Mach VM memory operations paired with remote-thread creation or state control.</li>
+<li>Flag native Windows process suspend/resume imports as process-control behavior.</li>
+<li>Add Nt/Zw process-query, open, close, duplicate-handle, suspend, and resume prototypes for decompiler type recovery.</li>
+<li>Add Nt/Zw virtual-memory query/read and Linux <code>process_vm_readv</code> signatures, plus memory-inspection triage.</li>
+<li>Stop guessed function-start scanning safely at address-space overflow.</li>
+<li>Saturate the hex-view current-item end address near the top of the address space.</li>
+<li>Cap sorted high-fan-in caller xrefs before function lookup to reduce call-graph startup work.</li>
+<li>Weighted parity estimate remains 41.8%; about 42–47% practical workflow capability. The 50% target remains in progress.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.491">GitHub release</a></p></main></body></html>

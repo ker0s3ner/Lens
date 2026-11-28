@@ -1,3 +1,20 @@
+# Lens 0.6.491 — Fourier
+
+- Propagate temporary copies and constants through forward single-predecessor block chains in address order, while preserving backward-edge and reassignment barriers.
+- Pair Linux `process_vm_writev` with `ptrace` for explainable process-injection triage.
+- Recognize Windows APC queueing and thread-context APIs in the paired injection heuristic.
+- Recognize Mach VM memory operations paired with remote-thread creation or state control.
+- Flag native Windows process suspend/resume imports as process-control behavior.
+- Add Nt/Zw process-query, open, close, duplicate-handle, suspend, and resume prototypes for decompiler type recovery.
+- Add Nt/Zw virtual-memory query/read and Linux `process_vm_readv` signatures, plus memory-inspection triage.
+- Stop guessed function-start scanning safely at address-space overflow.
+- Saturate the hex-view current-item end address near the top of the address space.
+- Cap sorted high-fan-in caller xrefs before function lookup to reduce call-graph startup work.
+- Process-behavior clues remain import-based analyst heuristics, not runtime proof or a malware verdict.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- Update the README, roadmap, in-app What's New, and GitHub Pages release archive.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.490 — Fourier
 
 - Index segment lookup by sorted address so analysis avoids rescanning every mapped range for each read.
