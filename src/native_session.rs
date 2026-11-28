@@ -26,6 +26,7 @@ pub(crate) struct NativeDebugger {
     consent_for: Weak<crate::loader::Binary>,
     args: String,
     environment: String,
+    working_directory: String,
     start_paused: bool,
 }
 
@@ -152,6 +153,7 @@ impl NativeSession {
         program: &Path,
         args: &[OsString],
         environment: &[(OsString, OsString)],
+        working_directory: Option<&Path>,
         start_paused: bool,
     ) -> io::Result<Self> {
         // Resolve even a bare filename against the current directory, bypassing PATH lookup.
@@ -163,6 +165,9 @@ impl NativeSession {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        if let Some(directory) = working_directory {
+            command.current_dir(directory);
+        }
         if start_paused {
             // SAFETY: the trace-me request is a single syscall in the child.
             // The kernel stops it after exec and before the first target instruction.
@@ -404,6 +409,11 @@ impl LensApp {
                 ui.label("Environment (one KEY=VALUE per line)");
                 ui.add(egui::TextEdit::multiline(&mut self.native_debugger.environment).desired_rows(3))
                     .on_hover_text("Entries are passed directly to the child process. Values are not expanded by a shell.");
+                ui.horizontal(|ui| {
+                    ui.label("Working directory");
+                    ui.text_edit_singleline(&mut self.native_debugger.working_directory)
+                        .on_hover_text("Optional directory used to resolve relative paths in the child process.");
+                });
                 ui.checkbox(&mut self.native_debugger.start_paused, "Stop at program entry")
                     .on_hover_text("Stop the child before it begins executing the selected program.");
                 ui.checkbox(&mut confirmed, "I understand, run it and capture local output");
@@ -420,6 +430,7 @@ impl LensApp {
                         Path::new(&bin.path),
                         &args,
                         &environment,
+                        (!self.native_debugger.working_directory.is_empty()).then(|| Path::new(&self.native_debugger.working_directory)),
                         self.native_debugger.start_paused,
                     ) {
                         Ok(session) => self.native_debugger.session = Some(session),
@@ -487,7 +498,7 @@ mod tests {
     use std::time::Instant;
 
     fn sleeper() -> NativeSession {
-        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")], &[], false).unwrap()
+        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")], &[], None, false).unwrap()
     }
 
     fn await_state(session: &mut NativeSession, expected: State) {
@@ -519,7 +530,7 @@ mod tests {
     #[test]
     fn preserves_natural_exit_across_late_controls() {
         let args = [OsString::from("-c"), OsString::from("exit 7")];
-        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args, &[], false).unwrap();
+        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args, &[], None, false).unwrap();
         let status = State::Exited(ExitStatus::from_raw(7 << 8));
         await_state(&mut child, status);
         child.pause().unwrap();
