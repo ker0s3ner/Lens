@@ -121,6 +121,12 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Processes") {
         out.push(ThreatSignal { severity: 2, name: "Process execution".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Process control") {
+        out.push(ThreatSignal { severity: 2, name: "Process signaling or termination".into(), evidence: format!("imports: {}; runtime call correlation can show whether these APIs were observed", c.apis.join(", ")) });
+    }
+    if let Some(c) = has("File downloads") {
+        out.push(ThreatSignal { severity: 2, name: "File download capability".into(), evidence: format!("imports: {}; review correlated network and file activity", c.apis.join(", ")) });
+    }
     if let Some(c) = has("Persistence mechanisms") {
         out.push(ThreatSignal { severity: 3, name: "Persistence behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
@@ -583,6 +589,8 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir"]),
     ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
     ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
+    ("Process control", &["TerminateProcess", "task_terminate", "kill", "killpg", "tgkill", "pidfd_send_signal"]),
+    ("File downloads", &["URLDownloadToFile", "URLDownloadToCacheFile", "InternetReadFile", "WinHttpReadData", "URLSessionDownloadTask"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
     ("Configuration removal", &["RegDeleteKey", "RegDeleteValue", "RegDeleteTree", "DeleteValue", "DeleteKey"]),
     ("Persistence mechanisms", &["CreateService", "ChangeServiceConfig", "RegisterTaskDefinition", "SMAppServiceRegister", "LSSharedFileListInsertItemURL"]),
