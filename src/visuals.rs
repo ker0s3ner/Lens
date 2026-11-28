@@ -640,7 +640,7 @@ impl LensApp {
                     }
                 }
                 if let Some(v) = hit_var {
-                    if resp.double_clicked() { rename_var = Some(v); }
+                    if resp.double_clicked() { rename_var = Some(v.clone()); }
                     if resp.secondary_clicked() { type_var = Some(v); }
                 }
                 if ln.indent > 0 && ln.addr != 0 {
