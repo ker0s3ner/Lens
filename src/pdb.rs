@@ -39,7 +39,7 @@ fn pdb_enum_declarations(db: &mut pdb::PDB<std::fs::File>) -> Vec<String> {
     }).collect()
 }
 
-fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, ptr: u32) -> Vec<crate::types::StructDef> {
+fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex, String>, type_sizes: &HashMap<pdb::TypeIndex, u32>, ptr: u32) -> Vec<crate::types::StructDef> {
     let Ok(info) = db.type_information() else { return Vec::new() };
     let mut iter = info.iter();
     let mut lists: HashMap<pdb::TypeIndex, (Vec<(String, pdb::TypeIndex, u64)>, Option<pdb::TypeIndex>, Vec<(pdb::TypeIndex, u64)>)> = HashMap::new();
@@ -83,7 +83,10 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
                     "long" | "int64_t" | "uint64_t" | "double" => 8,
                     _ => 0,
                 };
-                if size != 0 { enum_sizes.insert(item.index(), size); }
+                if size != 0 {
+                    enum_sizes.insert(item.index(), size);
+                    layout_sizes.insert(format!("enum {}", enumeration.name), size);
+                }
             }
             pdb::TypeData::Union(union) => {
                 if union.size <= u32::MAX as u64 { layout_sizes.insert(format!("union {}", union.name), union.size as u32); }
@@ -99,7 +102,9 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
         let mut out = Vec::new();
         for (field_name, field_type, offset) in fields {
             let ty = types.get(&field_type)?.clone();
-            let field_size = if let Some(size) = enum_sizes.get(&field_type) {
+            let field_size = if let Some(size) = type_sizes.get(&field_type) {
+                *size
+            } else if let Some(size) = enum_sizes.get(&field_type) {
                 *size
             } else if let Some(size) = layout_sizes.get(&ty) {
                 *size
@@ -216,8 +221,32 @@ fn pdb_type_size(ty: &str, ptr: u32) -> Option<u32> {
     })
 }
 
-fn pdb_types(db: &mut pdb::PDB<std::fs::File>, ptr: u32) -> HashMap<pdb::TypeIndex, String> {
-    let Ok(info) = db.type_information() else { return HashMap::new() };
+fn pdb_types(db: &mut pdb::PDB<std::fs::File>, ptr: u32) -> (HashMap<pdb::TypeIndex, String>, HashMap<pdb::TypeIndex, u32>) {
+    let Ok(info) = db.type_information() else { return (HashMap::new(), HashMap::new()) };
+    // Array records store their byte extent, while the element type may be a
+    // struct, union, enum, or another array that has no scalar spelling size.
+    let mut type_sizes = HashMap::new();
+    let mut size_iter = info.iter();
+    while let Ok(Some(item)) = size_iter.next() {
+        let Ok(data) = item.parse() else { continue };
+        let size = match data {
+            pdb::TypeData::Primitive(primitive) => pdb_type_size(&primitive_name(primitive), ptr),
+            pdb::TypeData::Pointer(_) | pdb::TypeData::Procedure(_) => Some(ptr),
+            pdb::TypeData::Modifier(modifier) => type_sizes.get(&modifier.underlying_type).copied(),
+            pdb::TypeData::Bitfield(bitfield) => type_sizes.get(&bitfield.underlying_type).copied(),
+            pdb::TypeData::Class(class) => u32::try_from(class.size).ok(),
+            pdb::TypeData::Union(union) => u32::try_from(union.size).ok(),
+            pdb::TypeData::Enumeration(enumeration) => {
+                let underlying = type_name(enumeration.underlying_type, &HashMap::new());
+                pdb_type_size(&underlying, ptr)
+            }
+            pdb::TypeData::Array(array) => array.dimensions.last().copied(),
+            _ => None,
+        };
+        if let Some(size) = size.filter(|size| *size != 0) {
+            type_sizes.insert(item.index(), size);
+        }
+    }
     let mut iter = info.iter();
     let mut out = HashMap::new();
     while let Ok(Some(item)) = iter.next() {
@@ -238,7 +267,8 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>, ptr: u32) -> HashMap<pdb::TypeInd
             pdb::TypeData::ArgumentList(a) => a.arguments.iter().map(|i| type_name(*i, &out)).collect::<Vec<_>>().join(", "),
             pdb::TypeData::Array(a) => {
                 let element = type_name(a.element_type, &out);
-                let element_size = pdb_type_size(&element, ptr).unwrap_or(0);
+                let element_size = type_sizes.get(&a.element_type).copied()
+                    .or_else(|| pdb_type_size(&element, ptr)).unwrap_or(0);
                 let count = a.dimensions.last().copied().unwrap_or(0).checked_div(element_size).unwrap_or(0);
                 if element_size == 0 || count == 0 { continue; }
                 format!("{element}[{count}]")
@@ -252,7 +282,7 @@ fn pdb_types(db: &mut pdb::PDB<std::fs::File>, ptr: u32) -> HashMap<pdb::TypeInd
         };
         out.insert(item.index(), name);
     }
-    out
+    (out, type_sizes)
 }
 
 fn collect<'a>(mut iter: pdb::SymbolIter<'a>, map: &pdb::AddressMap<'_>, types: &HashMap<pdb::TypeIndex, String>, out: &mut Vec<(u32, String)>, protos: &mut Vec<String>, noreturn: &mut Vec<String>) {
@@ -284,9 +314,9 @@ pub fn symbols(path: &Path, ptr: u32) -> Option<(Vec<(u32, String)>, String, Vec
     let file = std::fs::File::open(path).ok()?;
     let mut db = pdb::PDB::open(file).ok()?;
     let map = db.address_map().ok()?;
-    let types = pdb_types(&mut db, ptr);
+    let (types, type_sizes) = pdb_types(&mut db, ptr);
     let enum_decls = pdb_enum_declarations(&mut db);
-    let structs = pdb_structs(&mut db, &types, ptr);
+    let structs = pdb_structs(&mut db, &types, &type_sizes, ptr);
     let mut out = Vec::new();
     let mut protos = Vec::new();
     let mut noreturn = Vec::new();
