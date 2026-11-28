@@ -193,6 +193,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Replace the LLDB-driven backend with native platform backends (ptrace / Mach / Windows debug API), or document a deliberate LLDB dependency.
 - Improve target/session management, platform coverage, reconnect/error recovery, and debugger UI synchronization.
 - Correlate runtime traces with static capabilities, imports, protections, packing/entropy clues, and suspicious behavior categories; keep every signal explainable and clearly labeled as heuristic triage rather than a malware verdict.
+- Dynamic trace review now correlates adjacent PCs at call instructions to known callees and presents the observed caller-to-callee transitions in order for defensive behavior review.
 - Add structured dynamic-event capture and export so analysts can review process, filesystem, registry, memory, anti-debugging, and network activity alongside the instruction trace.
 - Decode hardware processor trace streams (such as Intel PT) and connect them to static analysis; the current instruction trace is bounded LLDB single-stepping, not hardware trace decoding.
 

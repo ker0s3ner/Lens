@@ -7,6 +7,7 @@
 mod replay;
 use replay::{Replay, MAX_STEPS};
 
+use crate::analysis::{Analysis, Flow, NameKind};
 use crate::app::{Action, LensApp, State};
 use eframe::egui::{self, FontId, RichText, ScrollArea, TextEdit};
 use std::collections::{HashMap, VecDeque};
@@ -143,6 +144,24 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
         for signal in signals { *counts.entry(signal.clone()).or_default() += weight; }
     }
     counts
+}
+
+type RuntimeCall = (usize, u64, u64, String, String);
+
+fn observed_runtime_calls(trace: &[u64], analysis: &Analysis, names: &HashMap<u64, (String, NameKind)>) -> Vec<RuntimeCall> {
+    trace.windows(2).enumerate().filter_map(|(step, pair)| {
+        let from = pair[0];
+        let to = pair[1];
+        let instruction = analysis.insns.get(&from)?;
+        if !matches!(instruction.flow, Flow::Call | Flow::IndirectCall) { return None; }
+        let caller = analysis.function_containing(from)?;
+        let callee = analysis.function_containing(to)?;
+        if caller.start == callee.start { return None; }
+        if instruction.flow == Flow::Call
+            && (instruction.target == 0 || (instruction.target != to && instruction.target != callee.start)) { return None; }
+        let name_at = |address: u64| names.get(&address).map(|(name, _)| name.clone()).unwrap_or_else(|| format!("sub_{address:X}"));
+        Some((step, from, to, name_at(caller.start), name_at(callee.start)))
+    }).collect()
 }
 
 impl Dbg {
@@ -612,6 +631,10 @@ impl LensApp {
             }).collect(),
             _ => vec![],
         };
+        let runtime_calls: Vec<RuntimeCall> = match (&self.dbg, self.loaded()) {
+            (Some(d), Some(l)) => observed_runtime_calls(&d.trace, &l.an, &l.names),
+            _ => vec![],
+        };
         let dynamic_lookup: HashMap<u64, (String, Vec<String>)> = dynamic_trace.iter().cloned().fold(HashMap::new(), |mut map, (address, name, signals)| {
             map.entry(address).or_insert((name, signals));
             map
@@ -825,7 +848,8 @@ impl LensApp {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
                                 let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "event_count": d.dynamic_events.len(), "event_capacity": 512, "events": d.dynamic_events, "records": records});
+                                let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee})).collect::<Vec<_>>();
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "events": d.dynamic_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),
@@ -883,6 +907,16 @@ impl LensApp {
                             let flagged = !signals.is_empty();
                             let color = if flagged { p.edge_not } else { p.muted };
                             ui.label(RichText::new(format!("{address:016X}  {name}{}", if flagged { format!("  · {}", signals.join(", ")) } else { String::new() })).monospace().small().color(color));
+                        }
+                    }
+                    if !runtime_calls.is_empty() {
+                        ui.label(RichText::new(format!("OBSERVED CALLS · {} transitions", runtime_calls.len())).small().color(p.faint));
+                        if ui.small_button("Copy observed calls").clicked() {
+                            ui.ctx().copy_text(runtime_calls.iter().map(|(step, from, to, caller, callee)| format!("step {step}\t{caller}\t{from:016X}\t{callee}\t{to:016X}")).collect::<Vec<_>>().join("\n"));
+                        }
+                        for (step, from, to, caller, callee) in runtime_calls.iter().rev().take(8) {
+                            if ui.small_button(format!("step {step} · {caller} → {callee} · {to:016X}")).clicked() { goto = Some(*to); }
+                            ui.label(RichText::new(format!("call at {from:016X}")).monospace().small().color(p.muted));
                         }
                     }
                     if !d.dynamic_events.is_empty() {
