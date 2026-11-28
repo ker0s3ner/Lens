@@ -1,3 +1,20 @@
+# Lens 0.6.509 — Fourier
+
+- Share segment byte buffers across cloned binary-analysis snapshots.
+- Avoid duplicating large file-backed segment buffers when the debugger takes a binary snapshot.
+- Avoid duplicating large segment buffers for IDA-style database views.
+- Avoid duplicating large segment buffers when the scripting runtime captures its binary context.
+- Keep CLI/report snapshots on the same shared segment storage.
+- Keep loaded segment bytes immutable to snapshots until a patch is applied.
+- Detach only the edited segment when an in-memory patch changes bytes.
+- Preserve the original bytes in older snapshots after a later snapshot is edited.
+- Keep virtual zero-fill represented by logical segment size without adding backing bytes to clones.
+- Reject oversized zero-fill writes before triggering copy-on-write allocation.
+- Keep segment metadata and file-offset save behavior unchanged while sharing byte storage.
+- The 134 MB performance fixture remains a file-backed measurement; this release claims no measured RSS reduction.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.508 — Fourier
 
 - Import legacy DWARF 2, 3, and 4 bitfields that use `DW_AT_bit_offset`.

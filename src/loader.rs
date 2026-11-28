@@ -2,6 +2,7 @@
 
 use goblin::Object;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Arch {
@@ -66,7 +67,8 @@ impl Arch {
 pub struct Segment {
     pub name: String,
     pub start: u64,
-    pub data: Vec<u8>,
+    /// Shared immutable bytes across cloned analysis snapshots; edits detach only this segment.
+    pub data: Arc<Vec<u8>>,
     /// Size in memory (may be larger than `data` for zero-filled sections).
     pub size: u64,
     pub exec: bool,
@@ -201,11 +203,12 @@ impl Binary {
         let Some(write_end) = offset.checked_add(bytes.len()) else { return false };
         let segment = &mut self.segments[index];
         if u64::try_from(write_end).map_or(true, |end| end > segment.size) { return false; }
-        if write_end > segment.data.len() {
-            if write_end > MAX_MATERIALIZED_ZERO_FILL { return false; }
-            segment.data.resize(write_end, 0);
+        if write_end > segment.data.len() && write_end > MAX_MATERIALIZED_ZERO_FILL { return false; }
+        let data = Arc::make_mut(&mut segment.data);
+        if write_end > data.len() {
+            data.resize(write_end, 0);
         }
-        segment.data[offset..write_end].copy_from_slice(bytes);
+        data[offset..write_end].copy_from_slice(bytes);
         true
     }
     pub fn byte(&self, a: u64) -> Option<u8> {
@@ -427,7 +430,7 @@ fn load_raw(bin: &mut Binary, bytes: Vec<u8>) {
         name: "RAW".into(),
         start: base,
         size: bytes.len() as u64,
-        data: bytes,
+        data: Arc::new(bytes),
         exec: true,
         write: false,
         file_offset: Some(0),
@@ -502,7 +505,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             name,
             start: start_addr,
             size: sh.sh_size,
-            data,
+            data: Arc::new(data),
             exec: sh.sh_flags as u32 & SHF_EXECINSTR != 0,
             write: sh.sh_flags as u32 & SHF_WRITE != 0,
             file_offset: foff,
@@ -521,7 +524,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
                 name: format!("LOAD{}", bin.segments.len()),
                 start: ph.p_vaddr,
                 size: ph.p_memsz,
-                data,
+                data: Arc::new(data),
                 exec: ph.is_executable(),
                 write: ph.is_write(),
                 file_offset: Some(ph.p_offset),
@@ -769,7 +772,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             name,
             start: base + s.virtual_address as u64,
             size: vsize,
-            data,
+            data: Arc::new(data),
             exec: ch & goblin::pe::section_table::IMAGE_SCN_MEM_EXECUTE != 0,
             write: ch & goblin::pe::section_table::IMAGE_SCN_MEM_WRITE != 0,
             file_offset: Some(s.pointer_to_raw_data as u64),
@@ -1084,7 +1087,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
                     name: format!("{segname},{sname}"),
                     start: start_addr,
                     size: sec.size,
-                    data: d,
+                    data: Arc::new(d),
                     exec,
                     write: seg.initprot & 2 != 0,
                     file_offset: if zerofill { None } else { Some(sec.offset as u64) },
@@ -1373,7 +1376,7 @@ pub fn raw_binary(spec: &RawSpec) -> Binary {
             name: if spec.segs.len() == 1 { "RAW".into() } else { format!("RAW{}", i + 1) },
             start: *start,
             size: data.len() as u64,
-            data: data.clone(),
+            data: Arc::new(data.clone()),
             exec: true,
             write: false,
             file_offset: Some(0),

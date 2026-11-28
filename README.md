@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub build: **0.6.508 — Fourier**. DWARF type recovery now imports legacy bitfields with endian-aware positions and rejects layouts whose fields exceed record bounds. Read What's New in the app, the [0.6.508 release page](docs/release-0.6.508.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub build: **0.6.509 — Fourier**. Binary snapshots now share segment buffers and detach only edited segments, reducing duplicate backing data across debugger, database, script, and report views. Read What's New in the app, the [0.6.509 release page](docs/release-0.6.509.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 

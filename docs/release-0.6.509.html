@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.509 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.509 — Fourier</h1><p class="lead">Large binary snapshots share their segment storage until an edit needs a private copy.</p><ul>
+<li>Share segment byte buffers across cloned binary-analysis snapshots.</li>
+<li>Debugger, database, scripting, and report snapshots reuse the same underlying segment buffers.</li>
+<li>Patch writes detach only the edited segment, leaving earlier snapshots unchanged.</li>
+<li>Reject oversized zero-fill writes before copy-on-write allocation.</li>
+<li>Keep virtual zero-fill represented by logical size across snapshots.</li>
+<li>Keep segment metadata and file-offset save behavior intact.</li>
+<li>No memory reduction percentage is claimed until a snapshot-specific workload is measured.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.509">GitHub release</a></p></main></body></html>

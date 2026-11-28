@@ -273,10 +273,10 @@ mod tests {
             format: "raw".into(),
         });
         bin.segments[1].name = ".pdata".into();
-        bin.segments[1].data = [
+        bin.segments[1].data = std::sync::Arc::new(vec![
             0x10, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
             0x10, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
-        ].to_vec();
+        ]);
         assert_eq!(pe_pdata(&bin, 0x1000), vec![0x1010]);
     }
 }

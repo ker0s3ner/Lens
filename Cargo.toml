@@ -1,6 +1,6 @@
 [package]
 name = "lens"
-version = "0.6.508"
+version = "0.6.509"
 edition = "2021"
 description = "Lens - a clean, friendly disassembler for x86/x64 programs (ELF, PE, Mach-O)"
 
