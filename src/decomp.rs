@@ -3322,6 +3322,22 @@ pub fn render_text(d: &Decompiled) -> String {
     s
 }
 
+fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>) -> Option<String> {
+    match expression {
+        Ex::Call(callee, _) => call_pointee_type(callee),
+        Ex::Var(name) => types.get(name).and_then(|ty| ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string())),
+        Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
+        Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
+        Ex::Bin("+" | "-", base, offset) if matches!(**offset, Ex::Num(_)) => render_pointee_type(base, types),
+        Ex::Tern(_, yes, no) => {
+            let yes = render_pointee_type(yes, types);
+            let no = render_pointee_type(no, types);
+            (yes == no).then_some(yes).flatten()
+        }
+        _ => None,
+    }
+}
+
 fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
     let mut types: HashMap<String, String> = HashMap::new();
     let mut assignments = Vec::new();
@@ -3337,25 +3353,7 @@ fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
         for (name, rhs) in &assignments {
             let ty = match rhs {
                 Ex::Call(c, _) => call_return_type(c),
-                Ex::Deref(inner, _) => match &**inner {
-                    Ex::Call(c, _) => call_pointee_type(c),
-                    Ex::Var(source) => types.get(source).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
-                    Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                    Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                    Ex::Tern(_, yes, no) => {
-                        let pointee = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_pointee_type(c),
-                            Ex::Var(v) => types.get(v).and_then(|ty| ty.trim().strip_suffix('*').map(|p| p.trim().to_string())),
-                            Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                            Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                            _ => None,
-                        };
-                        let a = pointee(yes);
-                        let b = pointee(no);
-                        (a == b).then(|| a).flatten()
-                    }
-                    _ => None,
-                },
+                Ex::Deref(inner, _) => render_pointee_type(inner, &types),
                 Ex::Cast(t, _) => Some((*t).to_string()),
                 Ex::CastOwned(t, _) => Some(t.clone()),
                 Ex::Var(source) => types.get(source).cloned(),
