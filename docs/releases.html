@@ -3,10 +3,11 @@
 <title>Lens releases</title><meta name="theme-color" content="#efece4"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><style>h2[id] { scroll-margin-top: 5rem; }</style></head>
 <body><header class="bar"><div class="wrap"><a class="mark" href="./"><img src="logo.svg" alt="">Lens</a><nav><a href="docs.html">Documentation</a><a href="https://github.com/ker0s3ner/Lens/releases">GitHub releases</a><a class="btn sm" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a></nav></div></header>
 <main><div class="wrap docs"><article style="grid-column: 1 / -1"><p class="eyebrow">Release archive</p><h1>What's new in Lens.</h1><p class="lead">Lens uses mathematical codenames. Versions follow <code>x.y.z</code>: major theme releases, monthly minor feature releases, and patch releases for fixes and quality of life.</p>
-<p class="note"><strong>Latest GitHub build</strong> · <a href="release-0.6.503.html">0.6.503 — Fourier</a> adds categorized behavior events and bounded Windows UTF-16 previews.</p>
+<p class="note"><strong>Latest GitHub build</strong> · <a href="release-0.6.504.html">0.6.504 — Fourier</a> improves indexed struct-array and pointer-typed pseudocode.</p>
 <nav aria-labelledby="recent-releases">
 <h2 id="recent-releases">Recent releases</h2>
 <p>
+<a href="release-0.6.504.html">0.6.504</a> ·
 <a href="release-0.6.503.html">0.6.503</a> ·
 <a href="release-0.6.502.html">0.6.502</a> ·
 <a href="release-0.6.501.html">0.6.501</a> ·
@@ -46,6 +47,7 @@
 <a href="#v0.6.467">0.6.467</a>
 </p>
 </nav>
+<h2 id="v0.6.504">0.6.504 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.504">GitHub release</a></p><ul><li>Reconstructs indexed fields across reordered pointer arithmetic, arrays of structs, and array members nested in structs.</li><li>Uses known pointer parameter types for otherwise untyped call arguments while keeping uncertain layouts explicit.</li></ul>
 <h2 id="v0.6.503">0.6.503 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.503">GitHub release</a></p><ul><li>Classifies statically flagged behavior API events into process, filesystem, registry, memory, network, and anti-debugging families, with a category filter and per-category export totals.</li><li>Adds opt-in prototype-guided Windows UTF-16 previews with bounded reads, alongside narrow C-string previews.</li><li>Categories are static API-name triage labels; they do not establish that an operation completed.</li></ul>
 <h2 id="v0.6.502">0.6.502 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.502">GitHub release</a></p><ul><li>Optionally preview prototype-marked narrow C-string arguments at watched behavior API call sites.</li><li>Bound reads to four arguments and 96 bytes each; preserve raw values when reads are unavailable.</li></ul>
 <h2 id="v0.6.501">0.6.501 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.501">GitHub release</a></p><ul><li>Behavior API call-site events show stop-time ABI argument values with prototype labels when available.</li><li>Runtime-event TSV and JSON handoffs carry the argument records; pointer values are not dereferenced.</li></ul>

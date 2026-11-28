@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.504 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.504 — Fourier</h1><p class="lead">More dependable pseudocode for indexed struct and array accesses.</p><ul>
+<li>Normalize nested pointer additions and subtractions regardless of operand order, while checking offset arithmetic for overflow.</li>
+<li>Reconstruct `base[index].field` and nested struct-array paths from scaled multiplication or power-of-two shifts.</li>
+<li>Reconstruct indexed scalar arrays and array members nested within structs, including constant index biases and signed indices.</li>
+<li>Use known pointer parameter types to cast otherwise untyped call arguments, while preserving string literals.</li>
+<li>Keep ambiguous unions, unsupported layouts, and out-of-range offsets as explicit dereferences.</li>
+</ul><p>The weighted IDA Pro parity estimate remains 41.8%; the 50% target remains unmet. GitHub Actions builds the release artifact.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.504">GitHub release</a></p></main></body></html>

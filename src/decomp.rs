@@ -342,7 +342,7 @@ impl Fmt<'_> {
         };
         let actual_type = self.expression_type(argument);
         let Some(actual_type) = actual_type else {
-            return if matches!(argument, Ex::Num(0)) { format!("({expected}){shown}") } else { shown };
+            return if matches!(argument, Ex::Raw(_)) { shown } else { format!("({expected}){shown}") };
         };
         let Some(actual_target) = self.pointer_target(&actual_type) else {
             return format!("({expected}){shown}");
@@ -416,6 +416,7 @@ impl Fmt<'_> {
         let count = field.ty[open + 1..open + close].parse::<i64>().ok()?;
         if count <= 0 || field.size as i64 % count != 0 { return None; }
         let element_size = field.size as i64 / count;
+        if element_size <= 0 { return None; }
         let index = relative / element_size;
         let element_ty = unqualified_type(&field.ty[..open]);
         let element_name = element_ty.strip_prefix("struct ").or_else(|| element_ty.strip_prefix("union ")).unwrap_or(element_ty);
@@ -429,6 +430,45 @@ impl Fmt<'_> {
         }
         (element_size > 0 && relative % element_size == 0 && index >= 0 && index < count)
             .then(|| format!("{}[{index}]", field.name))
+    }
+
+    fn resolve_struct_array_path(
+        &self,
+        def: &crate::types::StructDef,
+        offset: i64,
+        depth: usize,
+    ) -> Option<(String, i64, i64, Option<String>)> {
+        if depth > self.structs.len() || def.is_union && def.fields.len() > 1 { return None; }
+        let mut fields = def.fields.iter().filter(|field| {
+            let start = field.off as i64;
+            offset >= start && offset < start + field.size as i64
+        });
+        let field = fields.next()?;
+        if fields.next().is_some() { return None; }
+        let relative = offset - field.off as i64;
+        if let (Some(open), Some(close)) = (field.ty.rfind('['), field.ty.rfind(']')) {
+            if close > open {
+                let count = field.ty[open + 1..close].trim().parse::<i64>().ok()?;
+                if count <= 0 || field.size as i64 % count != 0 { return None; }
+                let element_size = field.size as i64 / count;
+                if element_size <= 0 { return None; }
+                let index_bias = relative / element_size;
+                let within = relative % element_size;
+                let element_type = unqualified_type(&field.ty[..open]);
+                let element_name = element_type.strip_prefix("struct ").or_else(|| element_type.strip_prefix("union ")).unwrap_or(element_type);
+                let element_field = if let Some(element_def) = self.struct_def(element_name) {
+                    Some(self.resolve_struct_path(element_def, within, depth + 1)?)
+                } else if within == 0 {
+                    None
+                } else {
+                    return None;
+                };
+                return Some((field.name.clone(), element_size, index_bias, element_field));
+            }
+        }
+        let nested = self.struct_def(&field.ty)?;
+        let (path, element_size, index_bias, element_field) = self.resolve_struct_array_path(nested, relative, depth + 1)?;
+        Some((format!("{}.{}", field.name, path), element_size, index_bias, element_field))
     }
 
     fn struct_field(&self, address: &Ex) -> Option<String> {
@@ -512,46 +552,77 @@ impl Fmt<'_> {
     }
 
     fn variable_struct_field(&self, address: &Ex) -> Option<String> {
-        let (scaled, tail, reverse) = match address {
-            Ex::Bin("+", scaled, tail) => (scaled, tail, false),
-            Ex::Bin("-", scaled, tail) => (scaled, tail, true),
-            _ => return None,
-        };
-        let (base, index, stride, inner_reverse) = match (&**scaled, &**tail) {
-            (Ex::Bin(op @ ("+" | "-"), base, scaled), Ex::Num(offset)) => (base, scaled, *offset, *op == "-"),
-            (Ex::Num(offset), Ex::Bin(op @ ("+" | "-"), base, scaled)) => (base, scaled, *offset, *op == "-"),
-            _ => return None,
-        };
-        let (index, element_size) = match &**index {
-            Ex::Bin("*", left, right) => match (&**left, &**right) {
-                (index, Ex::Num(size)) => (index, *size),
-                (Ex::Num(size), index) => (index, *size),
-                _ => return None,
-            },
-            Ex::Bin("<<", index, shift) => {
-                let Ex::Num(shift) = **shift else { return None };
-                if !(0..=6).contains(&shift) { return None; }
-                (&**index, 1_i64 << shift as u32)
+        fn collect_address_terms(expression: &Ex, sign: i64, terms: &mut Vec<(Ex, i64)>, displacement: &mut i64) -> Option<()> {
+            match expression {
+                Ex::Num(value) => {
+                    *displacement = (*displacement).checked_add((*value).checked_mul(sign)?)?;
+                }
+                Ex::Bin("+", left, right) => {
+                    collect_address_terms(left, sign, terms, displacement)?;
+                    collect_address_terms(right, sign, terms, displacement)?;
+                }
+                Ex::Bin("-", left, right) => {
+                    collect_address_terms(left, sign, terms, displacement)?;
+                    collect_address_terms(right, sign.checked_neg()?, terms, displacement)?;
+                }
+                other => terms.push((other.clone(), sign)),
             }
-            _ => return None,
+            Some(())
+        }
+
+        let mut terms = Vec::new();
+        let mut displacement = 0i64;
+        collect_address_terms(address, 1, &mut terms, &mut displacement)?;
+
+        let mut base = None;
+        for (term_index, (term, sign)) in terms.iter().enumerate() {
+            let Some(ty) = self.expression_type(term) else { continue };
+            let Some(target) = self.pointer_target(&ty) else { continue };
+            let Some(def) = self.struct_def(&target) else { continue };
+            if base.is_some() { return None; }
+            if *sign != 1 { return None; }
+            base = Some((term_index, def));
+        }
+        let (base_index, def) = base?;
+
+        let mut scaled_index = None;
+        for (term_index, (term, sign)) in terms.iter().enumerate() {
+            if term_index == base_index { continue; }
+            let (index, element_size) = match term {
+                Ex::Bin("*", left, right) => match (&**left, &**right) {
+                    (index, Ex::Num(size)) => (index, *size),
+                    (Ex::Num(size), index) => (index, *size),
+                    _ => return None,
+                },
+                Ex::Bin("<<", index, shift) => {
+                    let Ex::Num(shift) = **shift else { return None };
+                    if !(0..=6).contains(&shift) { return None; }
+                    (&**index, 1_i64 << shift as u32)
+                }
+                _ => return None,
+            };
+            if scaled_index.is_some() || *sign != 1 && *sign != -1 || element_size != def.size as i64 {
+                return None;
+            }
+            scaled_index = Some(((*index).clone(), *sign, element_size));
         };
-        if element_size <= 0 || stride < 0 { return None; }
-        let ty = match &**base {
-            Ex::Var(name) => self.types.get(name).cloned(),
-            Ex::Call(callee, _) => call_return_type(callee),
-            Ex::Tern(_, _, _) | Ex::Bin(_, _, _) => call_return_type(base),
-            Ex::Cast(t, _) => Some((*t).to_string()),
-            Ex::CastOwned(t, _) => Some(t.clone()),
-            _ => None,
-        }?;
-        let target = self.pointer_target(&ty)?;
-        let name = target.trim().trim_start_matches("const ").trim();
-        let name = name.strip_prefix("struct ").or_else(|| name.strip_prefix("union ")).unwrap_or(name);
-        let def = self.struct_def(name)?;
-        if def.size as i64 != element_size { return None; }
-        let field = self.resolve_struct_path(def, stride, 0)?;
-        let index = if reverse ^ inner_reverse { Ex::Un("-", Box::new(index.clone())) } else { index.clone() };
-        Some(format!("{}[{}].{field}", self.at(base, 3), self.at(&index, 99)))
+        if def.size == 0 || displacement < 0 || displacement >= def.size as i64 { return None; }
+        let (index, sign, element_size) = scaled_index?;
+        let base = &terms[base_index].0;
+        let rendered_base = self.at(base, 3);
+        let rendered_base = if matches!(base, Ex::Tern(_, _, _)) { format!("({rendered_base})") } else { rendered_base };
+        let index = if sign < 0 { Ex::Un("-", Box::new(index)) } else { index };
+        if element_size == def.size as i64 {
+            let field = self.resolve_struct_path(def, displacement, 0)?;
+            return Some(format!("{rendered_base}[{}].{field}", self.at(&index, 99)));
+        }
+        let (path, array_element_size, index_bias, element_field) = self.resolve_struct_array_path(def, displacement, 0)?;
+        if element_size != array_element_size { return None; }
+        let index = if index_bias == 0 { index } else {
+            Ex::Bin("+", Box::new(index), Box::new(Ex::Num(index_bias)))
+        };
+        let nested = element_field.map(|field| format!(".{field}")).unwrap_or_default();
+        Some(format!("{rendered_base}->{path}[{}]{nested}", self.at(&index, 99)))
     }
 
     fn at(&self, e: &Ex, ctx: u8) -> String {

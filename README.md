@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub build: **0.6.503 — Fourier**. Opt-in behavior triage previews prototype-marked narrow and Windows UTF-16 strings, labels watched API events by behavior category, and supports category filtering and export summaries. Read What's New in the app, the [0.6.503 release page](docs/release-0.6.503.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub build: **0.6.504 — Fourier**. Decompiler address recovery now reconstructs more indexed fields in arrays of structs and arrays nested within structs, and uses prototype pointer types when a call argument's local type is unknown. Read What's New in the app, the [0.6.504 release page](docs/release-0.6.504.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
@@ -47,8 +47,8 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 ### Decompile and edit
 
 - Produce approximate C-like pseudocode and render it as C, Rust, Python, Go or JavaScript; scalar SSE and common AVX operations retain float/double or vector declarations and binary expressions.
-- Known typed struct-pointer offsets now render named fields and bounded fixed-array indices in pseudocode; known pointer prototypes also propagate through inferred call arguments and preserve pointer types for inferred variables, including explicit function-pointer return casts and typed field access through those returns. Decompiler copy propagation crosses safe intervening statements but stops at source or temporary reassignment. Objective-C `objc_msgSend` and `objc_getClass` literals render as `@selector(...)` and `@class(...)`; uncertain types and offsets remain explicit dereferences.
-- Known pointer-typed prototypes cast constant call arguments in pseudocode, while leaving inferred variables untouched when their type is uncertain.
+- Known typed struct-pointer offsets now render named fields and bounded fixed-array indices in pseudocode; address normalization also handles reordered additions, combined constant offsets, signed indices, and nested array-member paths. Known pointer prototypes propagate through inferred call arguments and preserve pointer types for inferred variables, including explicit function-pointer return casts and typed field access through those returns. Decompiler copy propagation crosses safe intervening statements but stops at source or temporary reassignment. Objective-C `objc_msgSend` and `objc_getClass` literals render as `@selector(...)` and `@class(...)`; ambiguous types and offsets remain explicit.
+- Pointer-typed prototypes now supply an explicit call-argument cast when the actual local expression has no recovered type, while raw string literals remain readable.
 - Applied user-defined enum types now name matching integer constants in typed pseudocode call arguments, such as `Color::Blue`.
 - Bitfield storage compatibility now ignores redundant `const`, `volatile`, and `restrict` qualifiers when matching equivalent signed integer declarations.
 - Enum-aware constant propagation also folds multiplication, division, and remainder in typed comparisons, preserving named members when arithmetic computes an enum value.

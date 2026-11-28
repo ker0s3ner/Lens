@@ -1,3 +1,31 @@
+# Lens 0.6.504 — Fourier
+
+- Normalize nested `+` and `-` terms in typed pointer addresses before resolving array and struct members.
+- Accept the pointer base on either side of address additions.
+- Combine multiple signed constant offsets with checked arithmetic.
+- Recognize scaled indices expressed as multiplication with the stride on either side.
+- Recognize power-of-two shift indices when their scale matches a recovered element size.
+- Preserve negative indices as signed expressions.
+- Recover indexed fields from arrays of typed structs when the element stride matches the struct size.
+- Recover indexed scalar array fields within a typed struct.
+- Recover indexed struct-array members nested inside another struct.
+- Preserve nested member paths inside each indexed struct element.
+- Fold a constant array-element bias into the rendered index expression.
+- Render indexed paths from pointer variables, pointer casts, typed call returns, and compatible conditional pointer expressions.
+- Resolve typedef and qualified struct pointers through the existing bounded type-alias lookup.
+- Require exactly one unambiguous pointer-to-struct base in a normalized address.
+- Require exactly one supported scaled-index expression before rewriting an address.
+- Check the scale against the recovered struct or array element size.
+- Keep byte offsets inside the containing struct and array layout before naming a member.
+- Leave overlapping multi-member union layouts unresolved instead of choosing an arbitrary field.
+- Reject unsupported array declarations, malformed counts, zero-sized elements, and overflowing address arithmetic conservatively.
+- Keep generic pointer dereferences when the layout or arithmetic cannot be proven.
+- Use a known pointer parameter type to cast a call argument whose local expression type is unavailable.
+- Keep raw string literals readable when a prototype expects a pointer.
+- Continue casting integer zero and incompatible known pointer arguments to the prototype's declared pointer type.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.503 — Fourier
 
 - Classify statically flagged API call-site events as process, filesystem, registry, memory, network, or anti-debugging activity when the imported API name matches a known family.
