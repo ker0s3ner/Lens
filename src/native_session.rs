@@ -104,8 +104,8 @@ fn trace_continue(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
         libc::ptrace(
             libc::PTRACE_CONT,
             pid,
-            signal as usize as *mut libc::c_void,
             std::ptr::null_mut::<libc::c_void>(),
+            signal as usize as *mut libc::c_void,
         )
     } == -1
     {
@@ -132,8 +132,8 @@ fn trace_step(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
         libc::ptrace(
             libc::PTRACE_SINGLESTEP,
             pid,
-            signal as usize as *mut libc::c_void,
             std::ptr::null_mut::<libc::c_void>(),
+            signal as usize as *mut libc::c_void,
         )
     } == -1
     {
