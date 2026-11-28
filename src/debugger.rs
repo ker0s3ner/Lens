@@ -148,6 +148,13 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
 
 type RuntimeCall = (usize, u64, u64, String, String, Vec<String>);
 
+fn signal_matches_callee(signal: &crate::detect::ThreatSignal, callee_name: &str) -> bool {
+    signal.evidence.strip_prefix("imports:")
+        .and_then(|evidence| evidence.split(';').next())
+        .map(|apis| apis.split(',').any(|api| callee_name.contains(api.trim())))
+        .unwrap_or(false)
+}
+
 fn observed_runtime_calls(
     trace: &[u64],
     analysis: &Analysis,
@@ -166,9 +173,7 @@ fn observed_runtime_calls(
         let name_at = |address: u64| names.get(&address).map(|(name, _)| name.clone()).unwrap_or_else(|| format!("sub_{address:X}"));
         let caller_name = name_at(caller.start);
         let callee_name = name_at(callee.start);
-        let matched_signals = signals.iter().filter(|signal| {
-            signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| callee_name.contains(api.trim()))).unwrap_or(false)
-        }).map(|signal| signal.name.clone()).collect();
+        let matched_signals = signals.iter().filter(|signal| signal_matches_callee(signal, &callee_name)).map(|signal| signal.name.clone()).collect();
         Some((step, from, to, caller_name, callee_name, matched_signals))
     }).collect()
 }
@@ -635,7 +640,7 @@ impl LensApp {
             (Some(d), Some(l)) => d.trace.iter().rev().filter_map(|address| {
                 let function = l.an.function_containing(*address)?;
                 let name = l.names.get(&function.start).map(|(n, _)| n.clone()).unwrap_or_else(|| format!("sub_{:X}", function.start));
-                let signals = l.det.threat_signals.iter().filter(|signal| signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| name.contains(api.trim()))).unwrap_or(false)).map(|signal| signal.name.clone()).collect();
+                let signals = l.det.threat_signals.iter().filter(|signal| signal_matches_callee(signal, &name)).map(|signal| signal.name.clone()).collect();
                 Some((*address, name, signals))
             }).collect(),
             _ => vec![],
