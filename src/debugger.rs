@@ -312,6 +312,7 @@ struct RuntimeArgument {
     ty: String,
     register: String,
     value: String,
+    symbolic_value: Option<String>,
     string_preview: Option<String>,
 }
 
@@ -375,11 +376,12 @@ fn runtime_event_arguments(
     let prototype = crate::protos::find(api);
     let mut out = argument_registers.iter().enumerate().filter_map(|(index, register)| {
         let value = registers.get(*register)?.clone();
+        let symbolic_value = symbolic_runtime_value(format, api, index, &value);
         let (ty, name) = prototype.as_ref().and_then(|prototype| prototype.params.get(index))
             .map(|(ty, name)| (ty.clone(), if name.trim().is_empty() { format!("arg{}", index + 1) } else { name.clone() }))
             .unwrap_or_else(|| ("?".into(), format!("arg{}", index + 1)));
         let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
-        Some(RuntimeArgument { name, ty, register: (*register).to_string(), value, string_preview })
+        Some(RuntimeArgument { name, ty, register: (*register).to_string(), value, symbolic_value, string_preview })
     }).collect::<Vec<_>>();
     if let Some(prototype) = &prototype {
         for index in argument_registers.len()..prototype.params.len() {
@@ -387,17 +389,23 @@ fn runtime_event_arguments(
             let Some((offset, width)) = stack_argument_location(arch, argument_registers.len(), index, &prototype.params) else { continue };
             let Some(raw) = read_stack_argument(&event.stack_words, offset, width) else { continue };
             let value = if arch == crate::loader::Arch::X86 { format!("0x{raw:08x}") } else { format!("0x{raw:x}") };
+            let symbolic_value = symbolic_runtime_value(format, api, index, &value);
             let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
             let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
-            out.push(RuntimeArgument { name, ty: ty.clone(), register: format!("stack+0x{offset:x}"), value, string_preview });
+            out.push(RuntimeArgument { name, ty: ty.clone(), register: format!("stack+0x{offset:x}"), value, symbolic_value, string_preview });
         }
     }
     out
 }
 
+fn symbolic_runtime_value(format: &str, api: &str, index: usize, value: &str) -> Option<String> {
+    let raw = u64::from_str_radix(value.trim().strip_prefix("0x")?, 16).ok()?;
+    crate::consts::symbolize(crate::consts::os_of(format), api, index, raw as i64)
+}
+
 fn runtime_arguments_json(arguments: &[RuntimeArgument]) -> Vec<serde_json::Value> {
     arguments.iter().map(|argument| {
-        serde_json::json!({"name": argument.name, "type": argument.ty, "register": argument.register, "value": argument.value, "string_preview": argument.string_preview})
+        serde_json::json!({"name": argument.name, "type": argument.ty, "register": argument.register, "value": argument.value, "symbolic_value": argument.symbolic_value, "string_preview": argument.string_preview})
     }).collect()
 }
 
@@ -405,6 +413,7 @@ fn format_runtime_arguments(arguments: &[RuntimeArgument]) -> String {
     arguments.iter().map(|argument| {
         let label = if argument.ty == "?" { format!("{} [{}]={}", argument.name, argument.register, argument.value) }
             else { format!("{} {} [{}]={}", argument.ty, argument.name, argument.register, argument.value) };
+        let label = argument.symbolic_value.as_ref().map(|symbol| format!("{label} ({symbol})")).unwrap_or(label);
         if let Some(preview) = &argument.string_preview { format!("{label} → \"{preview}\"") }
         else { label }
     }).collect::<Vec<_>>().join(", ")
