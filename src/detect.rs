@@ -145,6 +145,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Files") {
         out.push(ThreatSignal { severity: 1, name: "Filesystem activity".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Data removal") {
+        out.push(ThreatSignal { severity: 2, name: "File deletion or truncation".into(), evidence: format!("imports: {}; runtime call correlation can show whether these APIs were observed", c.apis.join(", ")) });
+    }
     if let Some(c) = has("System info") {
         out.push(ThreatSignal { severity: 1, name: "System information discovery".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
@@ -575,6 +578,7 @@ fn bundle_info(path: &str) -> (Vec<String>, Vec<(String, String)>) {
 const CAPS: &[(&str, &[&str])] = &[
     ("Network", &["socket", "connect", "WSAStartup", "WSASocket", "InternetOpen", "InternetConnect", "WinHttp", "URLDownloadToFile", "getaddrinfo", "gethostbyname", "curl_easy", "CFNetwork", "NSURLSession", "NSURLConnection", "send", "recv", "bind", "listen", "accept", "SSL_", "inet_"]),
     ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir"]),
+    ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
     ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
     ("Persistence mechanisms", &["CreateService", "ChangeServiceConfig", "RegisterTaskDefinition", "SMAppServiceRegister", "LSSharedFileListInsertItemURL"]),
