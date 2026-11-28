@@ -142,6 +142,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Memory tricks") {
         out.push(ThreatSignal { severity: 2, name: "Executable memory or process tampering".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Process injection primitives") {
+        out.push(ThreatSignal { severity: 3, name: "Possible process injection".into(), evidence: format!("imports: {}; both memory-write/allocation and remote-thread-control primitives are present; runtime call correlation can highlight observed APIs", c.apis.join(", ")) });
+    }
     if let Some(c) = has("Loads code at run time") {
         out.push(ThreatSignal { severity: 2, name: "Runtime code loading".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
@@ -597,6 +600,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Credential store", &["CredRead", "CredEnumerate", "LsaRetrievePrivateData", "SecItemCopyMatching", "SecKeychainFindGenericPassword", "pam_get_authtok"]),
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
     ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "ptrace", "task_for_pid", "mach_vm_"]),
+    ("Process injection primitives", &["WriteProcessMemory", "NtWriteVirtualMemory", "process_vm_writev", "mach_vm_write", "task_write_for_pid", "VirtualAllocEx", "CreateRemoteThread", "NtCreateThreadEx", "QueueUserAPC", "RtlCreateUserThread", "SetThreadContext"]),
     ("Anti-debugging", &["IsDebuggerPresent", "CheckRemoteDebuggerPresent", "NtQueryInformationProcess", "OutputDebugString", "ptrace", "sysctl", "PT_DENY_ATTACH"]),
     ("Loads code at run time", &["LoadLibrary", "GetProcAddress", "LdrLoadDll", "dlopen", "dlsym", "NSBundle", "CFBundle"]),
     ("Windows & UI", &["CreateWindow", "MessageBox", "DialogBox", "RegisterClass", "GetMessage", "DispatchMessage", "NSWindow", "NSApplication", "NSView", "UIApplication", "gtk_", "SDL_", "glfw", "QApplication"]),
@@ -622,6 +626,11 @@ fn capabilities(names: &[&str]) -> Vec<Capability> {
             {
                 hit.push(n.to_string());
             }
+        }
+        if *cat == "Process injection primitives" {
+            let writes_memory = hit.iter().any(|api| ["WriteProcessMemory", "NtWriteVirtualMemory", "process_vm_writev", "mach_vm_write", "task_write_for_pid", "VirtualAllocEx"].iter().any(|prefix| api.contains(prefix)));
+            let controls_remote_thread = hit.iter().any(|api| ["CreateRemoteThread", "NtCreateThreadEx", "QueueUserAPC", "RtlCreateUserThread", "SetThreadContext"].iter().any(|prefix| api.contains(prefix)));
+            if !writes_memory || !controls_remote_thread { continue; }
         }
         if !hit.is_empty() {
             hit.truncate(12);
