@@ -398,7 +398,7 @@ impl LensApp {
         let base = seg.start & !15;
         let rows = (seg.end() - base).div_ceil(16) as usize;
         let cur_len = l.item_len(nav.cursor_line);
-        let (c0, c1) = (nav.cursor, nav.cursor + cur_len);
+        let (c0, c1) = (nav.cursor, nav.cursor.saturating_add(cur_len));
         egui::Frame::NONE.inner_margin(Margin::symmetric(14, 6)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(RichText::new(format!("Section {}", seg.name)).strong());
