@@ -179,7 +179,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls is expanding; typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, and pointer typedefs are implemented with regression coverage. Broader SSA-based propagation and more complex array/pointer reconstruction remain.
-- Pointee types now survive dereferences through constant pointer offsets, including offsets propagated through local pointer variables and conditional pointer expressions.
+- Pointee types now survive dereferences through integer pointer offsets, including offsets propagated through local pointer variables and conditional pointer expressions; known pointer-valued offsets are rejected.
 - SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, and broader calling-convention inference. M68k LINK/A6 frames now recover stack parameters from the correct first-argument offset; call-site stack-argument collection and other conventions remain planned.
 - Thumb/Thumb-2 in the main loader and additional PPC extras.

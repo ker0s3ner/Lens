@@ -3328,7 +3328,7 @@ fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>) -> Opti
         Ex::Var(name) => types.get(name).and_then(|ty| ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string())),
         Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
         Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
-        Ex::Bin("+" | "-", base, offset) if matches!(**offset, Ex::Num(_)) => render_pointee_type(base, types),
+        Ex::Bin("+" | "-", base, offset) if render_pointee_type(offset, types).is_none() => render_pointee_type(base, types),
         Ex::Tern(_, yes, no) => {
             let yes = render_pointee_type(yes, types);
             let no = render_pointee_type(no, types);
