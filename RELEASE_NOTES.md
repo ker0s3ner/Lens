@@ -1,3 +1,20 @@
+# Lens 0.6.508 — Fourier
+
+- Import legacy DWARF 2, 3, and 4 bitfields that use `DW_AT_bit_offset`.
+- Keep DWARF 5 `DW_AT_data_bit_offset` handling intact.
+- Convert legacy bit positions for little-endian targets before storing type layouts.
+- Preserve the target bit positions for big-endian layouts.
+- Place legacy bitfields relative to their declared storage member offset.
+- Account for bitfields that begin partway through a multi-byte storage unit.
+- Reject legacy bit positions that extend beyond their declared storage unit.
+- Reject bitfield extents that extend past the containing record.
+- Reject ordinary member extents that extend past the containing record.
+- Check member-end arithmetic for overflow before accepting a DWARF layout.
+- Skip valid unnamed zero-width bitfield separators without discarding the containing record.
+- Avoid wrapping unsigned DWARF enum values that do not fit the signed type database.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.507 — Fourier
 
 - Infer a local's declared type when multiple assignments agree on the same type.

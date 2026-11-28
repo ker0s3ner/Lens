@@ -31,6 +31,7 @@ fn section<'a>(file: &'a object::File<'a>, name: &str) -> Cow<'a, [u8]> {
 
 struct Ctx<'a> {
     dwarf: &'a gimli::Dwarf<R<'a>>,
+    little_endian: bool,
 }
 
 fn attr_string<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, v: AttributeValue<R<'a>>) -> Option<String> {
@@ -169,6 +170,7 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
         let mut fields = vec![];
         let mut enum_values = vec![];
         let mut layout_ok = true;
+        let record_size = e.attr_value(gimli::DW_AT_byte_size)?.and_then(|v| v.udata_value()).and_then(|n| u32::try_from(n).ok());
         let mut depth = 0isize;
         while let Some((d, child)) = tree.next_dfs()? {
             depth += d;
@@ -183,28 +185,48 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();
                     let type_off = match child.attr_value(gimli::DW_AT_type)? { Some(AttributeValue::UnitRef(o)) => Some(o), _ => None };
                     let t = type_name(c, unit, type_off, 0);
-                    body.push(format!("  {} {};", tidy(&t), n).replace("* ", "*"));
                     let bit_width = child.attr_value(gimli::DW_AT_bit_size)?.and_then(|v| v.udata_value()).and_then(|n| u8::try_from(n).ok());
-                    let bit_offset = child.attr_value(gimli::DW_AT_data_bit_offset)?.and_then(|v| v.udata_value());
+                    let data_bit_offset = child.attr_value(gimli::DW_AT_data_bit_offset)?.and_then(|v| v.udata_value());
+                    let legacy_bit_offset = child.attr_value(gimli::DW_AT_bit_offset)?.and_then(|v| v.udata_value());
                     let member_offset = if tag == gimli::DW_TAG_union_type { Some(0) } else {
                         child.attr_value(gimli::DW_AT_data_member_location)?.and_then(|v| member_byte_offset(v, unit.encoding()))
                     };
                     let Some(size) = type_size(unit, type_off, 0) else { layout_ok = false; continue };
+                    if n.is_empty() && bit_width == Some(0) { continue; }
                     if n.is_empty() { layout_ok = false; continue; }
+                    body.push(format!("  {} {};", tidy(&t), n).replace("* ", "*"));
                     if let Some(width) = bit_width {
                         if width == 0 || (width as u32) > size.saturating_mul(8) { layout_ok = false; continue; }
-                        let Some(bits) = bit_offset else { layout_ok = false; continue };
-                        let Some(off) = u32::try_from(bits / 8).ok() else { layout_ok = false; continue };
-                        let Some(bit) = u8::try_from(bits % 8).ok() else { layout_ok = false; continue };
+                        let (off, bit) = if let Some(bits) = data_bit_offset {
+                            (u32::try_from(bits / 8).ok(), u8::try_from(bits % 8).ok())
+                        } else if let (Some(storage_off), Some(bits)) = (member_offset, legacy_bit_offset) {
+                            // DWARF 2-4 count from the high-order end of the storage unit.
+                            // Lens stores bit positions from the low-order end for little-endian values.
+                            let storage_bits = size.saturating_mul(8) as u64;
+                            let width = width as u64;
+                            if bits.checked_add(width).is_none_or(|end| end > storage_bits) {
+                                layout_ok = false;
+                                continue;
+                            }
+                            // DWARF bit_offset has target-byte-order semantics; convert only for little endian.
+                            let bit_position = if c.little_endian { storage_bits - bits - width } else { bits };
+                            (u32::try_from(storage_off).ok(), u8::try_from(bit_position).ok())
+                        } else {
+                            layout_ok = false;
+                            continue;
+                        };
+                        let (Some(off), Some(bit)) = (off, bit) else { layout_ok = false; continue };
+                        if record_size.is_some_and(|total| off.checked_add(size).is_none_or(|end| end > total)) { layout_ok = false; continue; }
                         fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: Some(bit), bit_width: Some(width) });
                     } else {
                         let Some(off) = member_offset.and_then(|n| u32::try_from(n).ok()) else { layout_ok = false; continue };
+                        if record_size.is_some_and(|total| off.checked_add(size).is_none_or(|end| end > total)) { layout_ok = false; continue; }
                         fields.push(crate::types::Field { off, name: n, ty: tidy(&t), size, bit_offset: None, bit_width: None });
                     }
                 }
                 gimli::DW_TAG_enumerator => {
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();
-                    let v = child.attr_value(gimli::DW_AT_const_value)?.and_then(|v| v.sdata_value().or_else(|| v.udata_value().map(|x| x as i64))).unwrap_or(0);
+                    let Some(v) = child.attr_value(gimli::DW_AT_const_value)?.and_then(|v| v.sdata_value().or_else(|| v.udata_value().and_then(|x| i64::try_from(x).ok()))) else { continue };
                     body.push(format!("  {n} = {v},"));
                     if !n.is_empty() { enum_values.push(crate::types::EnumValue { name: n, value: v }); }
                 }
@@ -222,7 +244,7 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
                 parsed.push(crate::types::StructDef { name, fields: vec![], size, is_union: false, is_enum: true, enum_values, alias_of: None });
             }
         } else {
-            let size = e.attr_value(gimli::DW_AT_byte_size)?.and_then(|v| v.udata_value()).and_then(|n| u32::try_from(n).ok());
+            let size = record_size;
             if layout_ok && !fields.is_empty() {
                 if let Some(size) = size {
                     parsed.push(crate::types::StructDef { name, fields, size, is_union: tag == gimli::DW_TAG_union_type, is_enum: false, enum_values: vec![], alias_of: None });
@@ -261,7 +283,7 @@ pub fn extract(bytes: &[u8]) -> Option<DebugInfo> {
         return None;
     }
     let dwarf = read_all(&file, &data)?;
-    let c = Ctx { dwarf: &dwarf };
+    let c = Ctx { dwarf: &dwarf, little_endian: file.is_little_endian() };
     let mut functions = vec![];
     let mut protos = vec![];
     let mut types = vec![];
@@ -422,7 +444,7 @@ mod tests {
             }).unwrap();
             let unit = dwarf.unit(dwarf.units().next().unwrap().unwrap()).unwrap();
             let mut layouts = Vec::new();
-            type_defs(&Ctx { dwarf: &dwarf }, &unit, &mut Vec::new(), &mut layouts).unwrap();
+            type_defs(&Ctx { dwarf: &dwarf, little_endian: true }, &unit, &mut Vec::new(), &mut layouts).unwrap();
             if trailing_op.is_some() {
                 assert!(layouts.is_empty());
             } else {

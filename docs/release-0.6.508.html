@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.508 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.508 — Fourier</h1><p class="lead">Older DWARF bitfield formats now produce bounded, endian-aware type layouts.</p><ul>
+<li>Import legacy DWARF 2, 3, and 4 bitfields that use <code>DW_AT_bit_offset</code>.</li>
+<li>Keep DWARF 5 <code>DW_AT_data_bit_offset</code> handling intact.</li>
+<li>Convert legacy bit positions for little-endian targets; preserve target positions for big-endian layouts.</li>
+<li>Place legacy bitfields relative to their storage member, including positions inside multi-byte storage units.</li>
+<li>Reject bit positions outside their declared storage unit.</li>
+<li>Reject bitfield and ordinary member extents that exceed their containing record.</li>
+<li>Check member-end arithmetic for overflow before accepting a layout.</li>
+<li>Skip valid unnamed zero-width bitfield separators without discarding the record.</li>
+<li>Avoid wrapping unsigned DWARF enum values that do not fit the signed type database.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.508">GitHub release</a></p></main></body></html>
