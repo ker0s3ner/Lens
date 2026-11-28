@@ -1,3 +1,19 @@
+# Lens 0.6.505 — Fourier
+
+- Represent ELF `SHT_NOBITS` sections as virtual zero-fill instead of allocating a buffer per section.
+- Stop expanding ELF load segments to their in-memory size when file-backed bytes are shorter.
+- Stop allocating PE section tails to the full virtual size.
+- Keep Mach-O zero-fill sections empty in the backing store.
+- Stop padding ordinary Mach-O section data with large zero buffers.
+- Read zero-filled addresses from a shared bounded zero chunk on demand.
+- Support zero-filled reads beyond the former 64 MiB per-section allocation cap.
+- Keep virtual segment bounds intact so address navigation still covers zero-fill regions.
+- Show lazy zero-fill bytes as `00` in the Hex view.
+- Preserve file-backed bytes as the only bytes scanned for strings and byte-pattern searches.
+- Reduce loader memory use for large BSS and virtual section tails without changing their mapped ranges.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.504 — Fourier
 
 - Normalize nested `+` and `-` terms in typed pointer addresses before resolving array and struct members.

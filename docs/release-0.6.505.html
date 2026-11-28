@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.505 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.505 — Fourier</h1><p class="lead">Lower memory use for large zero-filled program sections.</p><ul>
+<li>ELF NOBITS and load-segment virtual tails no longer allocate padded zero buffers.</li>
+<li>PE virtual section tails are represented by their mapped size instead of copied zero bytes.</li>
+<li>Mach-O zero-fill sections and padded section tails remain virtual rather than eagerly allocated.</li>
+<li>ELF, PE, and Mach-O keep their full mapped address ranges for navigation and decoding.</li>
+<li>Virtual addresses beyond file-backed data now read as zero bytes through a shared bounded chunk.</li>
+<li>Zero-filled reads work beyond the former 64 MiB allocation cap.</li>
+<li>Hex displays virtual zero-fill as <code>00</code>.</li>
+<li>Byte and string scans continue to inspect file-backed data only.</li>
+<li>Large BSS sections no longer reserve one allocation per section.</li>
+<li>Raw file-backed segment contents and their source offsets remain available.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.505">GitHub release</a></p></main></body></html>

@@ -83,6 +83,11 @@ impl Segment {
     }
 }
 
+// Zero-filled memory (BSS and virtual padding) is represented by the segment's
+// logical size. Reads from it use this shared chunk instead of allocating up
+// to MAX_ZERO_FILL bytes for every section.
+static ZERO_FILL: [u8; 1024 * 1024] = [0; 1024 * 1024];
+
 #[derive(Clone, Debug)]
 pub struct Import {
     /// Address of the pointer slot (GOT / IAT / lazy pointer).
@@ -157,6 +162,10 @@ impl Binary {
                 let end = off.saturating_add(len).min(s.data.len());
                 return &s.data[off..end];
             }
+            if off < usize::try_from(s.size).unwrap_or(usize::MAX) {
+                let remaining = usize::try_from(s.size).unwrap_or(usize::MAX) - off;
+                return &ZERO_FILL[..len.min(remaining).min(ZERO_FILL.len())];
+            }
         }
         &[]
     }
@@ -202,8 +211,6 @@ impl Binary {
 
 /// Which part of a universal (fat) Mach-O to open, e.g. "arm64". Set before calling `load`.
 pub static SLICE_PREF: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
-
-const MAX_ZERO_FILL: u64 = 64 * 1024 * 1024;
 
 fn clean_symbol(name: &str) -> String {
     name.to_string()
@@ -437,7 +444,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             start
         } else { sh.sh_addr };
         let (data, foff) = if sh.sh_type == SHT_NOBITS {
-            (vec![0u8; sh.sh_size.min(MAX_ZERO_FILL) as usize], None)
+            (vec![], None)
         } else {
             let s = sh.sh_offset as usize;
             let e = s.saturating_add(sh.sh_size as usize).min(bytes.len());
@@ -461,8 +468,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             }
             let s = ph.p_offset as usize;
             let e = s.saturating_add(ph.p_filesz as usize).min(bytes.len());
-            let mut data = bytes.get(s..e).unwrap_or(&[]).to_vec();
-            data.resize(ph.p_memsz.min(MAX_ZERO_FILL) as usize, 0);
+            let data = bytes.get(s..e).unwrap_or(&[]).to_vec();
             bin.segments.push(Segment {
                 name: format!("LOAD{}", bin.segments.len()),
                 start: ph.p_vaddr,
@@ -713,8 +719,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
         let vsize = (s.virtual_size.max(s.size_of_raw_data)) as u64;
         let st = s.pointer_to_raw_data as usize;
         let en = st.saturating_add(s.size_of_raw_data as usize).min(bytes.len());
-        let mut data = bytes.get(st..en).unwrap_or(&[]).to_vec();
-        data.resize(vsize.min(MAX_ZERO_FILL) as usize, 0);
+        let data = bytes.get(st..en).unwrap_or(&[]).to_vec();
         let ch = s.characteristics;
         bin.segments.push(Segment {
             name,
@@ -1029,8 +1034,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
                     start
                 } else { sec.addr };
                 let zerofill = matches!(sec.flags & 0xff, 0x1 | 0xc | 0x12);
-                let mut d = if zerofill { vec![] } else { data.to_vec() };
-                d.resize(sec.size.min(MAX_ZERO_FILL) as usize, 0);
+                let d = if zerofill { vec![] } else { data.to_vec() };
                 let exec = sec.flags & 0x8000_0000 != 0 || sec.flags & 0x400 != 0;
                 bin.segments.push(Segment {
                     name: format!("{segname},{sname}"),

@@ -447,9 +447,8 @@ impl LensApp {
                     if !inside {
                         continue;
                     }
-                    let off = (ba - seg.start) as usize;
-                    let (t, ch) = match seg.data.get(off) {
-                        Some(b) => (format!("{b:02X}"), if (0x20..0x7f).contains(b) { *b as char } else { '·' }),
+                    let (t, ch) = match l.bin.read(ba, 1).first().copied() {
+                        Some(b) => (format!("{b:02X}"), if (0x20..0x7f).contains(&b) { b as char } else { '·' }),
                         None => ("??".to_string(), '?'),
                     };
                     let col = if t == "00" {
