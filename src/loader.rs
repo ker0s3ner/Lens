@@ -76,7 +76,7 @@ pub struct Segment {
 
 impl Segment {
     pub fn end(&self) -> u64 {
-        self.start + self.size
+        self.start.saturating_add(self.size)
     }
     pub fn contains(&self, a: u64) -> bool {
         a >= self.start && a < self.end()
@@ -150,9 +150,11 @@ impl Binary {
     }
     pub fn read(&self, a: u64, len: usize) -> &[u8] {
         if let Some(s) = self.segment_of(a) {
-            let off = (a - s.start) as usize;
+            let Some(off) = a.checked_sub(s.start).and_then(|off| usize::try_from(off).ok()) else {
+                return &[];
+            };
             if off < s.data.len() {
-                let end = (off + len).min(s.data.len());
+                let end = off.saturating_add(len).min(s.data.len());
                 return &s.data[off..end];
             }
         }
@@ -279,7 +281,8 @@ pub fn load(path: &str) -> Result<Binary, String> {
         format!("{inside} is a folder; opened the main program inside it: {shown}")
     });
     let path = real.to_str().ok_or("The file's path can't be read as text.")?;
-    let bytes = std::fs::read(path).map_err(|e| format!("Couldn't read the file: {e}"))?;
+    let mut source_bytes = Some(std::fs::read(path).map_err(|e| format!("Couldn't read the file: {e}"))?);
+    let file_size = source_bytes.as_ref().expect("source bytes are present").len() as u64;
     let file_name = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -298,7 +301,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
         imports: vec![],
         exports: vec![],
         libraries: vec![],
-        file_size: bytes.len() as u64,
+        file_size,
         notes: resolved_note.into_iter().collect(),
         slices: vec![],
         big_endian: false,
@@ -310,19 +313,25 @@ pub fn load(path: &str) -> Result<Binary, String> {
         debug_types: String::new(),
         debug_structs: vec![],
     };
-    match Object::parse(&bytes) {
+    let parsed = Object::parse(source_bytes.as_deref().expect("source bytes are present"));
+    match parsed {
         Ok(Object::Elf(elf)) => {
-            load_elf(&mut bin, &elf, &bytes);
+            load_elf(&mut bin, &elf, source_bytes.as_deref().expect("source bytes are present"));
             bin.func_hints = crate::hints::eh_frame(&bin);
+            drop(source_bytes.take());
         }
         Ok(Object::PE(pe)) => {
-            load_pe(&mut bin, &pe, &bytes);
+            load_pe(&mut bin, &pe, source_bytes.as_deref().expect("source bytes are present"));
             if matches!(bin.arch, Arch::X64 | Arch::Arm64) {
                 bin.func_hints = crate::hints::pe_pdata(&bin, pe.image_base as u64);
             }
+            drop(source_bytes.take());
         }
-        Ok(Object::Mach(mach)) => load_mach(&mut bin, mach, &bytes)?,
-        _ => load_raw(&mut bin, &bytes),
+        Ok(Object::Mach(mach)) => {
+            load_mach(&mut bin, mach, source_bytes.as_deref().expect("source bytes are present"))?;
+            drop(source_bytes.take());
+        }
+        _ => load_raw(&mut bin, source_bytes.take().expect("source bytes are present")),
     }
     crate::dwarf::apply(&mut bin);
     bin.symbols.sort();
@@ -335,7 +344,7 @@ pub fn load(path: &str) -> Result<Binary, String> {
 pub static RAW_PREF: std::sync::Mutex<Option<(Arch, bool, u64)>> = std::sync::Mutex::new(None);
 pub static RAW_ENTRY_PREF: std::sync::Mutex<Option<u64>> = std::sync::Mutex::new(None);
 
-fn load_raw(bin: &mut Binary, bytes: &[u8]) {
+fn load_raw(bin: &mut Binary, bytes: Vec<u8>) {
     let pref = RAW_PREF.lock().ok().and_then(|g| *g);
     let entry = RAW_ENTRY_PREF.lock().ok().and_then(|g| *g);
     let (arch, big, base) = pref.unwrap_or((Arch::X64, false, 0));
@@ -356,7 +365,7 @@ fn load_raw(bin: &mut Binary, bytes: &[u8]) {
         name: "RAW".into(),
         start: base,
         size: bytes.len() as u64,
-        data: bytes.to_vec(),
+        data: bytes,
         exec: true,
         write: false,
         file_offset: Some(0),

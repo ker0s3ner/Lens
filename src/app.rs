@@ -1380,16 +1380,16 @@ impl Loaded {
     }
 
     pub fn total_span(&self) -> u64 {
-        self.bin.segments.iter().map(|s| s.size).sum::<u64>().max(1)
+        self.bin.segments.iter().fold(0u64, |total, s| total.saturating_add(s.size)).max(1)
     }
 
     pub fn addr_to_off(&self, a: u64) -> Option<u64> {
         let mut acc = 0;
         for s in &self.bin.segments {
             if s.contains(a) {
-                return Some(acc + (a - s.start));
+            return Some(acc.saturating_add(a - s.start));
             }
-            acc += s.size;
+            acc = acc.saturating_add(s.size);
         }
         None
     }
@@ -1417,7 +1417,7 @@ fn build_nav(l: &Loaded) -> Vec<u8> {
     let mut acc = 0;
     for s in &l.bin.segments {
         seg_off.push((s.start, s.end(), acc));
-        acc += s.size;
+        acc = acc.saturating_add(s.size);
     }
     let import_funcs: std::collections::HashSet<u64> =
         l.an.functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
@@ -1445,9 +1445,9 @@ fn build_nav(l: &Loaded) -> Vec<u8> {
         if line.addr < seg_off[si].0 {
             continue;
         }
-        let o = seg_off[si].2 + (line.addr - seg_off[si].0);
+        let o = seg_off[si].2.saturating_add(line.addr - seg_off[si].0);
         let b0 = (o as u128 * NAV_BUCKETS as u128 / total as u128) as usize;
-        let b1 = ((o + line.len.max(1) as u64) as u128 * NAV_BUCKETS as u128 / total as u128) as usize;
+        let b1 = (o.saturating_add(line.len.max(1) as u64) as u128 * NAV_BUCKETS as u128 / total as u128) as usize;
         for b in b0.min(NAV_BUCKETS - 1)..=b1.min(NAV_BUCKETS - 1) {
             if nav[b] < cat {
                 nav[b] = cat;
