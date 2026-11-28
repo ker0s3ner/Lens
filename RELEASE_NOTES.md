@@ -1,3 +1,39 @@
+# Lens 0.6.514 — Fourier
+
+- Resolve x86/x64 forwarding stubs that load a known function address into a register before a tail jump.
+- Resolve register jumps fed by RIP-relative `lea` address materialization.
+- Resolve register jumps fed by an import-slot load.
+- Recognize known-target `push immediate; ret` forwarding stubs on x86.
+- Add resolved forwarding destinations to function call lists.
+- Add call xrefs for the newly resolved tail-transfer forms.
+- Match cross-capability triage evidence to each participating imported API.
+- Show correlated heuristic signals on matching runtime API call events.
+- Make cross-capability API events available to the existing category filter and call-site watchpoints.
+- Add a prototype for `openat` with path, directory descriptor, flags, and optional mode.
+- Add a prototype for `openat2` with its versioned options-structure pointer and size.
+- Add prototypes for `renameat` and `renameat2`, including the rename flags argument.
+- Add a prototype for `unlinkat` with directory-relative path and removal flags.
+- Add prototypes for `faccessat` and `fchownat` with their directory-relative arguments.
+- Add a prototype for `execveat` with its descriptor, path, argument vector, environment, and flags.
+- Add a prototype for Linux `close_range` descriptor bounds and flags.
+- Add a prototype for `getrandom` with a buffer, length, and flags.
+- Add prototypes for variadic `prctl` and `seccomp` policy operations.
+- Add prototypes for `pidfd_open` and `pidfd_send_signal`.
+- Add prototypes for `copy_file_range` and `splice` offset and transfer arguments.
+- Add prototypes for Landlock ruleset creation, rule addition, and self-restriction.
+- Add prototypes for OpenBSD `pledge` and `unveil` sandbox policy calls.
+- Classify sandbox and syscall policy imports as a separate static capability.
+- Add a low-severity, evidence-linked sandbox policy triage signal without treating it as malicious behavior.
+- Add a dedicated sandbox category to debugger runtime-event filtering.
+- Classify path-relative rename/removal and zero-copy transfer APIs as filesystem events.
+- Classify pidfd operations and descriptor-range changes as process events.
+- Symbolize common Linux `openat` access/create/directory/synchronous/temp-file flags in pseudocode.
+- Symbolize `renameat2`, `unlinkat`, `faccessat`, `fchownat`, and `execveat` flags.
+- Symbolize `close_range` and `getrandom` flags.
+- Symbolize common `prctl` options and `seccomp` operations/filter flags.
+- Keep weighted IDA Pro parity at 41.8% until a full category re-audit; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.513 — Fourier
 
 - Bound direct callee collection before graph construction to keep high-fanout functions from creating oversized temporary lists.

@@ -303,6 +303,8 @@ int prctl(int option, ...); int seccomp(unsigned operation, unsigned flags, void
 int pidfd_open(pid_t pid, unsigned flags); int pidfd_send_signal(int pidfd, int signal, const void *info, unsigned flags);
 int copy_file_range(int fd_in, long long *off_in, int fd_out, long long *off_out, size_t len, unsigned flags);
 ssize_t splice(int fd_in, long long *off_in, int fd_out, long long *off_out, size_t len, unsigned flags);
+int landlock_create_ruleset(const void *attr, size_t size, unsigned flags); int landlock_add_rule(int ruleset_fd, int rule_type, const void *rule_attr, unsigned flags); int landlock_restrict_self(int ruleset_fd, unsigned flags);
+int pledge(const char *promises, const char *execpromises); int unveil(const char *path, const char *permissions);
 ssize_t pread(int fd, void *buf, size_t n, off_t off); ssize_t pwrite(int fd, const void *buf, size_t n, off_t off);
 ssize_t readv(int fd, const void *iov, int count); ssize_t writev(int fd, const void *iov, int count);
 off_t lseek(int fd, off_t off, int whence); int stat(const char *path, void *st); int fstat(int fd, void *st); int unlink(const char *path); int access(const char *path, int mode);

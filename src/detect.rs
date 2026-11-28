@@ -161,6 +161,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Memory tricks") {
         out.push(ThreatSignal { severity: 2, name: "Executable memory or process tampering".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Sandbox and syscall policy") {
+        out.push(ThreatSignal { severity: 1, name: "Sandbox policy configuration".into(), evidence: format!("imports: {}; inspect arguments and call sites to see which restrictions are requested", c.apis.join(", ")) });
+    }
     if let Some(c) = has("Process injection primitives") {
         out.push(ThreatSignal { severity: 3, name: "Possible process injection".into(), evidence: format!("imports: {}; both memory-write/allocation and remote-thread-control primitives are present; runtime call correlation can highlight observed APIs", c.apis.join(", ")) });
     }
@@ -633,7 +636,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
     ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "NtReadVirtualMemory", "ZwReadVirtualMemory", "NtQueryVirtualMemory", "ZwQueryVirtualMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "mremap", "madvise", "mlock", "munlock", "ptrace", "task_for_pid", "mach_vm_"]),
     ("Shared and anonymous memory APIs", &["memfd_create", "memfd_secret", "shm_open", "shmget", "shmat"]),
-    ("Sandbox and syscall policy", &["seccomp", "prctl", "landlock_create_ruleset", "pledge", "unveil"]),
+    ("Sandbox and syscall policy", &["seccomp", "prctl", "landlock_", "pledge", "unveil"]),
     ("Process injection primitives", &["WriteProcessMemory", "NtWriteVirtualMemory", "ZwWriteVirtualMemory", "NtAllocateVirtualMemory", "ZwAllocateVirtualMemory", "NtProtectVirtualMemory", "ZwProtectVirtualMemory", "NtMapViewOfSection", "ZwMapViewOfSection", "process_vm_writev", "mach_vm_write", "mach_vm_allocate", "mach_vm_map", "mach_vm_protect", "task_write_for_pid", "VirtualAllocEx", "CreateRemoteThread", "NtCreateThreadEx", "ZwCreateThreadEx", "QueueUserAPC", "NtQueueApcThread", "ZwQueueApcThread", "RtlCreateUserThread", "SetThreadContext", "NtSetContextThread", "ZwSetContextThread", "thread_create_running", "thread_set_state", "ptrace"]),
     ("Anti-debugging", &["IsDebuggerPresent", "CheckRemoteDebuggerPresent", "NtQueryInformationProcess", "OutputDebugString", "ptrace", "sysctl", "PT_DENY_ATTACH"]),
     ("Loads code at run time", &["LoadLibrary", "GetProcAddress", "LdrLoadDll", "dlopen", "dlsym", "NSBundle", "CFBundle", "fexecve"]),

@@ -47,7 +47,7 @@ pub fn symbolize(os: Os, func: &str, idx: usize, n: i64) -> Option<String> {
             let mode = match n & 3 { 0 => "O_RDONLY", 1 => "O_WRONLY", _ => "O_RDWR" };
             let extra: &[(u64, &str)] = match os {
                 Os::Mac => &[(0x4, "O_NONBLOCK"), (0x8, "O_APPEND"), (0x200, "O_CREAT"), (0x400, "O_TRUNC"), (0x800, "O_EXCL"), (0x100_0000, "O_CLOEXEC")],
-                _ => &[(0x40, "O_CREAT"), (0x80, "O_EXCL"), (0x200, "O_TRUNC"), (0x400, "O_APPEND"), (0x800, "O_NONBLOCK"), (0x8_0000, "O_CLOEXEC")],
+                _ => &[(0x40, "O_CREAT"), (0x80, "O_EXCL"), (0x100, "O_NOCTTY"), (0x200, "O_TRUNC"), (0x400, "O_APPEND"), (0x800, "O_NONBLOCK"), (0x10_1000, "O_SYNC"), (0x1000, "O_DSYNC"), (0x4000, "O_DIRECT"), (0x8000, "O_LARGEFILE"), (0x41_0000, "O_TMPFILE"), (0x1_0000, "O_DIRECTORY"), (0x2_0000, "O_NOFOLLOW"), (0x4_0000, "O_NOATIME"), (0x8_0000, "O_CLOEXEC"), (0x20_0000, "O_PATH")],
             };
             let rest = n & !3;
             if rest == 0 { return Some(mode.to_string()); }
@@ -71,6 +71,15 @@ pub fn symbolize(os: Os, func: &str, idx: usize, n: i64) -> Option<String> {
             exact(n, t)
         }),
         ("access", 1) => if n == 0 { Some("F_OK".into()) } else { flags(n, &[(4, "R_OK"), (2, "W_OK"), (1, "X_OK")]) },
+        ("renameat2", 4) => if os == Os::Linux { flags(n, &[(1, "RENAME_NOREPLACE"), (2, "RENAME_EXCHANGE"), (4, "RENAME_WHITEOUT")]) } else { None },
+        ("unlinkat", 2) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(0x200, "AT_REMOVEDIR")]) } else { None },
+        ("faccessat", 3) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(0x100, "AT_SYMLINK_NOFOLLOW"), (0x200, "AT_EACCESS"), (0x1000, "AT_EMPTY_PATH")]) } else { None },
+        ("fchownat", 4) | ("execveat", 4) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(0x100, "AT_SYMLINK_NOFOLLOW"), (0x1000, "AT_EMPTY_PATH")]) } else { None },
+        ("close_range", 2) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(2, "CLOSE_RANGE_UNSHARE"), (4, "CLOSE_RANGE_CLOEXEC")]) } else { None },
+        ("getrandom", 2) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(1, "GRND_NONBLOCK"), (2, "GRND_RANDOM"), (4, "GRND_INSECURE")]) } else { None },
+        ("prctl", 0) => if os == Os::Linux { exact(n, &[(1, "PR_SET_PDEATHSIG"), (2, "PR_GET_PDEATHSIG"), (4, "PR_GET_DUMPABLE"), (15, "PR_SET_DUMPABLE"), (16, "PR_GET_NAME"), (22, "PR_SET_NAME"), (38, "PR_SET_NO_NEW_PRIVS"), (39, "PR_GET_NO_NEW_PRIVS"), (47, "PR_SET_SECCOMP")]) } else { None },
+        ("seccomp", 0) => if os == Os::Linux { exact(n, &[(0, "SECCOMP_SET_MODE_STRICT"), (1, "SECCOMP_SET_MODE_FILTER"), (2, "SECCOMP_GET_ACTION_AVAIL"), (3, "SECCOMP_GET_NOTIF_SIZES")]) } else { None },
+        ("seccomp", 1) => if n == 0 { Some("0".into()) } else if os == Os::Linux { flags(n, &[(1, "SECCOMP_FILTER_FLAG_TSYNC"), (2, "SECCOMP_FILTER_FLAG_LOG"), (4, "SECCOMP_FILTER_FLAG_SPEC_ALLOW"), (8, "SECCOMP_FILTER_FLAG_NEW_LISTENER"), (16, "SECCOMP_FILTER_FLAG_TSYNC_ESRCH"), (32, "SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV")]) } else { None },
         ("VirtualAlloc", 2) | ("VirtualFree", 2) => flags(n, &[(0x1000, "MEM_COMMIT"), (0x2000, "MEM_RESERVE"), (0x8000, "MEM_RELEASE"), (0x4000, "MEM_DECOMMIT")]),
         ("VirtualAlloc", 3) | ("VirtualProtect", 2) => exact(n, &[(0x01, "PAGE_NOACCESS"), (0x02, "PAGE_READONLY"), (0x04, "PAGE_READWRITE"), (0x10, "PAGE_EXECUTE"), (0x20, "PAGE_EXECUTE_READ"), (0x40, "PAGE_EXECUTE_READWRITE")]),
         ("CreateFile", 1) => flags(n, &[(0x8000_0000, "GENERIC_READ"), (0x4000_0000, "GENERIC_WRITE"), (0x2000_0000, "GENERIC_EXECUTE")]),
