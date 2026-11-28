@@ -1502,7 +1502,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 // Mach-O can mark literal pools embedded in executable
                 // sections. Never turn a recognizable byte sequence inside
                 // one of those ranges into a guessed function start.
-                let in_marked_data = bin.data_ranges.iter().any(|(start, end)| a >= *start && a < *end);
+                let in_marked_data = bin.is_marked_data(a);
                 if hit && !in_marked_data && !covered(&insns, a) {
                     push(&mut queue, a);
                     found += 1;

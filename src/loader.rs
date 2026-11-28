@@ -219,7 +219,11 @@ impl Binary {
     }
     pub fn is_exec(&self, a: u64) -> bool {
         self.segment_of(a).map(|s| s.exec).unwrap_or(false)
-            && !self.data_ranges.iter().any(|(start, end)| a >= *start && a < *end)
+            && !self.is_marked_data(a)
+    }
+    pub fn is_marked_data(&self, a: u64) -> bool {
+        let ix = self.data_ranges.partition_point(|(start, _)| *start <= a);
+        ix.checked_sub(1).and_then(|i| self.data_ranges.get(i)).is_some_and(|(_, end)| a < *end)
     }
     pub fn read_ptr(&self, a: u64) -> Option<u64> {
         let w = (self.arch.bits() / 8) as usize;
@@ -1115,14 +1119,29 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
                 let length = u16_at(off + 4) as u64;
                 if length != 0 {
                     if let Some(seg) = m.segments.iter().find(|seg| file_offset >= seg.fileoff && file_offset < seg.fileoff.saturating_add(seg.filesize)) {
-                        let addr = seg.vmaddr.saturating_add(file_offset - seg.fileoff);
-                        bin.data_ranges.push((addr, addr.saturating_add(length)));
+                        let delta = file_offset - seg.fileoff;
+                        let Some(addr) = seg.vmaddr.checked_add(delta) else { off += 8; continue };
+                        let bounded_length = length.min(seg.filesize - delta);
+                        if let Some(end) = addr.checked_add(bounded_length).filter(|end| *end > addr) {
+                            bin.data_ranges.push((addr, end));
+                        }
                     }
                 }
                 off += 8;
             }
         }
         if !bin.data_ranges.is_empty() {
+            bin.data_ranges.sort_unstable();
+            let mut merged: Vec<(u64, u64)> = Vec::with_capacity(bin.data_ranges.len());
+            for (start, end) in bin.data_ranges.drain(..) {
+                if start >= end { continue; }
+                if let Some((_, last_end)) = merged.last_mut().filter(|(_, last_end)| start <= *last_end) {
+                    *last_end = (*last_end).max(end);
+                } else {
+                    merged.push((start, end));
+                }
+            }
+            bin.data_ranges = merged;
             bin.notes.push(format!("Mach-O LC_DATA_IN_CODE: {} embedded-data range(s) excluded from code discovery.", bin.data_ranges.len()));
         }
     }

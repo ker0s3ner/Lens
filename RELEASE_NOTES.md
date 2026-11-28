@@ -1,3 +1,20 @@
+# Lens 0.6.510 — Fourier
+
+- Sort Mach-O embedded-data address ranges once after parsing `LC_DATA_IN_CODE`.
+- Merge overlapping embedded-data records into one interval.
+- Merge adjacent intervals so lookup ranges stay compact.
+- Ignore empty and reversed ranges before indexing them.
+- Clip each data record to the remaining file-backed bytes in its containing Mach-O segment.
+- Check virtual-address addition before accepting a marked-data range.
+- Use binary search for repeated embedded-data address membership checks.
+- Route executable-address checks through the indexed range lookup.
+- Use the indexed lookup during function-prologue discovery.
+- Keep literal pools marked as data even when overlapping or adjacent records describe them.
+- Prevent malformed data records from hiding code beyond their containing file segment.
+- Keep non-Mach-O binaries on the existing empty-range fast path.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.509 — Fourier
 
 - Share segment byte buffers across cloned binary-analysis snapshots.

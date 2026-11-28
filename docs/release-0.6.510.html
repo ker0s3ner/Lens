@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.510 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.510 — Fourier</h1><p class="lead">Mach-O embedded-data ranges are now validated and indexed for repeated code/data checks.</p><ul>
+<li>Sort LC_DATA_IN_CODE ranges once after parsing.</li>
+<li>Merge overlapping and adjacent ranges into compact intervals.</li>
+<li>Skip empty or reversed intervals.</li>
+<li>Clip embedded-data ranges to the file-backed portion of their containing segment.</li>
+<li>Check virtual-address addition before accepting each interval.</li>
+<li>Use binary search for repeated executable and function-prologue membership checks.</li>
+<li>Keep embedded literal pools excluded from guessed function starts.</li>
+<li>Keep non-Mach-O analysis on the empty-range path.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.510">GitHub release</a></p></main></body></html>
