@@ -273,6 +273,7 @@ char *strtok(char *s, const char *delim); size_t strspn(const char *s, const cha
 char *strerror(int errnum); char *strpbrk(const char *s, const char *accept); size_t strlcpy(char *dst, const char *src, size_t n); size_t strlcat(char *dst, const char *src, size_t n);
 // ---- stdlib
 void *malloc(size_t size); void *calloc(size_t n, size_t size); void *realloc(void *p, size_t size); void free(void *p);
+void *reallocarray(void *p, size_t n, size_t size); int posix_memalign(void **out, size_t alignment, size_t size); void *aligned_alloc(size_t alignment, size_t size);
 void *operator new(size_t size); void operator delete(void *p); void *operator new[](size_t size); void operator delete[](void *p);
 void exit(int status) noreturn; void abort(void) noreturn; void _exit(int status) noreturn; int atexit(void (*fn)(void));
 int atoi(const char *s); long atol(const char *s); long strtol(const char *s, char **end, int base); unsigned long strtoul(const char *s, char **end, int base); long long strtoll(const char *s, char **end, int base); unsigned long long strtoull(const char *s, char **end, int base);
@@ -307,6 +308,14 @@ ssize_t process_vm_writev(pid_t pid, const void *local_iov, unsigned long local_
 ssize_t process_vm_readv(pid_t pid, const void *local_iov, unsigned long local_count, const void *remote_iov, unsigned long remote_count, unsigned long flags);
 long ptrace(int request, pid_t pid, void *addr, void *data);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
+void *mmap64(void *addr, size_t len, int prot, int flags, int fd, long long off); void *mremap(void *old_addr, size_t old_size, size_t new_size, int flags, ...);
+int madvise(void *addr, size_t len, int advice); int mincore(void *addr, size_t len, unsigned char *vec); int mlock(const void *addr, size_t len); int munlock(const void *addr, size_t len);
+int mlockall(int flags); int munlockall(void); int mlock2(const void *addr, size_t len, int flags); int brk(void *addr); void *sbrk(intptr_t increment);
+void *valloc(size_t size); void *pvalloc(size_t size); int posix_fadvise(int fd, off_t offset, off_t len, int advice);
+int shm_open(const char *name, int flags, mode_t mode); int shm_unlink(const char *name); int shmget(int key, size_t size, int flags);
+void *shmat(int shmid, const void *addr, int flags); int shmdt(const void *addr); int shmctl(int shmid, int cmd, void *buf);
+int memfd_create(const char *name, unsigned int flags); int memfd_secret(unsigned int flags); int fexecve(int fd, char *const argv[], char *const envp[]);
+int fallocate(int fd, int mode, off_t offset, off_t len); int ftruncate(int fd, off_t len);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
 int dladdr(const void *addr, void *info); char *dlerror(void); void *dlvsym(void *h, const char *name, const char *version);
 int fcntl(int fd, int cmd, ...); int isatty(int fd); int getopt(int argc, char *const argv[], const char *opts); uid_t getuid(void); int chmod(const char *path, mode_t mode);

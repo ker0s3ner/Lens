@@ -18,12 +18,14 @@ BASE = 0x400000
 ENTRY = BASE + PAGE
 DATA_OFFSET = 2 * PAGE
 SEGMENT_SIZE = 64 * MIB
-FILE_SIZE = DATA_OFFSET + 2 * SEGMENT_SIZE
-FIXTURE_SHA256 = "fa8763364a2cecf7fe79c1f76f7fb3fb2c857e716f1272b7d0b03f2a9a3280a5"
+FILE_SIZE = DATA_OFFSET + PAGE
+BSS1 = BASE + 0x10000
+BSS2 = BSS1 + SEGMENT_SIZE + PAGE
+FIXTURE_SHA256 = "471270425f474e2612c1ab77a99483e026d85c19e54e32ea8597688cc17001c7"
 MARKER = b"LENS large-file fixture end"
 MARKER_OFFSET = FILE_SIZE - len(MARKER) - 1
 SECONDS_LIMIT = 120
-RSS_LIMIT_MIB = 1024
+RSS_LIMIT_MIB = 256
 
 
 def make_fixture(path):
@@ -31,21 +33,19 @@ def make_fixture(path):
     code = bytes.fromhex("b8 3c 00 00 00 31 ff 0f 05")
     ident = b"\x7fELF\x02\x01\x01".ljust(16, b"\0")
     header = struct.pack("<16sHHIQQQIHHHHHH", ident, 2, 62, 1, ENTRY, 64,
-                         0, 0, 64, 56, 3, 64, 0, 0)
-    segments = [(PAGE, len(code), 5), (DATA_OFFSET, SEGMENT_SIZE, 4),
-                (DATA_OFFSET + SEGMENT_SIZE, SEGMENT_SIZE, 4)]
+                         0, 0, 64, 56, 4, 64, 0, 0)
+    segments = [(PAGE, BASE + PAGE, len(code), len(code), 5),
+                (DATA_OFFSET, BASE + DATA_OFFSET, PAGE, PAGE, 4),
+                (0, BSS1, 0, SEGMENT_SIZE, 4), (0, BSS2, 0, SEGMENT_SIZE, 4)]
     with path.open("xb") as stream:
         stream.write(header)
-        for offset, size, flags in segments:
-            address = BASE + offset
+        for offset, address, file_size, memory_size, flags in segments:
             stream.write(struct.pack("<IIQQQQQQ", 1, flags, offset, address,
-                                     address, size, size, PAGE))
+                                     address, file_size, memory_size, PAGE))
         stream.seek(PAGE)
         stream.write(code)
-        stream.seek(DATA_OFFSET)
-        zeros = bytes(MIB)
-        for _ in range(2 * SEGMENT_SIZE // MIB):
-            stream.write(zeros)
+        # Leave the rest of the tiny file sparse. The two large ELF segments
+        # have p_filesz=0 and p_memsz=64 MiB, exercising lazy virtual zeros.
         stream.seek(MARKER_OFFSET)
         stream.write(MARKER + b"\0")
     path.chmod(0o400)
@@ -61,11 +61,13 @@ def validate(report):
             raise ValueError(f"{key}: expected {value!r}, got {report.get(key)!r}")
     if not any(i["address"] == ENTRY and i["length"] == 5 for i in report["instruction_records"]):
         raise ValueError("missing decoded entry instruction")
-    mapped = {(s["file_offset"], s["start"], s["file_bytes"]) for s in report["segment_records"]
+    mapped = {(s["file_offset"], s["start"], s["file_bytes"], s["size"]) for s in report["segment_records"]
               if not s["executable"] and not s["writable"]}
-    for offset in (DATA_OFFSET, DATA_OFFSET + SEGMENT_SIZE):
-        if (offset, BASE + offset, SEGMENT_SIZE) not in mapped:
-            raise ValueError(f"incomplete read-only data segment at file offset {offset:#x}")
+    expected_segments = {(DATA_OFFSET, BASE + DATA_OFFSET, PAGE, PAGE),
+                         (0, BSS1, 0, SEGMENT_SIZE), (0, BSS2, 0, SEGMENT_SIZE)}
+    for segment in expected_segments:
+        if segment not in mapped:
+            raise ValueError(f"missing read-only file or zero-fill segment {segment!r}")
     if not any(s["address"] == BASE + MARKER_OFFSET and s["text"] == MARKER.decode("ascii")
                for s in report["string_records"]):
         raise ValueError("missing end-of-file marker at its mapped address")
@@ -89,7 +91,8 @@ def measure(lens, fixture, report_path):
             elapsed = time.monotonic() - start
             # Lens is this script's only child. Linux reports ru_maxrss in KiB.
             rss_mib = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024
-            metrics = (f"{fixture.stat().st_size:,} bytes | wall {elapsed:.3f} s "
+            metrics = (f"{fixture.stat().st_size:,} file bytes | {2 * SEGMENT_SIZE // MIB} MiB virtual zero-fill "
+                       f"| wall {elapsed:.3f} s "
                        f"(limit {SECONDS_LIMIT} s) | peak RSS {rss_mib:.2f} MiB "
                        f"(limit {RSS_LIMIT_MIB} MiB)")
             print(metrics, flush=True)

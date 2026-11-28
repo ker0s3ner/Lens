@@ -17,6 +17,7 @@ const CALL_GRAPH_MAX_NEIGHBORS: usize = 24;
 const CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION: usize = 8192;
 const CALL_GRAPH_MAX_EDGES: usize = 2048;
 const CALL_GRAPH_MAX_CALLER_XREFS: usize = CALL_GRAPH_MAX_NEIGHBORS * 8;
+const CALL_GRAPH_MAX_CALLEE_TARGETS: usize = CALL_GRAPH_MAX_NEIGHBORS * 8;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -26,7 +27,7 @@ pub struct VisState {
     pub cg_zoom: f32,
     pub cg_depth: usize,
     pub cg_for: u64,
-    pub cg_cache: Option<(u64, usize, u64, Vec<CNode>, Vec<(usize, usize)>)>,
+    pub cg_cache: Option<(u64, usize, u64, Vec<CNode>, Vec<(usize, usize)>, bool, bool)>,
     pub map_mode: u8,
     pub map_pan: Vec2,
     pub map_zoom: f32,
@@ -717,18 +718,18 @@ impl LensApp {
             ui.add_space(10.0);
             ui.label(RichText::new("callers (left)  ->  this function  ->  callees (right)").small().color(p.faint));
         });
-        if vis.cg_cache.as_ref().map(|(cached_for, cached_depth, cached_version, _, _)| (*cached_for, *cached_depth, *cached_version)) != Some((fs, vis.cg_depth, l.version)) {
-            let (nodes, edges) = build_callgraph(l, fs, vis.cg_depth);
-            vis.cg_cache = Some((fs, vis.cg_depth, l.version, nodes, edges));
+        if vis.cg_cache.as_ref().map(|(cached_for, cached_depth, cached_version, ..)| (*cached_for, *cached_depth, *cached_version)) != Some((fs, vis.cg_depth, l.version)) {
+            let (nodes, edges, nodes_truncated, edges_truncated) = build_callgraph(l, fs, vis.cg_depth);
+            vis.cg_cache = Some((fs, vis.cg_depth, l.version, nodes, edges, nodes_truncated, edges_truncated));
         }
-        let Some((_, _, _, nodes, edges)) = vis.cg_cache.as_ref() else {
+        let Some((_, _, _, nodes, edges, nodes_truncated, edges_truncated)) = vis.cg_cache.as_ref() else {
             ui.centered_and_justified(|ui| ui.label(RichText::new("Call graph is still preparing…").color(p.muted)));
             return;
         };
-        if nodes.len() >= CALL_GRAPH_MAX_NODES {
-            ui.label(RichText::new("large graph truncated for responsiveness").small().color(p.nav_unexplored));
+        if *nodes_truncated {
+            ui.label(RichText::new("some graph relationships may be hidden by responsiveness limits").small().color(p.nav_unexplored));
         }
-        if edges.len() >= CALL_GRAPH_MAX_EDGES {
+        if *edges_truncated {
             ui.label(RichText::new("edge limit reached; some relationships are hidden").small().color(p.nav_unexplored));
         }
         let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
@@ -1091,59 +1092,69 @@ pub struct CNode {
     pub noreturn: bool,
 }
 
-fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
-    let Some(func) = l.an.functions.get(&f) else { return vec![] };
+fn callees_of(l: &Loaded, f: u64) -> (Vec<u64>, bool) {
+    let Some(func) = l.an.functions.get(&f) else { return (vec![], false) };
     if func.kind == FuncKind::Import {
-        return vec![];
+        return (vec![], false);
     }
     // Analysis already canonicalizes direct calls, indirect import-slot calls,
     // and conservative tail-call edges in Function::calls. Reusing that index
     // avoids rescanning thousands of instructions every time the graph opens.
-    let mut v: Vec<u64> = func.calls.iter().copied()
+    let mut truncated = func.calls.len() > CALL_GRAPH_MAX_CALLEE_TARGETS || func.insn_count > CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION;
+    let mut v: Vec<u64> = func.calls.iter().copied().take(CALL_GRAPH_MAX_CALLEE_TARGETS)
         .filter(|target| l.an.functions.contains_key(target))
         .collect();
     // Indirect switch cases have no single instruction target. Walk only this
     // function's instructions and consult the analyzer's indexed switch map;
     // this bounded scan preserves case edges without redoing call discovery.
+    let mut switch_target_budget = CALL_GRAPH_MAX_CALLEE_TARGETS;
     for a in func.blocks.iter().flat_map(|b| b.insns.iter().copied()).take(CALL_GRAPH_MAX_INSTRUCTIONS_PER_FUNCTION) {
+        if switch_target_budget == 0 { truncated = true; break; }
         if let Some(targets) = l.an.switches.get(&a) {
-            v.extend(targets.iter().copied().filter(|target| l.an.functions.contains_key(target)));
+            let inspected = targets.len().min(switch_target_budget);
+            v.extend(targets.iter().copied().take(inspected).filter(|target| l.an.functions.contains_key(target)));
+            truncated |= targets.len() > inspected;
+            switch_target_budget -= inspected;
         }
     }
     v.sort_unstable();
     v.dedup();
-    v
+    truncated |= v.len() > CALL_GRAPH_MAX_CALLEE_TARGETS;
+    v.truncate(CALL_GRAPH_MAX_CALLEE_TARGETS);
+    (v, truncated)
 }
 
-fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
+fn callers_of(l: &Loaded, f: u64) -> (Vec<u64>, bool) {
     // Analysis keeps each xref list sorted by source address. Filter and cap
     // before resolving containing functions so extreme fan-in stays bounded.
     let mut v = Vec::with_capacity(CALL_GRAPH_MAX_NEIGHBORS * 4);
+    let mut truncated = false;
     if let Some(refs) = l.an.xrefs_to.get(&f) {
-        for x in refs.iter()
-            .filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump))
-            .take(CALL_GRAPH_MAX_CALLER_XREFS)
-        {
+        let mut matching = refs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump));
+        for _ in 0..CALL_GRAPH_MAX_CALLER_XREFS {
+            let Some(x) = matching.next() else { break };
             if let Some(caller) = l.an.function_containing(x.from).map(|func| func.start) {
                 if caller != f { v.push(caller); }
             }
         }
+        truncated = matching.next().is_some();
     }
     v.sort_unstable();
     v.dedup();
+    truncated |= v.len() > CALL_GRAPH_MAX_NEIGHBORS * 4;
     v.truncate(CALL_GRAPH_MAX_NEIGHBORS * 4);
-    v
+    (v, truncated)
 }
 
-pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>) {
+pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Vec<(usize, usize)>, bool, bool) {
     if !l.an.functions.contains_key(&center) {
-        return (Vec::new(), Vec::new());
+        return (Vec::new(), Vec::new(), false, false);
     }
     // Keep the first render bounded even if a future caller supplies an
     // untrusted depth (the UI currently exposes only 1..=3).
     let depth = depth.min(3);
-    let mut callees_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
-    let mut callers_cache: HashMap<u64, Vec<u64>> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
+    let mut callees_cache: HashMap<u64, (Vec<u64>, bool)> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
+    let mut callers_cache: HashMap<u64, (Vec<u64>, bool)> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     let mk = |addr: u64, layer: i32| -> CNode {
         let f = l.an.functions.get(&addr);
         let name = l.name(addr).map(display_symbol).unwrap_or_else(|| format!("{addr:X}"));
@@ -1160,6 +1171,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         CNode { addr, layer, y: 0.0, name, sub, import, noreturn: f.map(|f| f.noreturn).unwrap_or(false) }
     };
     let mut nodes = Vec::with_capacity(CALL_GRAPH_MAX_NODES);
+    let mut nodes_truncated = false;
     nodes.push(mk(center, 0));
     let mut idx: HashMap<u64, usize> = HashMap::with_capacity(CALL_GRAPH_MAX_NODES);
     idx.insert(center, 0);
@@ -1169,35 +1181,48 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
         for d in 1..=depth as i32 {
             let mut next = Vec::with_capacity(CALL_GRAPH_MAX_NEIGHBORS);
             for a in &frontier {
-                if nodes.len() >= CALL_GRAPH_MAX_NODES { break; }
-                let list = if dir > 0 {
+                let (list, limit_hit) = if dir > 0 {
                     callees_cache.entry(*a).or_insert_with(|| callees_of(l, *a))
                 } else {
                     callers_cache.entry(*a).or_insert_with(|| callers_of(l, *a))
                 };
+                nodes_truncated |= *limit_hit;
                 for &c in list.iter().take(CALL_GRAPH_MAX_NEIGHBORS) {
                     if !idx.contains_key(&c) && nodes.len() < CALL_GRAPH_MAX_NODES {
                         idx.insert(c, nodes.len());
                         nodes.push(mk(c, dir * d));
                         next.push(c);
+                    } else if !idx.contains_key(&c) {
+                        nodes_truncated = true;
                     }
                 }
             }
             frontier = next;
         }
     }
+    for list in callees_cache.values().chain(callers_cache.values()).map(|(list, _)| list) {
+        if list.iter().skip(CALL_GRAPH_MAX_NEIGHBORS).any(|target| !idx.contains_key(target)) {
+            nodes_truncated = true;
+            break;
+        }
+    }
     // edges among the nodes shown
     let mut edges: Vec<(usize, usize)> = Vec::with_capacity(CALL_GRAPH_MAX_EDGES);
+    let mut edges_truncated = false;
     let mut seen_edges: HashSet<(usize, usize)> = HashSet::with_capacity(CALL_GRAPH_MAX_EDGES);
     let mut addrs: Vec<u64> = Vec::with_capacity(nodes.len());
     addrs.extend(nodes.iter().map(|n| n.addr));
     'collect_edges: for (i, a) in addrs.iter().enumerate() {
-        for c in callees_cache.entry(*a).or_insert_with(|| callees_of(l, *a)).iter() {
+        for c in callees_cache.entry(*a).or_insert_with(|| callees_of(l, *a)).0.iter() {
             if let Some(&j) = idx.get(c) {
                 if i != j {
                     if seen_edges.insert((i, j)) {
-                        edges.push((i, j));
-                        if edges.len() == CALL_GRAPH_MAX_EDGES { break 'collect_edges; }
+                        if edges.len() < CALL_GRAPH_MAX_EDGES {
+                            edges.push((i, j));
+                        } else {
+                            edges_truncated = true;
+                            break 'collect_edges;
+                        }
                     }
                 }
             }
@@ -1237,7 +1262,7 @@ pub fn build_callgraph(l: &Loaded, center: u64, depth: usize) -> (Vec<CNode>, Ve
             }
         }
     }
-    (nodes, edges)
+    (nodes, edges, nodes_truncated, edges_truncated)
 }
 
 fn squarify(items: &[(usize, f64)], rect: Rect) -> Vec<(usize, Rect)> {

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.513 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.513 — Fourier</h1><p class="lead">This patch improves call-graph responsiveness and expands fileless/shared-memory analysis.</p><ul>
+<li>Bound direct callee and jump-table target collection before sorting or expanding graph nodes.</li>
+<li>Keep switch-target inspection bounded separately from function call targets.</li>
+<li>Warn when per-function target, instruction, caller, or node limits may hide graph relationships.</li>
+<li>Report edge truncation only when an additional distinct edge was omitted.</li>
+<li>Recover prototypes for aligned allocation, array reallocation, and POSIX memory allocation.</li>
+<li>Recover prototypes for memory mapping, remapping, advice, residency, locking, and process-break APIs.</li>
+<li>Recover prototypes for POSIX and System V shared memory, `memfd`, descriptor execution, and file allocation APIs.</li>
+<li>Classify memory and shared-memory APIs in runtime behavior events.</li>
+<li>Identify shared/anonymous-memory imports as a distinct static capability.</li>
+<li>Correlate the capability with runtime code loading as a heuristic; the imports alone do not prove a call path or malicious behavior.</li>
+<li>Count `fexecve` as process execution and runtime code loading.</li>
+<li>Use a 12 KiB ELF file with two 64 MiB virtual-only segments in the large-file gate.</li>
+<li>Verify file-backed and zero-fill segment sizes and enforce a 256 MiB peak-RSS ceiling.</li>
+<li>Run the large-file gate automatically when its workflow, fixture, or core loader/report code changes on `main`.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.513">GitHub release</a></p></main></body></html>

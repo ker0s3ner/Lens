@@ -1,3 +1,24 @@
+# Lens 0.6.513 — Fourier
+
+- Bound direct callee collection before graph construction to keep high-fanout functions from creating oversized temporary lists.
+- Bound jump-table target inspection independently from direct callees and the instruction scan.
+- Deduplicate and cap graph target lists before adding nodes or edges.
+- Warn when per-function target, instruction, caller, or node limits may hide graph relationships.
+- Report edge truncation only when an additional distinct edge is omitted.
+- Add prototypes for aligned allocation, array reallocation, and POSIX aligned-memory allocation.
+- Add prototypes for `mmap64`, `mremap`, `madvise`, `mincore`, memory locking, and process break APIs.
+- Add prototypes for POSIX shared memory and System V shared-memory APIs.
+- Add prototypes for `memfd_create`, `memfd_secret`, descriptor-based execution, and file allocation/truncation calls.
+- Classify the new memory and shared-memory calls in runtime behavior events.
+- Identify shared/anonymous-memory APIs as a separate static capability.
+- Correlate shared/anonymous-memory APIs with runtime code loading as an explainable heuristic; co-occurrence does not prove a call path or malicious behavior.
+- Recognize `fexecve` as both process execution and runtime code loading.
+- Rework the large-file fixture to use a 12 KiB ELF file with two 64 MiB virtual-only segments.
+- Verify file-backed and zero-fill segment sizes in the machine-readable analysis report.
+- Tighten the large-file RSS budget to 256 MiB and run the gate automatically when relevant main-branch files change.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.512 — Fourier
 
 - Render simple jump-table switches as structured C-like `switch` statements.

@@ -216,9 +216,9 @@ fn behavior_api_category(api: &str) -> &'static str {
         "registry"
     } else if ["socket", "connect", "send", "recv", "accept", "bind", "listen", "getaddrinfo", "internet", "winhttp", "urlopen", "dnsquery", "wsastartup"].iter().any(|name| api.contains(name)) {
         "network"
-    } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mprotect", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "writeprocessmemory", "readprocessmemory", "ntallocvirtualmemory", "ntprotectvirtualmemory"].iter().any(|name| api.contains(name)) {
+    } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mremap", "mprotect", "madvise", "mlock", "munlock", "mincore", "brk", "sbrk", "valloc", "pvalloc", "memfd_create", "memfd_secret", "shm_open", "shmget", "shmat", "shmdt", "shmctl", "shm_unlink", "aligned_alloc", "posix_memalign", "reallocarray", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "writeprocessmemory", "readprocessmemory", "ntallocvirtualmemory", "ntprotectvirtualmemory"].iter().any(|name| api.contains(name)) {
         "memory"
-    } else if ["createfile", "ntcreatefile", "readfile", "ntreadfile", "writefile", "ntwritefile", "deletefile", "movefile", "copyfile", "fopen", "fread", "fwrite", "open", "read", "write", "unlink", "rename", "remove", "chmod", "mkdir"].iter().any(|name| api == *name || api.ends_with(name)) {
+    } else if ["createfile", "ntcreatefile", "readfile", "ntreadfile", "writefile", "ntwritefile", "deletefile", "movefile", "copyfile", "fopen", "fread", "fwrite", "shm_open", "shm_unlink", "fallocate", "ftruncate", "open", "read", "write", "unlink", "rename", "remove", "chmod", "mkdir"].iter().any(|name| api == *name || api.ends_with(name)) {
         "filesystem"
     } else if ["createprocess", "shellexecute", "winexec", "createproc", "fork", "exec", "posix_spawn", "system", "popen", "createremotethread", "ntcreatethread", "openprocess", "terminateprocess", "ntterminateprocess", "waitforsingleobject"].iter().any(|name| api.contains(name)) {
         "process"

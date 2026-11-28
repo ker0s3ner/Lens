@@ -237,6 +237,7 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
         out.push(ThreatSignal { severity: 1, name: "PIE disabled".into(), evidence: "position-independent executable hardening is reduced; review with other evidence".into() });
     }
     correlated_signal(&mut out, capabilities, "File downloads", "Loads code at run time", 3, "Download and runtime loading", "download and dynamic-loading capabilities coexist");
+    correlated_signal(&mut out, capabilities, "Shared and anonymous memory APIs", "Loads code at run time", 3, "Shared/anonymous memory with runtime code loading", "shared/anonymous-memory APIs and code-loading APIs coexist in this binary; inspect call sites and control flow to confirm a relationship");
     correlated_signal(&mut out, capabilities, "Credential store", "Network", 2, "Credential access with network capability", "credential-store and network capabilities coexist");
     correlated_signal(&mut out, capabilities, "Keyboard & screen capture", "Network", 3, "Capture with network capability", "input or screen capture and network capabilities coexist");
     correlated_signal(&mut out, capabilities, "Registry & settings", "Persistence mechanisms", 2, "Settings with persistence capability", "settings access and persistence capabilities coexist");
@@ -616,9 +617,9 @@ fn bundle_info(path: &str) -> (Vec<String>, Vec<(String, String)>) {
 
 const CAPS: &[(&str, &[&str])] = &[
     ("Network", &["socket", "connect", "WSAStartup", "WSASocket", "InternetOpen", "InternetConnect", "WinHttp", "URLDownloadToFile", "getaddrinfo", "gethostbyname", "curl_easy", "CFNetwork", "NSURLSession", "NSURLConnection", "send", "recv", "bind", "listen", "accept", "SSL_", "inet_"]),
-    ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir"]),
+    ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir", "shm_open", "shm_unlink", "fallocate", "ftruncate"]),
     ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
-    ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
+    ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fexecve", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
     ("Process control", &["TerminateProcess", "task_terminate", "NtSuspendProcess", "ZwSuspendProcess", "NtResumeProcess", "ZwResumeProcess", "kill", "killpg", "tgkill", "pidfd_send_signal"]),
     ("File downloads", &["URLDownloadToFile", "URLDownloadToCacheFile", "InternetReadFile", "WinHttpReadData", "URLSessionDownloadTask"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
@@ -626,10 +627,11 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Persistence mechanisms", &["CreateService", "ChangeServiceConfig", "RegisterTaskDefinition", "SMAppServiceRegister", "LSSharedFileListInsertItemURL"]),
     ("Credential store", &["CredRead", "CredEnumerate", "LsaRetrievePrivateData", "SecItemCopyMatching", "SecKeychainFindGenericPassword", "pam_get_authtok"]),
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
-    ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "NtReadVirtualMemory", "ZwReadVirtualMemory", "NtQueryVirtualMemory", "ZwQueryVirtualMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "ptrace", "task_for_pid", "mach_vm_"]),
+    ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "NtReadVirtualMemory", "ZwReadVirtualMemory", "NtQueryVirtualMemory", "ZwQueryVirtualMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "mremap", "madvise", "mlock", "munlock", "ptrace", "task_for_pid", "mach_vm_"]),
+    ("Shared and anonymous memory APIs", &["memfd_create", "memfd_secret", "shm_open", "shmget", "shmat"]),
     ("Process injection primitives", &["WriteProcessMemory", "NtWriteVirtualMemory", "ZwWriteVirtualMemory", "NtAllocateVirtualMemory", "ZwAllocateVirtualMemory", "NtProtectVirtualMemory", "ZwProtectVirtualMemory", "NtMapViewOfSection", "ZwMapViewOfSection", "process_vm_writev", "mach_vm_write", "mach_vm_allocate", "mach_vm_map", "mach_vm_protect", "task_write_for_pid", "VirtualAllocEx", "CreateRemoteThread", "NtCreateThreadEx", "ZwCreateThreadEx", "QueueUserAPC", "NtQueueApcThread", "ZwQueueApcThread", "RtlCreateUserThread", "SetThreadContext", "NtSetContextThread", "ZwSetContextThread", "thread_create_running", "thread_set_state", "ptrace"]),
     ("Anti-debugging", &["IsDebuggerPresent", "CheckRemoteDebuggerPresent", "NtQueryInformationProcess", "OutputDebugString", "ptrace", "sysctl", "PT_DENY_ATTACH"]),
-    ("Loads code at run time", &["LoadLibrary", "GetProcAddress", "LdrLoadDll", "dlopen", "dlsym", "NSBundle", "CFBundle"]),
+    ("Loads code at run time", &["LoadLibrary", "GetProcAddress", "LdrLoadDll", "dlopen", "dlsym", "NSBundle", "CFBundle", "fexecve"]),
     ("Windows & UI", &["CreateWindow", "MessageBox", "DialogBox", "RegisterClass", "GetMessage", "DispatchMessage", "NSWindow", "NSApplication", "NSView", "UIApplication", "gtk_", "SDL_", "glfw", "QApplication"]),
     ("Keyboard & screen capture", &["SetWindowsHookEx", "GetAsyncKeyState", "GetKeyState", "GetDC", "BitBlt", "CGEventTap", "CGWindowListCreateImage", "CGDisplayCreateImage"]),
     ("Threads & timing", &["CreateThread", "pthread_create", "WaitForSingleObject", "Sleep", "dispatch_async", "NSThread", "std::thread", "EnterCriticalSection", "pthread_mutex"]),
