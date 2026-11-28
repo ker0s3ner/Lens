@@ -565,7 +565,7 @@ fn append_fields(
 /// Read an applied enum at an address and resolve its raw integer to a named constant.
 pub fn enum_value(bin: &Binary, addr: u64, def: &StructDef) -> Option<String> {
     if !def.is_enum { return None; }
-    let bytes = bin.read(addr, def.size as usize);
+    let bytes = bin.read_bytes(addr, def.size as usize);
     if bytes.len() < def.size as usize || def.size == 0 || def.size > 8 { return None; }
     let mut raw = 0u64;
     if bin.big_endian {
@@ -589,8 +589,12 @@ pub fn enum_constants(structs: &[StructDef]) -> HashMap<String, HashMap<i64, Str
 /// A field's value as text, read from the program image.
 pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
     let a = addr + f.off as u64;
-    let bytes = bin.read(a, f.size as usize);
-    if bytes.len() < f.size as usize {
+    let char_array = f.ty.contains('[')
+        && (f.ty.starts_with("char") || f.ty.starts_with("uint8_t") || f.ty.starts_with("u8"));
+    let requested = f.size as usize;
+    let read_len = if char_array { requested.min(1 << 20) } else { requested.min(16) };
+    let bytes = bin.read_bytes(a, read_len);
+    if bytes.len() < read_len || (!f.ty.contains('[') && f.size <= 8 && bytes.len() < requested) {
         return "?".into();
     }
     let be = bin.big_endian;
@@ -600,14 +604,16 @@ pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
         v
     };
     if f.ty.contains('[') {
-        if f.ty.starts_with("char") || f.ty.starts_with("uint8_t") || f.ty.starts_with("u8") {
+        if char_array {
             let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-            return format!("\"{}\"", crate::code::escape_str(&String::from_utf8_lossy(&bytes[..end]), 60));
+            let text = crate::code::escape_str(&String::from_utf8_lossy(&bytes[..end]), 60);
+            let truncated = end == bytes.len() && requested > bytes.len();
+            return format!("\"{}{}\"", text, if truncated { "…" } else { "" });
         }
         return crate::code::hex_bytes(&bytes[..bytes.len().min(16)]);
     }
     if let (Some(bit_offset), Some(bit_width)) = (f.bit_offset, f.bit_width) {
-        let raw = int(bytes);
+        let raw = int(&bytes);
         let shift = if be { f.size.saturating_mul(8).saturating_sub(bit_offset as u32 + bit_width as u32) } else { bit_offset as u32 };
         let mask = if bit_width == 64 { u64::MAX } else { (1u64 << bit_width) - 1 };
         let extracted = (raw >> shift) & mask;
@@ -622,7 +628,7 @@ pub fn value(bin: &Binary, addr: u64, f: &Field) -> String {
     }
     match f.size {
         1 | 2 | 4 | 8 => {
-            let v = int(bytes);
+            let v = int(&bytes);
             if f.ty.ends_with('*') && v != 0 { format!("0x{v:X}") } else if v > 9 { format!("{v} (0x{v:X})") } else { v.to_string() }
         }
         _ => crate::code::hex_bytes(&bytes[..bytes.len().min(16)]),

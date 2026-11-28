@@ -455,7 +455,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
     for (name, n) in [("read_u8", 1usize), ("read_u16", 2), ("read_u32", 4), ("read_u64", 8)] {
         let s = snap.clone();
         e.register_fn(name, move |a: INT| -> INT {
-            let b = s.bin.read(a as u64, n);
+            let b = s.bin.read_bytes(a as u64, n);
             if b.len() < n {
                 return -1;
             }
@@ -465,7 +465,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
         });
     }
     let s = snap.clone();
-    e.register_fn("read_bytes", move |a: INT, n: INT| -> Blob { s.bin.read(a as u64, n.clamp(0, 1 << 20) as usize).to_vec() });
+    e.register_fn("read_bytes", move |a: INT, n: INT| -> Blob { s.bin.read_bytes(a as u64, n.clamp(0, 1 << 20) as usize) });
     let s = snap.clone();
     e.register_fn("disasm", move |a: INT| -> String { crate::multiarch::one(&s.bin, a as u64).map(|r| crate::multiarch::text(&r)).unwrap_or_default() });
     let s = snap.clone();

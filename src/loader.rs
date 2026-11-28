@@ -87,6 +87,7 @@ impl Segment {
 // logical size. Reads from it use this shared chunk instead of allocating up
 // to MAX_ZERO_FILL bytes for every section.
 static ZERO_FILL: [u8; 1024 * 1024] = [0; 1024 * 1024];
+const MAX_MATERIALIZED_ZERO_FILL: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub struct Import {
@@ -169,6 +170,44 @@ impl Binary {
         }
         &[]
     }
+    /// Read up to `len` bytes from a virtual segment, joining file-backed data
+    /// and zero-fill into one owned buffer. The result stops at the segment end.
+    pub fn read_bytes(&self, a: u64, len: usize) -> Vec<u8> {
+        let Some(segment) = self.segment_of(a) else { return Vec::new() };
+        let Some(offset) = a.checked_sub(segment.start).and_then(|n| usize::try_from(n).ok()) else {
+            return Vec::new();
+        };
+        let Ok(size) = usize::try_from(segment.size) else { return Vec::new() };
+        if offset >= size { return Vec::new(); }
+        let count = len.min(size - offset);
+        let mut bytes = vec![0; count];
+        if offset < segment.data.len() {
+            let backed = count.min(segment.data.len() - offset);
+            bytes[..backed].copy_from_slice(&segment.data[offset..offset + backed]);
+        }
+        bytes
+    }
+    /// Write bytes into the mapped image, materializing virtual zero-fill only
+    /// when edited and preserving the loader's former 64 MiB materialization cap.
+    pub fn write(&mut self, a: u64, bytes: &[u8]) -> bool {
+        if bytes.is_empty() { return true; }
+        let end = self.segments.partition_point(|segment| segment.start <= a);
+        let Some(index) = self.segments[..end].iter().rposition(|segment| segment.contains(a)) else {
+            return false;
+        };
+        let Some(offset) = a.checked_sub(self.segments[index].start).and_then(|n| usize::try_from(n).ok()) else {
+            return false;
+        };
+        let Some(write_end) = offset.checked_add(bytes.len()) else { return false };
+        let segment = &mut self.segments[index];
+        if u64::try_from(write_end).map_or(true, |end| end > segment.size) { return false; }
+        if write_end > segment.data.len() {
+            if write_end > MAX_MATERIALIZED_ZERO_FILL { return false; }
+            segment.data.resize(write_end, 0);
+        }
+        segment.data[offset..write_end].copy_from_slice(bytes);
+        true
+    }
     pub fn byte(&self, a: u64) -> Option<u8> {
         self.read(a, 1).first().copied()
     }
@@ -181,8 +220,17 @@ impl Binary {
     }
     pub fn read_ptr(&self, a: u64) -> Option<u64> {
         let w = (self.arch.bits() / 8) as usize;
-        let b = self.read(a, w);
-        self.read_ptr_bytes(b)
+        if w == 0 || w > 8 { return None; }
+        let segment = self.segment_of(a)?;
+        let offset = usize::try_from(a.checked_sub(segment.start)?).ok()?;
+        let size = usize::try_from(segment.size).ok()?;
+        if offset.checked_add(w)? > size { return None; }
+        let mut bytes = [0; 8];
+        if offset < segment.data.len() {
+            let backed = w.min(segment.data.len() - offset);
+            bytes[..backed].copy_from_slice(&segment.data[offset..offset + backed]);
+        }
+        self.read_ptr_bytes(&bytes[..w])
     }
     pub(crate) fn read_ptr_bytes(&self, b: &[u8]) -> Option<u64> {
         let w = (self.arch.bits() / 8) as usize;
@@ -587,9 +635,6 @@ fn read_elf_word(bin: &Binary, addr: u64, width: usize) -> Option<i64> {
 }
 
 fn write_elf_word(bin: &mut Binary, addr: u64, width: usize, value: i64) -> bool {
-    let Some(seg) = bin.segments.iter_mut().find(|s| s.contains(addr)) else { return false };
-    let off = (addr - seg.start) as usize;
-    if off.checked_add(width).is_none_or(|end| end > seg.data.len()) { return false; }
     let bytes = match (width, bin.big_endian) {
         (1, _) => vec![value as u8],
         (2, false) => (value as i16).to_le_bytes().to_vec(),
@@ -600,8 +645,7 @@ fn write_elf_word(bin: &mut Binary, addr: u64, width: usize, value: i64) -> bool
         (8, true) => value.to_be_bytes().to_vec(),
         _ => return false,
     };
-    seg.data[off..off + width].copy_from_slice(&bytes);
-    true
+    bin.write(addr, &bytes)
 }
 
 fn object_symbol_addr(sym: &goblin::elf::sym::Sym, bases: &[Option<u64>]) -> Option<u64> {

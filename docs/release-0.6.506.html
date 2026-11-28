@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.506 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.506 — Fourier</h1><p class="lead">Consistent reads and edits across virtual zero-filled memory.</p><ul>
+<li>Owned reads combine file-backed data and virtual zeros into one result, stopping at the mapped segment boundary.</li>
+<li>Pointer reads can cross from initialized bytes into zero-fill without dropping the remaining pointer bytes.</li>
+<li>Rhai scalar and byte accessors now read virtual zero-fill through the same image API.</li>
+<li>Applied enum values and struct fields can be inspected in zero-filled memory.</li>
+<li>Large field reads stay bounded; character-array previews stop at 1 MiB and mark unterminated truncation.</li>
+<li>In-memory patches can edit zero-filled addresses by materializing the edited prefix only.</li>
+<li>ELF relocations can write into BSS through the shared image writer.</li>
+<li>Zero-fill materialization retains the former 64 MiB cap, and patch address arithmetic is checked for overflow.</li>
+<li>Virtual-only bytes remain unsavable to the original file, which requires file-backed storage.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.506">GitHub release</a></p></main></body></html>

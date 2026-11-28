@@ -14,13 +14,8 @@ pub struct Patch {
 pub fn apply(bin: &mut Binary, patches: &[Patch]) {
     for p in patches {
         for (i, b) in p.new.iter().enumerate() {
-            let a = p.addr + i as u64;
-            if let Some(seg) = bin.segments.iter_mut().find(|s| s.contains(a)) {
-                let off = (a - seg.start) as usize;
-                if off < seg.data.len() {
-                    seg.data[off] = *b;
-                }
-            }
+            let Some(a) = p.addr.checked_add(i as u64) else { break };
+            let _ = bin.write(a, std::slice::from_ref(b));
         }
     }
 }

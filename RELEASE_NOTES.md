@@ -1,3 +1,19 @@
+# Lens 0.6.506 — Fourier
+
+- Add owned reads that combine file-backed bytes and virtual zero-fill into complete bounded results.
+- Let pointer reads cross the file-backed-to-zero-fill boundary without losing upper bytes.
+- Use complete virtual reads for debugger-independent script scalar and byte accessors.
+- Read applied enum values from zero-filled memory when the complete scalar is mapped.
+- Read applied struct fields from virtual zero-fill, including bounded previews of large fields.
+- Cap large character-array previews at 1 MiB and mark un-terminated truncated previews.
+- Apply in-memory byte patches to zero-filled virtual addresses by materializing only the edited prefix.
+- Preserve ELF relocations that write into BSS through the shared bounded image writer.
+- Keep zero-fill writes bounded to the former 64 MiB materialization range.
+- Check patch-address addition for overflow before changing the image.
+- Keep file-backed save rules intact so virtual-only bytes cannot be silently written to the original file.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.505 — Fourier
 
 - Represent ELF `SHT_NOBITS` sections as virtual zero-fill instead of allocating a buffer per section.
