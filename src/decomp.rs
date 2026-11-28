@@ -3397,6 +3397,25 @@ fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>, structs
     }
 }
 
+fn render_expression_type(expression: &Ex, types: &HashMap<String, String>, structs: &[crate::types::StructDef]) -> Option<String> {
+    match expression {
+        Ex::Call(callee, _) => call_return_type_with_types(callee, types, structs),
+        Ex::Deref(inner, _) => render_pointee_type(inner, types, structs),
+        Ex::Cast(ty, _) => Some((*ty).to_string()),
+        Ex::CastOwned(ty, _) => Some(ty.clone()),
+        Ex::Var(name) => types.get(name).cloned(),
+        Ex::Bin("+" | "-", base, offset) if render_pointee_type(offset, types, structs).is_none() => {
+            render_expression_type(base, types, structs)
+        }
+        Ex::Tern(_, yes, no) => {
+            let yes = render_expression_type(yes, types, structs);
+            let no = render_expression_type(no, types, structs);
+            (yes == no).then_some(yes).flatten()
+        }
+        _ => None,
+    }
+}
+
 fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
     infer_render_types_with_seeds(outs, HashMap::new(), &[])
 }
@@ -3420,32 +3439,7 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
             if seeds.contains_key(name) {
                 continue;
             }
-            let ty = match rhs {
-                Ex::Call(c, _) => call_return_type_with_types(c, &types, structs),
-                Ex::Deref(inner, _) => render_pointee_type(inner, &types, structs),
-                Ex::Cast(t, _) => Some((*t).to_string()),
-                Ex::CastOwned(t, _) => Some(t.clone()),
-                Ex::Var(source) => types.get(source).cloned(),
-                Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
-                    Ex::Var(source) => types.get(source).cloned(),
-                    _ => None,
-                },
-                Ex::Tern(_, yes, no) => match (&**yes, &**no) {
-                    (Ex::Var(a), Ex::Var(b)) if types.get(a) == types.get(b) => types.get(a).cloned(),
-                    _ => {
-                        let branch_type = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_return_type_with_types(c, &types, structs),
-                            Ex::Cast(t, _) => Some((*t).to_string()),
-                            Ex::CastOwned(t, _) => Some(t.clone()),
-                            _ => None,
-                        };
-                        let a = branch_type(yes);
-                        let b = branch_type(no);
-                        (a == b).then(|| a).flatten()
-                    }
-                },
-                _ => None,
-            };
+            let ty = render_expression_type(rhs, &types, structs);
             if let Some(ty) = ty {
                 if let Some(previous) = candidates.get(name) {
                     if previous != &ty {
