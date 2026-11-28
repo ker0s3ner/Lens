@@ -281,8 +281,8 @@ pub fn load(path: &str) -> Result<Binary, String> {
         format!("{inside} is a folder; opened the main program inside it: {shown}")
     });
     let path = real.to_str().ok_or("The file's path can't be read as text.")?;
-    let mut source_bytes = Some(std::fs::read(path).map_err(|e| format!("Couldn't read the file: {e}"))?);
-    let file_size = source_bytes.as_ref().expect("source bytes are present").len() as u64;
+    let bytes = std::fs::read(path).map_err(|e| format!("Couldn't read the file: {e}"))?;
+    let file_size = bytes.len() as u64;
     let file_name = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -313,25 +313,26 @@ pub fn load(path: &str) -> Result<Binary, String> {
         debug_types: String::new(),
         debug_structs: vec![],
     };
-    let parsed = Object::parse(source_bytes.as_deref().expect("source bytes are present"));
-    match parsed {
+    match Object::parse(&bytes) {
         Ok(Object::Elf(elf)) => {
-            load_elf(&mut bin, &elf, source_bytes.as_deref().expect("source bytes are present"));
+            load_elf(&mut bin, &elf, &bytes);
             bin.func_hints = crate::hints::eh_frame(&bin);
-            drop(source_bytes.take());
         }
         Ok(Object::PE(pe)) => {
-            load_pe(&mut bin, &pe, source_bytes.as_deref().expect("source bytes are present"));
+            load_pe(&mut bin, &pe, &bytes);
             if matches!(bin.arch, Arch::X64 | Arch::Arm64) {
                 bin.func_hints = crate::hints::pe_pdata(&bin, pe.image_base as u64);
             }
-            drop(source_bytes.take());
         }
-        Ok(Object::Mach(mach)) => {
-            load_mach(&mut bin, mach, source_bytes.as_deref().expect("source bytes are present"))?;
-            drop(source_bytes.take());
-        }
-        _ => load_raw(&mut bin, source_bytes.take().expect("source bytes are present")),
+        Ok(Object::Mach(mach)) => load_mach(&mut bin, mach, &bytes)?,
+        _ => {}
+    }
+    if bin.format.is_empty() {
+        // Move raw inputs into their segment so loading doesn't duplicate the entire file.
+        load_raw(&mut bin, bytes);
+    } else {
+        // Parsed object records borrow the source bytes; the match ends their borrow here.
+        drop(bytes);
     }
     crate::dwarf::apply(&mut bin);
     bin.symbols.sort();
