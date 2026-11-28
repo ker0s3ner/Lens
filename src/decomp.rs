@@ -1098,6 +1098,9 @@ fn propagate_convergent_copy(outs: &mut [BlockOut], f: &Function) {
             *stmt = new;
         }
         if !stopped {
+            for expression in outs[target].defs.values_mut() {
+                *expression = subst(expression, &Ex::Var(dst.clone()), &value);
+            }
             let term = std::mem::replace(&mut outs[target].term, Term::Stop);
             outs[target].term = match term {
                 Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
@@ -1390,7 +1393,8 @@ fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, current_name: &str, e
 
 fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>, current_name: &str, enum_return: Option<&str>) -> HashMap<String, String> {
     let mut vars = seed.clone();
-    for _ in 0..outs.len().max(1) {
+    let max_passes = outs.iter().map(|block| block.stmts.len()).sum::<usize>().max(1);
+    for _ in 0..max_passes {
         let mut definitions: HashMap<String, Vec<Option<String>>> = HashMap::new();
         for block in outs {
             for (_, stmt) in &block.stmts {
