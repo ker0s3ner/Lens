@@ -286,9 +286,13 @@ fn behavior_api_category(api: &str) -> &'static str {
         "anti-debugging"
     } else if ["regopen", "regcreate", "regset", "regquery", "regdelete", "ntopenkey", "ntsetvalue", "ntqueryvalue"].iter().any(|name| api.contains(name)) {
         "registry"
+    } else if ["createservice", "changeserviceconfig", "registertaskdefinition", "smappserviceregister", "lssharedfilelistinsertitemurl"].iter().any(|name| api.contains(name)) {
+        "persistence"
     } else if ["socket", "connect", "send", "recv", "accept", "bind", "listen", "getaddrinfo", "internet", "winhttp", "urlopen", "dnsquery", "wsastartup"].iter().any(|name| api.contains(name)) {
         "network"
-    } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mremap", "mprotect", "madvise", "mlock", "munlock", "mincore", "brk", "sbrk", "valloc", "pvalloc", "memfd_create", "memfd_secret", "shm_open", "shmget", "shmat", "shmdt", "shmctl", "shm_unlink", "aligned_alloc", "posix_memalign", "reallocarray", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "writeprocessmemory", "readprocessmemory", "ntallocvirtualmemory", "ntprotectvirtualmemory"].iter().any(|name| api.contains(name)) {
+    } else if ["virtualallocex", "virtualprotectex", "writeprocessmemory", "ntwritevirtualmemory", "zwwritevirtualmemory", "ntallocvirtualmemory", "zwallocvirtualmemory", "ntprotectvirtualmemory", "createremotethread", "queueuserapc", "ntqueueapcthread"].iter().any(|name| api.contains(name)) {
+        "process-injection"
+    } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mremap", "mprotect", "madvise", "mlock", "munlock", "mincore", "brk", "sbrk", "valloc", "pvalloc", "memfd_create", "memfd_secret", "shm_open", "shmget", "shmat", "shmdt", "shmctl", "shm_unlink", "aligned_alloc", "posix_memalign", "reallocarray", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "readprocessmemory"].iter().any(|name| api.contains(name)) {
         "memory"
     } else if ["seccomp", "prctl", "landlock", "pledge", "unveil"].iter().any(|name| api.contains(name)) {
         "sandbox"
@@ -1429,7 +1433,7 @@ impl LensApp {
                             .selected_text(if ui_state.event_category_filter.is_empty() { "All behavior categories" } else { ui_state.event_category_filter.as_str() })
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(&mut ui_state.event_category_filter, String::new(), "All behavior categories");
-                                for category in ["process", "filesystem", "registry", "memory", "network", "anti-debugging", "sandbox", "credentials", "cryptography", "behavior-callsite", "fault", "signal", "breakpoint", "memory-watch", "process-exit", "stop"] {
+                                for category in ["process", "filesystem", "registry", "persistence", "memory", "network", "process-injection", "anti-debugging", "sandbox", "credentials", "cryptography", "behavior-callsite", "fault", "signal", "breakpoint", "memory-watch", "process-exit", "stop"] {
                                     ui.selectable_value(&mut ui_state.event_category_filter, category.to_string(), category);
                                 }
                             });
