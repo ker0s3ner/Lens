@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.495 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.495 — Fourier</h1><p class="lead">High-address analysis, init-array recovery, and listing-safety improvements.</p><ul>
+<li>Prevent Thumb PC-relative switch-table bases from wrapping at the top of the address space.</li>
+<li>Apply safe arithmetic to literal-pool table bases recovered from register setup instructions.</li>
+<li>Protect PC-indexed Thumb branch tables against high-address wraparound.</li>
+<li>Protect Thumb TBB/TBH table starts against overflow.</li>
+<li>Decode init/fini-array pointers using the shared pointer-width reader.</li>
+<li>Respect the binary's byte order when discovering init-array function roots.</li>
+<li>Discover 16-bit init-array entries without misreading or panicking on short words.</li>
+<li>Saturate reconstructed basic-block ends when an instruction crosses the address-space limit.</li>
+<li>Saturate reconstructed function ends for high-address instruction ranges.</li>
+<li>Treat instruction coverage ranges safely when their final byte would overflow.</li>
+<li>Skip ASCII strings whose segment-relative address cannot be represented.</li>
+<li>Skip UTF-16 strings whose segment-relative address cannot be represented.</li>
+<li>Advance instruction rows without overflowing near the address-space boundary.</li>
+<li>Advance string, pointer, and data rows without wrapping their addresses.</li>
+<li>Find the next unexplored-byte boundary without overflowing the current address.</li>
+<li>The 0.6.494 large-file gate measured 4.324 s and 267.91 MiB peak RSS on a 134,225,920-byte synthetic ELF; this was one run.</li>
+<li>Weighted parity remains 41.8%; the 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.495">GitHub release</a></p></main></body></html>

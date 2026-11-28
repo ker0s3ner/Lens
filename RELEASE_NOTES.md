@@ -1,3 +1,24 @@
+# Lens 0.6.495 — Fourier
+
+- Prevent Thumb PC-relative switch-table bases from wrapping at the top of the address space.
+- Apply safe arithmetic to literal-pool table bases recovered from register setup instructions.
+- Protect PC-indexed Thumb branch tables against high-address wraparound.
+- Protect Thumb TBB/TBH table starts against overflow.
+- Decode init/fini-array pointers using the shared pointer-width reader.
+- Respect the binary's byte order when discovering init-array function roots.
+- Discover 16-bit init-array entries without misreading or panicking on short words.
+- Saturate reconstructed basic-block ends when an instruction crosses the address-space limit.
+- Saturate reconstructed function ends for high-address instruction ranges.
+- Treat instruction coverage ranges safely when their final byte would overflow.
+- Skip ASCII strings whose segment-relative address cannot be represented.
+- Skip UTF-16 strings whose segment-relative address cannot be represented.
+- Advance instruction rows without overflowing near the address-space boundary.
+- Advance string, pointer, and data rows without wrapping their addresses.
+- Find the next unexplored-byte boundary without overflowing the current address.
+- The 0.6.494 Linux large-file gate completed on a 134,225,920-byte synthetic ELF in 4.324 s at 267.91 MiB peak RSS; the prior recorded run was 5.278 s at 267.73 MiB. These are single-run measurements, not a real-binary performance guarantee.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.494 — Fourier
 
 - Decode 16-bit pointers with the selected byte order, completing pointer reads for X16 analysis.

@@ -425,7 +425,7 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
         }
         let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
         let table = if raw_ops.contains("[pc,") {
-            (at + 4) & !3
+            at.saturating_add(4) & !3
         } else {
             let base = raw_ops.split('[').nth(1).and_then(|s| s.split(',').next()).unwrap_or("").trim();
             let mut found = None;
@@ -438,7 +438,7 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
                     let (negative, digits) = imm.strip_prefix('-').map_or((false, imm), |digits| (true, digits));
                     let value = digits.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| digits.parse().ok());
                     if let Some(value) = value {
-                        let base = (addr + 4) & !3;
+                        let base = addr.saturating_add(4) & !3;
                         found = Some(if negative || prev.mnemonic == "sub" { base.saturating_sub(value) } else { base.saturating_add(value) });
                         break;
                     }
@@ -481,7 +481,7 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
             }
         }
         let count = bound.unwrap_or(256).clamp(2, 1024) as usize;
-        let base = (at + 4) & !3;
+        let base = at.saturating_add(4) & !3;
         let mut out = Vec::new();
         for k in 0..count {
             let target = base.saturating_add((k * 4) as u64);
@@ -491,7 +491,7 @@ fn arm_thumb_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, 
         return if out.iter().collect::<HashSet<_>>().len() >= 2 { out } else { vec![] };
     }
     let width = match raw.mnemonic.as_str() { "tbb" => 1usize, "tbh" => 2, _ => return vec![] };
-    let table_base = if raw.ops.to_ascii_lowercase().contains("pc") { (at + 4) & !3 } else { return vec![] };
+    let table_base = if raw.ops.to_ascii_lowercase().contains("pc") { at.saturating_add(4) & !3 } else { return vec![] };
     let parse = |s: &str| -> Option<u64> {
         let s = s.trim().trim_start_matches('#');
         s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| s.parse().ok())
@@ -1214,8 +1214,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             if n.contains("init_array") || n.contains("fini_array") || n.contains("mod_init") || n.contains("ctors") {
                 let w = (bin.bitness() / 8) as usize;
                 for c in s.data.chunks_exact(w) {
-                    let v = if w == 8 { u64::from_le_bytes(c.try_into().unwrap()) } else { u32::from_le_bytes(c.try_into().unwrap()) as u64 };
-                    push(&mut queue, v);
+                    if let Some(v) = bin.read_ptr_bytes(c) {
+                        push(&mut queue, v);
+                    }
                 }
             }
         }
@@ -1403,7 +1404,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                 }
                 let b = cur.as_mut().unwrap();
                 b.insns.push(a);
-                b.end = a + i.len as u64;
+                b.end = a.saturating_add(i.len as u64);
                 prev_end = b.end;
                 match i.flow {
                     Flow::CondJump => {
@@ -1454,7 +1455,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             } else {
                 FuncKind::Normal
             };
-            let end = addrs.iter().map(|a| a + insns[a].len as u64).max().unwrap_or(fstart);
+            let end = addrs.iter().map(|a| a.saturating_add(insns[a].len as u64)).max().unwrap_or(fstart);
             // A function whose final decoded instruction is an architectural
             // stop/trap cannot return to its caller, even when it is stripped
             // and has no recognizable symbol or prototype.
@@ -1868,7 +1869,7 @@ fn covered(insns: &BTreeMap<u64, Insn>, a: u64) -> bool {
         return true;
     }
     if let Some((s, i)) = insns.range(..a).next_back() {
-        return s + i.len as u64 > a;
+        return s.saturating_add(i.len as u64) > a;
     }
     false
 }
@@ -1889,7 +1890,9 @@ fn find_strings(bin: &Binary, min_len: usize) -> Vec<StrLit> {
                 let n = i - st;
                 if n >= min_len && i < d.len() && d[i] == 0 {
                     let text = String::from_utf8_lossy(&d[st..i]).to_string();
-                    out.push(StrLit { addr: s.start + st as u64, len: (n + 1) as u32, wide: false, text });
+                    if let Some(addr) = s.start.checked_add(st as u64) {
+                        out.push(StrLit { addr, len: (n + 1) as u32, wide: false, text });
+                    }
                 }
             }
             i += 1;
@@ -1905,7 +1908,9 @@ fn find_strings(bin: &Binary, min_len: usize) -> Vec<StrLit> {
                 let n = (i - st) / 2;
                 if n >= min_len && i + 1 < d.len() && d[i] == 0 && d[i + 1] == 0 {
                     let text: String = d[st..i].chunks(2).map(|c| c[0] as char).collect();
-                    out.push(StrLit { addr: s.start + st as u64, len: (n * 2 + 2) as u32, wide: true, text });
+                    if let Some(addr) = s.start.checked_add(st as u64) {
+                        out.push(StrLit { addr, len: (n * 2 + 2) as u32, wide: true, text });
+                    }
                 }
                 i += 2;
             } else {
@@ -1945,7 +1950,7 @@ fn build_lines(bin: &Binary, a: &Analysis) -> Vec<Line> {
                     lines.push(Line { addr, kind: LineKind::Label, len: 0 });
                 }
                 lines.push(Line { addr, kind: LineKind::Insn, len: i.len as u32 });
-                addr += i.len as u64;
+                addr = addr.saturating_add(i.len as u64);
                 if func_end_at.contains_key(&addr) {
                     lines.push(Line { addr, kind: LineKind::FuncEnd, len: 0 });
                     lines.push(Line { addr, kind: LineKind::Blank, len: 0 });
@@ -1957,24 +1962,25 @@ fn build_lines(bin: &Binary, a: &Analysis) -> Vec<Line> {
             if let Some(si) = a.string_at.get(&addr) {
                 let l = a.strings[*si].len;
                 lines.push(Line { addr, kind: LineKind::Str, len: l });
-                addr += l as u64;
+                addr = addr.saturating_add(l as u64);
                 continue;
             }
             if a.import_slot.contains_key(&addr) {
                 lines.push(Line { addr, kind: LineKind::Ptr, len: ptr as u32 });
-                addr += ptr;
+                addr = addr.saturating_add(ptr);
                 continue;
             }
             if let Some(sz) = a.data_size.get(&addr) {
                 let n = (*sz & 0x7f).max(1) as u32;
                 let kind = if sz & 0x80 != 0 { LineKind::Ptr } else { LineKind::Data };
                 lines.push(Line { addr, kind, len: n });
-                addr += n as u64;
+                addr = addr.saturating_add(n as u64);
                 continue;
             }
             // Unexplored bytes up to the next thing.
-            let next = stops.range(addr + 1..).next().copied().unwrap_or(end).min(end);
-            let next_insn = a.insns.range(addr + 1..).next().map(|(k, _)| *k).unwrap_or(end).min(next);
+            let next_addr = addr.saturating_add(1);
+            let next = stops.range(next_addr..).next().copied().unwrap_or(end).min(end);
+            let next_insn = a.insns.range(next_addr..).next().map(|(k, _)| *k).unwrap_or(end).min(next);
             let run_end = next_insn;
             let data = bin.read(addr, (run_end - addr) as usize);
             let all_zero = data.iter().all(|b| *b == 0);
