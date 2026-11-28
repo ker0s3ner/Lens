@@ -3422,7 +3422,7 @@ fn decompile_inner(
             } else {
                 type_candidates.insert(t.clone(), ty);
             }
-        } else if constant_value(rhs) == Some(0) {
+        } else if constant_value(rhs) == Some(Ex::Num(0)) {
             zero_assignments.insert(t.clone());
         } else {
             other_unknown_assignments.insert(t.clone());
@@ -3618,7 +3618,7 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
                 } else {
                     candidates.insert(name.clone(), ty);
                 }
-            } else if constant_value(rhs) == Some(0) {
+            } else if constant_value(rhs) == Some(Ex::Num(0)) {
                 zero_assignments.insert(name.clone());
             } else {
                 other_unknown_assignments.insert(name.clone());
