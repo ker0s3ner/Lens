@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.494 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.494 — Fourier</h1><p class="lead">Pointer analysis and malformed switch-table safety improvements.</p><ul>
+<li>Decode 16-bit pointers with the selected byte order, completing pointer reads for X16 analysis.</li>
+<li>Share pointer-byte decoding between virtual-address reads and already-loaded segment data.</li>
+<li>Scan mapped data references directly from segment bytes instead of looking up the source segment for each candidate.</li>
+<li>Scan aligned pointer-table candidates directly from the segment buffer.</li>
+<li>Scan packed, unaligned pointer-table candidates directly from the segment buffer.</li>
+<li>Read Itanium RTTI header and function-pointer entries directly from segment bytes.</li>
+<li>Check segment-relative address additions while collecting data references and pointer tables.</li>
+<li>Check pointer-table start-address calculation before recording a discovered run.</li>
+<li>Reject ARM64 signed switch targets that overflow the address space.</li>
+<li>Check scaled ARM64 byte-table offsets before adding them to a target base.</li>
+<li>Check scaled ARM64 halfword-table offsets before adding them to a target base.</li>
+<li>Reject ARM32 switch bounds that overflow while converting the compared maximum into an entry count.</li>
+<li>Parse the minimum signed integer safely in ARM64 and RISC-V switch metadata.</li>
+<li>Weighted parity remains 41.8%; the 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.494">GitHub release</a></p></main></body></html>

@@ -1,16 +1,19 @@
-# Lens 0.6.493 — Fourier
+# Lens 0.6.494 — Fourier
 
-- Propagate identical side-effect-free expressions through convergent CFG merge blocks.
-- Keep merge propagation conservative when a source variable is reassigned before use, and apply substitutions to final register definitions.
-- Preserve enum pseudocode types only when all assignments to a local agree; allow bounded fixed-point recovery through longer temporary chains.
-- Recover direct tail calls from terminal basic blocks instead of relying on recursive-discovery order.
-- Limit forwarding-thunk classification to single-block functions with sorted instruction addresses.
-- Check signed switch-table targets, table-entry addresses, Itanium typeinfo/name reads, and instruction fall-through arithmetic for address overflow.
-- Name common native stop signals including hangup, interrupt, quit, bus, pipe, termination, resource-limit, and bad-system-call signals.
-- Record when native child status ownership is lost and controls are disabled to avoid a reused PID.
-- Keep aligned 32-byte raw-byte listing rows fully visible by sizing their horizontal content width.
-- Mark when older native child output is omitted from the bounded 64 KiB output pane.
-- Weighted IDA Pro parity estimate remains 41.8%; the 50% target remains unmet.
+- Decode 16-bit pointers with the selected byte order, completing pointer reads for X16 analysis.
+- Share pointer-byte decoding between virtual-address reads and already-loaded segment data.
+- Scan mapped data references directly from segment bytes instead of looking up the source segment for each candidate.
+- Scan aligned pointer-table candidates directly from the segment buffer.
+- Scan packed, unaligned pointer-table candidates directly from the segment buffer.
+- Read Itanium RTTI header and function-pointer entries directly from segment bytes.
+- Check segment-relative address additions while collecting data references and pointer tables.
+- Check pointer-table start-address calculation before recording a discovered run.
+- Reject ARM64 signed switch targets that overflow the address space.
+- Check scaled ARM64 byte-table offsets before adding them to a target base.
+- Check scaled ARM64 halfword-table offsets before adding them to a target base.
+- Reject ARM32 switch bounds that overflow while converting the compared maximum into an entry count.
+- Parse the minimum signed integer safely in ARM64 and RISC-V switch metadata.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
 - GitHub Actions builds the release artifact; no local build or installation was performed.
 
 # Lens 0.6.492 — Fourier

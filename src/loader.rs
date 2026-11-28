@@ -173,10 +173,16 @@ impl Binary {
     pub fn read_ptr(&self, a: u64) -> Option<u64> {
         let w = (self.arch.bits() / 8) as usize;
         let b = self.read(a, w);
+        self.read_ptr_bytes(b)
+    }
+    pub(crate) fn read_ptr_bytes(&self, b: &[u8]) -> Option<u64> {
+        let w = (self.arch.bits() / 8) as usize;
         if b.len() < w {
             return None;
         }
         Some(match (w, self.big_endian) {
+            (2, false) => u16::from_le_bytes(b[..2].try_into().ok()?) as u64,
+            (2, true) => u16::from_be_bytes(b[..2].try_into().ok()?) as u64,
             (4, false) => u32::from_le_bytes(b.try_into().ok()?) as u64,
             (4, true) => u32::from_be_bytes(b.try_into().ok()?) as u64,
             (_, false) => u64::from_le_bytes(b.try_into().ok()?),

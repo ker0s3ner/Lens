@@ -312,7 +312,7 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let t = t.trim().trim_start_matches('#');
         let (negative, digits) = t.strip_prefix('-').map_or((false, t), |digits| (true, digits));
         let value = if let Some(h) = digits.strip_prefix("0x") { i64::from_str_radix(h, 16).ok()? } else { digits.parse().ok()? };
-        Some(if negative { -value } else { value })
+        if negative { value.checked_neg() } else { Some(value) }
     };
     let reg = |t: &str| -> String { t.trim().trim_start_matches(['x', 'w']).to_string() };
     let mut back: Vec<u64> = insns.range(..at).rev().take(14).map(|(a, _)| *a).collect();
@@ -368,39 +368,39 @@ fn arm64_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
     let count = switch_count(bound);
     let mut out = vec![];
     for k in 0..count {
-        let t = match size {
+        let Some(t) = (match size {
             8 => {
                 let Some(addr) = switch_entry_addr(tbl, k, 8) else { break };
                 let b = bin.read(addr, 8);
                 if b.len() < 8 { break; }
-                if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) }
+                Some(if bin.big_endian { u64::from_be_bytes(b.try_into().unwrap()) } else { u64::from_le_bytes(b.try_into().unwrap()) })
             }
             9 => {
                 let Some(addr) = switch_entry_addr(tbl, k, 4) else { break };
                 let b = bin.read(addr, 4);
                 if b.len() < 4 { break; }
-                if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 }
+                Some(if bin.big_endian { u32::from_be_bytes(b.try_into().unwrap()) as u64 } else { u32::from_le_bytes(b.try_into().unwrap()) as u64 })
             }
             4 => {
                 let Some(addr) = switch_entry_addr(tbl, k, 4) else { break };
                 let b = bin.read(addr, 4);
                 if b.len() < 4 { break; }
                 let raw = if bin.big_endian { i32::from_be_bytes([b[0], b[1], b[2], b[3]]) } else { i32::from_le_bytes([b[0], b[1], b[2], b[3]]) };
-                (base.unwrap_or(tbl) as i64 + raw as i64) as u64
+                base.unwrap_or(tbl).checked_add_signed(raw as i64)
             }
             1 => {
                 let Some(addr) = switch_entry_addr(tbl, k, 1) else { break };
                 let Some(bs) = bin.byte(addr) else { break };
-                base.unwrap_or(tbl) + ((bs as u64) << shift)
+                (bs as u64).checked_shl(shift).and_then(|offset| base.unwrap_or(tbl).checked_add(offset))
             }
             _ => {
                 let Some(addr) = switch_entry_addr(tbl, k, 2) else { break };
                 let b = bin.read(addr, 2);
                 if b.len() < 2 { break; }
                 let raw = if bin.big_endian { u16::from_be_bytes([b[0], b[1]]) } else { u16::from_le_bytes([b[0], b[1]]) };
-                base.unwrap_or(tbl) + ((raw as u64) << shift)
+                (raw as u64).checked_shl(shift).and_then(|offset| base.unwrap_or(tbl).checked_add(offset))
             }
-        };
+        }) else { break };
         if !bin.is_exec(t) || t.abs_diff(fstart) >= 0x40_0000 || decode_info(bin, t).is_none() { break; }
         out.push(t);
     }
@@ -530,7 +530,7 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
             let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
             if prev.mnemonic == "cmp" {
                 let n = prev.ops.rsplit(',').next().unwrap_or("").trim().trim_start_matches('#');
-                bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).map(|v| v + 1);
+                bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).and_then(|v| v.checked_add(1));
                 break;
             }
         }
@@ -552,7 +552,7 @@ fn arm32_switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fsta
         let Some(prev) = crate::multiarch::one(bin, addr) else { continue };
         if prev.mnemonic == "cmp" {
             let n = prev.ops.rsplit(',').next().unwrap_or("").trim().trim_start_matches('#');
-            bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).map(|v| v + 1);
+            bound = n.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()).or_else(|| n.parse().ok()).and_then(|v| v.checked_add(1));
             break;
         }
     }
@@ -817,7 +817,7 @@ fn parse_riscv_signed(text: &str) -> Option<i64> {
     } else {
         digits.parse::<i64>().ok()?
     };
-    Some(if negative { -value } else { value })
+    if negative { value.checked_neg() } else { Some(value) }
 }
 
 fn switch_count(bound: Option<u64>) -> usize {
@@ -1577,9 +1577,9 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     let mut pointer_tables: HashMap<u64, Vec<u64>> = HashMap::new();
     for s in bin.segments.iter().filter(|s| !s.exec && s.file_offset.is_some()) {
         let mut off = 0usize;
-        while off + w <= s.data.len() {
-            let from = s.start + off as u64;
-            let v = bin.read_ptr(from).unwrap_or(0);
+        while off <= s.data.len().saturating_sub(w) {
+            let Some(from) = s.start.checked_add(off as u64) else { off += 1; continue };
+            let v = s.data.get(off..off + w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(0);
             if v != 0 && bin.is_mapped(v) {
                 xrefs_to.entry(v).or_default().push(Xref { from, kind: XrefKind::Data });
                 data_size.entry(from).or_insert(w as u8 | 0x80);
@@ -1595,18 +1595,17 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         let mut run: Vec<u64> = Vec::new();
         let flush = |start: &mut usize, entries: &mut Vec<u64>, all: &mut HashMap<u64, Vec<u64>>, code: &mut HashMap<u64, Vec<u64>>, seg_start: u64| {
             if entries.len() >= 2 {
-                let addr = seg_start + *start as u64;
-                all.insert(addr, entries.clone());
-                if entries.iter().all(|v| bin.is_exec(*v)) {
-                    code.insert(addr, entries.clone());
+                if let Some(addr) = seg_start.checked_add(*start as u64) {
+                    all.insert(addr, entries.clone());
+                    if entries.iter().all(|v| bin.is_exec(*v)) {
+                        code.insert(addr, entries.clone());
+                    }
                 }
             }
             entries.clear();
         };
-        for off in (0..s.data.len()).step_by(w) {
-            if off + w > s.data.len() { break; }
-            let from = s.start + off as u64;
-            let v = bin.read_ptr(from).unwrap_or(0);
+        for off in (0..=s.data.len().saturating_sub(w)).step_by(w) {
+            let v = s.data.get(off..off + w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(0);
             if v != 0 && bin.is_mapped(v) {
                 if run.is_empty() { run_start = off; }
                 run.push(v);
@@ -1620,17 +1619,17 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         // complete runs of the native stride so isolated unaligned pointers do
         // not become tables.
         for start in 1..s.data.len() {
-            if start % w == 0 || start + 2 * w > s.data.len() { continue; }
+            if start % w == 0 || start > s.data.len().saturating_sub(2 * w) { continue; }
             let mut entries = Vec::new();
             let mut pos = start;
-            while pos + w <= s.data.len() {
-                let value = bin.read_ptr(s.start + pos as u64).unwrap_or(0);
+            while pos <= s.data.len().saturating_sub(w) {
+                let value = s.data.get(pos..pos + w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(0);
                 if value == 0 || !bin.is_mapped(value) { break; }
                 entries.push(value);
                 pos += w;
             }
             if entries.len() >= 2 {
-                let addr = s.start + start as u64;
+                let Some(addr) = s.start.checked_add(start as u64) else { continue };
                 pointer_tables.entry(addr).or_insert_with(|| entries.clone());
                 if entries.iter().all(|value| bin.is_exec(*value)) {
                     vtables.entry(addr).or_insert(entries);
@@ -1642,17 +1641,16 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         // slots: offset-to-top and a pointer to the typeinfo object. The
         // function-pointer run starts after that header, so the conservative
         // all-executable scan above intentionally cannot see these tables.
-        for off in (0..s.data.len()).step_by(w) {
-            if off + 4 * w > s.data.len() { break; }
-            let header = s.start + off as u64;
-            let top = bin.read_ptr(header).unwrap_or(u64::MAX);
+        for off in (0..=s.data.len().saturating_sub(4 * w)).step_by(w) {
+            let Some(header) = s.start.checked_add(off as u64) else { break };
+            let top = s.data.get(off..off + w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(u64::MAX);
             let top_ok = top == 0 || (top as i64).unsigned_abs() <= 0x10_0000;
-            let typeinfo = bin.read_ptr(header + w as u64).unwrap_or(0);
+            let typeinfo = s.data.get(off + w..off + 2 * w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(0);
             if !top_ok || !bin.is_mapped(typeinfo) || bin.is_exec(typeinfo) { continue; }
             let mut funcs = Vec::new();
             let mut pos = off + 2 * w;
-            while pos + w <= s.data.len() && funcs.len() < 256 {
-                let target = bin.read_ptr(s.start + pos as u64).unwrap_or(0);
+            while pos <= s.data.len().saturating_sub(w) && funcs.len() < 256 {
+                let target = s.data.get(pos..pos + w).and_then(|bytes| bin.read_ptr_bytes(bytes)).unwrap_or(0);
                 if !bin.is_exec(target) || decode_info(bin, target).is_none() { break; }
                 funcs.push(target);
                 pos += w;
