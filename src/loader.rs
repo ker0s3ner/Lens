@@ -458,6 +458,7 @@ fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
             });
         }
     }
+    bin.segments.sort_by_key(|s| s.start);
     if relocatable {
         bin.entry = bin.segments.iter().find(|s| s.exec).map(|s| s.start);
         let (applied, skipped) = apply_elf_object_relocations(bin, elf, &section_bases);
@@ -709,6 +710,7 @@ fn load_pe(bin: &mut Binary, pe: &goblin::pe::PE, bytes: &[u8]) {
             file_offset: Some(s.pointer_to_raw_data as u64),
         });
     }
+    bin.segments.sort_by_key(|s| s.start);
     // TLS callbacks execute before the PE entry point and are often used for
     // runtime initialization or packer logic. Treat them as function starts.
     if let Some(tls) = &pe.tls_data {
@@ -1026,6 +1028,7 @@ fn load_macho(bin: &mut Binary, m: &goblin::mach::MachO, slice: &[u8]) {
             }
         }
     }
+    bin.segments.sort_by_key(|s| s.start);
     if !object_file {
         for lc in &m.load_commands {
             let goblin::mach::load_command::CommandVariant::DataInCode(c) = &lc.command else { continue };
