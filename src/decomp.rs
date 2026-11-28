@@ -3371,6 +3371,7 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
     for _ in 0..assignments.len().max(1) {
         let mut candidates = HashMap::<String, String>::new();
         let mut conflicts = HashSet::<String>::new();
+        let mut unknown_assignments = HashSet::<String>::new();
         for (name, rhs) in &assignments {
             // Parameters with known prototypes keep their declared type even if
             // the body later assigns to them.
@@ -3386,11 +3387,13 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
                 } else {
                     candidates.insert(name.clone(), ty);
                 }
+            } else {
+                unknown_assignments.insert(name.clone());
             }
         }
         let mut next = seeds.clone();
         for (name, ty) in candidates {
-            if !conflicts.contains(&name) {
+            if !conflicts.contains(&name) && !unknown_assignments.contains(&name) {
                 next.insert(name, ty);
             }
         }
