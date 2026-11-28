@@ -325,7 +325,7 @@ impl LensApp {
                             self.modal_message("Couldn't launch local child", error.to_string())
                         }
                     },
-                    Err(error) => self.modal_message("Couldn't launch local child", error),
+                    Err(error) => self.modal_message("Couldn't launch local child", error.to_string()),
                 }
             }
             return self.native_debugger.session.is_some();
