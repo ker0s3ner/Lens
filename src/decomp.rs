@@ -1353,6 +1353,135 @@ fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     }
 }
 
+fn is_generated_temp(name: &str) -> bool {
+    if !(name.starts_with('v') || name.starts_with('t')) { return false; }
+    let suffix = &name[1..];
+    !suffix.is_empty() && suffix.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn add_temp_uses(expr: &Ex, uses: &mut HashSet<String>) {
+    let mut counts = HashMap::new();
+    count_vars(expr, &mut counts);
+    uses.extend(counts.into_keys().filter(|name| is_generated_temp(name)));
+}
+
+fn add_term_temp_uses(term: &Term, uses: &mut HashSet<String>) {
+    match term {
+        Term::Ret(Some(expr)) | Term::Indirect(expr) => add_temp_uses(expr, uses),
+        Term::Cond { cond, .. } => add_temp_uses(cond, uses),
+        _ => {}
+    }
+}
+
+/// Remove dead generated temporaries with CFG liveness. A function-wide use
+/// count keeps a value alive even when every path from its definition to that
+/// use overwrites it first; successor liveness proves those paths separately.
+fn remove_cfg_dead_temps(
+    outs: &mut [BlockOut],
+    successors: &[Vec<usize>],
+    materialized: &[Vec<(u8, Ex)>],
+) {
+    // Keep the additional set-based fixed point bounded on unusually large
+    // functions; the conservative function-wide cleanup still handles those.
+    if outs.len() > 512 { return; }
+    let mut block_uses = vec![HashSet::new(); outs.len()];
+    let mut block_defs = vec![HashSet::new(); outs.len()];
+    for (block, out) in outs.iter().enumerate() {
+        let (uses, defs) = (&mut block_uses[block], &mut block_defs[block]);
+        for (_, stmt) in &out.stmts {
+            match stmt {
+                Stmt::Assign(Ex::Var(dst), value) if is_generated_temp(dst) => {
+                    let mut rhs_uses = HashSet::new();
+                    add_temp_uses(value, &mut rhs_uses);
+                    uses.extend(rhs_uses.difference(defs).cloned());
+                    defs.insert(dst.clone());
+                }
+                Stmt::Assign(left, right) => {
+                    let mut stmt_uses = HashSet::new();
+                    add_temp_uses(left, &mut stmt_uses);
+                    add_temp_uses(right, &mut stmt_uses);
+                    uses.extend(stmt_uses.difference(defs).cloned());
+                }
+                Stmt::Expr(expr) => {
+                    let mut stmt_uses = HashSet::new();
+                    add_temp_uses(expr, &mut stmt_uses);
+                    uses.extend(stmt_uses.difference(defs).cloned());
+                }
+                Stmt::Comment(_) => {}
+            }
+        }
+        let mut term_uses = HashSet::new();
+        add_term_temp_uses(&out.term, &mut term_uses);
+        uses.extend(term_uses.difference(defs).cloned());
+    }
+
+    let mut live_in = vec![HashSet::new(); outs.len()];
+    loop {
+        let mut changed = false;
+        for block in (0..outs.len()).rev() {
+            let mut live_out = HashSet::new();
+            for successor in &successors[block] {
+                if let Some(live) = live_in.get(*successor) {
+                    live_out.extend(live.iter().cloned());
+                }
+            }
+            for (_, expr) in &materialized[block] {
+                add_temp_uses(expr, &mut live_out);
+            }
+            let mut next = block_uses[block].clone();
+            next.extend(live_out.difference(&block_defs[block]).cloned());
+            if next != live_in[block] {
+                live_in[block] = next;
+                changed = true;
+            }
+        }
+        if !changed { break; }
+    }
+
+    for block in (0..outs.len()).rev() {
+        let mut live = HashSet::new();
+        for successor in &successors[block] {
+            if let Some(successor_live) = live_in.get(*successor) {
+                live.extend(successor_live.iter().cloned());
+            }
+        }
+        for (_, expr) in &materialized[block] {
+            add_temp_uses(expr, &mut live);
+        }
+        add_term_temp_uses(&outs[block].term, &mut live);
+
+        let mut kept = Vec::with_capacity(outs[block].stmts.len());
+        for (address, mut stmt) in outs[block].stmts.drain(..).rev() {
+            match &mut stmt {
+                Stmt::Assign(Ex::Var(dst), value) if is_generated_temp(dst) => {
+                    if !live.contains(dst) {
+                        if observable_eval(value) {
+                            let expression = value.clone();
+                            add_temp_uses(&expression, &mut live);
+                            stmt = Stmt::Expr(expression);
+                            kept.push((address, stmt));
+                        }
+                        continue;
+                    }
+                    live.remove(dst);
+                    add_temp_uses(value, &mut live);
+                }
+                Stmt::Assign(left, right) => {
+                    if !matches!(left, Ex::Var(_)) {
+                        add_temp_uses(left, &mut live);
+                    }
+                    add_temp_uses(right, &mut live);
+                }
+                Stmt::Expr(expr) => add_temp_uses(expr, &mut live),
+                Stmt::Comment(_) => {}
+            }
+            kept.push((address, stmt));
+        }
+        kept.reverse();
+        outs[block].stmts = kept;
+    }
+}
+
 fn observable_eval(e: &Ex) -> bool {
     match e {
         // Keep calls and memory reads when their result is unused: the former
@@ -3501,6 +3630,7 @@ fn decompile_inner(
             break;
         }
     }
+    remove_cfg_dead_temps(&mut outs, &succ_idx, &mat);
     // inline single-use call results: `v1 = f(); x = v1;`-style is left alone; only drop trivial self-assignments
     for o in outs.iter_mut() {
         o.stmts.retain(|(_, s)| !matches!(s, Stmt::Assign(a, b) if a == b) && !matches!(s, Stmt::Comment(c) if c.is_empty()));

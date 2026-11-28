@@ -501,6 +501,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Cross-block propagation preserves source and destination reassignment barriers with regression coverage.
 - Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.
 - Merge-block propagation remains conservative and requires matching incoming assignments before rewriting uses.
+- Decompiler dead-temporary cleanup now uses bounded CFG liveness to remove values overwritten on every path before their remaining uses, while preserving observable calls and memory reads; functions above 512 blocks retain the conservative function-wide cleanup.
 - Call-graph caller neighborhoods now deduplicate functions before applying the large-graph cap.
 - Added a repeatable runtime-discovered smoke corpus for headless loader/analysis validation.
 - GitHub release workflow now gates packaging on locked tests and the analysis smoke corpus.
