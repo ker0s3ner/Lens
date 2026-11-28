@@ -323,6 +323,7 @@ impl NativeSession {
             if error.raw_os_error() == Some(libc::ECHILD) {
                 // The PID can be reused once reaped. Disable all further signals.
                 self.state = State::OwnershipLost;
+                self.record_event("Lost child status ownership; future controls are disabled to avoid a reused PID".into());
             }
             return Err(error);
         }
