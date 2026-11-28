@@ -309,6 +309,31 @@ fn behavior_api_category(api: &str) -> &'static str {
     }
 }
 
+fn valid_remote_target(remote: &str) -> bool {
+    let (host, port) = if let Some(address) = remote.strip_prefix('[') {
+        let Some((host, port)) = address.split_once("]:") else {
+            return false;
+        };
+        if host.parse::<std::net::Ipv6Addr>().is_err() {
+            return false;
+        }
+        (host, port)
+    } else {
+        let Some((host, port)) = remote.rsplit_once(':') else {
+            return false;
+        };
+        if host.contains(':') {
+            return false;
+        }
+        (host, port)
+    };
+    !host.is_empty()
+        && host
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || ".-_".contains(character))
+        && port.parse::<u16>().is_ok_and(|port| port != 0)
+}
+
 fn runtime_event_category<'a>(event: &'a DynamicEvent, annotation: Option<&'a RuntimeEventAnnotation>) -> &'a str {
     annotation.filter(|annotation| !annotation.api_signals.is_empty())
         .map(|annotation| annotation.category.as_str()).unwrap_or(event.category.as_str())
@@ -533,15 +558,19 @@ fn observed_runtime_calls(
 impl Dbg {
     pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>, behavior_sites: &[BehaviorCallSite], stack_arch: crate::loader::Arch, argument_registers: &[String], capture_string_arguments: bool) -> Result<Dbg, String> {
         let attach_pid = attach_pid.trim();
-        if !attach_pid.is_empty() && !attach_pid.chars().all(|c| c.is_ascii_digit()) {
-            return Err("Process ID must contain digits only.".into());
+        if !attach_pid.is_empty()
+            && !attach_pid
+                .parse::<libc::pid_t>()
+                .is_ok_and(|pid| pid > 0)
+        {
+            return Err("Process ID must be a positive integer in the supported range.".into());
         }
         let remote = remote.trim();
         if !remote.is_empty() && !attach_pid.is_empty() {
             return Err("Choose either a remote target or a local process ID.".into());
         }
-        if !remote.is_empty() && (!remote.chars().all(|c| c.is_ascii_alphanumeric() || ".:-_[]".contains(c)) || !remote.contains(':')) {
-            return Err("Remote target must be a host:port address.".into());
+        if !remote.is_empty() && !valid_remote_target(remote) {
+            return Err("Remote target must be a hostname or IP address with a valid port (IPv6 in brackets).".into());
         }
         // lldb needs a terminal: without one it buffers its output and stalls while the program runs
         let (mut master, mut slave) = (0i32, 0i32);

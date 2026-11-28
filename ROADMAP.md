@@ -262,6 +262,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Phase 5 - Debugger
 - A native local-child tracer now handles launch configuration, entry stops, single stepping, signal forwarding, output capture, and bounded process events on macOS/Linux; replace LLDB for attach/remote sessions and add Windows debug API support.
 - Improve target/session management, platform coverage, reconnect/error recovery, and debugger UI synchronization.
+- Debugger startup now rejects zero/overflowing process IDs and malformed host/port endpoints before launching LLDB; bracketed IPv6 and nonzero 16-bit ports are accepted.
 - Correlate runtime traces with static capabilities, imports, protections, packing/entropy clues, and suspicious behavior categories; keep every signal explainable and clearly labeled as heuristic triage rather than a malware verdict.
 - Dynamic trace review now correlates adjacent PCs at call instructions to known callees, matches those callees to explainable static behavior signals, and highlights observed caller-to-callee transitions in order for defensive review.
 - The LLDB debugger can opt in to temporary breakpoints at up to 64 direct or import-slot API call sites linked to static behavior clues; live hits show the caller, imported API, matching heuristics, and effective severity. These watchpoints are limited to local launches and may change execution timing.
@@ -284,6 +285,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Improve collaboration and interchange; IDC/Ghidra script and JSON/map exports and partial IDC/Ghidra import already exist, but richer database import remains.
 
 ## Done so far (toward parity)
+- Debugger attach and remote startup validate positive platform-range PIDs, hostnames/IP addresses, bracketed IPv6, and nonzero ports before invoking LLDB.
 - Prototype-seeded local types now carry pointer parameters through callback typedefs into call arguments and pointer-return inference; callback null constants render with C-compatible function-pointer casts.
 - Malware triage now distinguishes explicit persistence mechanisms from ordinary registry/preferences access and flags credential-store imports with explainable evidence; runtime call matching parses the API evidence list independently of explanatory text.
 - M68k LINK frames now account for the saved frame pointer and map the first stack parameter at the correct A6-relative offset, with a pseudocode fixture guarding the result.
