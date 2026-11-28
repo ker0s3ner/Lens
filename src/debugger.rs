@@ -19,6 +19,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver};
 
 const DONE: &str = "@@LENS_PROMPT@@";
+type BehaviorCallSite = (u64, String, Vec<String>);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RunState {
@@ -119,6 +120,9 @@ pub struct DbgUi {
     pub attach_pid: String,
     pub memory_address: String,
     pub hardware_breakpoints: bool,
+    pub behavior_watch: bool,
+    behavior_sites: Vec<BehaviorCallSite>,
+    behavior_sites_key: Option<(String, u64, u64)>,
     pub trace: bool,
     pub triage_only: bool,
     pub confirm: bool,
@@ -180,21 +184,83 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
     counts
 }
 
+#[derive(Clone)]
+struct RuntimeEventAnnotation {
+    function: String,
+    api: Option<String>,
+    api_signals: Vec<String>,
+    signals: Vec<String>,
+    severity: String,
+}
+
+fn api_target_at(
+    address: u64,
+    analysis: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+) -> Option<String> {
+    let instruction = analysis.insns.get(&address)?;
+    let target = match instruction.flow {
+        Flow::Call => instruction.target,
+        Flow::IndirectCall => instruction.mem,
+        _ => return None,
+    };
+    let (name, kind) = names.get(&target)?;
+    (*kind == NameKind::Import).then(|| name.clone())
+}
+
+fn behavior_api_call_sites(
+    analysis: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    signals: &[crate::detect::ThreatSignal],
+) -> Vec<BehaviorCallSite> {
+    let mut sites = analysis.insns.iter().filter_map(|(address, _instruction)| {
+        let api = api_target_at(*address, analysis, names)?;
+        let matched = signals.iter().filter(|signal| signal_matches_callee(signal, &api))
+            .map(|signal| signal.name.clone()).collect::<Vec<_>>();
+        if matched.is_empty() { return None; }
+        let severity = signals.iter().filter(|signal| matched.contains(&signal.name)).map(|signal| signal.severity).max().unwrap_or(0);
+        Some((*address, api, matched, severity))
+    }).collect::<Vec<_>>();
+    sites.sort_by(|a, b| b.3.cmp(&a.3).then(a.0.cmp(&b.0)));
+    sites.truncate(64);
+    sites.into_iter().map(|(address, api, signals, _)| (address, api, signals)).collect()
+}
+
 fn runtime_event_annotations(
     events: &[DynamicEvent],
     analysis: &Analysis,
     names: &HashMap<u64, (String, NameKind)>,
     signals: &[crate::detect::ThreatSignal],
-) -> HashMap<u64, (String, Vec<String>)> {
+) -> HashMap<u64, RuntimeEventAnnotation> {
     events.iter().filter_map(|event| {
         let address = event.address?;
         let function = analysis.function_containing(address)?;
-        let name = names.get(&function.start).map(|(name, _)| name.clone())
+        let function_name = names.get(&function.start).map(|(name, _)| name.clone())
             .unwrap_or_else(|| format!("sub_{:X}", function.start));
-        let matched = signals.iter().filter(|signal| signal_matches_callee(signal, &name))
-            .map(|signal| signal.name.clone()).collect();
-        Some((address, (name, matched)))
+        let api = api_target_at(address, analysis, names);
+        let mut api_signals = api.as_ref().map(|api| signals.iter().filter(|signal| signal_matches_callee(signal, api))
+            .map(|signal| signal.name.clone()).collect::<Vec<_>>()).unwrap_or_default();
+        api_signals.sort();
+        api_signals.dedup();
+        let mut matched = signals.iter().filter(|signal| signal_matches_callee(signal, &function_name))
+            .map(|signal| signal.name.clone()).collect::<Vec<_>>();
+        matched.extend(api_signals.iter().cloned());
+        matched.sort();
+        matched.dedup();
+        let severity = signals.iter().filter(|signal| matched.contains(&signal.name)).map(|signal| signal.severity).max().unwrap_or(0);
+        let severity = match severity { 3 => "high", 2 => "medium", 1 => "info", _ => "info" }.to_string();
+        Some((address, RuntimeEventAnnotation { function: function_name, api, api_signals, signals: matched, severity }))
     }).collect()
+}
+
+fn effective_event_severity<'a>(
+    event: &'a DynamicEvent,
+    annotations: &'a HashMap<u64, RuntimeEventAnnotation>,
+) -> &'a str {
+    event.address.and_then(|address| annotations.get(&address))
+        .filter(|annotation| !annotation.signals.is_empty())
+        .map(|annotation| annotation.severity.as_str())
+        .unwrap_or(event.severity.as_str())
 }
 
 type RuntimeCall = (usize, u64, u64, String, String, Vec<String>);
@@ -644,13 +710,29 @@ impl LensApp {
             _ if l.bin.arch == crate::loader::Arch::X64 && cfg!(target_arch = "aarch64") => Some("x86_64"),
             _ => None,
         };
-        let bps = l.ann.breakpoints.clone();
-        let conditions = l.ann.bp_conditions.clone();
         let (args, remote, pid, hardware) = (self.tools2.dbg.args.clone(), self.tools2.dbg.remote.clone(), self.tools2.dbg.attach_pid.clone(), self.tools2.dbg.hardware_breakpoints);
+        let watch_requested = self.tools2.dbg.behavior_watch;
+        let local_launch = remote.trim().is_empty() && pid.trim().is_empty();
+        let behavior_sites = if watch_requested && local_launch && !hardware {
+            behavior_api_call_sites(&l.an, &l.names, &l.det.threat_signals)
+        } else { Vec::new() };
+        let mut bps = l.ann.breakpoints.clone();
+        bps.extend(behavior_sites.iter().map(|(address, _, _)| *address));
+        bps.sort_unstable();
+        bps.dedup();
+        let conditions = l.ann.bp_conditions.clone();
         match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions) {
             Ok(d) => {
                 self.dbg = Some(d);
-                self.logm(format!("Debugging {path} with lldb"));
+                if watch_requested && !local_launch {
+                    self.logm("Behavior API watchpoints require a local launch; no automatic breakpoints were added.");
+                } else if watch_requested && hardware {
+                    self.logm("Behavior API watchpoints use software breakpoints; turn off the hardware-breakpoint requirement to arm them.");
+                } else if watch_requested {
+                    self.logm(format!("Debugging {path} with lldb; watching {} statically flagged API call sites (execution pauses at each hit).", behavior_sites.len()));
+                } else {
+                    self.logm(format!("Debugging {path} with lldb"));
+                }
             }
             Err(e) => self.modal_message("Couldn't start the debugger", e),
         }
@@ -709,6 +791,15 @@ impl LensApp {
             (Some(d), Some(l)) => runtime_event_annotations(&d.dynamic_events, &l.an, &l.names, &l.det.threat_signals),
             _ => HashMap::new(),
         };
+        let behavior_sites_count = if self.tools2.dbg.behavior_watch && self.dbg.is_none() {
+            let key = self.loaded().map(|l| (l.bin.path.clone(), l.bin.file_size, l.version));
+            if self.tools2.dbg.behavior_sites_key != key {
+                let sites = self.loaded().map(|l| behavior_api_call_sites(&l.an, &l.names, &l.det.threat_signals)).unwrap_or_default();
+                self.tools2.dbg.behavior_sites = sites;
+                self.tools2.dbg.behavior_sites_key = key;
+            }
+            self.tools2.dbg.behavior_sites.len()
+        } else { 0 };
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
         let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
@@ -843,6 +934,12 @@ impl LensApp {
                         start = true;
                     }
                     ui.label(RichText::new("macOS only debugs programs that allow it: your own builds work; Apple's protected system programs don't.").small().color(p.faint));
+                ui.checkbox(&mut ui_state.behavior_watch, "Watch behavior APIs at call sites")
+                    .on_hover_text("Opt in to temporary software breakpoints at up to 64 imported API call sites linked to static behavior clues. This stops execution immediately before a watched call and can change timing. Local launch only; remote and attached targets are not instrumented.");
+                if ui_state.behavior_watch {
+                    let status = if ui_state.hardware_breakpoints { "candidates · turn off hardware mode to arm" } else { "behavior call sites ready · local launch only" };
+                    ui.label(RichText::new(format!("{} {status}", behavior_sites_count)).small().color(p.muted));
+                }
                 }
                 Some(d) => {
                     ui.horizontal(|ui| {
@@ -921,9 +1018,11 @@ impl LensApp {
                                 let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee, "heuristic_signals": signals})).collect::<Vec<_>>();
                                 let runtime_events = d.dynamic_events.iter().map(|event| {
                                     let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                                    serde_json::json!({"category": event.category, "severity": event.severity, "address": event.address, "message": event.message, "function": annotation.map(|(name, _)| name), "heuristic_signals": annotation.map(|(_, signals)| signals.clone()).unwrap_or_default()})
+                                    serde_json::json!({"category": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() }, "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default()})
                                 }).collect::<Vec<_>>();
-                                let event_counts = ["high", "medium", "info"].into_iter().map(|severity| (severity, d.dynamic_events.iter().filter(|event| event.severity == severity).count())).collect::<std::collections::BTreeMap<_, _>>();
+                                let event_counts = ["high", "medium", "info"].into_iter().map(|severity| (severity, d.dynamic_events.iter().filter(|event| {
+                                    effective_event_severity(event, &runtime_event_lookup) == severity
+                                }).count())).collect::<std::collections::BTreeMap<_, _>>();
                                 let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "event_severity_counts": event_counts, "events": d.dynamic_events.iter().map(|event| event.message.clone()).collect::<Vec<_>>(), "runtime_events": runtime_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
@@ -996,27 +1095,30 @@ impl LensApp {
                         }
                     }
                     if !d.dynamic_events.is_empty() {
-                        let high = d.dynamic_events.iter().filter(|event| event.severity == "high").count();
-                        let medium = d.dynamic_events.iter().filter(|event| event.severity == "medium").count();
+                        let high = d.dynamic_events.iter().filter(|event| effective_event_severity(event, &runtime_event_lookup) == "high").count();
+                        let medium = d.dynamic_events.iter().filter(|event| effective_event_severity(event, &runtime_event_lookup) == "medium").count();
                         ui.label(RichText::new(format!("RUNTIME EVENTS · {}/512 retained · {high} high · {medium} medium", d.dynamic_events.len())).small().color(if high > 0 { p.edge_not } else { p.faint }));
                         if ui.small_button("Copy debug events").clicked() { ui.ctx().copy_text(d.dynamic_events.iter().rev().map(|event| {
                             let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                            format!("{}\t{}\t{}\t{}\t{}", event.severity, event.category, event.address.map(|address| format!("{address:016X}")).unwrap_or_default(), annotation.map(|(name, _)| name.as_str()).unwrap_or(""), event.message)
+                            format!("{}\t{}\t{}\t{}\t{}\t{}\t{}", annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), annotation.filter(|annotation| !annotation.api_signals.is_empty()).map(|_| "behavior-callsite").unwrap_or(event.category.as_str()), event.address.map(|address| format!("{address:016X}")).unwrap_or_default(), annotation.map(|annotation| annotation.function.as_str()).unwrap_or(""), annotation.and_then(|annotation| annotation.api.as_deref()).unwrap_or(""), annotation.map(|annotation| annotation.signals.join(", ")).unwrap_or_default(), event.message)
                         }).collect::<Vec<_>>().join("\n")); }
                         if ui.small_button("Copy events JSON").clicked() {
                             let value = d.dynamic_events.iter().map(|event| {
                                 let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                                serde_json::json!({"category": event.category, "severity": event.severity, "address": event.address, "message": event.message, "function": annotation.map(|(name, _)| name), "heuristic_signals": annotation.map(|(_, signals)| signals.clone()).unwrap_or_default()})
+                                serde_json::json!({"category": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() }, "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default()})
                             }).collect::<Vec<_>>();
                             ui.ctx().copy_text(serde_json::to_string_pretty(&value).unwrap_or_default());
                         }
                         if ui.small_button("Clear debug events").clicked() { d.dynamic_events.clear(); }
-                        for event in d.dynamic_events.iter().rev().filter(|event| !ui_state.triage_only || event.severity != "info").take(4) {
+                        for event in d.dynamic_events.iter().rev().filter(|event| !ui_state.triage_only || effective_event_severity(event, &runtime_event_lookup) != "info").take(4) {
                             let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                            let function = annotation.map(|(name, _)| format!(" · {name}")).unwrap_or_default();
-                            let signals = annotation.filter(|(_, signals)| !signals.is_empty()).map(|(_, signals)| format!(" · {}", signals.join(", "))).unwrap_or_default();
-                            let label = format!("{} · {}{}{}{} · {}", event.severity.to_ascii_uppercase(), event.category, event.address.map(|address| format!(" · {address:016X}")).unwrap_or_default(), function, signals, event.message);
-                            let color = match event.severity.as_str() { "high" => p.edge_not, "medium" => p.comment, _ => p.muted };
+                            let function = annotation.map(|annotation| format!(" · {}", annotation.function)).unwrap_or_default();
+                            let api = annotation.and_then(|annotation| annotation.api.as_ref()).map(|api| format!(" → {api}")).unwrap_or_default();
+                            let signals = annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| format!(" · {}", annotation.signals.join(", "))).unwrap_or_default();
+                            let category = if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() };
+                            let severity = effective_event_severity(event, &runtime_event_lookup);
+                            let label = format!("{} · {}{}{}{}{} · {}", severity.to_ascii_uppercase(), category, event.address.map(|address| format!(" · {address:016X}")).unwrap_or_default(), function, api, signals, event.message);
+                            let color = match severity { "high" => p.edge_not, "medium" => p.comment, _ => p.muted };
                             if let Some(address) = event.address.filter(|address| bin.as_ref().is_some_and(|binary| binary.is_mapped(*address))) {
                                 if ui.add(egui::Button::new(RichText::new(label).small().color(color))).clicked() { goto = Some(address); }
                             } else {

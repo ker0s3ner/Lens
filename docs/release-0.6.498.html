@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.498 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.498 — Fourier</h1><p class="lead">Opt-in debugger watchpoints for statically flagged behavior APIs.</p><ul>
+<li>Find direct calls and indirect import-slot calls to imported APIs linked to static behavior-triage signals.</li>
+<li>Rank candidate sites by the strongest matched signal and then by address, with a 64-site session limit.</li>
+<li>Set temporary breakpoints on executable call instructions only; saved user breakpoints and their conditions are preserved.</li>
+<li>Apply automatic watchpoints only when launching the loaded program locally. Remote and PID-attached sessions skip local-image addresses and explain why.</li>
+<li>Use software breakpoints for behavior watch; if hardware-breakpoint mode is selected, show the candidate count and explain that automatic watchpoints were not armed.</li>
+<li>Show the number of behavior call sites available before launch and log how many are armed.</li>
+<li>Label a hit as a behavior call-site stop before the API executes, and show its caller, imported API, matching static heuristic signals, and effective severity.</li>
+<li>Keep flagged API hits visible under Triage only, color them by severity, and navigate back to the call site.</li>
+<li>Copy enriched runtime events as TSV or JSON and include API/caller details, effective severity totals, and an explicit <code>stopped_before_api_call</code> state in trace JSON.</li>
+<li>The debugger stops immediately before a watched call, which may change execution timing. Signals are heuristic clues for defensive review, not proof of malicious behavior.</li>
+<li>Keep the weighted IDA Pro estimate at 41.8%; the 50% target remains in progress.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.498">GitHub release</a></p></main></body></html>

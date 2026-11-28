@@ -1,3 +1,32 @@
+# Lens 0.6.498 — Fourier
+
+- Add an opt-in Watch behavior APIs at call sites mode to the LLDB debugger.
+- Find direct calls that target imported APIs linked to existing static behavior signals.
+- Find indirect calls that access imported APIs through recognized import slots.
+- Limit automatic breakpoints to API call sites with matching behavior evidence.
+- Rank candidates by static signal severity, then address, for a repeatable breakpoint set.
+- Arm at most 64 behavior call-site breakpoints per debugging session.
+- Set breakpoints on executable call instructions so execution stops immediately before the call.
+- Keep automatically added breakpoints temporary; they do not change saved analyst breakpoints.
+- Preserve user-defined breakpoints and conditions alongside behavior watchpoints.
+- Apply automatic behavior breakpoints only when launching the loaded program locally.
+- Use software breakpoints for behavior watch; when hardware-breakpoint mode is selected, explain that behavior watchpoints were not armed.
+- Explain when remote or PID-attached sessions cannot use local-image watchpoint addresses.
+- Show how many statically flagged call sites are available before launch.
+- Log the number of watched API call sites when a local session starts.
+- Label runtime stops at watched call sites as occurring before the API executes, and show the imported API name.
+- Resolve the caller function and show the static behavior signals linked to the API.
+- Promote event severity using the strongest matching behavior signal.
+- Keep flagged API events visible when Triage only hides ordinary informational stops.
+- Color behavior events by their effective high, medium, or informational severity.
+- Navigate from a behavior event back to the executable call site.
+- Include caller, API, severity, and heuristic signals in copied TSV and JSON event handoffs.
+- Include the enriched behavior event fields, the explicit `stopped_before_api_call` state, and effective severity totals in trace JSON.
+- Keep the 512-event history bound and the existing string event list in trace JSON.
+- Behavior signals guide defensive review; they do not prove that a program is malicious.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.497 — Fourier
 
 - Classify debugger stops into faults, memory-watch events, breakpoints, signals, process exits, and other stops.
