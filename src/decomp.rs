@@ -220,6 +220,49 @@ struct Fmt<'a> {
 }
 
 impl Fmt<'_> {
+    fn expression_type(&self, expression: &Ex) -> Option<String> {
+        match expression {
+            Ex::Num(_) => Some("int".into()),
+            Ex::Var(name) => self.types.get(name).cloned(),
+            Ex::Cast(ty, _) => Some((*ty).to_string()),
+            Ex::CastOwned(ty, _) => Some(ty.clone()),
+            Ex::Call(callee, _) => call_return_type(callee),
+            Ex::Deref(address, _) => self.expression_type(address).and_then(|ty| self.pointer_target(&ty)),
+            Ex::Bin("+" | "-", base, offset) => {
+                let base_type = self.expression_type(base)?;
+                self.pointer_target(&base_type).filter(|_| self.expression_type(offset).and_then(|ty| self.pointer_target(&ty)).is_none()).map(|_| base_type)
+            }
+            Ex::Tern(_, yes, no) => {
+                let yes = self.expression_type(yes);
+                let no = self.expression_type(no);
+                (yes == no).then_some(yes).flatten()
+            }
+            Ex::Un("+" | "-", inner) => self.expression_type(inner),
+            _ => None,
+        }
+    }
+
+    fn call_argument(&self, argument: &Ex, expected: Option<&str>) -> String {
+        let shown = self.at(argument, 99);
+        let Some(expected) = expected.map(str::trim) else { return shown };
+        let Some(expected_target) = self.pointer_target(expected) else {
+            if !expected.contains("(*") || !matches!(argument, Ex::Num(0)) { return shown; }
+            return format!("({expected}){shown}");
+        };
+        let actual_type = self.expression_type(argument);
+        let Some(actual_type) = actual_type else {
+            return if matches!(argument, Ex::Num(0)) { format!("({expected}){shown}") } else { shown };
+        };
+        let Some(actual_target) = self.pointer_target(&actual_type) else {
+            return format!("({expected}){shown}");
+        };
+        let normalize = |ty: &str| {
+            ty.trim().trim_start_matches("const ").trim_start_matches("volatile ").trim_start_matches("restrict ").trim()
+        };
+        if normalize(&expected_target) == "void" || normalize(&expected_target) == normalize(&actual_target) { shown }
+        else { format!("({expected}){shown}") }
+    }
+
     fn struct_def(&self, ty: &str) -> Option<&crate::types::StructDef> {
         let mut qualified = ty.trim().to_string();
         for qualifier in ["const ", "volatile ", "restrict "] {
@@ -492,7 +535,15 @@ impl Fmt<'_> {
                     Ex::Var(_) => self.at(f, 0),
                     other => format!("(*{})", self.at(other, 3)),
                 };
-                let a: Vec<String> = args.iter().map(|x| self.at(x, 99)).collect();
+                let proto = match &**f {
+                    Ex::Var(name) => crate::protos::find(name),
+                    Ex::Cast(ty, _) => function_pointer_proto(ty),
+                    Ex::CastOwned(ty, _) => function_pointer_proto(ty),
+                    _ => None,
+                };
+                let a: Vec<String> = args.iter().enumerate().map(|(index, argument)| {
+                    self.call_argument(argument, proto.as_ref().and_then(|p| p.params.get(index)).map(|(ty, _)| ty.as_str()))
+                }).collect();
                 format!("{callee}({})", a.join(", "))
             }
             Ex::Tern(_, a, b) if a == b => self.at(a, ctx),
