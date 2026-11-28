@@ -1,3 +1,18 @@
+# Lens 0.6.493 — Fourier
+
+- Propagate identical side-effect-free expressions through convergent CFG merge blocks.
+- Keep merge propagation conservative when a source variable is reassigned before use, and apply substitutions to final register definitions.
+- Preserve enum pseudocode types only when all assignments to a local agree; allow bounded fixed-point recovery through longer temporary chains.
+- Recover direct tail calls from terminal basic blocks instead of relying on recursive-discovery order.
+- Limit forwarding-thunk classification to single-block functions with sorted instruction addresses.
+- Check signed switch-table targets, table-entry addresses, Itanium typeinfo/name reads, and instruction fall-through arithmetic for address overflow.
+- Name common native stop signals including hangup, interrupt, quit, bus, pipe, termination, resource-limit, and bad-system-call signals.
+- Record when native child status ownership is lost and controls are disabled to avoid a reused PID.
+- Keep aligned 32-byte raw-byte listing rows fully visible by sizing their horizontal content width.
+- Mark when older native child output is omitted from the bounded 64 KiB output pane.
+- Weighted IDA Pro parity estimate remains 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.492 — Fourier
 
 - Add a download plus runtime-loading clue with both supporting import lists.

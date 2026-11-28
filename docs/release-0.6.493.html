@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.493 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.493 — Fourier</h1><p class="lead">Decompiler, control-flow, malformed-address, debugger, and large-listing improvements.</p><ul>
+<li>Propagate identical side-effect-free expressions through convergent CFG merge blocks.</li>
+<li>Keep merge propagation conservative when a source variable is reassigned before use, and apply substitutions to final register definitions.</li>
+<li>Preserve enum pseudocode types only when all assignments to a local agree; allow bounded fixed-point recovery through longer temporary chains.</li>
+<li>Recover direct tail calls from terminal basic blocks instead of relying on recursive-discovery order.</li>
+<li>Limit forwarding-thunk classification to single-block functions with sorted instruction addresses.</li>
+<li>Check signed switch-table targets, table-entry addresses, Itanium typeinfo/name reads, and instruction fall-through arithmetic for address overflow.</li>
+<li>Name common native stop signals including hangup, interrupt, quit, bus, pipe, termination, resource-limit, and bad-system-call signals.</li>
+<li>Record when native child status ownership is lost and controls are disabled to avoid a reused PID.</li>
+<li>Keep aligned 32-byte raw-byte listing rows fully visible by sizing their horizontal content width.</li>
+<li>Mark when older native child output is omitted from the bounded 64 KiB output pane.</li>
+<li>Weighted parity remains 41.8%; the 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.493">GitHub release</a></p></main></body></html>
