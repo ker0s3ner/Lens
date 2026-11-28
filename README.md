@@ -87,7 +87,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - Active and last project files are protected so removal cannot strand the session or empty the manifest.
 - Open raw binary is now available directly from the command palette.
 - Raw-file commands preload the existing architecture, endian, base, and Intel HEX/S-record loader controls.
-- Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.
+- Decompiler copy and constant propagation now flow through forward chains of unambiguous single-predecessor blocks in one address-ordered pass, while stopping at backward edges and reassignment barriers.
 - Cross-block propagation preserves source and destination reassignment barriers with regression coverage.
 - Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.
 - Merge-block propagation remains conservative and requires matching incoming assignments before rewriting uses.

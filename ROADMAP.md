@@ -192,7 +192,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls is expanding; typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, and pointer typedefs are implemented with regression coverage. Broader SSA-based propagation and more complex array/pointer reconstruction remain.
 - Pointee types now survive dereferences through integer pointer offsets, including offsets propagated through prototype-typed parameters, local pointer variables, and conditional pointer expressions; known pointer-valued offsets are rejected.
-- SSA-based data-flow, dead code and copy propagation, better loop and `switch` structuring.
+- Conservative temporary-copy and constant propagation now flow through forward single-predecessor blocks in one address-ordered pass, while skipping backward edges and stopping at reassignment barriers. Full SSA-based data-flow, dead-code analysis, and better loop/`switch` structuring remain planned.
 - Floating point, SIMD / NEON / SSE, 64-bit arithmetic idioms, and broader calling-convention inference. M68k LINK/A6 frames now recover stack parameters from the correct first-argument offset; call-site stack-argument collection and other conventions remain planned.
 - Thumb/Thumb-2 in the main loader and additional PPC extras.
 - Interactive pseudocode variable renaming and validated local retyping are available and persist per function; navigation and synchronization with disassembly still need improvement.
@@ -445,7 +445,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Active and last project files are protected so removal cannot strand the session or empty the manifest.
 - Open raw binary is now available directly from the command palette.
 - Raw-file commands preload the existing architecture, endian, base, and Intel HEX/S-record loader controls.
-- Decompiler copy propagation now crosses an unambiguous single-predecessor basic-block edge.
+- Decompiler copy and constant propagation now flow through forward chains of unambiguous single-predecessor basic blocks in one address-ordered pass and still stop at backward edges or reassignment barriers.
 - Cross-block propagation preserves source and destination reassignment barriers with regression coverage.
 - Decompiler copy propagation now folds identical temporary copies through converging control-flow edges.
 - Merge-block propagation remains conservative and requires matching incoming assignments before rewriting uses.

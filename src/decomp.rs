@@ -898,7 +898,7 @@ fn propagate_forward_copy(o: &mut BlockOut, has_successors: bool) {
     }
 }
 
-/// Propagate a final temporary copy across an unambiguous control-flow edge.
+/// Propagate a final temporary copy across an unambiguous forward edge.
 /// This is a deliberately conservative SSA step: the destination block must
 /// have exactly one predecessor, and propagation stops at either variable's
 /// next assignment.
@@ -910,18 +910,30 @@ fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
             if let Some(&i) = index.get(target) { pred_count[i] += 1; }
         }
     }
-    for source in 0..f.blocks.len() {
+    // Address order is topological for the forward edges handled here. This
+    // lets newly exposed copies flow across a whole chain in one bounded pass.
+    let mut source_order: Vec<usize> = (0..f.blocks.len()).collect();
+    source_order.sort_by_key(|&i| f.blocks[i].start);
+    for source in source_order {
         let Some((dst, src)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
-            Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => Some((dst.clone(), src.clone())),
+            Stmt::Assign(Ex::Var(dst), Ex::Var(src))
+                if (dst.starts_with('v') || dst.starts_with('t')) && dst != src =>
+            {
+                Some((dst.clone(), src.clone()))
+            }
             _ => None,
         }) else { continue };
         let mut propagated = false;
         for (target, _) in &f.blocks[source].succs {
+            if *target <= f.blocks[source].start { continue; }
             let Some(&ti) = index.get(target) else { continue };
             if pred_count[ti] != 1 { continue; }
             let mut stopped = false;
             for (_, stmt) in &mut outs[ti].stmts {
-                if writes_var(stmt, &dst) || writes_var(stmt, &src) { stopped = true; break; }
+                if writes_var(stmt, &dst) || writes_var(stmt, &src) {
+                    stopped = true;
+                    break;
+                }
                 let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
                 let (new, changed) = match old {
                     Stmt::Assign(left, right) => {
@@ -929,7 +941,10 @@ fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
                         let r = subst(&right, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
                         (Stmt::Assign(l.clone(), r.clone()), l != left || r != right)
                     }
-                    Stmt::Expr(expr) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Stmt::Expr(n.clone()), n != expr) }
+                    Stmt::Expr(expr) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        (Stmt::Expr(n.clone()), n != expr)
+                    }
                     Stmt::Comment(text) => (Stmt::Comment(text), false),
                 };
                 *stmt = new;
@@ -938,9 +953,18 @@ fn propagate_single_predecessor_copy(outs: &mut [BlockOut], f: &Function) {
             if !stopped {
                 let old = std::mem::replace(&mut outs[ti].term, Term::Stop);
                 let (new, changed) = match old {
-                    Term::Ret(Some(expr)) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Ret(Some(n.clone())), n != expr) }
-                    Term::Indirect(expr) => { let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Indirect(n.clone()), n != expr) }
-                    Term::Cond { cond, taken, fall } => { let n = subst(&cond, &Ex::Var(dst.clone()), &Ex::Var(src.clone())); (Term::Cond { cond: n.clone(), taken, fall }, n != cond) }
+                    Term::Ret(Some(expr)) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        (Term::Ret(Some(n.clone())), n != expr)
+                    }
+                    Term::Indirect(expr) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        (Term::Indirect(n.clone()), n != expr)
+                    }
+                    Term::Cond { cond, taken, fall } => {
+                        let n = subst(&cond, &Ex::Var(dst.clone()), &Ex::Var(src.clone()));
+                        (Term::Cond { cond: n.clone(), taken, fall }, n != cond)
+                    }
                     other => (other, false),
                 };
                 outs[ti].term = new;
@@ -964,35 +988,63 @@ fn propagate_single_predecessor_constant(outs: &mut [BlockOut], f: &Function) {
             if let Some(&i) = index.get(target) { pred_count[i] += 1; }
         }
     }
-    for source in 0..f.blocks.len() {
+    // Address order is topological for the forward edges handled here, so
+    // constants flow across chains without repeating a whole-function scan.
+    let mut source_order: Vec<usize> = (0..f.blocks.len()).collect();
+    source_order.sort_by_key(|&i| f.blocks[i].start);
+    for source in source_order {
         let Some((dst, value)) = outs[source].stmts.last().and_then(|(_, stmt)| match stmt {
             Stmt::Assign(Ex::Var(dst), value)
                 if (dst.starts_with('v') || dst.starts_with('t'))
                     && constant_value(value).is_some() => Some((dst.clone(), constant_value(value).unwrap())),
             _ => None,
         }) else { continue };
+        let mut propagated = false;
         for (target, _) in &f.blocks[source].succs {
+            if *target <= f.blocks[source].start { continue; }
             let Some(&ti) = index.get(target) else { continue };
             if pred_count[ti] != 1 { continue; }
             let mut stopped = false;
             for (_, stmt) in &mut outs[ti].stmts {
                 if writes_var(stmt, &dst) { stopped = true; break; }
                 let old = std::mem::replace(stmt, Stmt::Comment(String::new()));
-                *stmt = match old {
-                    Stmt::Assign(left, right) => Stmt::Assign(subst(&left, &Ex::Var(dst.clone()), &value), subst(&right, &Ex::Var(dst.clone()), &value)),
-                    Stmt::Expr(expr) => Stmt::Expr(subst(&expr, &Ex::Var(dst.clone()), &value)),
-                    Stmt::Comment(text) => Stmt::Comment(text),
+                let (new, changed) = match old {
+                    Stmt::Assign(left, right) => {
+                        let l = subst(&left, &Ex::Var(dst.clone()), &value);
+                        let r = subst(&right, &Ex::Var(dst.clone()), &value);
+                        (Stmt::Assign(l.clone(), r.clone()), l != left || r != right)
+                    }
+                    Stmt::Expr(expr) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &value);
+                        (Stmt::Expr(n.clone()), n != expr)
+                    }
+                    Stmt::Comment(text) => (Stmt::Comment(text), false),
                 };
+                *stmt = new;
+                propagated |= changed;
             }
             if !stopped {
                 let term = std::mem::replace(&mut outs[ti].term, Term::Stop);
-                outs[ti].term = match term {
-                    Term::Ret(Some(expr)) => Term::Ret(Some(subst(&expr, &Ex::Var(dst.clone()), &value))),
-                    Term::Indirect(expr) => Term::Indirect(subst(&expr, &Ex::Var(dst.clone()), &value)),
-                    Term::Cond { cond, taken, fall } => Term::Cond { cond: subst(&cond, &Ex::Var(dst.clone()), &value), taken, fall },
-                    other => other,
+                let (new, changed) = match term {
+                    Term::Ret(Some(expr)) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &value);
+                        (Term::Ret(Some(n.clone())), n != expr)
+                    }
+                    Term::Indirect(expr) => {
+                        let n = subst(&expr, &Ex::Var(dst.clone()), &value);
+                        (Term::Indirect(n.clone()), n != expr)
+                    }
+                    Term::Cond { cond, taken, fall } => {
+                        let n = subst(&cond, &Ex::Var(dst.clone()), &value);
+                        (Term::Cond { cond: n.clone(), taken, fall }, n != cond)
+                    }
+                    other => (other, false),
                 };
-                if f.blocks[source].succs.len() == 1 { outs[source].stmts.pop(); }
+                outs[ti].term = new;
+                propagated |= changed;
+            }
+            if !stopped && propagated && f.blocks[source].succs.len() == 1 {
+                outs[source].stmts.pop();
             }
         }
     }
