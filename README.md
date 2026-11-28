@@ -6,7 +6,7 @@ Latest GitHub build: **0.6.515 — Fourier**. The release improves CFG-aware loo
 
 ## IDA Pro parity status
 
-The current engineering estimate is **about 42–47% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **41.8% of IDA Pro's breadth**. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, attach/remote debugging remains LLDB-based, and large-file validation still needs a broader real-binary corpus. See the roadmap for scope and current evidence.
+The last full weighted audit (0.6.514) measured **41.8% of IDA Pro's breadth**; the practical estimate at that audit was **about 42–47%**. The 0.6.515 changes have not yet been scored in a fresh category audit. Lens remains below the 50% target because its decompiler and type recovery are shallower, processor-specific analysis is narrower, attach/remote debugging remains LLDB-based, and large-file validation still needs a broader real-binary corpus. See the roadmap for current scope and evidence.
 
 ## What it can do
 
