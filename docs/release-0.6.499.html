@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.499 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.499 — Fourier</h1><p class="lead">More accurate C record layouts from scoped packing directives.</p><ul>
+<li>Honor alignment caps set by <code>#pragma pack(n)</code> before a record.</li>
+<li>Restore natural alignment with <code>#pragma pack()</code> or <code>#pragma pack(0)</code>.</li>
+<li>Support nested unnamed and named push/pop frames, including explicit caps on push and pop.</li>
+<li>Capture the active cap when the record declaration begins.</li>
+<li>Accept caps of 1, 2, 4, 8, or 16 bytes; report malformed values and unmatched pops clearly.</li>
+<li>Reject packing changes inside a record body because field-by-field packing is not yet modeled.</li>
+<li>Keep packed attributes and <code>#pragma pack(1)</code> on the same byte-aligned layout path.</li>
+</ul><p>The weighted IDA Pro parity estimate remains 41.8%. Packing directives guide layout recovery and do not infer unsupported compiler-specific bitfield ABI rules.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.499">GitHub release</a></p></main></body></html>

@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub build: **0.6.498 — Fourier**. Adds opt-in debugger breakpoints at imported API call sites that match static behavior signals, then labels live hits with the API, caller, severity, and behavior clues. Read What's New in the app, the [0.6.498 release page](docs/release-0.6.498.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub build: **0.6.499 — Fourier**. Adds scoped C record packing through `#pragma pack`, including nested and named push/pop frames, reset/default behavior, and clear errors for unsupported or unmatched directives. Read What's New in the app, the [0.6.499 release page](docs/release-0.6.499.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
@@ -41,7 +41,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - Lists tabs can also be selected in automation with `LENS_TAB=arrays`, `pointer_tables`, or `vtables`.
 - Search names, notes, strings, listing text, numeric values and byte patterns with wildcards such as `48 8B ?? 05`; scope searches to the current function or full program, and copy results as an address-and-text report for external triage. Function-scoped searches scan the full function before capping displayed results and clear when navigation moves to another function. Data rows can be explicitly marked as native-width pointers with the `O` action.
 - Rename addresses and pseudocode variables, add notes, bookmarks and breakpoints; annotations are saved per input file.
-- Define bytes and strings, apply C-like structs, unions, enums (including common binary/octal and bitwise/shift constant expressions), scalar and function-pointer typedefs, function-pointer fields, packed layouts (`__attribute__((packed))` and `#pragma pack(1)`), integer bitfields with signed-value display, and zero-width bitfield storage separators, import supported DWARF layouts (including fixed offsets expressed as `DW_OP_plus_uconst` or constant-plus), inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays.
+- Define bytes and strings, apply C-like structs, unions, enums (including common binary/octal and bitwise/shift constant expressions), scalar and function-pointer typedefs, function-pointer fields, packed layouts (`__attribute__((packed))` and scoped `#pragma pack` push/pop, named frames, resets, and supported alignment caps), integer bitfields with signed-value display, and zero-width bitfield storage separators, import supported DWARF layouts (including fixed offsets expressed as `DW_OP_plus_uconst` or constant-plus), inspect nested fields and indexed array values, follow typed pointer members, and get xrefs from typed pointer arrays. Unsupported or unmatched packing directives return a clear error instead of guessing a layout.
 - Identify common cryptographic constants and use built-in or learned function signatures to recognize library code.
 
 ### Decompile and edit

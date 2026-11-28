@@ -1,3 +1,26 @@
+# Lens 0.6.499 — Fourier
+
+- Honor `#pragma pack(n)` alignment caps that appear before a record declaration.
+- Restore the default packing alignment with `#pragma pack()` or `#pragma pack(0)`.
+- Support unnamed `#pragma pack(push)` stack frames.
+- Support `#pragma pack(push, n)` frames that temporarily change alignment.
+- Support named frames with `#pragma pack(push, label)`.
+- Support named frames that also set an alignment cap.
+- Restore the prior cap with `#pragma pack(pop)`.
+- Restore a specifically named frame with `#pragma pack(pop, label)` and discard nested frames above it.
+- Support an explicit cap after pop to match the common `#pragma pack(pop, n)` form.
+- Apply the active cap captured at the opening brace of the record being parsed.
+- Keep multiple push/pop operations ordered, so nested scopes restore the correct prior cap.
+- Accept only documented 1, 2, 4, 8, and 16-byte caps (plus zero for default alignment).
+- Report malformed and unsupported packing values instead of silently falling back to natural alignment.
+- Explain when a pop has no matching unnamed or named push.
+- Reject pack changes inside record bodies, where field-by-field compiler layout rules are not implemented.
+- Strip packing directives before parsing declarations so they do not appear as bogus members.
+- Keep packed attributes and `#pragma pack(1)` on the same one-byte layout path.
+- Document the supported packing rules in the Types workflow and roadmap.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.498 — Fourier
 
 - Add an opt-in Watch behavior APIs at call sites mode to the LLDB debugger.

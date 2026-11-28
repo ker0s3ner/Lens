@@ -90,6 +90,78 @@ fn size_align_inner(ty: &str, ptr: u32, known: &[StructDef], depth: usize) -> Op
     else { (s.size, s.fields.iter().map(|f| f.size.min(8)).max().unwrap_or(1).max(1)) })
 }
 
+/// Remove MSVC-style `#pragma pack` directives and return the active cap at
+/// the declaration's opening brace. Keeping the stack local to one declaration
+/// makes parsing deterministic when callers paste several declarations over
+/// time, while still honoring nested push/pop directives in the pasted text.
+fn apply_pack_pragmas(source: &str) -> Result<(String, Option<u32>), String> {
+    let opening_brace = source.find('{').unwrap_or(usize::MAX);
+    let closing_brace = (opening_brace != usize::MAX)
+        .then(|| opening_brace + source[opening_brace..].find('}').unwrap_or(source.len() - opening_brace));
+    let mut active = None;
+    let mut stack: Vec<(Option<u32>, Option<String>)> = Vec::new();
+    let mut offset = 0usize;
+    let mut cleaned = String::with_capacity(source.len());
+    for line in source.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("#pragma") {
+            let directive = rest.trim();
+            if offset >= opening_brace && closing_brace.is_some_and(|close| offset <= close) && directive.starts_with("pack") {
+                return Err("#pragma pack inside a record body is unsupported; place it before the declaration".into());
+            }
+            if offset < opening_brace && directive.starts_with("pack") {
+                let args = directive.strip_prefix("pack").unwrap().trim();
+                let args = args.strip_prefix('(').and_then(|s| s.strip_suffix(')'))
+                    .ok_or_else(|| format!("Unsupported packing directive `{trimmed}`"))?;
+                let parts: Vec<_> = args.split(',').map(str::trim).collect();
+                let read_align = |value: &str| -> Result<Option<u32>, String> {
+                    let n = value.parse::<u32>().map_err(|_| format!("Unsupported packing value `{value}`"))?;
+                    if n == 0 { Ok(None) }
+                    else if matches!(n, 1 | 2 | 4 | 8 | 16) { Ok(Some(n)) }
+                    else { Err(format!("Packing alignment must be 0, 1, 2, 4, 8 or 16, got `{n}`")) }
+                };
+                match parts.as_slice() {
+                    [""] => active = None,
+                    [value] => active = read_align(value)?,
+                    ["push"] => stack.push((active, None)),
+                    ["push", value] if value.parse::<u32>().is_ok() => {
+                        stack.push((active, None)); active = read_align(value)?;
+                    }
+                    ["push", label] => stack.push((active, Some((*label).to_string()))),
+                    ["push", label, value] => {
+                        stack.push((active, Some((*label).to_string()))); active = read_align(value)?;
+                    }
+                    ["pop"] | ["pop", ""] => {
+                        active = stack.pop().ok_or("#pragma pack(pop) has no matching push")?.0;
+                    }
+                    ["pop", value] if value.parse::<u32>().is_ok() => {
+                        active = stack.pop().ok_or("#pragma pack(pop) has no matching push")?.0;
+                        active = read_align(value)?;
+                    }
+                    ["pop", label] => {
+                        let idx = stack.iter().rposition(|(_, name)| name.as_deref() == Some(label))
+                            .ok_or_else(|| format!("#pragma pack(pop, {label}) has no matching named push"))?;
+                        active = stack[idx].0;
+                        stack.truncate(idx);
+                    }
+                    ["pop", label, value] => {
+                        let idx = stack.iter().rposition(|(_, name)| name.as_deref() == Some(label))
+                            .ok_or_else(|| format!("#pragma pack(pop, {label}) has no matching named push"))?;
+                        active = read_align(value)?;
+                        stack.truncate(idx);
+                    }
+                    _ => return Err(format!("Unsupported packing directive `{trimmed}`")),
+                }
+            }
+            cleaned.push('\n');
+        } else {
+            cleaned.push_str(line);
+        }
+        offset += line.len();
+    }
+    Ok((cleaned, active))
+}
+
 /// Parse simple C-like struct, union, enum and typedef declarations.
 pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, String> {
     let mut clean = String::new();
@@ -106,11 +178,8 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             clean.push(c);
         }
     }
-    let pack_align = clean.split("#pragma pack(").nth(1).and_then(|s| s.split(')').next()).and_then(|s| s.split(',').next_back()).and_then(|s| s.trim().parse::<u32>().ok()).filter(|n| *n > 0 && *n <= 16);
+    let (clean, pack_align) = apply_pack_pragmas(&clean)?;
     let packed = clean.contains("__attribute__((packed))") || clean.contains("__attribute__ ((packed))") || clean.contains(" packed ") || pack_align.is_some_and(|n| n == 1);
-    if clean.contains("#pragma pack(") {
-        clean = clean.lines().filter(|line| !line.trim_start().starts_with("#pragma pack(")).collect::<Vec<_>>().join("\n");
-    }
     clean = clean.replace("__attribute__((packed))", "").replace("__attribute__ ((packed))", "");
     let Some(open) = clean.find('{') else {
         let decl = clean.trim().trim_end_matches(';').trim();

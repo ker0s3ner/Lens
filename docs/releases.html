@@ -3,10 +3,11 @@
 <title>Lens releases</title><meta name="theme-color" content="#efece4"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><style>h2[id] { scroll-margin-top: 5rem; }</style></head>
 <body><header class="bar"><div class="wrap"><a class="mark" href="./"><img src="logo.svg" alt="">Lens</a><nav><a href="docs.html">Documentation</a><a href="https://github.com/ker0s3ner/Lens/releases">GitHub releases</a><a class="btn sm" href="https://github.com/ker0s3ner/Lens/releases/latest">Download</a></nav></div></header>
 <main><div class="wrap docs"><article style="grid-column: 1 / -1"><p class="eyebrow">Release archive</p><h1>What's new in Lens.</h1><p class="lead">Lens uses mathematical codenames. Versions follow <code>x.y.z</code>: major theme releases, monthly minor feature releases, and patch releases for fixes and quality of life.</p>
-<p class="note"><strong>Latest GitHub build</strong> · <a href="release-0.6.498.html">0.6.498 — Fourier</a> adds opt-in behavior API call-site watchpoints to the debugger.</p>
+<p class="note"><strong>Latest GitHub build</strong> · <a href="release-0.6.499.html">0.6.499 — Fourier</a> adds scoped record-packing recovery for nested and named <code>#pragma pack</code> scopes.</p>
 <nav aria-labelledby="recent-releases">
 <h2 id="recent-releases">Recent releases</h2>
 <p>
+<a href="release-0.6.499.html">0.6.499</a> ·
 <a href="release-0.6.498.html">0.6.498</a> ·
 <a href="release-0.6.497.html">0.6.497</a> ·
 <a href="release-0.6.496.html">0.6.496</a> ·
@@ -41,6 +42,7 @@
 <a href="#v0.6.467">0.6.467</a>
 </p>
 </nav>
+<h2 id="v0.6.499">0.6.499 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.499">GitHub release</a></p><ul><li>C record layouts honor active scoped <code>#pragma pack</code> alignment.</li><li>Nested, named, push/pop, reset and post-pop alignment forms are handled, with clear errors for malformed directives.</li></ul>
 <h2 id="v0.6.477">0.6.477 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.477">GitHub release</a></p><ul><li>Decompiler boolean and ternary identities now normalize safely.</li><li>Call-graph frontier, cache, and address collections now use bounded preallocation.</li><li>Regression coverage now includes 151 passing tests.</li></ul>
 <h2 id="v0.6.476">0.6.476 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.476">GitHub release</a></p><ul><li>Recursive decompiler folding simplifies constant subexpressions inside larger pseudocode expressions.</li><li>Native prototypes now cover concurrency, process control, filesystems, loaders, signals, networking, and Win32.</li><li>Regression coverage now includes 151 passing tests.</li></ul>
 <h2 id="v0.6.475">0.6.475 — Fourier</h2><p class="mono">November 2026 · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.475">GitHub release</a></p><ul><li>Native prototypes now cover POSIX, C++, Win32, sockets, threads, processes, filesystems, signals, randomness, and stdio.</li><li>Expanded runtime signatures improve call-site argument and return-type recovery for system binaries.</li><li>Regression coverage now includes 150 passing tests.</li></ul>
