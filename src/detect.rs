@@ -148,6 +148,9 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Data removal") {
         out.push(ThreatSignal { severity: 2, name: "File deletion or truncation".into(), evidence: format!("imports: {}; runtime call correlation can show whether these APIs were observed", c.apis.join(", ")) });
     }
+    if let Some(c) = has("Configuration removal") {
+        out.push(ThreatSignal { severity: 2, name: "Configuration deletion".into(), evidence: format!("imports: {}; review the affected settings and any correlated runtime calls", c.apis.join(", ")) });
+    }
     if let Some(c) = has("System info") {
         out.push(ThreatSignal { severity: 1, name: "System information discovery".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
@@ -581,6 +584,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
     ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
+    ("Configuration removal", &["RegDeleteKey", "RegDeleteValue", "RegDeleteTree", "DeleteValue", "DeleteKey"]),
     ("Persistence mechanisms", &["CreateService", "ChangeServiceConfig", "RegisterTaskDefinition", "SMAppServiceRegister", "LSSharedFileListInsertItemURL"]),
     ("Credential store", &["CredRead", "CredEnumerate", "LsaRetrievePrivateData", "SecItemCopyMatching", "SecKeychainFindGenericPassword", "pam_get_authtok"]),
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
