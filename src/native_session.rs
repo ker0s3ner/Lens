@@ -25,6 +25,7 @@ pub(crate) struct NativeDebugger {
     session: Option<NativeSession>,
     consent_for: Weak<crate::loader::Binary>,
     args: String,
+    environment: String,
     start_paused: bool,
 }
 
@@ -92,12 +93,18 @@ fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
 }
 
 impl NativeSession {
-    fn launch(program: &Path, args: &[OsString], start_paused: bool) -> io::Result<Self> {
+    fn launch(
+        program: &Path,
+        args: &[OsString],
+        environment: &[(OsString, OsString)],
+        start_paused: bool,
+    ) -> io::Result<Self> {
         // Resolve even a bare filename against the current directory, bypassing PATH lookup.
         let program = std::path::absolute(program)?;
         let mut command = Command::new(&program);
         command
             .args(args)
+            .envs(environment.iter().map(|(key, value)| (key, value)))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
@@ -274,6 +281,22 @@ fn parse_arguments(input: &str) -> Result<Vec<OsString>, &'static str> {
     Ok(args)
 }
 
+fn parse_environment(input: &str) -> Result<Vec<(OsString, OsString)>, &'static str> {
+    input
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let Some((key, value)) = line.split_once('=') else {
+                return Err("Environment entries must use KEY=VALUE format.");
+            };
+            if key.is_empty() || key.contains('\0') || key.contains('=') || value.contains('\0') {
+                return Err("Environment names cannot be empty or contain '='; names and values cannot contain NUL characters.");
+            }
+            Ok((OsString::from(key), OsString::from(value)))
+        })
+        .collect()
+}
+
 impl Drop for NativeSession {
     fn drop(&mut self) {
         // SIGKILL also works on a paused child. Wait only if we still own it.
@@ -305,6 +328,9 @@ impl LensApp {
                     ui.text_edit_singleline(&mut self.native_debugger.args)
                         .on_hover_text("Space-separated arguments; single or double quotes group a value. Arguments are passed directly, without a shell.");
                 });
+                ui.label("Environment (one KEY=VALUE per line)");
+                ui.add(egui::TextEdit::multiline(&mut self.native_debugger.environment).desired_rows(3))
+                    .on_hover_text("Entries are passed directly to the child process. Values are not expanded by a shell.");
                 ui.checkbox(&mut self.native_debugger.start_paused, "Stop at program entry")
                     .on_hover_text("Stop the child before it begins executing the selected program.");
                 ui.checkbox(&mut confirmed, "I understand, run it");
@@ -314,10 +340,13 @@ impl LensApp {
             self.native_debugger.consent_for = if confirmed { current } else { Weak::new() };
             if confirmed && launch.body_returned == Some(true) {
                 self.native_debugger.consent_for = Weak::new();
-                match parse_arguments(&self.native_debugger.args) {
-                    Ok(args) => match NativeSession::launch(
+                let args = parse_arguments(&self.native_debugger.args);
+                let environment = parse_environment(&self.native_debugger.environment);
+                match args.and_then(|args| environment.map(|environment| (args, environment))) {
+                    Ok((args, environment)) => match NativeSession::launch(
                         Path::new(&bin.path),
                         &args,
+                        &environment,
                         self.native_debugger.start_paused,
                     ) {
                         Ok(session) => self.native_debugger.session = Some(session),
@@ -325,7 +354,9 @@ impl LensApp {
                             self.modal_message("Couldn't launch local child", error.to_string())
                         }
                     },
-                    Err(error) => self.modal_message("Couldn't launch local child", error.to_string()),
+                    Err(error) => {
+                        self.modal_message("Couldn't launch local child", error.to_string())
+                    }
                 }
             }
             return self.native_debugger.session.is_some();
@@ -373,7 +404,7 @@ mod tests {
     use std::time::Instant;
 
     fn sleeper() -> NativeSession {
-        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")], false).unwrap()
+        NativeSession::launch(Path::new("/bin/sleep"), &[OsString::from("60")], &[], false).unwrap()
     }
 
     fn await_state(session: &mut NativeSession, expected: State) {
@@ -405,7 +436,7 @@ mod tests {
     #[test]
     fn preserves_natural_exit_across_late_controls() {
         let args = [OsString::from("-c"), OsString::from("exit 7")];
-        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args, false).unwrap();
+        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args, &[], false).unwrap();
         let status = State::Exited(ExitStatus::from_raw(7 << 8));
         await_state(&mut child, status);
         child.pause().unwrap();
