@@ -177,16 +177,22 @@ impl NativeSession {
     fn launch(
         program: &Path,
         args: &[OsString],
-        environment: &[(OsString, OsString)],
+        environment: &[(OsString, Option<OsString>)],
         working_directory: Option<&Path>,
         start_paused: bool,
     ) -> io::Result<Self> {
         // Resolve even a bare filename against the current directory, bypassing PATH lookup.
         let program = std::path::absolute(program)?;
         let mut command = Command::new(&program);
+        command.args(args);
+        for (key, value) in environment {
+            if let Some(value) = value {
+                command.env(key, value);
+            } else {
+                command.env_remove(key);
+            }
+        }
         command
-            .args(args)
-            .envs(environment.iter().map(|(key, value)| (key, value)))
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -408,18 +414,24 @@ fn parse_arguments(input: &str) -> Result<Vec<OsString>, &'static str> {
     Ok(args)
 }
 
-fn parse_environment(input: &str) -> Result<Vec<(OsString, OsString)>, &'static str> {
+fn parse_environment(input: &str) -> Result<Vec<(OsString, Option<OsString>)>, &'static str> {
     input
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let Some((key, value)) = line.split_once('=') else {
-                return Err("Environment entries must use KEY=VALUE format.");
-            };
-            if key.is_empty() || key.contains('\0') || key.contains('=') || value.contains('\0') {
-                return Err("Environment names cannot be empty or contain '='; names and values cannot contain NUL characters.");
+            if let Some((key, value)) = line.split_once('=') {
+                if key.is_empty() || key.contains('\0') || value.contains('\0') {
+                    return Err("Environment names cannot be empty; names and values cannot contain NUL characters.");
+                }
+                Ok((OsString::from(key), Some(OsString::from(value))))
+            } else if let Some(key) = line.strip_prefix('-') {
+                if key.is_empty() || key.contains('\0') || key.contains('=') {
+                    return Err("Environment removals use -NAME and require a valid name.");
+                }
+                Ok((OsString::from(key), None))
+            } else {
+                Err("Environment entries use NAME=VALUE to set a value or -NAME to remove one.")
             }
-            Ok((OsString::from(key), OsString::from(value)))
         })
         .collect()
 }
@@ -455,9 +467,9 @@ impl LensApp {
                     ui.text_edit_singleline(&mut self.native_debugger.args)
                         .on_hover_text("Space-separated arguments; single or double quotes group a value. Arguments are passed directly, without a shell.");
                 });
-                ui.label("Environment (one KEY=VALUE per line)");
+                ui.label("Environment (NAME=VALUE or -NAME per line)");
                 ui.add(egui::TextEdit::multiline(&mut self.native_debugger.environment).desired_rows(3))
-                    .on_hover_text("Entries are passed directly to the child process. Values are not expanded by a shell.");
+                    .on_hover_text("Set values with NAME=VALUE or remove an inherited variable with -NAME. No shell expansion is used.");
                 ui.horizontal(|ui| {
                     ui.label("Working directory");
                     ui.text_edit_singleline(&mut self.native_debugger.working_directory)
