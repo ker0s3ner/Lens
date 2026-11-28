@@ -1116,15 +1116,19 @@ fn callees_of(l: &Loaded, f: u64) -> Vec<u64> {
 }
 
 fn callers_of(l: &Loaded, f: u64) -> Vec<u64> {
-    let mut refs: Vec<_> = l
-        .an
-        .xrefs_to
-        .get(&f)
-        .map(|xs| xs.iter().filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump)).collect())
-        .unwrap_or_default();
-    refs.sort_by_key(|x| x.from);
-    refs.truncate(CALL_GRAPH_MAX_CALLER_XREFS);
-    let mut v: Vec<u64> = refs.into_iter().filter_map(|x| l.an.function_containing(x.from).map(|f| f.start)).filter(|caller| *caller != f).collect();
+    // Analysis keeps each xref list sorted by source address. Filter and cap
+    // before resolving containing functions so extreme fan-in stays bounded.
+    let mut v = Vec::with_capacity(CALL_GRAPH_MAX_NEIGHBORS * 4);
+    if let Some(refs) = l.an.xrefs_to.get(&f) {
+        for x in refs.iter()
+            .filter(|x| matches!(x.kind, crate::analysis::XrefKind::Call | crate::analysis::XrefKind::Jump))
+            .take(CALL_GRAPH_MAX_CALLER_XREFS)
+        {
+            if let Some(caller) = l.an.function_containing(x.from).map(|func| func.start) {
+                if caller != f { v.push(caller); }
+            }
+        }
+    }
     v.sort_unstable();
     v.dedup();
     v.truncate(CALL_GRAPH_MAX_NEIGHBORS * 4);

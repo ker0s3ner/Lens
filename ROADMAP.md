@@ -10,6 +10,8 @@ Unreleased dynamic-analysis and type-recovery follow-up: the paired process-inje
 
 Unreleased address-safety follow-up: guessed function-start scanning now stops safely if advancing through an executable range would overflow the address space, and hex-view selection ranges use saturating end addresses.
 
+Unreleased call-graph follow-up: caller xrefs are filtered and capped before resolving containing functions, avoiding a full sort and allocation for extremely high-fan-in targets.
+
 Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.488 — Fourier** adds configurable native child sessions, entry-stop and single-step controls, bounded output and process-event capture, restart and PID handoff, four new explainable behavior-triage categories, unary enum propagation, and corrected M68k `TAS` flags. The weighted estimate is **41.0%**; the 50% target remains unmet.
