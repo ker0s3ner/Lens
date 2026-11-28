@@ -45,6 +45,7 @@ struct NativeSession {
 
 fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
     const MAX_OUTPUT_BYTES: usize = 64 * 1024;
+    const TRUNCATED: &str = "[earlier output omitted]\n";
     std::thread::spawn(move || {
         let mut buffer = [0_u8; 4096];
         let mut first_chunk = true;
@@ -61,9 +62,12 @@ fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<Str
             }
             output.push_str(&String::from_utf8_lossy(&buffer[..count]));
             if output.len() > MAX_OUTPUT_BYTES {
-                let excess = output.len() - MAX_OUTPUT_BYTES;
+                let excess = output.len().saturating_sub(MAX_OUTPUT_BYTES - TRUNCATED.len());
                 let boundary = output.char_indices().find(|(index, _)| *index >= excess).map(|(index, _)| index).unwrap_or(output.len());
                 output.drain(..boundary);
+                if !output.starts_with(TRUNCATED) {
+                    output.insert_str(0, TRUNCATED);
+                }
             }
         }
     });
