@@ -38,7 +38,15 @@ jobs:
           path: dist/Lens-macos-arm64.zip
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          awk -v ver="${GITHUB_REF_NAME#v}" '
+            /^# Lens / { if (found) exit; found = ($3 == ver) }
+            found { print }
+          ' RELEASE_NOTES.md > "$RUNNER_TEMP/whats-new.md"
+          test -s "$RUNNER_TEMP/whats-new.md"
+      - name: Upload versioned release notes and app
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/Lens-macos-arm64.zip
-          body_path: RELEASE_NOTES.md
+          body_path: ${{ runner.temp }}/whats-new.md

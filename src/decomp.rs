@@ -601,58 +601,83 @@ fn subst(e: &Ex, from: &Ex, to: &Ex) -> Ex {
     }
 }
 
-fn propagate_adjacent_copy(o: &mut BlockOut) {
+/// Check the remaining uses of this definition after substitution. When it
+/// reaches a CFG edge, leave deletion to the function-wide use count.
+fn definition_still_needed(o: &BlockOut, start: usize, dst: &Ex, has_successors: bool) -> bool {
+    for (_, stmt) in &o.stmts[start..] {
+        match stmt {
+            Stmt::Assign(left, right) => {
+                if mentions(right, dst) { return true; }
+                if left == dst { return false; }
+                if mentions(left, dst) { return true; }
+            }
+            Stmt::Expr(e) if mentions(e, dst) => return true,
+            _ => {}
+        }
+    }
+    has_successors || o.defs.values().any(|e| mentions(e, dst)) || match &o.term {
+        Term::Ret(Some(e)) | Term::Indirect(e) => mentions(e, dst),
+        Term::Cond { cond, .. } => mentions(cond, dst),
+        _ => false,
+    }
+}
+
+fn propagate_adjacent_copy(o: &mut BlockOut, has_successors: bool) {
     let mut i = 0;
     while i + 1 < o.stmts.len() {
         let (dst, src) = match &o.stmts[i].1 {
             Stmt::Assign(Ex::Var(dst), Ex::Var(src)) if (dst.starts_with('v') || dst.starts_with('t')) && dst != src => (dst.clone(), src.clone()),
             _ => { i += 1; continue; }
         };
+        let from = Ex::Var(dst);
         let replacement = Ex::Var(src);
+        let replace_read = |expr: &mut Ex| {
+            let new = subst(expr, &from, &replacement);
+            let changed = new != *expr;
+            *expr = new;
+            changed
+        };
         let changed = {
             let next = &mut o.stmts[i + 1].1;
             match next {
                 Stmt::Assign(left, right) => {
-                    let new_left = subst(left, &Ex::Var(dst.clone()), &replacement);
-                    let new_right = subst(right, &Ex::Var(dst.clone()), &replacement);
-                    let changed = new_left != *left || new_right != *right;
-                    *left = new_left;
-                    *right = new_right;
-                    changed
+                    // A store reads its address. A direct assignment defines its target.
+                    let address_changed = match left {
+                        Ex::Deref(address, _) => replace_read(address),
+                        _ => false,
+                    };
+                    replace_read(right) || address_changed
                 }
-                Stmt::Expr(expr) => {
-                    let new_expr = subst(expr, &Ex::Var(dst.clone()), &replacement);
-                    let changed = new_expr != *expr;
-                    *expr = new_expr;
-                    changed
-                }
+                Stmt::Expr(expr) => replace_read(expr),
                 Stmt::Comment(_) => false,
             }
         };
-        if changed {
+        if changed && !definition_still_needed(o, i + 1, &from, has_successors) {
             o.stmts.remove(i);
         } else {
             i += 1;
         }
     }
     if let Some((_, Stmt::Assign(Ex::Var(dst), Ex::Var(src)))) = o.stmts.last() {
-        let dst = dst.clone();
+        let dst = Ex::Var(dst.clone());
         let src = Ex::Var(src.clone());
-        let replace = |e: &Ex| subst(e, &Ex::Var(dst.clone()), &src);
+        let replace = |e: &Ex| subst(e, &dst, &src);
         let changed = match &mut o.term {
             Term::Ret(Some(e)) => { let n = replace(e); let changed = n != *e; *e = n; changed }
             Term::Indirect(e) => { let n = replace(e); let changed = n != *e; *e = n; changed }
             Term::Cond { cond, .. } => { let n = replace(cond); let changed = n != *cond; *cond = n; changed }
             _ => false,
         };
-        if changed { o.stmts.pop(); }
+        if changed && !definition_still_needed(o, o.stmts.len(), &dst, has_successors) {
+            o.stmts.pop();
+        }
     }
 }
 
 /// Propagate a compiler-generated temporary holding a literal constant through
 /// the next safe use.  Keeping this separate from copy propagation avoids
 /// rewriting symbolic values whose meaning may change across a block.
-fn propagate_adjacent_constant(o: &mut BlockOut) {
+fn propagate_adjacent_constant(o: &mut BlockOut, has_successors: bool) {
     let mut i = 0;
     while i < o.stmts.len() {
         let (dst, value) = match &o.stmts[i].1 {
@@ -693,7 +718,11 @@ fn propagate_adjacent_constant(o: &mut BlockOut) {
             o.term = new;
             changed |= did_change;
         }
-        if changed { o.stmts.remove(i); } else { i += 1; }
+        if changed && !definition_still_needed(o, j, &Ex::Var(dst), has_successors) {
+            o.stmts.remove(i);
+        } else {
+            i += 1;
+        }
     }
 }
 
@@ -732,7 +761,7 @@ fn fold_expression(e: Ex) -> Ex {
 
 /// Propagate a temporary copy across safe intervening statements. Stop before
 /// either side is reassigned so the pass never crosses a value-version change.
-fn propagate_forward_copy(o: &mut BlockOut) {
+fn propagate_forward_copy(o: &mut BlockOut, has_successors: bool) {
     let mut i = 0;
     while i < o.stmts.len() {
         let (dst, src) = match &o.stmts[i].1 {
@@ -768,7 +797,11 @@ fn propagate_forward_copy(o: &mut BlockOut) {
             o.term = new;
             changed |= did_change;
         }
-        if changed { o.stmts.remove(i); } else { i += 1; }
+        if changed && !definition_still_needed(o, j, &Ex::Var(dst), has_successors) {
+            o.stmts.remove(i);
+        } else {
+            i += 1;
+        }
     }
 }
 
@@ -2784,9 +2817,9 @@ fn decompile_inner(
             Term::Cond { cond, taken, fall } => Term::Cond { cond: fold_expression(cond), taken, fall },
             other => other,
         };
-        propagate_adjacent_copy(out);
-        propagate_adjacent_constant(out);
-        propagate_forward_copy(out);
+        propagate_adjacent_copy(out, false);
+        propagate_adjacent_constant(out, false);
+        propagate_forward_copy(out, false);
         inline_adjacent_call_temp(out);
         fold_constant_term(out);
     }
@@ -3451,7 +3484,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v2".into()))), term_addr: 1,
         };
-        propagate_forward_copy(&mut out);
+        propagate_forward_copy(&mut out, false);
         assert!(matches!(out.stmts[0].1, Stmt::Assign(Ex::Var(ref name), Ex::CastOwned(_, ref inner)) if name == "v2" && **inner == Ex::Var("p".into())));
     }
 
@@ -3674,7 +3707,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 2,
         };
-        propagate_adjacent_copy(&mut out);
+        propagate_adjacent_copy(&mut out, false);
         assert_eq!(out.stmts.len(), 1);
         assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Var("rax".into())));
 
@@ -3682,9 +3715,25 @@ mod tests {
             stmts: vec![(0, Stmt::Assign(Ex::Var("v2".into()), Ex::Var("rax".into())))],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v2".into()))), term_addr: 1,
         };
-        propagate_adjacent_copy(&mut ret);
+        propagate_adjacent_copy(&mut ret, false);
         assert!(ret.stmts.is_empty());
         assert!(matches!(ret.term, Term::Ret(Some(Ex::Var(ref v))) if v == "rax"));
+    }
+
+    #[test]
+    fn adjacent_copy_preserves_read_modify_write_target() {
+        let mut out = BlockOut {
+            stmts: vec![
+                (0, Stmt::Assign(var("v1"), var("rax"))),
+                (1, Stmt::Assign(var("v1"), bin("+", var("v1"), Ex::Num(1)))),
+            ],
+            defs: BTreeMap::new(), uses: BTreeSet::new(),
+            term: Term::Ret(Some(var("v1"))), term_addr: 2,
+        };
+        propagate_adjacent_copy(&mut out, false);
+        assert!(matches!(out.stmts.as_slice(), [(1, Stmt::Assign(dst, rhs))]
+            if *dst == var("v1") && *rhs == bin("+", var("rax"), Ex::Num(1))));
+        assert!(matches!(&out.term, Term::Ret(Some(value)) if *value == var("v1")));
     }
 
     #[test]
@@ -3696,7 +3745,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 2,
         };
-        propagate_adjacent_constant(&mut out);
+        propagate_adjacent_constant(&mut out, false);
         assert_eq!(out.stmts.len(), 1);
         assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("+", left, _)) if x == "x" && **left == Ex::Num(42)));
         assert!(matches!(out.term, Term::Ret(Some(Ex::Num(42)))));
@@ -3711,7 +3760,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Ret(Some(Ex::Var("v1".into()))), term_addr: 2,
         };
-        propagate_adjacent_constant(&mut out);
+        propagate_adjacent_constant(&mut out, false);
         assert!(matches!(&out.stmts[0].1, Stmt::Assign(Ex::Var(x), Ex::Bin("*", left, _)) if x == "x" && **left == Ex::Num(5)));
         assert!(matches!(out.term, Term::Ret(Some(Ex::Num(5)))));
     }
@@ -3726,7 +3775,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 3,
         };
-        propagate_forward_copy(&mut out);
+        propagate_forward_copy(&mut out, false);
         assert!(matches!(&out.stmts[1].1, Stmt::Assign(Ex::Var(y), Ex::Bin("+", left, _)) if y == "y" && **left == Ex::Var("rax".into())));
 
         let mut stopped = BlockOut {
@@ -3737,7 +3786,7 @@ mod tests {
             ],
             defs: BTreeMap::new(), uses: BTreeSet::new(), term: Term::Stop, term_addr: 3,
         };
-        propagate_forward_copy(&mut stopped);
+        propagate_forward_copy(&mut stopped, false);
         assert!(matches!(&stopped.stmts[2].1, Stmt::Assign(Ex::Var(z), Ex::Var(v)) if z == "z" && v == "v2"));
     }
 

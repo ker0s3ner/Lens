@@ -2,6 +2,10 @@
 //! program, sets breakpoints at addresses from the listing, steps, and shows registers, stack and
 //! backtrace next to the code. Any other lldb command can be typed into the console, including
 //! `gdb-remote host:port` to debug firmware in an emulator or on a board.
+//! Lens can also replay static PCs from an exported trace entirely offline.
+
+mod replay;
+use replay::{Replay, MAX_STEPS};
 
 use crate::app::{Action, LensApp, State};
 use eframe::egui::{self, FontId, RichText, ScrollArea, TextEdit};
@@ -78,6 +82,7 @@ pub struct Dbg {
 
 #[derive(Default)]
 pub struct DbgUi {
+    replay: Option<Replay>,
     pub open: bool,
     pub args: String,
     pub remote: String,
@@ -289,10 +294,10 @@ impl Dbg {
         if self.state != RunState::Stopped || !self.queue_idle() {
             return Err("Instruction tracing starts when the target is stopped and the debugger is idle.".into());
         }
-        let count = count.clamp(1, 5000);
+        let count = count.clamp(1, MAX_STEPS);
         let pc = self.pc.ok_or("The current instruction address is unavailable.")?;
         self.trace.push(pc);
-        if self.trace.len() > 5000 { self.trace.remove(0); }
+        if self.trace.len() > MAX_STEPS { self.trace.remove(0); }
         self.trace_active = true;
         self.trace_remaining = count;
         self.push(Kind::TraceStep, "thread step-inst");
@@ -475,14 +480,14 @@ impl Dbg {
                     if self.trace_enabled && !self.trace_active {
                         let pc = pc.wrapping_sub(self.slide);
                         if self.trace.last() != Some(&pc) { self.trace.push(pc); }
-                        if self.trace.len() > 5000 { self.trace.remove(0); }
+                        if self.trace.len() > MAX_STEPS { self.trace.remove(0); }
                     }
                     if self.trace_active {
                         let pc = pc.wrapping_sub(self.slide);
                         self.trace_remaining = self.trace_remaining.saturating_sub(1);
                         if self.trace_remaining > 0 {
                             self.trace.push(pc);
-                            if self.trace.len() > 5000 { self.trace.remove(0); }
+                            if self.trace.len() > MAX_STEPS { self.trace.remove(0); }
                             self.push(Kind::TraceStep, "thread step-inst");
                         } else {
                             self.trace_active = false;
@@ -545,6 +550,7 @@ impl LensApp {
     }
 
     pub fn dbg_start(&mut self) {
+        if self.tools2.dbg.replay.is_some() { return; }
         let Some(l) = self.loaded() else { return };
         let path = l.bin.path.clone();
         let arch = match l.bin.slice.as_str() {
@@ -579,7 +585,10 @@ impl LensApp {
             }
         }
         if let State::Ready(l) = &mut self.state {
-            l.dbg_pc = pc;
+            l.dbg_pc = match &self.tools2.dbg.replay {
+                Some(replay) => Some(replay.pc()).filter(|&a| l.bin.is_mapped(a)),
+                None => pc,
+            };
         }
         let mapped = goto.map(|a| self.loaded().map(|l| l.bin.is_mapped(a)).unwrap_or(false)).unwrap_or(false);
         if let (Some(a), true, true) = (goto, follow, mapped) {
@@ -653,13 +662,62 @@ impl LensApp {
         let mut set_condition: Option<(u64, String)> = None;
         let bps = self.loaded().map(|l| l.ann.breakpoints.clone()).unwrap_or_default();
         let bp_conditions = self.loaded().map(|l| l.ann.bp_conditions.clone()).unwrap_or_default();
-        let bin_map = self.loaded().map(|l| (l.bin.clone(), self.dbg.as_ref().map(|d| d.slide).unwrap_or(0)));
+        let bin = self.loaded().map(|l| l.bin.clone());
+        let mut replay_error = None;
+        let mut navigate_replay = false;
         egui::Window::new("Debugger").open(&mut open).default_size([760.0, 560.0]).show(ctx, |ui| {
-            if !ready {
-                ui.label(RichText::new("Open a program first.").color(p.muted));
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            if self.tools2.dbg.replay.is_none() && self.native_session_ui(ui) {
                 return;
             }
             let ui_state = &mut self.tools2.dbg;
+            if self.dbg.is_none() {
+                if ui.button("Open offline trace…").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().set_title("Open Lens instruction trace")
+                        .add_filter("Lens instruction trace", &["json", "txt"]).pick_file()
+                    {
+                        match Replay::open(&path) {
+                            Ok(replay) => {
+                                ui_state.replay = Some(replay);
+                                navigate_replay = true;
+                            }
+                            Err(error) => replay_error = Some(error),
+                        }
+                    }
+                }
+                if let Some(replay) = &mut ui_state.replay {
+                    ui.heading("Offline trace replay");
+                    ui.horizontal(|ui| {
+                        if ui.add_enabled(replay.step_index() > 0, egui::Button::new("Back")).clicked() {
+                            replay.back();
+                            navigate_replay = true;
+                        }
+                        if ui.add_enabled(replay.step_index() + 1 < replay.len(), egui::Button::new("Step")).clicked() {
+                            replay.step();
+                            navigate_replay = true;
+                        }
+                        ui.label(format!("Instruction {} of {}", replay.step_index() + 1, replay.len()));
+                    });
+                    let pc = replay.pc();
+                    ui.monospace(format!("Static PC  0x{pc:016X}"));
+                    let mapped = bin.as_ref().is_some_and(|b| b.is_mapped(pc));
+                    if ui.add_enabled(mapped, egui::Button::new("Show in disassembly")).clicked() {
+                        navigate_replay = true;
+                    }
+                    if !ready {
+                        ui.label("Open the corresponding program to navigate its disassembly.");
+                    } else if !mapped {
+                        ui.label("This address is outside the loaded program.");
+                    }
+                    if ui.button("Close replay").clicked() { ui_state.replay = None; }
+                    return;
+                }
+                ui.separator();
+            }
+            if !ready {
+                ui.label(RichText::new("Open a program to start a live debugger.").color(p.muted));
+                return;
+            }
             if ui_state.condition_addr != Some(cursor) {
                 ui_state.condition_addr = Some(cursor);
                 ui_state.condition = bp_conditions.get(&cursor).cloned().unwrap_or_default();
@@ -842,7 +900,7 @@ impl LensApp {
                             egui::Grid::new("regsg").num_columns(2).spacing([12.0, 1.0]).show(ui, |ui| {
                                 for (n, v) in &d.regs {
                                     ui.label(RichText::new(n).monospace().color(p.register));
-                                    let target = u64::from_str_radix(v.trim_start_matches("0x"), 16).ok().map(|x| x.wrapping_sub(d.slide)).filter(|x| bin_map.as_ref().map(|(b, _)| b.is_mapped(*x)).unwrap_or(false));
+                                    let target = u64::from_str_radix(v.trim_start_matches("0x"), 16).ok().map(|x| x.wrapping_sub(d.slide)).filter(|x| bin.as_ref().is_some_and(|b| b.is_mapped(*x)));
                                     if ui.add(egui::Label::new(RichText::new(v).monospace().color(if target.is_some() { p.func_name } else { p.text })).sense(egui::Sense::click())).clicked() {
                                         goto = target;
                                     }
@@ -894,6 +952,17 @@ impl LensApp {
                 }
             }
         });
+        if let Some(error) = replay_error {
+            self.modal_message("Couldn't open instruction trace", error);
+        }
+        if navigate_replay && open {
+            if let Some(pc) = self.tools2.dbg.replay.as_ref().map(Replay::pc)
+                .filter(|&pc| bin.as_ref().is_some_and(|b| b.is_mapped(pc)))
+            {
+                self.actions.push(Action::SetView(crate::app::View::Text));
+                goto = Some(pc);
+            }
+        }
         if start {
             self.dbg_start();
         }
@@ -942,6 +1011,7 @@ impl LensApp {
         self.tools2.dbg.open = open;
         if !open {
             self.dbg = None;
+            self.tools2.dbg.replay = None;
         }
     }
 }

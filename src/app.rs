@@ -233,6 +233,8 @@ pub struct LensApp {
     pub diff: crate::ida::DiffState,
     pub protos: crate::ida::ProtoState,
     pub dbg: Option<crate::debugger::Dbg>,
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    pub(crate) native_debugger: crate::native_session::NativeDebugger,
     pub jobs: crate::tools2::Jobs,
     pub pending_goto: Option<u64>,
     pub last_raw: Option<crate::loader::RawSpec>,
@@ -305,6 +307,8 @@ impl LensApp {
             diff: Default::default(),
             protos: Default::default(),
             dbg: None,
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            native_debugger: Default::default(),
             jobs: Default::default(),
             pending_goto: None,
             last_raw: None,
@@ -824,7 +828,7 @@ impl LensApp {
                 Action::Script => self.tools2.script.open = true,
                 Action::Assistant => { self.ai.open = true; self.ai.focus = true; }
                 Action::ReleaseNotes => {
-                    let notes = crate::updater::CURRENT_WHATS_NEW.iter().map(|s| format!("• {s}")).collect::<Vec<_>>().join("\n");
+                    let notes = crate::updater::current_release_notes();
                     self.modal = Some(Modal::Message { title: crate::updater::current_release_title(), text: format!("What's new\n\n{notes}\n\nRelease cadence: x.y.z — major theme release, monthly minor feature release, and patch/QoL release.") });
                 }
                 Action::Undo => self.do_undo(false),

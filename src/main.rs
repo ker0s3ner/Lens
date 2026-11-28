@@ -12,6 +12,8 @@ mod protos;
 mod detect;
 mod dwarf;
 mod debugger;
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+mod native_session;
 mod decomp;
 mod dialogs;
 mod graph;

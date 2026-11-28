@@ -1,0 +1,265 @@
+//! Lifecycle controls for one local child. This module is the child's sole waiter.
+#![cfg(any(target_os = "macos", target_os = "linux"))]
+
+use crate::app::LensApp;
+use eframe::egui;
+use std::ffi::OsStr;
+use std::io;
+use std::os::unix::process::ExitStatusExt;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::{Arc, Weak};
+use std::time::Duration;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum State {
+    Running,
+    Paused,
+    Exited(ExitStatus),
+    OwnershipLost,
+}
+
+#[derive(Default)]
+pub(crate) struct NativeDebugger {
+    session: Option<NativeSession>,
+    consent_for: Weak<crate::loader::Binary>,
+}
+
+struct NativeSession {
+    child: Child,
+    program: PathBuf,
+    state: State,
+}
+
+impl NativeSession {
+    fn launch(program: &Path, args: &[&OsStr]) -> io::Result<Self> {
+        // Resolve even a bare filename against the current directory, bypassing PATH lookup.
+        let program = std::path::absolute(program)?;
+        let child = Command::new(&program)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+        Ok(Self {
+            child,
+            program,
+            state: State::Running,
+        })
+    }
+
+    fn live(&self) -> bool {
+        matches!(self.state, State::Running | State::Paused)
+    }
+
+    fn poll(&mut self) -> io::Result<()> {
+        if !self.live() {
+            return Ok(());
+        }
+        let flags = libc::WNOHANG | libc::WUNTRACED | libc::WCONTINUED;
+        let mut status = 0;
+        loop {
+            // SAFETY: a positive PID from spawn and a writable status word.
+            let result =
+                unsafe { libc::waitpid(self.child.id() as libc::pid_t, &mut status, flags) };
+            if result == 0 {
+                return Ok(());
+            }
+            if result > 0 {
+                if libc::WIFSTOPPED(status) {
+                    self.state = State::Paused;
+                } else if libc::WIFCONTINUED(status) {
+                    self.state = State::Running;
+                } else if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
+                    self.state = State::Exited(ExitStatus::from_raw(status));
+                }
+                return Ok(());
+            }
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            if error.raw_os_error() == Some(libc::ECHILD) {
+                // The PID can be reused once reaped. Disable all further signals.
+                self.state = State::OwnershipLost;
+            }
+            return Err(error);
+        }
+    }
+
+    fn signal(&mut self, signal: libc::c_int) -> io::Result<()> {
+        self.poll()?;
+        if !self.live() {
+            return Ok(());
+        }
+        // SAFETY: only this session reaps the child. Even if it exits after poll,
+        // its positive PID stays reserved until we collect its exit status.
+        if unsafe { libc::kill(self.child.id() as libc::pid_t, signal) } == 0 {
+            return Ok(());
+        }
+        let error = io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            self.poll()?;
+            if !self.live() {
+                return Ok(());
+            }
+        }
+        Err(error)
+    }
+
+    fn pause(&mut self) -> io::Result<()> {
+        self.signal(libc::SIGSTOP)
+    }
+
+    fn resume(&mut self) -> io::Result<()> {
+        self.signal(libc::SIGCONT)
+    }
+
+    fn terminate(&mut self) -> io::Result<()> {
+        self.signal(libc::SIGKILL)
+    }
+}
+
+impl Drop for NativeSession {
+    fn drop(&mut self) {
+        // SIGKILL also works on a paused child. Wait only if we still own it.
+        if self.terminate().is_ok() && self.live() {
+            let _ = self.child.wait();
+        }
+    }
+}
+
+impl LensApp {
+    /// Render at the top of the debugger window. True means the native session owns the pane.
+    pub(crate) fn native_session_ui(&mut self, ui: &mut egui::Ui) -> bool {
+        if self.dbg.is_some() {
+            self.native_debugger.consent_for = Weak::new();
+            return false;
+        }
+        let Some(session) = &mut self.native_debugger.session else {
+            let Some(bin) = self.loaded().map(|loaded| Arc::clone(&loaded.bin)) else {
+                self.native_debugger.consent_for = Weak::new();
+                return false;
+            };
+            // Identity belongs to this load, even if the next file has the same path.
+            let current = Arc::downgrade(&bin);
+            let mut confirmed = self.native_debugger.consent_for.ptr_eq(&current);
+            let launch = ui.collapsing("Native local child", |ui| {
+                ui.label(format!("Run {} with no arguments.", bin.path));
+                ui.checkbox(&mut confirmed, "I understand, run it");
+                ui.add_enabled(confirmed, egui::Button::new("Launch local child"))
+                    .clicked()
+            });
+            self.native_debugger.consent_for = if confirmed { current } else { Weak::new() };
+            if confirmed && launch.body_returned == Some(true) {
+                self.native_debugger.consent_for = Weak::new();
+                match NativeSession::launch(Path::new(&bin.path), &[]) {
+                    Ok(session) => self.native_debugger.session = Some(session),
+                    Err(error) => {
+                        self.modal_message("Couldn't launch local child", error.to_string())
+                    }
+                }
+            }
+            return self.native_debugger.session.is_some();
+        };
+
+        let mut result = session.poll();
+        ui.label(format!("Local child · {}", session.program.display()));
+        match session.state {
+            State::Running | State::Paused => {
+                let paused = session.state == State::Paused;
+                ui.horizontal(|ui| {
+                    ui.label(if paused { "Paused" } else { "Running" });
+                    if paused && ui.button("Resume").clicked() {
+                        result = session.resume();
+                    }
+                    if !paused && ui.button("Pause").clicked() {
+                        result = session.pause();
+                    }
+                    if ui.button("Terminate child").clicked() {
+                        result = session.terminate();
+                    }
+                });
+                ui.ctx().request_repaint_after(Duration::from_millis(100));
+            }
+            State::Exited(status) => {
+                ui.label(format!("Exited ({status})"));
+            }
+            State::OwnershipLost => {
+                ui.label("Child status unavailable.");
+            }
+        }
+        if let Err(error) = result {
+            ui.label(format!("Child process error: {error}"));
+        }
+        if !session.live() && ui.button("Dismiss").clicked() {
+            self.native_debugger.session = None;
+        }
+        true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    fn sleeper() -> NativeSession {
+        NativeSession::launch(Path::new("/bin/sleep"), &[OsStr::new("60")]).unwrap()
+    }
+
+    fn await_state(session: &mut NativeSession, expected: State) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            session.poll().unwrap();
+            if session.state == expected {
+                return;
+            }
+            assert!(Instant::now() < deadline, "last state: {:?}", session.state);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn observes_stop_continue_and_forced_exit() {
+        let mut child = sleeper();
+        child.pause().unwrap();
+        await_state(&mut child, State::Paused);
+        child.resume().unwrap();
+        await_state(&mut child, State::Running);
+        child.terminate().unwrap();
+        await_state(
+            &mut child,
+            State::Exited(ExitStatus::from_raw(libc::SIGKILL)),
+        );
+    }
+
+    #[test]
+    fn preserves_natural_exit_across_late_controls() {
+        let args = [OsStr::new("-c"), OsStr::new("exit 7")];
+        let mut child = NativeSession::launch(Path::new("/bin/sh"), &args).unwrap();
+        let status = State::Exited(ExitStatus::from_raw(7 << 8));
+        await_state(&mut child, status);
+        child.pause().unwrap();
+        child.resume().unwrap();
+        child.terminate().unwrap();
+        assert_eq!(child.state, status);
+    }
+
+    #[test]
+    fn dropping_paused_child_reaps_only_that_child() {
+        let mut sibling = sleeper();
+        let mut child = sleeper();
+        child.pause().unwrap();
+        await_state(&mut child, State::Paused);
+        let pid = child.child.id() as libc::pid_t;
+        drop(child);
+        // SAFETY: query just the former child's PID, without blocking or sending a signal.
+        let result = unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) };
+        let error = io::Error::last_os_error();
+        assert_eq!(result, -1);
+        assert_eq!(error.raw_os_error(), Some(libc::ECHILD));
+        sibling.poll().unwrap();
+        assert_eq!(sibling.state, State::Running);
+    }
+}

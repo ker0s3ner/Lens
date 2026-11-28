@@ -80,6 +80,31 @@ mod tests {
     }
 
     #[test]
+    fn m68k_ext_promotes_signed_values_before_addition() {
+        use crate::analysis::{analyze, Settings};
+        use crate::loader::{raw_binary, RawSpec};
+        use std::sync::{atomic::AtomicU32, Arc};
+
+        for (extend_to_long, expected) in [(false, "return 0x12350002;"), (true, "return 2;")] {
+            // move.l #$123400fe,d0; ext.w d0 (low word becomes $fffe)
+            let mut code = vec![0x20, 0x3c, 0x12, 0x34, 0x00, 0xfe, 0x48, 0x80];
+            if extend_to_long {
+                code.extend_from_slice(&[0x48, 0xc0]); // ext.l d0
+            }
+            code.extend_from_slice(&[0x58, 0x80, 0x4e, 0x75]); // addq.l #4,d0; rts
+            let bin = raw_binary(&RawSpec {
+                path: "m68k-ext".into(), name: "m68k-ext".into(), arch: Arch::M68k,
+                big: true, segs: vec![(0x1000, code)], entry: Some(0x1000), format: "test".into(),
+            });
+            let settings = Settings { min_string_len: 5, extra_functions: vec![], data_defs: Default::default() };
+            let an = analyze(&bin, &settings, Arc::new(AtomicU32::new(0)));
+            let f = &an.functions[&0x1000];
+            let text = render_text(&decompile(&bin, &an, &an.names, f, crate::detect::CallConv::SysV64, ""));
+            assert!(text.contains(expected), "expected {expected} in:\n{text}");
+        }
+    }
+
+    #[test]
     fn native_register_width_matches_each_risc_architecture_mode() {
         let cases = [
             (Arch::RiscV32, Fam::Rv, "a0", 4),
@@ -1066,11 +1091,22 @@ fn g_data(dc: &mut Dc, st: &mut St, fm: Fam, addr: u64, mn: &str, ops: &[String]
                 dc.g_wr(st, r, bin("|", bin("<<", lo, Ex::Num(16)), hi), addr);
             }
         }
-        (Fam::M68k, "ext") if ops.len() >= 1 && (mn.ends_with(".w") || mn.ends_with(".l")) => {
+        (Fam::M68k, "ext") if matches!(mn, "ext.w" | "ext.l") => {
             if let Some(r) = reg(0) {
-                let ty = if mn == "ext.w" { "int16_t" } else { "int32_t" };
-                let value = dc.g_rd(st, r);
-                dc.g_wr(st, r, Ex::Cast(ty, Box::new(value)), addr);
+                let value = dc.g_rd_raw(st, r);
+                let word_result = mn == "ext.w";
+                let signed = match (&value, word_result) {
+                    (Ex::Num(n), true) => Ex::Num(*n as i8 as i64),
+                    (Ex::Num(n), false) => Ex::Num(*n as i16 as i64),
+                    _ => Ex::Cast(if word_result { "int8_t" } else { "int16_t" }, Box::new(value.clone())),
+                };
+                st.flags = Flags::Op(signed.clone());
+                let result = if word_result {
+                    bin("|", bin("&", value, Ex::Num(0xffff_0000)), bin("&", signed, Ex::Num(0xffff)))
+                } else {
+                    signed
+                };
+                dc.g_wr(st, r, result, addr);
             }
         }
         (Fam::A64, "mov" | "movz" | "fmov") | (Fam::A32, "mov" | "movw") | (Fam::Rv, "mv" | "c.mv" | "li" | "c.li") | (Fam::Mips, "move" | "li") | (Fam::Ppc, "mr" | "li" | "lis") | (Fam::M68k, "move" | "moveq") => {

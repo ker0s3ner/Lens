@@ -133,6 +133,16 @@ fn tidy(t: &str) -> String {
     t
 }
 
+fn member_byte_offset(location: AttributeValue<R<'_>>, encoding: gimli::Encoding) -> Option<u64> {
+    if let AttributeValue::Exprloc(expr) = location {
+        // A member expression starts with the object's address on the stack.
+        let mut ops = expr.operations(encoding);
+        let gimli::Operation::PlusConstant { value } = ops.next().ok()?? else { return None };
+        return ops.next().ok()?.is_none().then_some(value);
+    }
+    location.udata_value().or_else(|| u64::try_from(location.sdata_value()?).ok())
+}
+
 /// Full C text for struct / union / enum definitions.
 fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, parsed: &mut Vec<crate::types::StructDef>) -> gimli::Result<()> {
     let mut entries = unit.entries();
@@ -167,7 +177,7 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
                     let bit_width = child.attr_value(gimli::DW_AT_bit_size)?.and_then(|v| v.udata_value()).and_then(|n| u8::try_from(n).ok());
                     let bit_offset = child.attr_value(gimli::DW_AT_data_bit_offset)?.and_then(|v| v.udata_value());
                     let member_offset = if tag == gimli::DW_TAG_union_type { Some(0) } else {
-                        child.attr_value(gimli::DW_AT_data_member_location)?.and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok())))
+                        child.attr_value(gimli::DW_AT_data_member_location)?.and_then(|v| member_byte_offset(v, unit.encoding()))
                     };
                     let Some(size) = type_size(unit, type_off, 0) else { layout_ok = false; continue };
                     if n.is_empty() { layout_ok = false; continue; }
@@ -370,6 +380,50 @@ pub fn apply(bin: &mut Binary) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gcc_block_member_locations_recover_fixed_layouts() {
+        // Reduced DWARF 2 unit using the block1 locations seen in MinGW GCC's _iobuf.
+        let abbrev: &[u8] = &[
+            1, 0x11, 1, 0, 0,                         // compile_unit
+            2, 0x24, 0, 3, 8, 0x0b, 0x0b, 0, 0,      // base_type: name, byte_size
+            3, 0x13, 1, 3, 8, 0x0b, 0x0b, 0, 0,      // structure_type: name, byte_size
+            4, 0x0d, 0, 3, 8, 0x49, 0x13, 0x38, 0x0a, 0, 0, // member: name, ref4 type, block1 location
+            0,
+        ];
+        for trailing_op in [None, Some(gimli::DW_OP_deref.0)] {
+            let mut info = vec![0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 4];
+            info.extend_from_slice(b"\x01\x02int\0\x04\x03Pair\0\x08");
+            info.extend_from_slice(b"\x04a\0\x0c\0\0\0\x02\x23\x00");
+            info.extend_from_slice(b"\x04b\0\x0c\0\0\0");
+            info.extend_from_slice(&[2 + u8::from(trailing_op.is_some()), gimli::DW_OP_plus_uconst.0, 4]);
+            info.extend(trailing_op);
+            info.extend_from_slice(&[0, 0]); // end of Pair and of the unit
+            let length = (info.len() - 4) as u32;
+            info[..4].copy_from_slice(&length.to_le_bytes());
+
+            let dwarf = gimli::Dwarf::load(|id| {
+                let bytes = match id {
+                    gimli::SectionId::DebugInfo => info.as_slice(),
+                    gimli::SectionId::DebugAbbrev => abbrev,
+                    _ => &[],
+                };
+                Ok::<_, gimli::Error>(R::new(bytes, gimli::RunTimeEndian::Little))
+            }).unwrap();
+            let unit = dwarf.unit(dwarf.units().next().unwrap().unwrap()).unwrap();
+            let mut layouts = Vec::new();
+            type_defs(&Ctx { dwarf: &dwarf }, &unit, &mut Vec::new(), &mut layouts).unwrap();
+            if trailing_op.is_some() {
+                assert!(layouts.is_empty());
+            } else {
+                assert_eq!(layouts.len(), 1);
+                let pair = &layouts[0];
+                assert_eq!((pair.name.as_str(), pair.size), ("Pair", 8));
+                let fields: Vec<_> = pair.fields.iter().map(|f| (f.name.as_str(), f.off, f.size)).collect();
+                assert_eq!(fields, [("a", 0, 4), ("b", 4, 4)]);
+            }
+        }
+    }
 
     #[test]
     fn no_dwarf_in_garbage() {
