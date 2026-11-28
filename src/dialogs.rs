@@ -155,10 +155,11 @@ impl LensApp {
                         }
                     });
                 }
-                Modal::TypeVar { func, old, text, focus } => {
+                Modal::TypeVar { func, old, text, focus, error } => {
                     title(ui, "Set variable type", &format!("Give {old} a C type in this function's pseudocode. Leave it empty to use the inferred type."));
                     let r = ui.add(TextEdit::singleline(text).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace).hint_text("e.g. uint32_t or struct Node *"));
                     if *focus { r.request_focus(); *focus = false; }
+                    if let Some(message) = error.as_ref() { ui.label(RichText::new(message).color(p.edge_not)); }
                     let enter = ui.input(|i| i.key_pressed(Key::Enter));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
@@ -166,11 +167,24 @@ impl LensApp {
                             if let Some(l) = l.as_deref_mut() {
                                 let ty = text.trim().to_string();
                                 let key = format!("{:X}:{}", func, old);
-                                if ty.is_empty() { l.ann.var_types.remove(&key); } else { l.ann.var_types.insert(key, ty); }
-                                store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
-                                l.refresh();
+                                let mut known = l.ann.structs.clone();
+                                for def in &l.bin.debug_structs {
+                                    if !known.iter().any(|existing| existing.name == def.name) { known.push(def.clone()); }
+                                }
+                                let validation = if ty.is_empty() { Ok(()) } else {
+                                    crate::types::parse_c(&format!("typedef {ty} __lens_variable_type;"), l.bin.bitness() / 8, &known).map(|_| ())
+                                };
+                                match validation {
+                                    Ok(()) => {
+                                        if ty.is_empty() { l.ann.var_types.remove(&key); } else { l.ann.var_types.insert(key, ty); }
+                                        store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                                        l.refresh();
+                                        *error = None;
+                                        keep = false;
+                                    }
+                                    Err(message) => *error = Some(format!("Invalid C type: {message}")),
+                                }
                             }
-                            keep = false;
                         }
                         if ui.button("Cancel").clicked() { keep = false; }
                     });

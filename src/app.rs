@@ -144,7 +144,7 @@ pub enum Modal {
     Find { text: String, focus: bool },
     Message { title: String, text: String },
     RenameVar { func: u64, old: String, text: String, focus: bool },
-    TypeVar { func: u64, old: String, text: String, focus: bool },
+    TypeVar { func: u64, old: String, text: String, focus: bool, error: Option<String> },
 }
 
 pub struct Loaded {
@@ -845,7 +845,7 @@ impl LensApp {
                 }
                 Action::TypeVar(f, old) => {
                     let cur = self.loaded().and_then(|l| l.ann.var_types.get(&format!("{f:X}:{old}")).cloned()).unwrap_or_default();
-                    self.modal = Some(Modal::TypeVar { func: f, old, text: cur, focus: true });
+                    self.modal = Some(Modal::TypeVar { func: f, old, text: cur, focus: true, error: None });
                 }
                 Action::Protos => { self.protos.open = true; self.protos.text = self.loaded().map(|l| l.ann.protos.clone()).unwrap_or_default(); }
                 Action::AskAi(i) => self.ask_ai(i),
