@@ -39,20 +39,39 @@ fn attr_string<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, v: AttributeValue<R<'
     Some(s.to_string_lossy().to_string())
 }
 
-fn array_count(unit: &gimli::Unit<R<'_>>, off: gimli::UnitOffset) -> Option<u64> {
-    let mut tree = unit.entries_at_offset(off).ok()?;
-    tree.next_dfs().ok()??;
-    while let Some((depth, child)) = tree.next_dfs().ok()? {
-        if depth < 1 { break; }
-        if depth != 1 || child.tag() != gimli::DW_TAG_subrange_type { continue; }
-        if let Some(count) = child.attr_value(gimli::DW_AT_count).ok().flatten().and_then(|v| v.udata_value()) {
-            return Some(count);
-        }
-        let upper = child.attr_value(gimli::DW_AT_upper_bound).ok().flatten().and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok())))?;
-        let lower = child.attr_value(gimli::DW_AT_lower_bound).ok().flatten().and_then(|v| v.udata_value().or_else(|| v.sdata_value().and_then(|n| u64::try_from(n).ok()))).unwrap_or(0);
-        return upper.checked_sub(lower)?.checked_add(1);
+fn array_dimensions(unit: &gimli::Unit<R<'_>>, off: gimli::UnitOffset) -> Vec<Option<u64>> {
+    let Ok(mut tree) = unit.entries_at_offset(off) else {
+        return Vec::new();
+    };
+    if tree.next_dfs().ok().flatten().is_none() {
+        return Vec::new();
     }
-    None
+    let mut dimensions = Vec::new();
+    while let Ok(Some((depth, child))) = tree.next_dfs() {
+        if depth < 1 {
+            break;
+        }
+        if depth != 1 || child.tag() != gimli::DW_TAG_subrange_type {
+            continue;
+        }
+        let integer = |attr| {
+            child.attr_value(attr).ok().flatten().and_then(|value| {
+                value
+                    .sdata_value()
+                    .map(i128::from)
+                    .or_else(|| value.udata_value().map(i128::from))
+            })
+        };
+        let count = integer(gimli::DW_AT_count)
+            .and_then(|n| u64::try_from(n).ok())
+            .or_else(|| {
+                let upper = integer(gimli::DW_AT_upper_bound)?;
+                let lower = integer(gimli::DW_AT_lower_bound).unwrap_or(0);
+                u64::try_from(upper.checked_sub(lower)?.checked_add(1)?).ok()
+            });
+        dimensions.push(count);
+    }
+    dimensions
 }
 
 fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::UnitOffset>, depth: u32) -> String {
@@ -82,8 +101,17 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
         gimli::DW_TAG_enumeration_type => format!("enum {}", name.unwrap_or_else(|| "anon".into())),
         gimli::DW_TAG_array_type => {
             let t = type_name(c, unit, inner(), depth + 1);
-            let count = array_count(unit, e.offset()).map(|n| n.to_string()).unwrap_or_default();
-            format!("{t}[{count}]")
+            let dimensions = array_dimensions(unit, e.offset());
+            if dimensions.is_empty() {
+                format!("{t}[]")
+            } else {
+                let suffix = dimensions
+                    .iter()
+                    .map(|count| count.map(|n| n.to_string()).unwrap_or_default())
+                    .map(|count| format!("[{count}]"))
+                    .collect::<String>();
+                format!("{t}{suffix}")
+            }
         }
         gimli::DW_TAG_subroutine_type => {
             let ret = type_name(c, unit, inner(), depth + 1);
