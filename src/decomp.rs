@@ -2978,9 +2978,12 @@ fn decompile_inner(
     }
 
     // emit (twice: the first run finds which blocks are jump targets, the second prints their labels)
-    let rename_ref = rename.clone();
-    let render_types = infer_render_types(&outs);
     let own_proto = crate::protos::find(&name);
+    let type_seeds: HashMap<String, String> = own_proto.as_ref().map(|proto| {
+        proto.params.iter().enumerate().map(|(index, (ty, _))| (format!("a{}", index + 1), ty.trim().to_string())).collect()
+    }).unwrap_or_default();
+    let rename_ref = rename.clone();
+    let render_types = infer_render_types_with_seeds(&outs, type_seeds);
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
     let enum_vars = infer_enum_vars(&outs, &enum_params, &name, enum_return.as_deref());
@@ -3339,7 +3342,10 @@ fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>) -> Opti
 }
 
 fn infer_render_types(outs: &[BlockOut]) -> HashMap<String, String> {
-    let mut types: HashMap<String, String> = HashMap::new();
+    infer_render_types_with_seeds(outs, HashMap::new())
+}
+
+fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, String>) -> HashMap<String, String> {
     let mut assignments = Vec::new();
     for out in outs {
         for (_, stmt) in &out.stmts {
