@@ -6,7 +6,7 @@ Release update: **Lens 0.6.490 — Fourier** indexes sorted segment addresses, h
 
 Post-release scale measurement: the 134,225,920-byte synthetic ELF passed the GitHub Actions gate in **5.278 seconds at 267.73 MiB peak RSS**, versus 393.89 MiB on the preceding run of the same fixture (about **32% less peak memory**). Runtime stayed close to the prior 5.229-second result. This is one controlled synthetic input; real-binary coverage and incremental loading remain open.
 
-Unreleased dynamic-triage follow-up: the paired process-injection heuristic now recognizes native APC queueing and thread-context APIs, with built-in Nt/Zw prototypes for type recovery. It remains explainable import-based triage rather than runtime proof of behavior.
+Unreleased dynamic-triage follow-up: the paired process-injection heuristic now recognizes Linux `process_vm_writev` with `ptrace`, plus native APC queueing and thread-context APIs with built-in Nt/Zw prototypes for type recovery. It remains explainable import-based triage rather than runtime proof of behavior.
 
 Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 

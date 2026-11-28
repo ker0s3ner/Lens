@@ -304,6 +304,7 @@ int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *
 int posix_spawn(pid_t *pid, const char *path, const void *actions, const void *attr, char *const argv[], char *const envp[]); int posix_spawnp(pid_t *pid, const char *file, const void *actions, const void *attr, char *const argv[], char *const envp[]);
 pid_t waitid(int idtype, unsigned id, void *info, int options); int getrusage(int who, void *usage); pid_t setsid(void); pid_t setpgid(pid_t pid, pid_t pgid);
 ssize_t process_vm_writev(pid_t pid, const void *local_iov, unsigned long local_count, const void *remote_iov, unsigned long remote_count, unsigned long flags);
+long ptrace(int request, pid_t pid, void *addr, void *data);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
 int dladdr(const void *addr, void *info); char *dlerror(void); void *dlvsym(void *h, const char *name, const char *version);
