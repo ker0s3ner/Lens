@@ -78,6 +78,40 @@ fn function_pointer_proto_with_aliases(ty: &str, structs: &[crate::types::Struct
     None
 }
 
+fn pointer_target_type(ty: &str, structs: &[crate::types::StructDef]) -> Option<String> {
+    let mut current = ty.trim().to_string();
+    for qualifier in ["const ", "volatile ", "restrict "] {
+        current = current.trim_start_matches(qualifier).trim().to_string();
+    }
+    let mut seen = HashSet::new();
+    let mut pointer = false;
+    for _ in 0..=structs.len() {
+        for qualifier in [" const", " volatile", " restrict"] {
+            current = current.trim_end_matches(qualifier).trim().to_string();
+        }
+        if let Some(target) = current.strip_suffix('*') {
+            pointer = true;
+            current = target.trim().to_string();
+            let lookup = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+            if !lookup.starts_with("struct ") && !lookup.starts_with("union ") && !structs.iter().any(|def| def.name == lookup) {
+                return Some(current);
+            }
+            continue;
+        }
+        if !seen.insert(current.clone()) { return None; }
+        let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+        let Some(def) = structs.iter().find(|candidate| candidate.name == name) else {
+            return pointer.then_some(current);
+        };
+        if pointer && !def.fields.is_empty() { return Some(current); }
+        current = def.alias_of.as_deref()?.trim().to_string();
+        for qualifier in ["const ", "volatile ", "restrict "] {
+            current = current.trim_start_matches(qualifier).trim().to_string();
+        }
+    }
+    None
+}
+
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
@@ -329,37 +363,7 @@ impl Fmt<'_> {
     }
 
     fn pointer_target(&self, ty: &str) -> Option<String> {
-        let mut current = ty.trim().to_string();
-        for qualifier in ["const ", "volatile ", "restrict "] {
-            current = current.trim_start_matches(qualifier).trim().to_string();
-        }
-        let mut seen = std::collections::HashSet::new();
-        let mut pointer = false;
-        for _ in 0..=self.structs.len() {
-            for qualifier in [" const", " volatile", " restrict"] {
-                current = current.trim_end_matches(qualifier).trim().to_string();
-            }
-            if let Some(target) = current.strip_suffix('*') {
-                pointer = true;
-                current = target.trim().to_string();
-                let lookup = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
-                if !lookup.starts_with("struct ") && !lookup.starts_with("union ") && !self.structs.iter().any(|def| def.name == lookup) {
-                    return Some(current);
-                }
-                continue;
-            }
-            if !seen.insert(current.clone()) { return None; }
-            let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
-            let Some(def) = self.structs.iter().find(|candidate| candidate.name == name) else {
-                return pointer.then_some(current);
-            };
-            if pointer && !def.fields.is_empty() { return Some(current); }
-            current = def.alias_of.as_deref()?.trim().to_string();
-            for qualifier in ["const ", "volatile ", "restrict "] {
-                current = current.trim_start_matches(qualifier).trim().to_string();
-            }
-        }
-        None
+        pointer_target_type(ty, self.structs)
     }
 
     fn resolve_struct_path(&self, def: &crate::types::StructDef, offset: i64, depth: usize) -> Option<String> {
@@ -3321,10 +3325,10 @@ pub fn render_text(d: &Decompiled) -> String {
 fn render_pointee_type(expression: &Ex, types: &HashMap<String, String>, structs: &[crate::types::StructDef]) -> Option<String> {
     match expression {
         Ex::Call(callee, _) => call_return_type_with_types(callee, types, structs)
-            .and_then(|ret| ret.strip_suffix('*').map(str::trim).filter(|ty| !ty.is_empty()).map(str::to_string)),
-        Ex::Var(name) => types.get(name).and_then(|ty| ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string())),
-        Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
-        Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|pointee| pointee.trim().to_string()),
+            .and_then(|ret| pointer_target_type(&ret, structs)),
+        Ex::Var(name) => types.get(name).and_then(|ty| pointer_target_type(ty, structs)),
+        Ex::Cast(ty, _) => pointer_target_type(ty, structs),
+        Ex::CastOwned(ty, _) => pointer_target_type(ty, structs),
         Ex::Bin("+" | "-", base, offset) if render_pointee_type(offset, types, structs).is_none() => render_pointee_type(base, types, structs),
         Ex::Tern(_, yes, no) => {
             let yes = render_pointee_type(yes, types, structs);
