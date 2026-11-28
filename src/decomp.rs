@@ -3815,9 +3815,9 @@ fn render_expression_type(expression: &Ex, types: &HashMap<String, String>, stru
             render_expression_type(base, types, structs)
         }
         Ex::Tern(_, yes, no) => {
-            let yes = render_expression_type(yes, types, structs);
-            let no = render_expression_type(no, types, structs);
-            merge_conditional_type(yes, no, yes, no, structs)
+            let yes_ty = render_expression_type(yes, types, structs);
+            let no_ty = render_expression_type(no, types, structs);
+            merge_conditional_type(yes_ty, no_ty, yes, no, structs)
         }
         _ => None,
     }
