@@ -13,9 +13,9 @@
 - Identify shared/anonymous-memory APIs as a separate static capability.
 - Correlate shared/anonymous-memory APIs with runtime code loading as an explainable heuristic; co-occurrence does not prove a call path or malicious behavior.
 - Recognize `fexecve` as both process execution and runtime code loading.
-- Rework the large-file fixture to use a 12 KiB ELF file with two 64 MiB virtual-only segments.
+- Rework the large-file fixture to use a 12 KiB ELF file with two 64 MiB virtual-only segments and verify the mapped file/zero-fill sizes.
 - Verify file-backed and zero-fill segment sizes in the machine-readable analysis report.
-- Tighten the large-file RSS budget to 256 MiB and run the gate automatically when relevant main-branch files change.
+- Tighten the large-file RSS budget to 256 MiB and run the gate automatically when relevant main-branch files change; GitHub measured 0.008 seconds at 13.82 MiB peak RSS on the 12,288-byte fixture (one synthetic run).
 - Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
 - GitHub Actions builds the release artifact; no local build or installation was performed.
 
