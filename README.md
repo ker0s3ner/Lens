@@ -6,7 +6,7 @@ Latest shipped build: **0.6.484 — Fourier**. Added structured LLDB stop/exit e
 
 ## IDA Pro parity status
 
-The current engineering estimate is **about 40–45% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **38.7% of IDA Pro's breadth**. Lens is below the 50% target mainly because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugging still depends on LLDB, and large-file/performance validation is limited. The roadmap tracks the remaining work and its evidence.
+The current engineering estimate is **about 40–45% of IDA Pro in practical workflow capability**; the weighted roadmap model measures **38.7% of IDA Pro's breadth**. Recent work adds offline trace replay, a basic native local-child session, broader DWARF member-offset recovery, M68k sign extension, safer temporary propagation, and a repeatable large-file gate. Lens remains below 50% because its decompiler and type recovery are shallower, processor-specific analysis is narrower, debugger functionality is early, and performance results on large files are not yet measured. See the roadmap for scope and current evidence.
 
 ## What it can do
 
