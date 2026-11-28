@@ -304,6 +304,7 @@ int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *
 int posix_spawn(pid_t *pid, const char *path, const void *actions, const void *attr, char *const argv[], char *const envp[]); int posix_spawnp(pid_t *pid, const char *file, const void *actions, const void *attr, char *const argv[], char *const envp[]);
 pid_t waitid(int idtype, unsigned id, void *info, int options); int getrusage(int who, void *usage); pid_t setsid(void); pid_t setpgid(pid_t pid, pid_t pgid);
 ssize_t process_vm_writev(pid_t pid, const void *local_iov, unsigned long local_count, const void *remote_iov, unsigned long remote_count, unsigned long flags);
+ssize_t process_vm_readv(pid_t pid, const void *local_iov, unsigned long local_count, const void *remote_iov, unsigned long remote_count, unsigned long flags);
 long ptrace(int request, pid_t pid, void *addr, void *data);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
@@ -348,6 +349,8 @@ BOOL ReadProcessMemory(HANDLE process, const void *addr, void *buf, size_t size,
 HANDLE CreateRemoteThread(HANDLE process, void *sec, size_t stack, void *start, void *arg, DWORD flags, DWORD *id); HANDLE CreateRemoteThreadEx(HANDLE process, void *sec, size_t stack, void *start, void *arg, DWORD flags, void *attrs, DWORD *id);
 BOOL QueueUserAPC(void *fn, HANDLE thread, uintptr_t data); BOOL SetThreadContext(HANDLE thread, const void *context);
 LONG NtWriteVirtualMemory(HANDLE process, LPVOID addr, const void *buf, size_t size, size_t *written); LONG NtCreateThreadEx(HANDLE *thread, DWORD access, void *attrs, HANDLE process, void *start, void *arg, DWORD flags, size_t zero_bits, size_t stack, size_t max_stack, void *attrs2);
+LONG NtReadVirtualMemory(HANDLE process, const void *addr, void *buf, size_t size, size_t *read); LONG ZwReadVirtualMemory(HANDLE process, const void *addr, void *buf, size_t size, size_t *read);
+LONG NtQueryVirtualMemory(HANDLE process, const void *addr, int info_class, void *info, size_t info_size, size_t *return_size); LONG ZwQueryVirtualMemory(HANDLE process, const void *addr, int info_class, void *info, size_t info_size, size_t *return_size);
 LONG NtQueryInformationProcess(HANDLE process, int info_class, void *info, DWORD info_size, DWORD *return_size); LONG ZwQueryInformationProcess(HANDLE process, int info_class, void *info, DWORD info_size, DWORD *return_size);
 LONG NtOpenProcess(HANDLE *process, DWORD access, void *object_attrs, void *client_id); LONG ZwOpenProcess(HANDLE *process, DWORD access, void *object_attrs, void *client_id);
 LONG NtClose(HANDLE handle); LONG ZwClose(HANDLE handle); LONG NtDuplicateObject(HANDLE source_process, HANDLE source, HANDLE target_process, HANDLE *target, DWORD access, DWORD attributes, DWORD options); LONG ZwDuplicateObject(HANDLE source_process, HANDLE source, HANDLE target_process, HANDLE *target, DWORD access, DWORD attributes, DWORD options);
