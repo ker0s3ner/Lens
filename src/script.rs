@@ -460,7 +460,7 @@ pub fn run(src: &str, snap: Snap, hook: Option<&str>) -> Output {
                 return -1;
             }
             let mut v: u64 = 0;
-            if s.bin.big_endian { for x in b { v = (v << 8) | *x as u64 } } else { for x in b.iter().rev() { v = (v << 8) | *x as u64 } }
+            if s.bin.big_endian { for x in b { v = (v << 8) | x as u64 } } else { for x in b.iter().rev() { v = (v << 8) | *x as u64 } }
             v as INT
         });
     }

@@ -569,7 +569,7 @@ pub fn enum_value(bin: &Binary, addr: u64, def: &StructDef) -> Option<String> {
     if bytes.len() < def.size as usize || def.size == 0 || def.size > 8 { return None; }
     let mut raw = 0u64;
     if bin.big_endian {
-        for b in bytes { raw = (raw << 8) | *b as u64; }
+        for b in bytes { raw = (raw << 8) | b as u64; }
     } else {
         for b in bytes.iter().rev() { raw = (raw << 8) | *b as u64; }
     }
