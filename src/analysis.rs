@@ -1699,22 +1699,30 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
     let import_starts: HashSet<u64> = functions.values().filter(|f| f.kind == FuncKind::Import).map(|f| f.start).collect();
     let mut tail_calls: Vec<(u64, u64)> = vec![];
     for f in functions.values_mut() {
-        let ordered: Vec<u64> = f.blocks.iter().flat_map(|b| b.insns.iter().copied()).collect();
+        let mut ordered: Vec<u64> = f.blocks.iter().flat_map(|b| b.insns.iter().copied()).collect();
+        ordered.sort_unstable();
         let Some(&last_addr) = ordered.last() else { continue };
         let Some(last) = insns.get(&last_addr) else { continue };
-        if last.flow == Flow::Jump && last.target != f.start && function_starts.contains(&last.target)
-            && !f.blocks.iter().any(|b| b.insns.contains(&last.target)) {
-            if !f.calls.contains(&last.target) {
-                f.calls.push(last.target);
-                f.calls.sort_unstable();
+        // Tail calls can leave from any terminal basic block. Do not infer
+        // them from the last block visited during recursive discovery: that
+        // order is not a reliable proxy for CFG exits.
+        for block in &f.blocks {
+            let Some(&addr) = block.insns.last() else { continue };
+            let Some(insn) = insns.get(&addr) else { continue };
+            if insn.flow == Flow::Jump && insn.target != f.start && function_starts.contains(&insn.target)
+                && !f.blocks.iter().any(|b| b.insns.contains(&insn.target)) {
+                if !f.calls.contains(&insn.target) {
+                    f.calls.push(insn.target);
+                    f.calls.sort_unstable();
+                }
+                tail_calls.push((addr, insn.target));
             }
-            tail_calls.push((last_addr, last.target));
         }
         let padding = |addr: u64| {
             let Some((decoded, _)) = decode_at(bin, addr) else { return false };
             matches!(decoded.mnemonic(), Mnemonic::Nop | Mnemonic::Endbr32 | Mnemonic::Endbr64)
         };
-        if ordered[..ordered.len().saturating_sub(1)].iter().all(|a| padding(*a)) {
+        if f.blocks.len() == 1 && ordered[..ordered.len().saturating_sub(1)].iter().all(|a| padding(*a)) {
             if last.flow == Flow::Jump
                 && last.target != f.start
                 && (function_starts.contains(&last.target) || sym_at.contains_key(&last.target) || import_starts.contains(&last.target))
