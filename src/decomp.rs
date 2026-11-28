@@ -220,13 +220,24 @@ struct Fmt<'a> {
 }
 
 impl Fmt<'_> {
+    fn call_proto(&self, callee: &Ex) -> Option<crate::protos::Proto> {
+        match callee {
+            Ex::Var(name) => crate::protos::find(name)
+                .or_else(|| self.types.get(name).and_then(|ty| function_pointer_proto(ty))),
+            Ex::Cast(ty, _) => function_pointer_proto(ty),
+            Ex::CastOwned(ty, _) => function_pointer_proto(ty),
+            _ => None,
+        }
+    }
+
     fn expression_type(&self, expression: &Ex) -> Option<String> {
         match expression {
             Ex::Num(_) => Some("int".into()),
             Ex::Var(name) => self.types.get(name).cloned(),
             Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
-            Ex::Call(callee, _) => call_return_type(callee),
+            Ex::Call(callee, _) => self.call_proto(callee).map(|proto| proto.ret)
+                .filter(|ret| ret != "void").or_else(|| call_return_type(callee)),
             Ex::Deref(address, _) => self.expression_type(address).and_then(|ty| self.pointer_target(&ty)),
             Ex::Bin("+" | "-", base, offset) => {
                 let base_type = self.expression_type(base)?;
@@ -257,7 +268,7 @@ impl Fmt<'_> {
             return format!("({expected}){shown}");
         };
         let normalize = |ty: &str| {
-            ty.trim().trim_start_matches("const ").trim_start_matches("volatile ").trim_start_matches("restrict ").trim()
+            ty.trim().trim_start_matches("const ").trim_start_matches("volatile ").trim_start_matches("restrict ").trim().to_string()
         };
         if normalize(&expected_target) == "void" || normalize(&expected_target) == normalize(&actual_target) { shown }
         else { format!("({expected}){shown}") }
@@ -535,12 +546,7 @@ impl Fmt<'_> {
                     Ex::Var(_) => self.at(f, 0),
                     other => format!("(*{})", self.at(other, 3)),
                 };
-                let proto = match &**f {
-                    Ex::Var(name) => crate::protos::find(name),
-                    Ex::Cast(ty, _) => function_pointer_proto(ty),
-                    Ex::CastOwned(ty, _) => function_pointer_proto(ty),
-                    _ => None,
-                };
+                let proto = self.call_proto(f);
                 let a: Vec<String> = args.iter().enumerate().map(|(index, argument)| {
                     self.call_argument(argument, proto.as_ref().and_then(|p| p.params.get(index)).map(|(ty, _)| ty.as_str()))
                 }).collect();
