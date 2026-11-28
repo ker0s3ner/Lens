@@ -1,3 +1,22 @@
+# Lens 0.6.497 — Fourier
+
+- Classify debugger stops into faults, memory-watch events, breakpoints, signals, process exits, and other stops.
+- Mark fatal hardware and memory signals as high severity, watchpoints and other signals as medium, and normal debugger stops as informational.
+- Attach the stopped program counter to its runtime event when LLDB reads the PC.
+- Navigate to mapped stopped addresses directly from the runtime-event list.
+- Resolve event addresses to recovered function names.
+- Correlate resolved functions with matching static behavior-triage signals.
+- Summarize retained high- and medium-severity event counts in the debugger.
+- Apply the existing Triage only filter to hide informational runtime events.
+- Copy runtime events as tab-separated severity, category, address, function, and message records.
+- Copy runtime events as standalone structured JSON for case handoff.
+- Add structured `runtime_events` records to JSON trace exports while retaining the existing string `events` field.
+- Include event severity totals and heuristic annotations in JSON trace exports.
+- Keep runtime-event history bounded to 512 entries.
+- Dynamic signals remain explainable analyst triage, not an automated malware verdict.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.496 — Fourier
 
 - Validate inferred pointer-index strides against the recovered pointee size before rendering `p[i]`.

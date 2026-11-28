@@ -28,6 +28,35 @@ pub enum RunState {
     Exited,
 }
 
+#[derive(Clone, Debug)]
+pub struct DynamicEvent {
+    pub category: String,
+    pub severity: String,
+    pub address: Option<u64>,
+    pub message: String,
+}
+
+impl DynamicEvent {
+    fn new(message: String) -> Self {
+        let lower = message.to_ascii_lowercase();
+        let (category, severity) = if ["sigsegv", "sigbus", "sigill", "sigabrt", "sigfpe"]
+            .iter().any(|signal| lower.contains(signal)) {
+            ("fault", "high")
+        } else if lower.contains("watchpoint") {
+            ("memory-watch", "medium")
+        } else if lower.contains("breakpoint") || lower.contains("sigtrap") {
+            ("breakpoint", "info")
+        } else if lower.contains("exited") {
+            ("process-exit", "info")
+        } else if lower.contains("signal") {
+            ("signal", "medium")
+        } else {
+            ("stop", "info")
+        };
+        Self { category: category.into(), severity: severity.into(), address: None, message }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum Kind {
     Plain,
@@ -69,7 +98,7 @@ pub struct Dbg {
     /// Program counters observed at debugger stops while stop tracing is enabled.
     pub trace: Vec<u64>,
     /// Bounded, human-readable stop/exit events captured alongside the trace.
-    pub dynamic_events: Vec<String>,
+    pub dynamic_events: Vec<DynamicEvent>,
     pub trace_enabled: bool,
     trace_active: bool,
     trace_remaining: usize,
@@ -135,6 +164,11 @@ fn parse_hex_after(s: &str, key: &str) -> Option<u64> {
     u64::from_str_radix(&rest[..end], 16).ok()
 }
 
+fn retain_dynamic_event(events: &mut Vec<DynamicEvent>, message: String) {
+    events.push(DynamicEvent::new(message));
+    if events.len() > 512 { events.remove(0); }
+}
+
 fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<String>)>) -> std::collections::BTreeMap<String, usize> {
     let mut hits = HashMap::<u64, usize>::new();
     for address in trace { *hits.entry(*address).or_default() += 1; }
@@ -144,6 +178,23 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
         for signal in signals { *counts.entry(signal.clone()).or_default() += weight; }
     }
     counts
+}
+
+fn runtime_event_annotations(
+    events: &[DynamicEvent],
+    analysis: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    signals: &[crate::detect::ThreatSignal],
+) -> HashMap<u64, (String, Vec<String>)> {
+    events.iter().filter_map(|event| {
+        let address = event.address?;
+        let function = analysis.function_containing(address)?;
+        let name = names.get(&function.start).map(|(name, _)| name.clone())
+            .unwrap_or_else(|| format!("sub_{:X}", function.start));
+        let matched = signals.iter().filter(|signal| signal_matches_callee(signal, &name))
+            .map(|signal| signal.name.clone()).collect();
+        Some((address, (name, matched)))
+    }).collect()
 }
 
 type RuntimeCall = (usize, u64, u64, String, String, Vec<String>);
@@ -488,14 +539,12 @@ impl Dbg {
             Kind::Launch | Kind::Resume | Kind::TraceStep => {
                 self.console.extend(lines.iter().cloned());
                 if let Some(reason) = lines.iter().find(|line| line.contains("stop reason")) {
-                    self.dynamic_events.push(reason.clone());
-                    if self.dynamic_events.len() > 512 { self.dynamic_events.remove(0); }
+                    retain_dynamic_event(&mut self.dynamic_events, reason.clone());
                 }
                 if joined.contains("exited with status") || (joined.contains("Process") && joined.contains("exited")) {
                     self.state = RunState::Exited;
                     self.pc = None;
-                    self.dynamic_events.push(lines.iter().find(|line| line.contains("exited")).cloned().unwrap_or_else(|| "process exited".into()));
-                    if self.dynamic_events.len() > 512 { self.dynamic_events.remove(0); }
+                    retain_dynamic_event(&mut self.dynamic_events, lines.iter().find(|line| line.contains("exited")).cloned().unwrap_or_else(|| "process exited".into()));
                 } else if joined.contains("error:") && !joined.contains("stop reason") {
                     self.state = RunState::Exited;
                 } else {
@@ -510,6 +559,9 @@ impl Dbg {
             Kind::Pc => {
                 if let Some(pc) = lines.iter().find_map(|l| parse_hex_after(l, "= ")) {
                     self.pc = Some(pc.wrapping_sub(self.slide));
+                    if let Some(event) = self.dynamic_events.iter_mut().rev().find(|event| event.address.is_none()) {
+                        event.address = self.pc;
+                    }
                     if self.trace_enabled && !self.trace_active {
                         let pc = pc.wrapping_sub(self.slide);
                         if self.trace.last() != Some(&pc) { self.trace.push(pc); }
@@ -653,6 +705,10 @@ impl LensApp {
             map.entry(address).or_insert((name, signals));
             map
         });
+        let runtime_event_lookup = match (&self.dbg, self.loaded()) {
+            (Some(d), Some(l)) => runtime_event_annotations(&d.dynamic_events, &l.an, &l.names, &l.det.threat_signals),
+            _ => HashMap::new(),
+        };
         let dynamic_function_count = dynamic_trace.iter().map(|(_, name, _)| name).collect::<std::collections::BTreeSet<_>>().len();
         let dynamic_signal_count = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).count();
         let dynamic_signal_addresses = dynamic_trace.iter().filter(|(_, _, signals)| !signals.is_empty()).map(|(address, _, _)| address).collect::<std::collections::BTreeSet<_>>().len();
@@ -863,7 +919,12 @@ impl LensApp {
                                 }
                                 let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
                                 let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee, "heuristic_signals": signals})).collect::<Vec<_>>();
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "events": d.dynamic_events, "records": records});
+                                let runtime_events = d.dynamic_events.iter().map(|event| {
+                                    let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                                    serde_json::json!({"category": event.category, "severity": event.severity, "address": event.address, "message": event.message, "function": annotation.map(|(name, _)| name), "heuristic_signals": annotation.map(|(_, signals)| signals.clone()).unwrap_or_default()})
+                                }).collect::<Vec<_>>();
+                                let event_counts = ["high", "medium", "info"].into_iter().map(|severity| (severity, d.dynamic_events.iter().filter(|event| event.severity == severity).count())).collect::<std::collections::BTreeMap<_, _>>();
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "event_severity_counts": event_counts, "events": d.dynamic_events.iter().map(|event| event.message.clone()).collect::<Vec<_>>(), "runtime_events": runtime_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),
@@ -935,11 +996,32 @@ impl LensApp {
                         }
                     }
                     if !d.dynamic_events.is_empty() {
-                        ui.label(RichText::new(format!("RECENT DEBUG EVENTS · {}/512 retained", d.dynamic_events.len())).small().color(p.faint));
-                        if ui.small_button("Copy debug events").clicked() { ui.ctx().copy_text(d.dynamic_events.iter().rev().cloned().collect::<Vec<_>>().join("\n")); }
+                        let high = d.dynamic_events.iter().filter(|event| event.severity == "high").count();
+                        let medium = d.dynamic_events.iter().filter(|event| event.severity == "medium").count();
+                        ui.label(RichText::new(format!("RUNTIME EVENTS · {}/512 retained · {high} high · {medium} medium", d.dynamic_events.len())).small().color(if high > 0 { p.edge_not } else { p.faint }));
+                        if ui.small_button("Copy debug events").clicked() { ui.ctx().copy_text(d.dynamic_events.iter().rev().map(|event| {
+                            let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                            format!("{}\t{}\t{}\t{}\t{}", event.severity, event.category, event.address.map(|address| format!("{address:016X}")).unwrap_or_default(), annotation.map(|(name, _)| name.as_str()).unwrap_or(""), event.message)
+                        }).collect::<Vec<_>>().join("\n")); }
+                        if ui.small_button("Copy events JSON").clicked() {
+                            let value = d.dynamic_events.iter().map(|event| {
+                                let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                                serde_json::json!({"category": event.category, "severity": event.severity, "address": event.address, "message": event.message, "function": annotation.map(|(name, _)| name), "heuristic_signals": annotation.map(|(_, signals)| signals.clone()).unwrap_or_default()})
+                            }).collect::<Vec<_>>();
+                            ui.ctx().copy_text(serde_json::to_string_pretty(&value).unwrap_or_default());
+                        }
                         if ui.small_button("Clear debug events").clicked() { d.dynamic_events.clear(); }
-                        for event in d.dynamic_events.iter().rev().take(4) {
-                            ui.label(RichText::new(event).small().color(p.muted));
+                        for event in d.dynamic_events.iter().rev().filter(|event| !ui_state.triage_only || event.severity != "info").take(4) {
+                            let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                            let function = annotation.map(|(name, _)| format!(" · {name}")).unwrap_or_default();
+                            let signals = annotation.filter(|(_, signals)| !signals.is_empty()).map(|(_, signals)| format!(" · {}", signals.join(", "))).unwrap_or_default();
+                            let label = format!("{} · {}{}{}{} · {}", event.severity.to_ascii_uppercase(), event.category, event.address.map(|address| format!(" · {address:016X}")).unwrap_or_default(), function, signals, event.message);
+                            let color = match event.severity.as_str() { "high" => p.edge_not, "medium" => p.comment, _ => p.muted };
+                            if let Some(address) = event.address.filter(|address| bin.as_ref().is_some_and(|binary| binary.is_mapped(*address))) {
+                                if ui.add(egui::Button::new(RichText::new(label).small().color(color))).clicked() { goto = Some(address); }
+                            } else {
+                                ui.label(RichText::new(label).small().color(color));
+                            }
                         }
                     }
                     ui.separator();
