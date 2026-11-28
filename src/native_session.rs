@@ -4,6 +4,7 @@
 use crate::app::LensApp;
 use eframe::egui;
 use std::ffi::OsString;
+use std::collections::VecDeque;
 use std::io::{self, Read};
 use std::os::unix::process::CommandExt;
 use std::os::unix::process::ExitStatusExt;
@@ -38,6 +39,8 @@ struct NativeSession {
     output: Arc<Mutex<String>>,
     stop_reason: Option<String>,
     stop_signal: Option<libc::c_int>,
+    stop_sequence: u64,
+    stop_events: VecDeque<String>,
 }
 
 fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
@@ -193,6 +196,8 @@ impl NativeSession {
             output,
             stop_reason: None,
             stop_signal: None,
+            stop_sequence: 0,
+            stop_events: VecDeque::new(),
         };
         if start_paused {
             session.wait_for_initial_stop()?;
@@ -226,6 +231,11 @@ impl NativeSession {
                         _ => "signal",
                     };
                     self.stop_reason = Some(format!("{name} ({signal})"));
+                    self.stop_sequence = self.stop_sequence.saturating_add(1);
+                    self.stop_events.push_back(format!("#{} {} ({signal})", self.stop_sequence, name));
+                    if self.stop_events.len() > 128 {
+                        self.stop_events.pop_front();
+                    }
                     return Ok(());
                 }
                 if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
@@ -481,6 +491,22 @@ impl LensApp {
             });
             egui::ScrollArea::vertical().id_salt("native-child-output").max_height(120.0).stick_to_bottom(true).show(ui, |ui| {
                 ui.monospace(output);
+            });
+        }
+        if !session.stop_events.is_empty() {
+            ui.horizontal(|ui| {
+                ui.label(format!("Stop events ({} retained)", session.stop_events.len()));
+                if ui.small_button("Copy events").clicked() {
+                    ui.ctx().copy_text(session.stop_events.iter().cloned().collect::<Vec<_>>().join("\n"));
+                }
+                if ui.small_button("Clear events").clicked() {
+                    session.stop_events.clear();
+                }
+            });
+            egui::ScrollArea::vertical().id_salt("native-stop-events").max_height(72.0).stick_to_bottom(true).show(ui, |ui| {
+                for event in session.stop_events.iter().rev().take(8).rev() {
+                    ui.monospace(event);
+                }
             });
         }
         let mut restart = false;
