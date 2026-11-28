@@ -39,8 +39,8 @@ struct NativeSession {
     output: Arc<Mutex<String>>,
     stop_reason: Option<String>,
     stop_signal: Option<libc::c_int>,
-    stop_sequence: u64,
-    stop_events: VecDeque<String>,
+    event_sequence: u64,
+    events: VecDeque<String>,
 }
 
 fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
@@ -154,6 +154,26 @@ fn trace_step(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
 }
 
 impl NativeSession {
+    fn record_event(&mut self, event: String) {
+        self.event_sequence = self.event_sequence.saturating_add(1);
+        self.events.push_back(format!("#{} {event}", self.event_sequence));
+        if self.events.len() > 128 {
+            self.events.pop_front();
+        }
+    }
+
+    fn record_exit(&mut self, status: i32) {
+        let status = ExitStatus::from_raw(status);
+        let event = if let Some(code) = status.code() {
+            format!("Process exited with code {code}")
+        } else if let Some(signal) = status.signal() {
+            format!("Process terminated by signal {signal}")
+        } else {
+            "Process exited".to_string()
+        };
+        self.record_event(event);
+    }
+
     fn launch(
         program: &Path,
         args: &[OsString],
@@ -196,9 +216,10 @@ impl NativeSession {
             output,
             stop_reason: None,
             stop_signal: None,
-            stop_sequence: 0,
-            stop_events: VecDeque::new(),
+            event_sequence: 0,
+            events: VecDeque::new(),
         };
+        session.record_event(format!("Started process {}", session.child.id()));
         if start_paused {
             session.wait_for_initial_stop()?;
         }
@@ -231,15 +252,12 @@ impl NativeSession {
                         _ => "signal",
                     };
                     self.stop_reason = Some(format!("{name} ({signal})"));
-                    self.stop_sequence = self.stop_sequence.saturating_add(1);
-                    self.stop_events.push_back(format!("#{} {} ({signal})", self.stop_sequence, name));
-                    if self.stop_events.len() > 128 {
-                        self.stop_events.pop_front();
-                    }
+                    self.record_event(format!("Stopped by {name} ({signal})"));
                     return Ok(());
                 }
                 if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
                     self.state = State::Exited(ExitStatus::from_raw(status));
+                    self.record_exit(status);
                     return Ok(());
                 }
                 continue;
@@ -272,6 +290,7 @@ impl NativeSession {
                     self.state = State::Running;
                 } else if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
                     self.state = State::Exited(ExitStatus::from_raw(status));
+                    self.record_exit(status);
                 }
                 return Ok(());
             }
@@ -493,18 +512,18 @@ impl LensApp {
                 ui.monospace(output);
             });
         }
-        if !session.stop_events.is_empty() {
+        if !session.events.is_empty() {
             ui.horizontal(|ui| {
-                ui.label(format!("Stop events ({} retained)", session.stop_events.len()));
+                ui.label(format!("Process events ({} retained)", session.events.len()));
                 if ui.small_button("Copy events").clicked() {
-                    ui.ctx().copy_text(session.stop_events.iter().cloned().collect::<Vec<_>>().join("\n"));
+                    ui.ctx().copy_text(session.events.iter().cloned().collect::<Vec<_>>().join("\n"));
                 }
                 if ui.small_button("Clear events").clicked() {
-                    session.stop_events.clear();
+                    session.events.clear();
                 }
             });
-            egui::ScrollArea::vertical().id_salt("native-stop-events").max_height(72.0).stick_to_bottom(true).show(ui, |ui| {
-                for event in session.stop_events.iter().rev().take(8).rev() {
+            egui::ScrollArea::vertical().id_salt("native-process-events").max_height(72.0).stick_to_bottom(true).show(ui, |ui| {
+                for event in session.events.iter().rev().take(8).rev() {
                     ui.monospace(event);
                 }
             });
