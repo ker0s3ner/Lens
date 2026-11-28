@@ -126,6 +126,11 @@ fn pointer_target_type(ty: &str, structs: &[crate::types::StructDef]) -> Option<
     None
 }
 
+fn is_pointer_type(ty: &str, structs: &[crate::types::StructDef]) -> bool {
+    pointer_target_type(ty, structs).is_some()
+        || function_pointer_proto_with_aliases(ty, structs).is_some()
+}
+
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
@@ -3407,6 +3412,8 @@ fn decompile_inner(
     }
     let mut type_candidates: HashMap<String, String> = HashMap::new();
     let mut type_conflicts = HashSet::new();
+    let mut zero_assignments = HashSet::new();
+    let mut other_unknown_assignments = HashSet::new();
     for (t, rhs) in &assignments {
         let ty = render_expression_type(rhs, &known_types, structs);
         if let Some(ty) = ty {
@@ -3415,18 +3422,27 @@ fn decompile_inner(
             } else {
                 type_candidates.insert(t.clone(), ty);
             }
+        } else if constant_value(rhs) == Some(0) {
+            zero_assignments.insert(t.clone());
         } else {
-            type_conflicts.insert(t.clone());
+            other_unknown_assignments.insert(t.clone());
         }
     }
     for (t, e) in &mut assigned {
-        if !type_conflicts.contains(t) { e.1 = type_candidates.get(t).cloned(); }
+        let null_pointer_merge = zero_assignments.contains(t)
+            && !other_unknown_assignments.contains(t)
+            && type_candidates.get(t).is_some_and(|ty| is_pointer_type(ty, structs));
+        let all_assignments_typed = !zero_assignments.contains(t)
+            && !other_unknown_assignments.contains(t);
+        if !type_conflicts.contains(t) && (all_assignments_typed || null_pointer_merge) {
+            e.1 = type_candidates.get(t).cloned();
+        }
     }
     let mut typed: Vec<(String, String)> = vec![];
     decl_regs.retain(|d| {
         let source = assigned.get(d).or_else(|| rename.iter().find(|(_, shown)| *shown == d).and_then(|(original, _)| assigned.get(original)));
         match source {
-        Some((1, Some(ty))) => { typed.push((ty.clone(), d.clone())); false }
+        Some((count, Some(ty))) if *count > 0 => { typed.push((ty.clone(), d.clone())); false }
         _ => true,
         }
     });
@@ -3585,7 +3601,8 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
     for _ in 0..assignments.len().max(1) {
         let mut candidates = HashMap::<String, String>::new();
         let mut conflicts = HashSet::<String>::new();
-        let mut unknown_assignments = HashSet::<String>::new();
+        let mut zero_assignments = HashSet::<String>::new();
+        let mut other_unknown_assignments = HashSet::<String>::new();
         for (name, rhs) in &assignments {
             // Parameters with known prototypes keep their declared type even if
             // the body later assigns to them.
@@ -3601,13 +3618,20 @@ fn infer_render_types_with_seeds(outs: &[BlockOut], mut types: HashMap<String, S
                 } else {
                     candidates.insert(name.clone(), ty);
                 }
+            } else if constant_value(rhs) == Some(0) {
+                zero_assignments.insert(name.clone());
             } else {
-                unknown_assignments.insert(name.clone());
+                other_unknown_assignments.insert(name.clone());
             }
         }
         let mut next = seeds.clone();
         for (name, ty) in candidates {
-            if !conflicts.contains(&name) && !unknown_assignments.contains(&name) {
+            let null_pointer_merge = zero_assignments.contains(&name)
+                && !other_unknown_assignments.contains(&name)
+                && is_pointer_type(&ty, structs);
+            let all_assignments_typed = !zero_assignments.contains(&name)
+                && !other_unknown_assignments.contains(&name);
+            if !conflicts.contains(&name) && (all_assignments_typed || null_pointer_merge) {
                 next.insert(name, ty);
             }
         }

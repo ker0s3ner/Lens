@@ -1,3 +1,20 @@
+# Lens 0.6.507 — Fourier
+
+- Infer a local's declared type when multiple assignments agree on the same type.
+- Carry consistent type declarations across separate basic blocks and compiler-generated branch assignments.
+- Recover repeated pointer assignments from known prototype return types and typed input variables.
+- Recover repeated struct-pointer assignments using the same bounded alias resolution as single assignments.
+- Recover repeated function-pointer assignments when all known signatures agree.
+- Keep explicit parameter prototype types as authoritative seeds when the function reassigns a parameter.
+- Treat a constant zero assignment as a possible null pointer only when a consistent pointer type is also present.
+- Recognize folded integer constant expressions with value zero as null-pointer alternatives.
+- Preserve the pointer type through a branch that assigns either that pointer or a null constant.
+- Leave zero-only variables untyped because they provide no evidence for a pointer type.
+- Keep nonzero unknown assignments and conflicting inferred types from forcing a declaration.
+- Keep user-defined local type overrides above inferred types.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.506 — Fourier
 
 - Add owned reads that combine file-backed bytes and virtual zero-fill into complete bounded results.

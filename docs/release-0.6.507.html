@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.507 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.507 — Fourier</h1><p class="lead">More reliable local type declarations across branch assignments.</p><ul>
+<li>Infer a local declaration when its assignments across basic blocks agree on one type.</li>
+<li>Preserve pointer, struct-pointer, and function-pointer types across repeated assignments when the type evidence agrees.</li>
+<li>Keep prototype-seeded parameter types authoritative when the parameter is reassigned.</li>
+<li>Merge a constant-zero assignment as a null pointer only when another assignment establishes one consistent pointer type.</li>
+<li>Recognize folded integer constant expressions with value zero as null-pointer alternatives.</li>
+<li>Leave zero-only variables untyped because zero alone does not identify a pointer.</li>
+<li>Leave nonzero unknown values and conflicting assignment types unresolved.</li>
+<li>Keep user-assigned local types above inferred assignment types.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.507">GitHub release</a></p></main></body></html>
