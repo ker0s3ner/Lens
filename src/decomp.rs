@@ -220,12 +220,24 @@ struct Fmt<'a> {
 }
 
 impl Fmt<'_> {
+    fn function_proto(&self, ty: &str) -> Option<crate::protos::Proto> {
+        let mut current = ty.trim().to_string();
+        let mut seen = HashSet::new();
+        for _ in 0..=self.structs.len() {
+            if let Some(proto) = function_pointer_proto(&current) { return Some(proto); }
+            let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
+            if !seen.insert(name.to_string()) { return None; }
+            current = self.structs.iter().find(|def| def.name == name)?.alias_of.as_deref()?.trim().to_string();
+        }
+        None
+    }
+
     fn call_proto(&self, callee: &Ex) -> Option<crate::protos::Proto> {
         match callee {
             Ex::Var(name) => crate::protos::find(name)
-                .or_else(|| self.types.get(name).and_then(|ty| function_pointer_proto(ty))),
-            Ex::Cast(ty, _) => function_pointer_proto(ty),
-            Ex::CastOwned(ty, _) => function_pointer_proto(ty),
+                .or_else(|| self.types.get(name).and_then(|ty| self.function_proto(ty))),
+            Ex::Cast(ty, _) => self.function_proto(ty),
+            Ex::CastOwned(ty, _) => self.function_proto(ty),
             _ => None,
         }
     }
