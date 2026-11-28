@@ -508,7 +508,12 @@ impl LensApp {
         };
 
         let mut result = session.poll();
-        ui.label(format!("Local child · {}", session.program.display()));
+        ui.horizontal(|ui| {
+            ui.label(format!("Local child · PID {} · {}", session.child.id(), session.program.display()));
+            if ui.small_button("Copy PID").clicked() {
+                ui.ctx().copy_text(session.child.id().to_string());
+            }
+        });
         let output = session.output.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
         if !output.is_empty() {
             ui.horizontal(|ui| {
