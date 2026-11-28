@@ -354,6 +354,7 @@ LONG ZwAllocateVirtualMemory(HANDLE process, LPVOID *base, uintptr_t zero_bits, 
 LONG NtQueueApcThread(HANDLE thread, void *routine, void *arg1, void *arg2, void *arg3); LONG ZwQueueApcThread(HANDLE thread, void *routine, void *arg1, void *arg2, void *arg3);
 LONG NtSetContextThread(HANDLE thread, const void *context); LONG ZwSetContextThread(HANDLE thread, const void *context);
 LONG NtResumeThread(HANDLE thread, DWORD *previous_suspend_count); LONG ZwResumeThread(HANDLE thread, DWORD *previous_suspend_count);
+LONG NtSuspendProcess(HANDLE process); LONG ZwSuspendProcess(HANDLE process); LONG NtResumeProcess(HANDLE process); LONG ZwResumeProcess(HANDLE process);
 DWORD WaitForMultipleObjects(DWORD count, const HANDLE *handles, BOOL waitall, DWORD ms); BOOL GetExitCodeProcess(HANDLE h, DWORD *code);
 BOOL InitializeCriticalSection(void *cs); void EnterCriticalSection(void *cs); void LeaveCriticalSection(void *cs); void DeleteCriticalSection(void *cs);
 HANDLE CreateEvent(void *sec, BOOL manual, BOOL initial, LPCWSTR name); BOOL SetEvent(HANDLE event); BOOL ResetEvent(HANDLE event); DWORD QueueUserWorkItem(void *fn, void *ctx, DWORD flags);

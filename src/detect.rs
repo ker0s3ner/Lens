@@ -592,7 +592,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir"]),
     ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
     ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
-    ("Process control", &["TerminateProcess", "task_terminate", "kill", "killpg", "tgkill", "pidfd_send_signal"]),
+    ("Process control", &["TerminateProcess", "task_terminate", "NtSuspendProcess", "ZwSuspendProcess", "NtResumeProcess", "ZwResumeProcess", "kill", "killpg", "tgkill", "pidfd_send_signal"]),
     ("File downloads", &["URLDownloadToFile", "URLDownloadToCacheFile", "InternetReadFile", "WinHttpReadData", "URLSessionDownloadTask"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
     ("Configuration removal", &["RegDeleteKey", "RegDeleteValue", "RegDeleteTree", "DeleteValue", "DeleteKey"]),
