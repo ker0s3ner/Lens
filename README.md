@@ -109,6 +109,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - `comment_at(addr)` reads an analyst note and `bookmarks()` returns saved bookmark addresses.
 - `data_at(addr)` reads a persisted data-definition code, and `data_definitions()` returns sorted `{addr, code}` records.
 - `threat_signals()` returns explainable static analyst-triage clues with severity, name and evidence fields for defensive automation; these are heuristics, not malware verdicts.
+- Possible process injection requires both memory-operation imports and remote-thread-control imports; Windows APC queueing and thread-context APIs are included in that paired check.
 - `--report` prints the same triage clues for terminal workflows, while `--json` includes them in the `threat_signals` array.
 - Smoke and golden-analysis checks assert that triage data remains present in machine-readable reports.
 - Database JSON exports also preserve `threat_signals`, keeping defensive review context attached to shared analysis.
