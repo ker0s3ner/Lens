@@ -109,7 +109,12 @@ fn pdb_structs(db: &mut pdb::PDB<std::fs::File>, types: &HashMap<pdb::TypeIndex,
             } else {
                 pdb_type_size(&ty, ptr)?
             };
-            if field_name.is_empty() || offset > u32::MAX as u64 { return None; }
+            if field_name.is_empty()
+                || offset > u32::MAX as u64
+                || offset.checked_add(field_size as u64).filter(|end| *end <= size).is_none()
+            {
+                return None;
+            }
             let (bit_offset, bit_width) = bitfields.get(&field_type).map(|(position, length)| (Some(*position), Some(*length))).unwrap_or((None, None));
             out.push(crate::types::Field { off: offset as u32, name: field_name, ty, size: field_size, bit_offset, bit_width });
         }
