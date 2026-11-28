@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.490 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.490 — Fourier</h1><p class="lead">Safer address handling, lower loader memory use, and better native debugging and behavior triage.</p><ul>
+<li>Index segment lookup by sorted address so analysis avoids rescanning every mapped range for each read.</li>
+<li>Sort loaded ELF, PE, Mach-O, and raw segments before address-based loader work.</li>
+<li>Use checked and saturating arithmetic for malformed segment ranges, reads, function starts, and navigation spans.</li>
+<li>Transfer raw-file bytes directly into the mapped segment, avoiding a second full-file copy.</li>
+<li>Release parsed source-file bytes before DWARF recovery to lower loader peak memory after section mapping.</li>
+<li>Keep native single-step requests nonblocking so the debugger UI remains responsive while stop events arrive.</li>
+<li>Forward Linux target signals through ptrace's signal-data argument.</li>
+<li>Flag possible process injection only when imports include both a memory operation and remote-thread control.</li>
+<li>Add built-in prototypes for common process-injection APIs so decompilation can recover their argument types.</li>
+<li>Recognize Windows <code>Zw*</code> injection API aliases alongside <code>Nt*</code> names in behavior triage and prototypes.</li>
+<li>Weighted parity estimate remains 41.8%; about 42–47% practical workflow capability. The 50% target remains in progress.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.490">GitHub release</a></p></main></body></html>

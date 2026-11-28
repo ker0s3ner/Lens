@@ -1,3 +1,19 @@
+# Lens 0.6.490 — Fourier
+
+- Index segment lookup by sorted address so analysis avoids rescanning every mapped range for each read.
+- Sort loaded ELF, PE, Mach-O, and raw segments before address-based loader work.
+- Use checked and saturating arithmetic for malformed segment ranges, reads, function starts, and navigation spans.
+- Transfer raw-file bytes directly into the mapped segment, avoiding a second full-file copy.
+- Release parsed source-file bytes before DWARF recovery to lower loader peak memory after section mapping.
+- Keep native single-step requests nonblocking so the debugger UI remains responsive while stop events arrive.
+- Forward Linux target signals through ptrace's signal-data argument.
+- Flag possible process injection only when imports include both a memory operation and remote-thread control.
+- Add built-in prototypes for common process-injection APIs so decompilation can recover their argument types.
+- Recognize Windows `Zw*` injection API aliases alongside `Nt*` names in behavior triage and prototypes.
+- Keep the weighted parity estimate at 41.8%; the 50% target remains unmet.
+- Update the README, roadmap, in-app What's New, and GitHub Pages release archive.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.489 — Fourier
 
 - Propagate recovered types through nested conditional expressions, pointer arithmetic, and dereferences.
