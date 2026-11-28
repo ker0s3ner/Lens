@@ -173,7 +173,7 @@ The current engineering estimate is **about 40–45% of IDA Pro in practical wor
 ### Debug and exchange data
 
 - Drive LLDB from the debugger window: launch or attach to a local PID, step, continue, pause, inspect registers, stack, backtrace and 128-byte memory windows, set conditional or requested hardware breakpoints, evaluate watches, and use the command console. Restart a target after exit. Trace 100 or 1,000 instructions by single-stepping and recording each executed PC; traces are capped at 5,000 addresses. The trace view now resolves recent PCs to static function names and marks entries that match known analyst-triage signals.
-- Runtime trace review also identifies observed transitions from direct or indirect call instructions into known functions, with step number and caller/callee addresses in the debugger and structured trace export.
+- Runtime trace review identifies observed transitions from direct or indirect call instructions into known functions, highlights transitions that match static behavior signals, and exports their step number and caller/callee addresses.
 - Decompiler pointee recovery carries pointer types through constant-offset arithmetic and conditional pointer selections before dereferencing.
 - Dynamic and malware analysis are an explicit roadmap area: Lens is adding behavior-oriented trace triage, static capability clues, and explainable analyst signals. These signals are heuristics for review, not an automated malware verdict.
 - Connect to a GDB remote server with `gdb-remote` for supported targets.

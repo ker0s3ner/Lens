@@ -146,9 +146,14 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
     counts
 }
 
-type RuntimeCall = (usize, u64, u64, String, String);
+type RuntimeCall = (usize, u64, u64, String, String, Vec<String>);
 
-fn observed_runtime_calls(trace: &[u64], analysis: &Analysis, names: &HashMap<u64, (String, NameKind)>) -> Vec<RuntimeCall> {
+fn observed_runtime_calls(
+    trace: &[u64],
+    analysis: &Analysis,
+    names: &HashMap<u64, (String, NameKind)>,
+    signals: &[crate::detect::ThreatSignal],
+) -> Vec<RuntimeCall> {
     trace.windows(2).enumerate().filter_map(|(step, pair)| {
         let from = pair[0];
         let to = pair[1];
@@ -160,7 +165,12 @@ fn observed_runtime_calls(trace: &[u64], analysis: &Analysis, names: &HashMap<u6
         if instruction.flow == Flow::Call
             && (instruction.target == 0 || (instruction.target != to && instruction.target != callee.start)) { return None; }
         let name_at = |address: u64| names.get(&address).map(|(name, _)| name.clone()).unwrap_or_else(|| format!("sub_{address:X}"));
-        Some((step, from, to, name_at(caller.start), name_at(callee.start)))
+        let caller_name = name_at(caller.start);
+        let callee_name = name_at(callee.start);
+        let matched_signals = signals.iter().filter(|signal| {
+            signal.evidence.split_once(':').map(|(_, apis)| apis.split(',').any(|api| callee_name.contains(api.trim()))).unwrap_or(false)
+        }).map(|signal| signal.name.clone()).collect();
+        Some((step, from, to, caller_name, callee_name, matched_signals))
     }).collect()
 }
 
@@ -632,7 +642,7 @@ impl LensApp {
             _ => vec![],
         };
         let runtime_calls: Vec<RuntimeCall> = match (&self.dbg, self.loaded()) {
-            (Some(d), Some(l)) => observed_runtime_calls(&d.trace, &l.an, &l.names),
+            (Some(d), Some(l)) => observed_runtime_calls(&d.trace, &l.an, &l.names, &l.det.threat_signals),
             _ => vec![],
         };
         let dynamic_lookup: HashMap<u64, (String, Vec<String>)> = dynamic_trace.iter().cloned().fold(HashMap::new(), |mut map, (address, name, signals)| {
@@ -848,7 +858,7 @@ impl LensApp {
                                     for signal in signals { *signal_counts.entry(signal.clone()).or_default() += 1; }
                                 }
                                 let signal_hit_counts = weighted_signal_counts(&d.trace, &dynamic_lookup);
-                                let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee})).collect::<Vec<_>>();
+                                let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee, "heuristic_signals": signals})).collect::<Vec<_>>();
                                 let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "events": d.dynamic_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
@@ -912,10 +922,11 @@ impl LensApp {
                     if !runtime_calls.is_empty() {
                         ui.label(RichText::new(format!("OBSERVED CALLS · {} transitions", runtime_calls.len())).small().color(p.faint));
                         if ui.small_button("Copy observed calls").clicked() {
-                            ui.ctx().copy_text(runtime_calls.iter().map(|(step, from, to, caller, callee)| format!("step {step}\t{caller}\t{from:016X}\t{callee}\t{to:016X}")).collect::<Vec<_>>().join("\n"));
+                            ui.ctx().copy_text(runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| format!("step {step}\t{caller}\t{from:016X}\t{callee}\t{to:016X}\t{}", signals.join(", "))).collect::<Vec<_>>().join("\n"));
                         }
-                        for (step, from, to, caller, callee) in runtime_calls.iter().rev().take(8) {
-                            if ui.small_button(format!("step {step} · {caller} → {callee} · {to:016X}")).clicked() { goto = Some(*to); }
+                        for (step, from, to, caller, callee, signals) in runtime_calls.iter().rev().take(8) {
+                            let label = format!("step {step} · {caller} → {callee} · {to:016X}{}", if signals.is_empty() { String::new() } else { format!(" · {}", signals.join(", ")) });
+                            if ui.add(egui::Button::new(RichText::new(label).small().color(if signals.is_empty() { p.muted } else { p.edge_not }))).clicked() { goto = Some(*to); }
                             ui.label(RichText::new(format!("call at {from:016X}")).monospace().small().color(p.muted));
                         }
                     }
