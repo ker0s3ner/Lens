@@ -122,7 +122,6 @@ fn apply_pack_pragmas(source: &str) -> Result<(String, Option<u32>), String> {
                 };
                 match parts.as_slice() {
                     [""] => active = None,
-                    [value] => active = read_align(value)?,
                     ["push"] => stack.push((active, None)),
                     ["push", value] if value.parse::<u32>().is_ok() => {
                         stack.push((active, None)); active = read_align(value)?;
@@ -131,7 +130,7 @@ fn apply_pack_pragmas(source: &str) -> Result<(String, Option<u32>), String> {
                     ["push", label, value] => {
                         stack.push((active, Some((*label).to_string()))); active = read_align(value)?;
                     }
-                    ["pop"] | ["pop", ""] => {
+                    ["pop"] => {
                         active = stack.pop().ok_or("#pragma pack(pop) has no matching push")?.0;
                     }
                     ["pop", value] if value.parse::<u32>().is_ok() => {
@@ -150,6 +149,7 @@ fn apply_pack_pragmas(source: &str) -> Result<(String, Option<u32>), String> {
                         active = read_align(value)?;
                         stack.truncate(idx);
                     }
+                    [value] => active = read_align(value)?,
                     _ => return Err(format!("Unsupported packing directive `{trimmed}`")),
                 }
             }
@@ -178,7 +178,7 @@ pub fn parse_c(text: &str, ptr: u32, known: &[StructDef]) -> Result<StructDef, S
             clean.push(c);
         }
     }
-    let (clean, pack_align) = apply_pack_pragmas(&clean)?;
+    let (mut clean, pack_align) = apply_pack_pragmas(&clean)?;
     let packed = clean.contains("__attribute__((packed))") || clean.contains("__attribute__ ((packed))") || clean.contains(" packed ") || pack_align.is_some_and(|n| n == 1);
     clean = clean.replace("__attribute__((packed))", "").replace("__attribute__ ((packed))", "");
     let Some(open) = clean.find('{') else {
