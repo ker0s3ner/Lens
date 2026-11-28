@@ -11,9 +11,10 @@ use crate::analysis::{Analysis, Flow, NameKind};
 use crate::app::{Action, LensApp, State};
 use eframe::egui::{self, FontId, RichText, ScrollArea, TextEdit};
 use std::collections::{HashMap, VecDeque};
+use std::os::fd::{AsRawFd, OwnedFd};
 use std::io::Write;
 use std::fs::File;
-use std::os::unix::io::FromRawFd;
+use std::os::fd::FromRawFd;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver};
@@ -580,18 +581,28 @@ impl Dbg {
         if unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) } != 0 {
             return Err("Couldn't open a terminal for lldb".into());
         }
+        let master = unsafe { OwnedFd::from_raw_fd(master) };
+        let slave = unsafe { OwnedFd::from_raw_fd(slave) };
         unsafe {
             let mut t: libc::termios = std::mem::zeroed();
-            libc::tcgetattr(slave, &mut t);
+            libc::tcgetattr(slave.as_raw_fd(), &mut t);
             t.c_lflag &= !(libc::ECHO | libc::ECHOE | libc::ECHOK | libc::ECHONL);
-            libc::tcsetattr(slave, libc::TCSANOW, &t);
+            libc::tcsetattr(slave.as_raw_fd(), libc::TCSANOW, &t);
+        }
+        let mut stdio_fds = Vec::with_capacity(3);
+        for _ in 0..3 {
+            let fd = unsafe { libc::dup(slave.as_raw_fd()) };
+            if fd < 0 {
+                return Err(format!("Couldn't duplicate debugger terminal ({})", std::io::Error::last_os_error()));
+            }
+            stdio_fds.push(unsafe { OwnedFd::from_raw_fd(fd) });
         }
         let mut cmd = Command::new("lldb");
         cmd.arg("--no-lldbinit").env("TERM", "dumb");
+        cmd.stdin(Stdio::from(File::from(stdio_fds.remove(0))));
+        cmd.stdout(Stdio::from(File::from(stdio_fds.remove(0))));
+        cmd.stderr(Stdio::from(File::from(stdio_fds.remove(0))));
         unsafe {
-            cmd.stdin(Stdio::from_raw_fd(libc::dup(slave)));
-            cmd.stdout(Stdio::from_raw_fd(libc::dup(slave)));
-            cmd.stderr(Stdio::from_raw_fd(libc::dup(slave)));
             cmd.pre_exec(|| {
                 libc::setsid();
                 libc::ioctl(0, libc::TIOCSCTTY as _, 0);
@@ -599,8 +610,8 @@ impl Dbg {
             });
         }
         let child = cmd.spawn().map_err(|e| format!("Couldn't start lldb ({e}). Install Xcode's command line tools: xcode-select --install"))?;
-        unsafe { libc::close(slave) };
-        let stdin = unsafe { File::from_raw_fd(master) };
+        drop(slave);
+        let stdin = File::from(master);
         let reader = stdin.try_clone().map_err(|e| e.to_string())?;
         let (tx, rx) = channel();
         std::thread::spawn(move || {
