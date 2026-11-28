@@ -2817,13 +2817,23 @@ impl Emit<'_> {
         let lp = Some((h, exit));
         self.open.insert(h);
         let latch_term = self.outs[k].term.clone();
+        let latch_repeats = match &latch_term {
+            Term::Cond { taken, fall, .. }
+                if self.idx.get(taken) == Some(&h) && self.idx.get(fall) == Some(&exit) => Some(true),
+            Term::Cond { taken, fall, .. }
+                if self.idx.get(fall) == Some(&h) && self.idx.get(taken) == Some(&exit) => Some(false),
+            _ => None,
+        };
+        let latch_condition = latch_repeats.and_then(|taken_edge| {
+            self.cond_for(k).map(|cond| if taken_edge { cond } else { negate(cond) })
+        });
         let entered_at_latch = h > 0
             && matches!(&self.outs[h - 1].term, Term::Jmp(t) if self.idx.get(t) == Some(&k))
-            && matches!(&latch_term, Term::Cond { taken, .. } if self.idx.get(taken) == Some(&h));
+            && latch_condition.is_some();
         let ba = self.f.blocks[h].start;
         if entered_at_latch {
             self.suppress.insert(h - 1);
-            let c = self.cond_for(k).unwrap();
+            let c = latch_condition.clone().unwrap();
             if self.stmts_empty(k) {
                 self.line(ind, ba, format!("while ({}) {{", self.fmt.show(&c)));
                 self.emit(h, k, ind + 1, lp);
@@ -2836,24 +2846,31 @@ impl Emit<'_> {
                 self.line(ind, ba, "}".into());
             }
             self.done.insert(k);
-        } else if matches!(&latch_term, Term::Cond { taken, .. } if self.idx.get(taken) == Some(&h)) {
+        } else if let Some(c) = latch_condition {
             self.line(ind, ba, "do {".into());
             self.emit(h, k, ind + 1, lp);
             self.block_stmts(k, ind + 1);
-            let c = self.cond_for(k).unwrap();
             self.line(ind, ba, format!("}} while ({});", self.fmt.show(&c)));
             self.done.insert(k);
         } else {
             // header-tested or plain infinite loop
-            let head_exit = matches!(&self.outs[h].term, Term::Cond { taken, .. } if self.idx.get(taken).map(|t| *t >= exit).unwrap_or(false));
-            if head_exit && h < k && matches!(&latch_term, Term::Jmp(t) if self.idx.get(t) == Some(&h)) {
-                let c = self.cond_for(h).unwrap();
+            let header_repeats = match &self.outs[h].term {
+                Term::Cond { taken, fall, .. }
+                    if self.idx.get(taken) == Some(&exit) && self.idx.get(fall) == Some(&(h + 1)) => Some(false),
+                Term::Cond { taken, fall, .. }
+                    if self.idx.get(fall) == Some(&exit) && self.idx.get(taken) == Some(&(h + 1)) => Some(true),
+                _ => None,
+            };
+            let header_condition = header_repeats.and_then(|repeat_taken| {
+                self.cond_for(h).map(|cond| if repeat_taken { cond } else { negate(cond) })
+            });
+            if let Some(c) = header_condition.filter(|_| h < k && matches!(&latch_term, Term::Jmp(t) if self.idx.get(t) == Some(&h))) {
                 if self.stmts_empty(h) {
-                    self.line(ind, ba, format!("while ({}) {{", self.fmt.show(&negate(c))));
+                    self.line(ind, ba, format!("while ({}) {{", self.fmt.show(&c)));
                 } else {
                     self.line(ind, ba, "while (1) {".into());
                     self.block_stmts(h, ind + 1);
-                    self.line(ind + 1, ba, format!("if ({}) break;", self.fmt.show(&c)));
+                    self.line(ind + 1, ba, format!("if (!({})) break;", self.fmt.show(&c)));
                 }
                 self.suppress.insert(k);
                 self.done.insert(h);
@@ -3317,12 +3334,102 @@ fn decompile_inner(
             rename.insert(v.clone(), shown);
         }
     }
-    // loops: back edges
+    // A loop back edge must return to a block that dominates its source.
+    // Address order alone also matches ordinary backward gotos and can turn
+    // them into false while/do structures. Bound the quadratic dominator sets;
+    // functions above 512 blocks keep explicit goto control flow.
     let mut loops: HashMap<usize, Vec<usize>> = HashMap::new();
-    for b in 0..n {
-        for s in &succ_idx[b] {
-            if *s <= b {
-                loops.entry(*s).or_default().push(b);
+    if n <= 512 {
+        let mut reachable = vec![false; n];
+        let mut reach_work = vec![0usize];
+        reachable[0] = true;
+        while let Some(block) = reach_work.pop() {
+            for successor in &succ_idx[block] {
+                if !reachable[*successor] {
+                    reachable[*successor] = true;
+                    reach_work.push(*successor);
+                }
+            }
+        }
+        let mut predecessors = vec![Vec::new(); n];
+        for (block, successors) in succ_idx.iter().enumerate() {
+            for successor in successors {
+                predecessors[*successor].push(block);
+            }
+        }
+        for incoming in &mut predecessors {
+            incoming.sort_unstable();
+            incoming.dedup();
+        }
+        let mut dominators: Vec<BTreeSet<usize>> = (0..n)
+            .map(|block| {
+                if reachable[block] {
+                    (0..n).filter(|candidate| reachable[*candidate]).collect()
+                } else {
+                    BTreeSet::from([block])
+                }
+            })
+            .collect();
+        dominators[0] = BTreeSet::from([0]);
+        loop {
+            let mut changed = false;
+            for block in 1..n {
+                if !reachable[block] {
+                    continue;
+                }
+                let mut preds = predecessors[block]
+                    .iter()
+                    .copied()
+                    .filter(|pred| reachable[*pred]);
+                let Some(first) = preds.next() else { continue };
+                let mut next = dominators[first].clone();
+                for pred in preds {
+                    next.retain(|candidate| dominators[pred].contains(candidate));
+                }
+                next.insert(block);
+                if next != dominators[block] {
+                    dominators[block] = next;
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        // Collect natural-loop members for each dominating back edge, then
+        // structure only a contiguous region without entries into its body.
+        // Forward-address loops and irreducible regions remain explicit gotos.
+        let mut back_edges: HashMap<usize, Vec<usize>> = HashMap::new();
+        for b in 0..n {
+            if !reachable[b] {
+                continue;
+            }
+            for s in &succ_idx[b] {
+                if *s <= b && dominators[b].contains(s) {
+                    back_edges.entry(*s).or_default().push(b);
+                }
+            }
+        }
+        for (head, mut latches) in back_edges {
+            latches.sort_unstable();
+            latches.dedup();
+            let mut members = BTreeSet::from([head]);
+            let mut work = latches.clone();
+            while let Some(block) = work.pop() {
+                if block == head || !members.insert(block) {
+                    continue;
+                }
+                work.extend(predecessors[block].iter().copied().filter(|pred| reachable[*pred]));
+            }
+            let end = *latches.last().unwrap();
+            let contiguous = members.iter().all(|block| *block >= head && *block <= end)
+                && (head..=end).all(|block| members.contains(&block));
+            let no_body_entries = (head + 1..=end).all(|block| {
+                members.contains(&block)
+                    && predecessors[block].iter().all(|pred| !reachable[*pred] || members.contains(pred))
+            });
+            if contiguous && no_body_entries {
+                loops.insert(head, latches);
             }
         }
     }
