@@ -256,7 +256,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Phase 4 - Type system and libraries
 - Expand the C-like type parser: structs, unions, basic enums, scalar/pointer aliases, function-pointer typedef aliases, nested records, bounded arrays, scoped `#pragma pack` and simple packed integer bitfields are supported; compiler-specific bitfield ABI/layout rules remain.
-- Extend the built-in/user prototype library (about 190 signatures) and improve type propagation from prototypes into variables, memory accesses, and pseudocode.
+- Extend the built-in/user prototype library (about 210 signatures) and improve type propagation from prototypes into variables, memory accesses, and pseudocode. Built-in entries now cover Windows service management, Unicode registry operations, and WinHTTP request/read flows with typed pointer arguments.
 - Generate and ship broader versioned signature/type libraries from system libraries (libSystem, libc, MSVC CRT and platform frameworks); the current built-in prototype set is not a complete type library.
 
 ## Phase 5 - Debugger
@@ -580,7 +580,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Crash safety: a failure while analysing or decompiling is reported instead of freezing or closing the app.
 - Corpus run: 200 system programs decompiled end to end with no crashes or timeouts (found and fixed a runaway-memory bug on stack offsets).
 - Export the listing as text and the call graph as Graphviz.
-- Function prototypes (type library): ~190 built-in libc / POSIX / sockets / threads / Win32 / macOS signatures plus your own. Calls get the exact argument count, noreturn functions end paths, call results get real types (`char *v5`), and a function with a prototype is printed with its types and parameter names.
+- Function prototypes (type library): ~210 built-in libc / POSIX / sockets / threads / Win32 / macOS signatures plus your own. Calls get the exact argument count, noreturn functions end paths, call results get real types (`char *v5`), and a function with a prototype is printed with its types and parameter names.
 - Known prototype return types now survive unambiguous temporary copy chains and explicit casts in pseudocode; conflicting or unknown repeated assignments stay conservative.
 - Rhai scripts can read a snapshot of functions, names, strings, segments, imports/exports, types, xrefs, pointer tables, vtables, bytes and disassembly, and queue changes such as renames, comments, marks, patches, navigation, function creation, and type definitions/application. `.rhai` plugins can run manually or on file open.
 - Scripts can query outgoing as well as incoming xrefs; command-line and GUI script snapshots expose the same additions.

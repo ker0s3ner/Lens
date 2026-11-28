@@ -386,6 +386,18 @@ BOOL InitializeCriticalSection(void *cs); void EnterCriticalSection(void *cs); v
 HANDLE CreateEvent(void *sec, BOOL manual, BOOL initial, LPCWSTR name); BOOL SetEvent(HANDLE event); BOOL ResetEvent(HANDLE event); DWORD QueueUserWorkItem(void *fn, void *ctx, DWORD flags);
 int MessageBox(HANDLE wnd, LPCWSTR text, LPCWSTR caption, UINT type); HANDLE HeapAlloc(HANDLE heap, DWORD flags, size_t n); BOOL HeapFree(HANDLE heap, DWORD flags, LPVOID p);
 HANDLE GetProcessHeap(void); BOOL IsDebuggerPresent(void); DWORD WaitForSingleObject(HANDLE h, DWORD ms); LONG RegOpenKeyEx(HANDLE key, LPCWSTR sub, DWORD opt, DWORD sam, HANDLE *out);
+LONG RegCreateKeyExW(void *key, const uint16_t *subkey, DWORD reserved, const uint16_t *class_name, DWORD options, DWORD access, void *security, void **result, DWORD *disposition);
+LONG RegSetValueExW(void *key, const uint16_t *value, DWORD reserved, DWORD type, const uint8_t *data, DWORD size); LONG RegQueryValueExW(void *key, const uint16_t *value, DWORD *reserved, DWORD *type, uint8_t *data, DWORD *size);
+LONG RegDeleteValueW(void *key, const uint16_t *value); LONG RegDeleteKeyW(void *key, const uint16_t *subkey); LONG RegDeleteTreeW(void *key, const uint16_t *subkey);
+void *OpenSCManagerW(const uint16_t *machine, const uint16_t *database, DWORD access);
+void *CreateServiceW(void *manager, const uint16_t *name, const uint16_t *display_name, DWORD access, DWORD service_type, DWORD start_type, DWORD error_control, const uint16_t *path, const uint16_t *group, DWORD *tag, const uint16_t *dependencies, const uint16_t *account, const uint16_t *password);
+BOOL StartServiceW(void *service, DWORD argc, const uint16_t **argv); BOOL ChangeServiceConfigW(void *service, DWORD service_type, DWORD start_type, DWORD error_control, const uint16_t *path, const uint16_t *group, DWORD *tag, const uint16_t *dependencies, const uint16_t *account, const uint16_t *password, const uint16_t *display_name);
+BOOL DeleteService(void *service); BOOL CloseServiceHandle(void *service);
+void *WinHttpOpen(const uint16_t *agent, DWORD access_type, const uint16_t *proxy, const uint16_t *bypass, DWORD flags);
+void *WinHttpConnect(void *session, const uint16_t *server, WORD port, DWORD reserved);
+void *WinHttpOpenRequest(void *connection, const uint16_t *verb, const uint16_t *object, const uint16_t *version, const uint16_t *referrer, const uint16_t **accept_types, DWORD flags);
+BOOL WinHttpSendRequest(void *request, const uint16_t *headers, DWORD headers_length, void *optional, DWORD optional_length, DWORD total_length, uintptr_t context);
+BOOL WinHttpReceiveResponse(void *request, void *reserved); BOOL WinHttpReadData(void *request, void *buffer, DWORD bytes_to_read, DWORD *bytes_read); BOOL WinHttpCloseHandle(void *handle);
 int WSAStartup(WORD ver, void *data); int closesocket(int s);
 int task_for_pid(unsigned target_task, int pid, unsigned *task); int mach_vm_write(unsigned target_task, uint64_t address, uint64_t data, uint32_t size);
 int mach_vm_allocate(unsigned target_task, uint64_t *address, uint64_t size, int flags); int mach_vm_map(unsigned target_task, uint64_t *address, uint64_t size, uint64_t mask, int flags, unsigned object, uint64_t offset, int copy, int cur_protection, int max_protection, int inheritance);
