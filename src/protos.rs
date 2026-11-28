@@ -303,6 +303,7 @@ pid_t fork(void); pid_t getpid(void); int execve(const char *path, char *const a
 int execvp(const char *file, char *const argv[]); pid_t waitpid(pid_t pid, int *status, int options); int kill(pid_t pid, int sig); unsigned sleep(unsigned s); int usleep(unsigned us);
 int posix_spawn(pid_t *pid, const char *path, const void *actions, const void *attr, char *const argv[], char *const envp[]); int posix_spawnp(pid_t *pid, const char *file, const void *actions, const void *attr, char *const argv[], char *const envp[]);
 pid_t waitid(int idtype, unsigned id, void *info, int options); int getrusage(int who, void *usage); pid_t setsid(void); pid_t setpgid(pid_t pid, pid_t pgid);
+ssize_t process_vm_writev(pid_t pid, const void *local_iov, unsigned long local_count, const void *remote_iov, unsigned long remote_count, unsigned long flags);
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off); int munmap(void *addr, size_t len); int mprotect(void *addr, size_t len, int prot);
 void *dlopen(const char *path, int mode); void *dlsym(void *h, const char *name); int dlclose(void *h); int ioctl(int fd, unsigned long req, ...);
 int dladdr(const void *addr, void *info); char *dlerror(void); void *dlvsym(void *h, const char *name, const char *version);
@@ -341,12 +342,18 @@ BOOL VirtualProtect(LPVOID addr, size_t n, DWORD prot, DWORD *old); void ExitPro
 BOOL GetFileSizeEx(HANDLE h, void *size); BOOL SetFilePointerEx(HANDLE h, long long distance, long long *newpos, DWORD method); BOOL ReadFileEx(HANDLE h, LPVOID buf, DWORD n, void *offset, void *complete);
 HANDLE CreateFileMapping(HANDLE h, void *sec, DWORD protect, DWORD high, DWORD low, LPCWSTR name); LPVOID MapViewOfFile(HANDLE map, DWORD access, DWORD high, DWORD low, size_t n); BOOL UnmapViewOfFile(LPVOID addr);
 DWORD GetLastError(void); HANDLE CreateThread(void *sec, size_t stack, void *fn, LPVOID arg, DWORD flags, DWORD *id); HANDLE CreateProcess(LPCWSTR app, LPWSTR cmd, void *pa, void *ta, BOOL inherit, DWORD flags, LPVOID env, LPCWSTR dir, void *si, void *pi);
+HANDLE OpenProcess(DWORD access, BOOL inherit, DWORD pid); LPVOID VirtualAllocEx(HANDLE process, LPVOID addr, size_t size, DWORD type, DWORD prot); BOOL VirtualProtectEx(HANDLE process, LPVOID addr, size_t size, DWORD prot, DWORD *old);
+BOOL ReadProcessMemory(HANDLE process, const void *addr, void *buf, size_t size, size_t *read); BOOL WriteProcessMemory(HANDLE process, LPVOID addr, const void *buf, size_t size, size_t *written);
+HANDLE CreateRemoteThread(HANDLE process, void *sec, size_t stack, void *start, void *arg, DWORD flags, DWORD *id); HANDLE CreateRemoteThreadEx(HANDLE process, void *sec, size_t stack, void *start, void *arg, DWORD flags, void *attrs, DWORD *id);
+BOOL QueueUserAPC(void *fn, HANDLE thread, uintptr_t data); BOOL SetThreadContext(HANDLE thread, const void *context);
+LONG NtWriteVirtualMemory(HANDLE process, LPVOID addr, const void *buf, size_t size, size_t *written); LONG NtCreateThreadEx(HANDLE *thread, DWORD access, void *attrs, HANDLE process, void *start, void *arg, DWORD flags, size_t zero_bits, size_t stack, size_t max_stack, void *attrs2);
 DWORD WaitForMultipleObjects(DWORD count, const HANDLE *handles, BOOL waitall, DWORD ms); BOOL GetExitCodeProcess(HANDLE h, DWORD *code);
 BOOL InitializeCriticalSection(void *cs); void EnterCriticalSection(void *cs); void LeaveCriticalSection(void *cs); void DeleteCriticalSection(void *cs);
 HANDLE CreateEvent(void *sec, BOOL manual, BOOL initial, LPCWSTR name); BOOL SetEvent(HANDLE event); BOOL ResetEvent(HANDLE event); DWORD QueueUserWorkItem(void *fn, void *ctx, DWORD flags);
 int MessageBox(HANDLE wnd, LPCWSTR text, LPCWSTR caption, UINT type); HANDLE HeapAlloc(HANDLE heap, DWORD flags, size_t n); BOOL HeapFree(HANDLE heap, DWORD flags, LPVOID p);
 HANDLE GetProcessHeap(void); BOOL IsDebuggerPresent(void); DWORD WaitForSingleObject(HANDLE h, DWORD ms); LONG RegOpenKeyEx(HANDLE key, LPCWSTR sub, DWORD opt, DWORD sam, HANDLE *out);
 int WSAStartup(WORD ver, void *data); int closesocket(int s);
+int task_for_pid(unsigned target_task, int pid, unsigned *task); int mach_vm_write(unsigned target_task, uint64_t address, uint64_t data, uint32_t size);
 "#;
 
 /// Replaces whole-word occurrences of `from` in `text`.
