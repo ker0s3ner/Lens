@@ -361,6 +361,9 @@ int MessageBox(HANDLE wnd, LPCWSTR text, LPCWSTR caption, UINT type); HANDLE Hea
 HANDLE GetProcessHeap(void); BOOL IsDebuggerPresent(void); DWORD WaitForSingleObject(HANDLE h, DWORD ms); LONG RegOpenKeyEx(HANDLE key, LPCWSTR sub, DWORD opt, DWORD sam, HANDLE *out);
 int WSAStartup(WORD ver, void *data); int closesocket(int s);
 int task_for_pid(unsigned target_task, int pid, unsigned *task); int mach_vm_write(unsigned target_task, uint64_t address, uint64_t data, uint32_t size);
+int mach_vm_allocate(unsigned target_task, uint64_t *address, uint64_t size, int flags); int mach_vm_map(unsigned target_task, uint64_t *address, uint64_t size, uint64_t mask, int flags, unsigned object, uint64_t offset, int copy, int cur_protection, int max_protection, int inheritance);
+int mach_vm_protect(unsigned target_task, uint64_t address, uint64_t size, int set_maximum, int new_protection); int thread_create_running(unsigned target_task, unsigned *thread, int flavor, const void *state, unsigned count);
+int thread_set_state(unsigned thread, int flavor, const void *state, unsigned count);
 "#;
 
 /// Replaces whole-word occurrences of `from` in `text`.
