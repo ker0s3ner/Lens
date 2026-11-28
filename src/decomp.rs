@@ -2780,7 +2780,7 @@ pub fn decompile(
     comp_note: &str,
 ) -> Decompiled {
     let enums = HashMap::new();
-    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &[])
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &[], &HashMap::new())
 }
 
 pub fn decompile_with_types(
@@ -2799,7 +2799,20 @@ pub fn decompile_with_types(
         }
     }
     let enums = crate::types::enum_constants(&all_structs);
-    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &all_structs)
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &all_structs, &HashMap::new())
+}
+
+pub fn decompile_with_variable_types(
+    bin: &Binary, an: &Analysis, names: &HashMap<u64, (String, NameKind)>, f: &Function,
+    conv: CallConv, comp_note: &str, structs: &[crate::types::StructDef],
+    var_types: &HashMap<String, String>,
+) -> Decompiled {
+    let mut all_structs = structs.to_vec();
+    for debug in &bin.debug_structs {
+        if !all_structs.iter().any(|existing| existing.name == debug.name) { all_structs.push(debug.clone()); }
+    }
+    let enums = crate::types::enum_constants(&all_structs);
+    decompile_inner(bin, an, names, f, conv, comp_note, &enums, &all_structs, var_types)
 }
 
 fn decompile_inner(
@@ -2811,6 +2824,7 @@ fn decompile_inner(
     comp_note: &str,
     enum_constants: &HashMap<String, HashMap<i64, String>>,
     structs: &[crate::types::StructDef],
+    var_type_overrides: &HashMap<String, String>,
 ) -> Decompiled {
     let word: i64 = if bin.bitness() == 64 { 8 } else { 4 };
     let x86 = bin.arch.is_x86();
@@ -3078,7 +3092,13 @@ fn decompile_inner(
         proto.params.iter().enumerate().map(|(index, (ty, _))| (format!("a{}", index + 1), ty.trim().to_string())).collect()
     }).unwrap_or_default();
     let rename_ref = rename.clone();
-    let render_types = infer_render_types_with_seeds(&outs, type_seeds.clone(), structs);
+    let mut render_types = infer_render_types_with_seeds(&outs, type_seeds.clone(), structs);
+    let var_prefix = format!("{:X}:", f.start);
+    for (key, ty) in var_type_overrides {
+        if let Some(name) = key.strip_prefix(&var_prefix) {
+            if !ty.trim().is_empty() { render_types.insert(name.to_string(), ty.trim().to_string()); }
+        }
+    }
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
     let enum_vars = infer_enum_vars(&outs, &enum_params, &name, enum_return.as_deref());

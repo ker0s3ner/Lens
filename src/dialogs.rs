@@ -155,6 +155,26 @@ impl LensApp {
                         }
                     });
                 }
+                Modal::TypeVar { func, old, text, focus } => {
+                    title(ui, "Set variable type", &format!("Give {old} a C type in this function's pseudocode. Leave it empty to use the inferred type."));
+                    let r = ui.add(TextEdit::singleline(text).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace).hint_text("e.g. uint32_t or struct Node *"));
+                    if *focus { r.request_focus(); *focus = false; }
+                    let enter = ui.input(|i| i.key_pressed(Key::Enter));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Save").clicked() || enter {
+                            if let Some(l) = l.as_deref_mut() {
+                                let ty = text.trim().to_string();
+                                let key = format!("{:X}:{}", func, old);
+                                if ty.is_empty() { l.ann.var_types.remove(&key); } else { l.ann.var_types.insert(key, ty); }
+                                store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
+                                l.refresh();
+                            }
+                            keep = false;
+                        }
+                        if ui.button("Cancel").clicked() { keep = false; }
+                    });
+                }
                 Modal::Comment { addr, text, focus } => {
                     let a = *addr;
                     title(ui, "Note", &format!("A note for {a:X}, shown beside the code."));

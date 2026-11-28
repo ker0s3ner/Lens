@@ -85,6 +85,9 @@ pub struct Annotations {
     /// Names the person gave to variables in pseudocode: "func_addr_hex:old" -> new.
     #[serde(default)]
     pub vars: HashMap<String, String>,
+    /// Analyst-provided pseudocode variable types: "func_addr_hex:variable" -> C type.
+    #[serde(default)]
+    pub var_types: HashMap<String, String>,
     /// Names found by signature matching (not saved; recomputed on every open).
     #[serde(skip)]
     pub sig_names: HashMap<u64, String>,

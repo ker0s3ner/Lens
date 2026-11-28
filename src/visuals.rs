@@ -497,7 +497,7 @@ impl LensApp {
         }
         let f = l.an.functions.get(&fs)?.clone();
         let note = format!("{}  ·  {}", l.det.compiler(), l.det.conv.label());
-        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| decomp::decompile_with_types(&l.bin, &l.an, &l.names, &f, l.det.conv, &note, &l.ann.structs)));
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| decomp::decompile_with_variable_types(&l.bin, &l.an, &l.names, &f, l.det.conv, &note, &l.ann.structs, &l.ann.var_types)));
         let mut dec = r.unwrap_or_else(|_| Decompiled {
             lines: vec![DLine { text: "// The decompiler failed on this function. The listing and graph still work.".into(), addr: f.start, indent: 0 }],
         });
@@ -567,7 +567,7 @@ impl LensApp {
         });
         ui.horizontal(|ui| {
             ui.add_space(12.0);
-            ui.label(RichText::new(format!("{}  Double-click a variable to rename it.", lang::caveat(lg))).small().color(p.faint));
+            ui.label(RichText::new(format!("{}  Double-click a variable to rename it; right-click to set its type.", lang::caveat(lg))).small().color(p.faint));
         });
         ui.add(egui::Separator::default().spacing(2.0));
         let font = FontId::monospace(13.5);
@@ -584,6 +584,7 @@ impl LensApp {
         let mut select: Option<u64> = None;
         let mut goto: Option<u64> = None;
         let mut rename_var: Option<String> = None;
+        let mut type_var: Option<String> = None;
         ui.spacing_mut().item_spacing.y = 0.0;
         sa.show_rows(ui, row_h, n, |ui, range| {
             for i in range {
@@ -640,6 +641,7 @@ impl LensApp {
                 }
                 if let Some(v) = hit_var {
                     if resp.double_clicked() { rename_var = Some(v); }
+                    if resp.secondary_clicked() { type_var = Some(v); }
                 }
                 if ln.indent > 0 && ln.addr != 0 {
                     if let Some(refs) = l.an.xrefs_to.get(&ln.addr).filter(|refs| !refs.is_empty()) {
@@ -667,7 +669,9 @@ impl LensApp {
                 }
             }
         });
-        if let Some(v) = rename_var {
+        if let Some(v) = type_var {
+            acts.push(Action::TypeVar(fs, v));
+        } else if let Some(v) = rename_var {
             acts.push(Action::RenameVar(fs, v));
         } else if let Some(a) = goto {
             acts.push(Action::Goto(a));
