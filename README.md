@@ -2,11 +2,11 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub build: **0.6.515 — Fourier**. The release improves CFG-aware loop recovery, typed runtime arguments across four ABIs, API flag visibility in malware-triage events, and conditional pointer recovery. Read What's New in the app, the [0.6.515 release page](docs/release-0.6.515.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub build: **0.6.516 — Fourier**. The release adds CFG-aware dead-temporary cleanup, correct ARM PE function-boundary records, target-width PDB arrays, and more specific runtime behavior categories. Read What's New in the app, the [0.6.516 release page](docs/release-0.6.516.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
-The last full weighted audit (0.6.514) measured **41.8% of IDA Pro's breadth**; the practical estimate at that audit was **about 42–47%**. The 0.6.515 changes have not yet been scored in a fresh category audit. Lens remains below the 50% target because its decompiler and type recovery are shallower, processor-specific analysis is narrower, attach/remote debugging remains LLDB-based, and large-file validation still needs a broader real-binary corpus. See the roadmap for current scope and evidence.
+The last full weighted audit (0.6.514) measured **41.8% of IDA Pro's breadth**; the practical estimate at that audit was **about 42–47%**. Builds 0.6.515 and 0.6.516 have not yet been scored in a fresh category audit. Lens remains below the 50% target because its decompiler and type recovery are shallower, processor-specific analysis is narrower, attach/remote debugging remains LLDB-based, and large-file validation still needs a broader real-binary corpus. See the roadmap for current scope and evidence.
 
 ## What it can do
 

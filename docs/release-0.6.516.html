@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.516 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.516 — Fourier</h1><p class="lead">CFG-aware decompiler cleanup, wider PE type and function-boundary recovery, and clearer runtime behavior triage.</p><ul>
+<li>Reuse call-graph node rectangles for hit testing, edge clipping, and drawing instead of recomputing geometry for each edge each frame.</li>
+<li>Remove dead generated temporaries with successor-aware CFG liveness in functions up to 512 blocks.</li>
+<li>Keep calls, memory reads, and other observable evaluations when their result is unused; larger functions retain the bounded conservative cleanup.</li>
+<li>Size CodeView/PDB pointer arrays using the target PE pointer width, including 32-bit targets.</li>
+<li>Recognize Windows wide-character and HRESULT element sizes when recovering fixed arrays.</li>
+<li>Reject PDB struct and union layouts when a recovered member extends beyond its declared record.</li>
+<li>Parse ARM32, Thumb, and ARM64 PE <code>.pdata</code> as 8-byte packed-unwind entries and enable those function-boundary hints during loading.</li>
+<li>Keep x64 PE <code>.pdata</code> on 12-byte begin/end/unwind records with function-range validation.</li>
+<li>Label statically matched cryptography and credential-store API calls separately in runtime-event filters and exports.</li>
+<li>Label statically matched service, scheduled-task, and login-item calls as persistence activity.</li>
+<li>Distinguish remote-memory and remote-thread calls as process-injection primitives when static signals match.</li>
+<li>These API-family labels are heuristic triage; they do not prove an operation completed or establish malicious intent.</li>
+<li>Carry forward the last full weighted audit, 41.8% at 0.6.514. Builds 0.6.515 and 0.6.516 have not had a fresh category audit; the 50% goal remains in progress.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.516">GitHub release</a></p></main></body></html>

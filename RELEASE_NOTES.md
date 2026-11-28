@@ -1,3 +1,23 @@
+# Lens 0.6.516 — Fourier
+
+- Reuse call-graph node rectangles for hit testing, edge clipping, and drawing instead of recomputing geometry per edge each frame.
+- Remove dead generated temporaries using successor-aware CFG liveness for functions up to 512 blocks.
+- Preserve calls, memory reads, and other observable evaluations when their temporary result is unused.
+- Keep the existing conservative function-wide cleanup for functions above the CFG-liveness bound.
+- Size CodeView/PDB pointer arrays using the PE target's pointer width, including 32-bit targets.
+- Recognize Windows wide-character and HRESULT element sizes when recovering PDB fixed arrays.
+- Reject PDB struct and union layouts when a recovered member extends beyond the declared record size.
+- Parse ARM32, Thumb, and ARM64 PE `.pdata` as 8-byte packed-unwind runtime-function records.
+- Keep x64 PE `.pdata` on its 12-byte begin/end/unwind format and validate its function ranges.
+- Enable PE function-boundary hints for ARM32 and Thumb targets in addition to x64 and ARM64.
+- Label statically matched cryptography API call events as `cryptography` in debugger filters and trace exports.
+- Label credential-store API call events separately from general cryptography events.
+- Label service, scheduled-task, and login-item API calls as persistence events when static behavior signals match.
+- Distinguish remote-memory and remote-thread API call events as process-injection primitives when static signals match.
+- Keep these event labels heuristic API-family classifications; they do not prove the operation completed or establish malicious intent.
+- Carry forward the last full weighted audit, 41.8% at 0.6.514; 0.6.515 and 0.6.516 have not had a fresh category audit, and the 50% target remains unverified.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.515 — Fourier
 
 - Require natural-loop backedges to target a block that dominates the latch, avoiding false loops from ordinary backward gotos.
