@@ -8,6 +8,8 @@ Post-release scale measurement: the 134,225,920-byte synthetic ELF passed the Gi
 
 Unreleased dynamic-analysis and type-recovery follow-up: the paired process-injection heuristic now recognizes Linux `process_vm_writev` with `ptrace`, Windows APC queueing and thread-context calls, and Mach VM writes with remote-thread controls. Built-in Nt/Zw and Mach API prototypes support type recovery; process-control triage also identifies Nt/Zw process suspend and resume calls. Nt/Zw process-query, open, close, and handle-duplication prototypes expand native Windows type recovery. These signals remain explainable import-based triage rather than runtime proof of behavior.
 
+Unreleased loader-safety follow-up: guessed function-start scanning now stops safely if advancing through an executable range would overflow the address space.
+
 Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.488 — Fourier** adds configurable native child sessions, entry-stop and single-step controls, bounded output and process-event capture, restart and PID handoff, four new explainable behavior-triage categories, unary enum propagation, and corrected M68k `TAS` flags. The weighted estimate is **41.0%**; the 50% target remains unmet.

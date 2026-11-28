@@ -1501,7 +1501,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                     push(&mut queue, a);
                     found += 1;
                 }
-                a += step;
+                let Some(next) = a.checked_add(step) else { break };
+                a = next;
             }
         }
         if found == 0 {
