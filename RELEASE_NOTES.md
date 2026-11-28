@@ -1,3 +1,20 @@
+# Lens 0.6.485 — Fourier
+
+- Added bounded offline instruction-trace replay with navigation through recorded PCs.
+- Added a consent-gated native local-child debugger session lifecycle.
+- Added debugger controls for launching, stopping, and observing local child sessions.
+- Reused the debugger's trace presentation for replayed instruction records.
+- Added replay bounds and metadata handling so large trace files stay limited.
+- Recovered additional DWARF member offsets using `DW_OP_plus_uconst` expressions.
+- Corrected M68k `EXT.W` and `EXT.L` sign-extension semantics in pseudocode.
+- Tightened decompiler copy propagation across adjacent assignments.
+- Indexed visible call-graph neighbors during layout for smoother dense graph rendering.
+- Preserved call-graph edges that cross the visible layout frontier.
+- Added a reproducible GitHub large-file performance gate using a synthetic 128 MiB ELF.
+- Validated the 134,225,920-byte fixture at 5.427 seconds and 393.36 MiB peak RSS on GitHub Actions.
+- Updated README, roadmap, in-app What's New notes, and the GitHub Pages release archive.
+- No local device build or installation was performed; GitHub Actions builds the release artifact.
+
 # Lens 0.6.484 — Fourier
 
 - Added bounded structured LLDB stop/exit event capture alongside instruction traces.

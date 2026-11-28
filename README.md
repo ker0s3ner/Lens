@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest shipped build: **0.6.484 — Fourier**. Added structured LLDB stop/exit events, bounded-history visibility, and corrected hit-weighted dynamic triage. Read the [in-app-style What's New archive](docs/whats-new.html), the [0.6.484 release page](docs/release-0.6.484.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest shipped build: **0.6.485 — Fourier**. Adds offline trace replay, a consent-gated native local-child debugger session, DWARF member-offset recovery, M68k sign-extension fixes, call-graph responsiveness improvements, and a measured 128 MiB large-file gate. Read [What's New in the app](docs/whats-new.html), the [0.6.485 release page](docs/release-0.6.485.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
