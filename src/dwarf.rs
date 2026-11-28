@@ -78,7 +78,7 @@ fn type_name<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, off: Option<gimli::Unit
         gimli::DW_TAG_volatile_type | gimli::DW_TAG_restrict_type | gimli::DW_TAG_atomic_type => type_name(c, unit, inner(), depth + 1),
         gimli::DW_TAG_structure_type => format!("struct {}", name.unwrap_or_else(|| "anon".into())),
         gimli::DW_TAG_union_type => format!("union {}", name.unwrap_or_else(|| "anon".into())),
-        gimli::DW_TAG_class_type => format!("class {}", name.unwrap_or_else(|| "anon".into())),
+        gimli::DW_TAG_class_type => format!("struct {}", name.unwrap_or_else(|| "anon".into())),
         gimli::DW_TAG_enumeration_type => format!("enum {}", name.unwrap_or_else(|| "anon".into())),
         gimli::DW_TAG_array_type => {
             let t = type_name(c, unit, inner(), depth + 1);
@@ -159,7 +159,7 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
     let mut entries = unit.entries();
     while let Some((_, e)) = entries.next_dfs()? {
         let tag = e.tag();
-        if !matches!(tag, gimli::DW_TAG_structure_type | gimli::DW_TAG_union_type | gimli::DW_TAG_enumeration_type) {
+        if !matches!(tag, gimli::DW_TAG_structure_type | gimli::DW_TAG_class_type | gimli::DW_TAG_union_type | gimli::DW_TAG_enumeration_type) {
             continue;
         }
         let Some(name) = e.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)) else { continue };
@@ -181,6 +181,41 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
                 continue;
             }
             match child.tag() {
+                gimli::DW_TAG_inheritance => {
+                    let type_off = match child.attr_value(gimli::DW_AT_type)? {
+                        Some(AttributeValue::UnitRef(o)) => Some(o),
+                        _ => None,
+                    };
+                    let base_type = type_name(c, unit, type_off, 0);
+                    let Some(size) = type_size(unit, type_off, 0) else {
+                        layout_ok = false;
+                        continue;
+                    };
+                    let member_offset = child
+                        .attr_value(gimli::DW_AT_data_member_location)?
+                        .and_then(|v| member_byte_offset(v, unit.encoding()));
+                    let Some(off) = member_offset.and_then(|n| u32::try_from(n).ok()) else {
+                        layout_ok = false;
+                        continue;
+                    };
+                    if record_size.is_some_and(|total| off.checked_add(size).is_none_or(|end| end > total)) {
+                        layout_ok = false;
+                        continue;
+                    }
+                    // Store a known base subobject as a nested field. This keeps
+                    // its compiler-provided offset and size without guessing at
+                    // virtual-base adjustments or flattening ambiguous members.
+                    let base_name = format!("__base_{off:X}");
+                    body.push(format!("  {} {};", tidy(&base_type), base_name).replace("* ", "*"));
+                    fields.push(crate::types::Field {
+                        off,
+                        name: base_name,
+                        ty: tidy(&base_type),
+                        size,
+                        bit_offset: None,
+                        bit_width: None,
+                    });
+                }
                 gimli::DW_TAG_member => {
                     let n = child.attr_value(gimli::DW_AT_name)?.and_then(|v| attr_string(c, unit, v)).unwrap_or_default();
                     let type_off = match child.attr_value(gimli::DW_AT_type)? { Some(AttributeValue::UnitRef(o)) => Some(o), _ => None };
@@ -236,7 +271,7 @@ fn type_defs<'a>(c: &Ctx<'a>, unit: &gimli::Unit<R<'a>>, out: &mut Vec<String>, 
         if body.is_empty() {
             continue;
         }
-        let kw = match tag { gimli::DW_TAG_structure_type => "struct", gimli::DW_TAG_union_type => "union", _ => "enum" };
+        let kw = match tag { gimli::DW_TAG_structure_type | gimli::DW_TAG_class_type => "struct", gimli::DW_TAG_union_type => "union", _ => "enum" };
         out.push(format!("{kw} {name} {{\n{}\n}};", body.join("\n")));
         if tag == gimli::DW_TAG_enumeration_type {
             let size = e.attr_value(gimli::DW_AT_byte_size)?.and_then(|v| v.udata_value()).and_then(|n| u32::try_from(n).ok()).unwrap_or(4);

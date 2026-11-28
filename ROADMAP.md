@@ -241,8 +241,9 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Extend function-boundary recovery beyond ELF `.eh_frame`, PE `.pdata` and Mach-O `LC_FUNCTION_STARTS` / `__unwind_info`; add more robust malformed-table handling and additional format-specific tables.
 - Improve constant propagation and broaden no-return, tail-call and thunk detection beyond the current known names/prototypes and direct-target cases.
 - Better data-vs-code discrimination and string / array / pointer-table typing.
-- Debug info: DWARF names, prototypes and supported type layouts are available, with adjacent dSYM lookup; PDB and broader C++/Rust/Swift debug-type support remain.
+- Debug info: DWARF names, prototypes and supported type layouts are available, with adjacent dSYM lookup. DWARF C++ classes now import known non-virtual base subobjects as nested fields at their recorded offsets; virtual-base layouts, broader C++/Rust/Swift type support, and PDB coverage remain incomplete.
 - DWARF fixed member offsets accept both `DW_OP_plus_uconst` and equivalent nonnegative constant-plus expressions; dynamic or unsupported expressions remain excluded from recovered layouts.
+- DWARF class DIEs now import as struct layouts, with known non-virtual base subobjects represented as nested fields after record-bound validation. Virtual inheritance remains excluded because runtime vbtable adjustment is not resolved.
 
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls is expanding; consistent repeated assignments and conservative null-pointer branch merges now keep local declarations typed. Typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, pointer typedefs, normalized indexed struct-array paths, nested array members, and prototype casts for unknown call arguments are implemented. Broader SSA-based propagation, variable-length arrays, and more complex loop/switch reconstruction remain.
