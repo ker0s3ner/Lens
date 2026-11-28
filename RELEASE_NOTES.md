@@ -1,3 +1,26 @@
+# Lens 0.6.502 — Fourier
+
+- Add a separate opt-in control for previewing string arguments at behavior API call-site stops.
+- Read strings only when both behavior API watch and string preview are enabled.
+- Use API prototypes to select narrow `char *`, `signed char *`, `unsigned char *`, and common Windows narrow-string aliases.
+- Reuse x86-64 System V, Windows x64, and AArch64 argument-register mappings.
+- Keep each stop event identified so delayed memory-read responses attach to the right event.
+- Read a maximum of 96 bytes per string pointer using debugger memory reads.
+- Limit previews to four string arguments per event.
+- Stop decoding at the first NUL byte and escape non-printable characters for safe display.
+- Decode UTF-8 lossily so arbitrary target bytes remain readable.
+- Show previews alongside the raw pointer register value and recovered parameter name/type.
+- Add `string_preview` to structured argument records in event JSON and dynamic-trace JSON.
+- Include previews in copied TSV runtime-event handoffs.
+- Preserve raw arguments when a pointer is null, unreadable, or does not yield a string.
+- Keep unsupported wide-character pointers as raw values without interpreting them as narrow strings.
+- Keep memory inspection off by default and require an explicit user opt-in in the debugger.
+- Keep reads at behavior API call sites stopped before the API executes.
+- Preserve the 512-event bound and attach string results to their original event.
+- Document the memory-read limit and ABI coverage in the in-app release notes and roadmap.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.501 — Fourier
 
 - Capture a register snapshot on each debugger stop and attach it to that event's program counter.

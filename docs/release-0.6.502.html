@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.502 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.502 — Fourier</h1><p class="lead">Optional short string previews for behavior API arguments.</p><ul>
+<li>Enable <strong>Preview narrow C-string arguments</strong> under behavior API watching in the debugger.</li>
+<li>Use recovered prototypes to select narrow character pointers, including common Windows narrow-string aliases.</li>
+<li>Read at most four string arguments per event, capped at 96 bytes each, and stop at the first NUL.</li>
+<li>Keep raw register values and show escaped previews beside known parameter names and types.</li>
+<li>Carry previews into runtime-event TSV and JSON handoffs and dynamic-trace JSON.</li>
+<li>Keep unreadable pointers as raw values without previews; wide-character pointers are not interpreted.</li>
+</ul><p>String inspection is off by default and only runs after you enable it. Reads happen while stopped before the watched API call. The weighted IDA Pro parity estimate remains 41.8%.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.502">GitHub release</a></p></main></body></html>

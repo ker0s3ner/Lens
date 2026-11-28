@@ -31,6 +31,7 @@ pub enum RunState {
 
 #[derive(Clone, Debug)]
 pub struct DynamicEvent {
+    id: u64,
     pub category: String,
     pub severity: String,
     pub address: Option<u64>,
@@ -38,10 +39,11 @@ pub struct DynamicEvent {
     /// Register values captured at the stop, kept so call-site evidence remains
     /// attached to its own event after the debugger advances.
     pub registers: Vec<(String, String)>,
+    pub string_arguments: Vec<(String, String)>,
 }
 
 impl DynamicEvent {
-    fn new(message: String) -> Self {
+    fn new(id: u64, message: String) -> Self {
         let lower = message.to_ascii_lowercase();
         let (category, severity) = if ["sigsegv", "sigbus", "sigill", "sigabrt", "sigfpe"]
             .iter().any(|signal| lower.contains(signal)) {
@@ -57,7 +59,7 @@ impl DynamicEvent {
         } else {
             ("stop", "info")
         };
-        Self { category: category.into(), severity: severity.into(), address: None, message, registers: Vec::new() }
+        Self { id, category: category.into(), severity: severity.into(), address: None, message, registers: Vec::new(), string_arguments: Vec::new() }
     }
 }
 
@@ -71,6 +73,7 @@ enum Kind {
     Regs,
     Stack,
     Memory,
+    StringArgument { event_id: u64, name: String },
     Bt,
     Pc,
     Bp(u64),
@@ -103,6 +106,10 @@ pub struct Dbg {
     pub trace: Vec<u64>,
     /// Bounded, human-readable stop/exit events captured alongside the trace.
     pub dynamic_events: Vec<DynamicEvent>,
+    next_event_id: u64,
+    behavior_site_apis: HashMap<u64, String>,
+    argument_registers: Vec<String>,
+    capture_string_arguments: bool,
     pub trace_enabled: bool,
     trace_active: bool,
     trace_remaining: usize,
@@ -124,6 +131,7 @@ pub struct DbgUi {
     pub memory_address: String,
     pub hardware_breakpoints: bool,
     pub behavior_watch: bool,
+    pub behavior_strings: bool,
     behavior_sites: Vec<BehaviorCallSite>,
     behavior_sites_key: Option<(String, u64, u64)>,
     pub trace: bool,
@@ -171,9 +179,10 @@ fn parse_hex_after(s: &str, key: &str) -> Option<u64> {
     u64::from_str_radix(&rest[..end], 16).ok()
 }
 
-fn retain_dynamic_event(events: &mut Vec<DynamicEvent>, message: String) {
-    events.push(DynamicEvent::new(message));
-    if events.len() > 512 { events.remove(0); }
+fn parse_register_pointer(value: &str) -> Option<u64> {
+    let value = value.trim().strip_prefix("0x").or_else(|| value.trim().strip_prefix("0X"))?;
+    let end = value.find(|c: char| !c.is_ascii_hexdigit()).unwrap_or(value.len());
+    u64::from_str_radix(&value[..end], 16).ok()
 }
 
 fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<String>)>) -> std::collections::BTreeMap<String, usize> {
@@ -196,7 +205,47 @@ struct RuntimeEventAnnotation {
     severity: String,
 }
 
-type RuntimeArgument = (String, String, String, String); // name, type, register, value
+#[derive(Clone)]
+struct RuntimeArgument {
+    name: String,
+    ty: String,
+    register: String,
+    value: String,
+    string_preview: Option<String>,
+}
+
+fn abi_argument_registers(arch: crate::loader::Arch, format: &str) -> &'static [&'static str] {
+    match arch {
+        crate::loader::Arch::X64 if format.starts_with("PE") => &["rcx", "rdx", "r8", "r9"],
+        crate::loader::Arch::X64 => &["rdi", "rsi", "rdx", "rcx", "r8", "r9"],
+        crate::loader::Arch::Arm64 => &["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"],
+        _ => &[],
+    }
+}
+
+fn narrow_string_pointer(ty: &str) -> bool {
+    let compact = ty.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict"))
+        .collect::<Vec<_>>().join("").to_ascii_lowercase();
+    matches!(compact.as_str(), "char*" | "signedchar*" | "unsignedchar*" | "lpcstr" | "pcstr" | "lpstr" | "pstr")
+}
+
+fn parse_narrow_string_preview(lines: &[String]) -> Option<String> {
+    let mut bytes = Vec::new();
+    for line in lines {
+        let Some((_, values)) = line.split_once(':') else { continue };
+        for token in values.split_whitespace() {
+            let Some(hex) = token.strip_prefix("0x") else { continue };
+            if hex.is_empty() || hex.len() > 2 { continue; }
+            let byte = u8::from_str_radix(hex, 16).ok()?;
+            if byte == 0 { break; }
+            bytes.push(byte);
+            if bytes.len() == 96 { break; }
+        }
+        if bytes.len() == 96 || values.split_whitespace().any(|token| token == "0x00") { break; }
+    }
+    if bytes.is_empty() { return None; }
+    Some(String::from_utf8_lossy(&bytes).chars().flat_map(char::escape_default).collect())
+}
 
 fn runtime_event_arguments(
     event: &DynamicEvent,
@@ -208,32 +257,30 @@ fn runtime_event_arguments(
     let Some(api) = annotation.api.as_deref() else { return Vec::new() };
     let registers: HashMap<String, String> = event.registers.iter()
         .map(|(name, value)| (name.to_ascii_lowercase(), value.clone())).collect();
-    let argument_registers: &[&str] = match arch {
-        crate::loader::Arch::X64 if format.starts_with("PE") => &["rcx", "rdx", "r8", "r9"],
-        crate::loader::Arch::X64 => &["rdi", "rsi", "rdx", "rcx", "r8", "r9"],
-        crate::loader::Arch::Arm64 => &["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"],
-        _ => return Vec::new(),
-    };
+    let argument_registers = abi_argument_registers(arch, format);
     let prototype = crate::protos::find(api);
     argument_registers.iter().enumerate().filter_map(|(index, register)| {
         let value = registers.get(*register)?.clone();
         let (ty, name) = prototype.as_ref().and_then(|prototype| prototype.params.get(index))
             .map(|(ty, name)| (ty.clone(), if name.trim().is_empty() { format!("arg{}", index + 1) } else { name.clone() }))
             .unwrap_or_else(|| ("?".into(), format!("arg{}", index + 1)));
-        Some((name, ty, (*register).to_string(), value))
+        let string_preview = event.string_arguments.iter().find(|(param, _)| param == &name).map(|(_, text)| text.clone());
+        Some(RuntimeArgument { name, ty, register: (*register).to_string(), value, string_preview })
     }).collect()
 }
 
 fn runtime_arguments_json(arguments: &[RuntimeArgument]) -> Vec<serde_json::Value> {
-    arguments.iter().map(|(name, ty, register, value)| {
-        serde_json::json!({"name": name, "type": ty, "register": register, "value": value})
+    arguments.iter().map(|argument| {
+        serde_json::json!({"name": argument.name, "type": argument.ty, "register": argument.register, "value": argument.value, "string_preview": argument.string_preview})
     }).collect()
 }
 
 fn format_runtime_arguments(arguments: &[RuntimeArgument]) -> String {
-    arguments.iter().map(|(name, ty, register, value)| {
-        if ty == "?" { format!("{name} [{register}]={value}") }
-        else { format!("{ty} {name} [{register}]={value}") }
+    arguments.iter().map(|argument| {
+        let label = if argument.ty == "?" { format!("{} [{}]={}", argument.name, argument.register, argument.value) }
+            else { format!("{} {} [{}]={}", argument.ty, argument.name, argument.register, argument.value) };
+        if let Some(preview) = &argument.string_preview { format!("{label} → \"{preview}\"") }
+        else { label }
     }).collect::<Vec<_>>().join(", ")
 }
 
@@ -340,7 +387,7 @@ fn observed_runtime_calls(
 }
 
 impl Dbg {
-    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>) -> Result<Dbg, String> {
+    pub fn start(path: &str, arch_flag: Option<&str>, args: &str, remote: &str, attach_pid: &str, hardware_breakpoints: bool, bps: &[u64], conditions: &HashMap<u64, String>, behavior_sites: &[BehaviorCallSite], argument_registers: &[String], capture_string_arguments: bool) -> Result<Dbg, String> {
         let attach_pid = attach_pid.trim();
         if !attach_pid.is_empty() && !attach_pid.chars().all(|c| c.is_ascii_digit()) {
             return Err("Process ID must contain digits only.".into());
@@ -431,6 +478,10 @@ impl Dbg {
             watch_values: HashMap::new(),
             trace: Vec::new(),
             dynamic_events: Vec::new(),
+            next_event_id: 0,
+            behavior_site_apis: behavior_sites.iter().map(|(address, api, _)| (*address, api.clone())).collect(),
+            argument_registers: argument_registers.to_vec(),
+            capture_string_arguments,
             trace_enabled: false,
             trace_active: false,
             trace_remaining: 0,
@@ -569,6 +620,13 @@ impl Dbg {
         }
     }
 
+    fn retain_dynamic_event(&mut self, message: String) {
+        let id = self.next_event_id;
+        self.next_event_id = self.next_event_id.wrapping_add(1);
+        self.dynamic_events.push(DynamicEvent::new(id, message));
+        if self.dynamic_events.len() > 512 { self.dynamic_events.remove(0); }
+    }
+
     pub fn set_watches(&mut self, expressions: Vec<String>) {
         let expressions: Vec<String> = expressions.into_iter().map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty() && !s.contains(['\n', '\r']))
@@ -649,12 +707,12 @@ impl Dbg {
             Kind::Launch | Kind::Resume | Kind::TraceStep => {
                 self.console.extend(lines.iter().cloned());
                 if let Some(reason) = lines.iter().find(|line| line.contains("stop reason")) {
-                    retain_dynamic_event(&mut self.dynamic_events, reason.clone());
+                    self.retain_dynamic_event(reason.clone());
                 }
                 if joined.contains("exited with status") || (joined.contains("Process") && joined.contains("exited")) {
                     self.state = RunState::Exited;
                     self.pc = None;
-                    retain_dynamic_event(&mut self.dynamic_events, lines.iter().find(|line| line.contains("exited")).cloned().unwrap_or_else(|| "process exited".into()));
+                    self.retain_dynamic_event(lines.iter().find(|line| line.contains("exited")).cloned().unwrap_or_else(|| "process exited".into()));
                 } else if joined.contains("error:") && !joined.contains("stop reason") {
                     self.state = RunState::Exited;
                 } else {
@@ -707,8 +765,39 @@ impl Dbg {
                         Some((n.to_string(), v.split_whitespace().next()?.to_string()))
                     })
                     .collect();
-                if let Some(event) = self.dynamic_events.iter_mut().rev().find(|event| event.address == self.pc && self.pc.is_some()) {
+                let event_id = self.dynamic_events.iter_mut().rev().find(|event| event.address == self.pc && self.pc.is_some()).map(|event| {
                     event.registers = self.regs.clone();
+                    event.id
+                });
+                if self.capture_string_arguments {
+                    if let (Some(event_id), Some(address)) = (event_id, self.pc) {
+                        if let Some(api) = self.behavior_site_apis.get(&address).cloned() {
+                            if let Some(prototype) = crate::protos::find(&api) {
+                                let mut captured = 0;
+                                for (index, (ty, parameter)) in prototype.params.iter().enumerate() {
+                                    if captured == 4 { break; }
+                                    if !narrow_string_pointer(ty) { continue; }
+                                    let Some(register) = self.argument_registers.get(index) else { continue };
+                                    let Some(raw) = self.regs.iter().find(|(name, _)| name.eq_ignore_ascii_case(register)).map(|(_, value)| value) else { continue };
+                                    let Some(pointer) = parse_register_pointer(raw).filter(|pointer| *pointer != 0) else { continue };
+                                    let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
+                                    self.push(Kind::StringArgument { event_id, name }, &format!("memory read -f x -s 1 -c 96 0x{pointer:x}"));
+                                    captured += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Kind::StringArgument { event_id, name } => {
+                if let Some(preview) = parse_narrow_string_preview(&lines) {
+                    if let Some(event) = self.dynamic_events.iter_mut().find(|event| event.id == event_id) {
+                        if let Some(existing) = event.string_arguments.iter_mut().find(|(parameter, _)| parameter == &name) {
+                            existing.1 = preview;
+                        } else {
+                            event.string_arguments.push((name, preview));
+                        }
+                    }
                 }
             }
             Kind::Stack => self.stack = lines,
@@ -768,7 +857,9 @@ impl LensApp {
         bps.sort_unstable();
         bps.dedup();
         let conditions = l.ann.bp_conditions.clone();
-        match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions) {
+        let argument_registers = abi_argument_registers(l.bin.arch, &l.bin.format).iter().map(|register| (*register).to_string()).collect::<Vec<_>>();
+        let capture_strings = self.tools2.dbg.behavior_watch && self.tools2.dbg.behavior_strings;
+        match Dbg::start(&path, arch, &args, &remote, &pid, hardware, &bps, &conditions, &behavior_sites, &argument_registers, capture_strings) {
             Ok(d) => {
                 self.dbg = Some(d);
                 if watch_requested && !local_launch {
@@ -989,6 +1080,8 @@ impl LensApp {
                 if ui_state.behavior_watch {
                     let status = if ui_state.hardware_breakpoints { "candidates · turn off hardware mode to arm" } else { "behavior call sites ready · local launch only" };
                     ui.label(RichText::new(format!("{} {status}", behavior_sites_count)).small().color(p.muted));
+                    ui.checkbox(&mut ui_state.behavior_strings, "Preview narrow C-string arguments")
+                        .on_hover_text("When stopped before a watched API, read at most four prototype-marked char pointers, up to 96 bytes each. Pointer contents are read only when this option is enabled.");
                 }
                 }
                 Some(d) => {
