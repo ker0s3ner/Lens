@@ -175,6 +175,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 - Improve constant propagation and broaden no-return, tail-call and thunk detection beyond the current known names/prototypes and direct-target cases.
 - Better data-vs-code discrimination and string / array / pointer-table typing.
 - Debug info: DWARF names, prototypes and supported type layouts are available, with adjacent dSYM lookup; PDB and broader C++/Rust/Swift debug-type support remain.
+- DWARF fixed member offsets accept both `DW_OP_plus_uconst` and equivalent nonnegative constant-plus expressions; dynamic or unsupported expressions remain excluded from recovered layouts.
 
 ## Phase 3 - Decompiler
 - Type recovery and propagation across calls is expanding; typed prototype returns, recursive enum returns, struct-field access, fixed-array indexing, nested records, and pointer typedefs are implemented with regression coverage. Broader SSA-based propagation and more complex array/pointer reconstruction remain.

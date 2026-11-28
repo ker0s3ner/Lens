@@ -137,8 +137,18 @@ fn member_byte_offset(location: AttributeValue<R<'_>>, encoding: gimli::Encoding
     if let AttributeValue::Exprloc(expr) = location {
         // A member expression starts with the object's address on the stack.
         let mut ops = expr.operations(encoding);
-        let gimli::Operation::PlusConstant { value } = ops.next().ok()?? else { return None };
-        return ops.next().ok()?.is_none().then_some(value);
+        return match ops.next().ok()?? {
+            gimli::Operation::PlusConstant { value } => ops.next().ok()?.is_none().then_some(value),
+            gimli::Operation::UnsignedConstant { value } => {
+                if !matches!(ops.next().ok()??, gimli::Operation::Plus) { return None; }
+                ops.next().ok()?.is_none().then_some(value)
+            }
+            gimli::Operation::SignedConstant { value } if value >= 0 => {
+                if !matches!(ops.next().ok()??, gimli::Operation::Plus) { return None; }
+                ops.next().ok()?.is_none().then_some(value as u64)
+            }
+            _ => None,
+        };
     }
     location.udata_value().or_else(|| u64::try_from(location.sdata_value()?).ok())
 }
