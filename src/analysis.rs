@@ -285,11 +285,11 @@ fn itanium_type_name(symbol: &str) -> Option<String> {
 /// when the loader did not retain a `_ZTI...` data symbol. The second word of
 /// the object is a pointer to a NUL-terminated name in the mapped image.
 fn itanium_typeinfo_name(bin: &Binary, typeinfo: u64) -> Option<String> {
-    let name_ptr = bin.read_ptr(typeinfo + (bin.bitness() / 8) as u64)?;
+    let name_ptr = bin.read_ptr(typeinfo.checked_add((bin.bitness() / 8) as u64)?)?;
     if !bin.is_mapped(name_ptr) || bin.is_exec(name_ptr) { return None; }
     let mut bytes = Vec::new();
     for i in 0..256u64 {
-        let b = bin.byte(name_ptr + i)?;
+        let b = bin.byte(name_ptr.checked_add(i)?)?;
         if b == 0 { break; }
         bytes.push(b);
     }
@@ -906,14 +906,18 @@ fn switch_targets(bin: &Binary, insns: &BTreeMap<u64, Insn>, at: u64, fstart: u6
     let count = switch_count(bound);
     let mut out: Vec<u64> = vec![];
     for k in 0..count {
+        let Some(entry_addr) = switch_entry_addr(table, k, if rel { 4 } else { ptr as usize }) else { break };
         let t = if rel {
-            let b = bin.read(table + 4 * k as u64, 4);
+            let b = bin.read(entry_addr, 4);
             if b.len() < 4 {
                 break;
             }
-            (table as i64 + i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as i64) as u64
+            let offset = i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as i64;
+            let target = if offset >= 0 { table.checked_add(offset as u64) } else { table.checked_sub(offset.unsigned_abs()) };
+            let Some(target) = target else { break };
+            target
         } else {
-            let b = bin.read(table + (ptr * k) as u64, ptr);
+            let b = bin.read(entry_addr, ptr);
             if b.len() < ptr {
                 break;
             }
@@ -1272,7 +1276,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                         },
                     };
                     local.insert(a);
-                    let mut next = a + info.len as u64;
+                    let Some(mut next) = a.checked_add(info.len as u64) else { break };
                     // Classic MIPS executes one instruction in the branch delay
                     // slot before taking a call, jump, return, or conditional
                     // branch. Keep that instruction in the current basic block
@@ -1289,7 +1293,8 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
                             Some(decoded)
                         }) {
                             local.insert(next);
-                            next += delay.len as u64;
+                            let Some(after_delay) = next.checked_add(delay.len as u64) else { break };
+                            next = after_delay;
                         }
                     }
                     match info.flow {
