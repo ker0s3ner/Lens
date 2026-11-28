@@ -41,6 +41,7 @@ fn fingerprint(a: &Annotations) -> u64 {
     x ^= h(&(7u8, a.structs.len()));
     x ^= h(&(8u8, &a.protos));
     for (k, v) in &a.vars { x ^= h(&(9u8, k, v)); }
+    for (k, v) in &a.var_types { x ^= h(&(11u8, k, v)); }
     x
 }
 
@@ -94,6 +95,7 @@ impl LensApp {
         l.ann.structs = target.structs.clone();
         l.ann.protos = target.protos.clone();
         l.ann.vars = target.vars.clone();
+        l.ann.var_types = target.var_types.clone();
         store::save_annotations(&l.bin.path, l.bin.file_size, &l.ann);
         l.refresh();
         self.undo.print = fingerprint(&l.ann);
@@ -815,7 +817,7 @@ pub fn export_text(l: &Loaded, kind: ExportKind) -> (String, &'static str) {
                 "prototypes": l.ann.protos,
                 "comments": l.ann.comments, "bookmarks": l.ann.marks,
                 "patches": l.ann.patches, "breakpoints": l.ann.breakpoints,
-                "bp_conditions": l.ann.bp_conditions, "vars": l.ann.vars,
+                "bp_conditions": l.ann.bp_conditions, "vars": l.ann.vars, "var_types": l.ann.var_types,
             });
             (serde_json::to_string_pretty(&v).unwrap_or_default(), "json")
         }
@@ -1017,6 +1019,7 @@ impl LensApp {
                         crate::protos::set_user(&l.ann.protos);
                     }
                     l.ann.vars.extend(a.vars);
+                    l.ann.var_types.extend(a.var_types);
                 }
                 Err(e) => {
                     let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
@@ -1065,6 +1068,11 @@ impl LensApp {
                     if let Some(obj) = v.get("vars").and_then(|x| x.as_object()) {
                         for (key, value) in obj {
                             if let Some(value) = value.as_str() { l.ann.vars.insert(key.clone(), value.to_string()); recognized = true; }
+                        }
+                    }
+                    if let Some(obj) = v.get("var_types").and_then(|x| x.as_object()) {
+                        for (key, value) in obj {
+                            if let Some(value) = value.as_str() { l.ann.var_types.insert(key.clone(), value.to_string()); recognized = true; }
                         }
                     }
                     if let Some(arr) = v.get("data_definitions").and_then(|x| x.as_array()) {
