@@ -73,7 +73,7 @@ enum Kind {
     Regs,
     Stack,
     Memory,
-    StringArgument { event_id: u64, name: String },
+    StringArgument { event_id: u64, name: String, wide: bool },
     Bt,
     Pc,
     Bp(u64),
@@ -136,6 +136,7 @@ pub struct DbgUi {
     behavior_sites_key: Option<(String, u64, u64)>,
     pub trace: bool,
     pub triage_only: bool,
+    pub event_category_filter: String,
     pub confirm: bool,
     pub input: String,
     pub follow: bool,
@@ -200,9 +201,35 @@ fn weighted_signal_counts(trace: &[u64], lookup: &HashMap<u64, (String, Vec<Stri
 struct RuntimeEventAnnotation {
     function: String,
     api: Option<String>,
+    category: String,
     api_signals: Vec<String>,
     signals: Vec<String>,
     severity: String,
+}
+
+fn behavior_api_category(api: &str) -> &'static str {
+    let api = api.rsplit(|character| character == '!' || character == ':').next().unwrap_or(api).to_ascii_lowercase();
+    let api = api.trim_start_matches("__imp_").trim_start_matches("imp_");
+    if ["isdebuggerpresent", "checkremotedebuggerpresent", "ntqueryinformationprocess", "ntsetinformationthread", "outputdebugstring", "ptrace", "sysctl"].iter().any(|name| api.contains(name)) {
+        "anti-debugging"
+    } else if ["regopen", "regcreate", "regset", "regquery", "regdelete", "ntopenkey", "ntsetvalue", "ntqueryvalue"].iter().any(|name| api.contains(name)) {
+        "registry"
+    } else if ["socket", "connect", "send", "recv", "accept", "bind", "listen", "getaddrinfo", "internet", "winhttp", "urlopen", "dnsquery", "wsastartup"].iter().any(|name| api.contains(name)) {
+        "network"
+    } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mprotect", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "writeprocessmemory", "readprocessmemory", "ntallocvirtualmemory", "ntprotectvirtualmemory"].iter().any(|name| api.contains(name)) {
+        "memory"
+    } else if ["createfile", "ntcreatefile", "readfile", "ntreadfile", "writefile", "ntwritefile", "deletefile", "movefile", "copyfile", "fopen", "fread", "fwrite", "open", "read", "write", "unlink", "rename", "remove", "chmod", "mkdir"].iter().any(|name| api == *name || api.ends_with(name)) {
+        "filesystem"
+    } else if ["createprocess", "shellexecute", "winexec", "createproc", "fork", "exec", "posix_spawn", "system", "popen", "createremotethread", "ntcreatethread", "openprocess", "terminateprocess", "ntterminateprocess", "waitforsingleobject"].iter().any(|name| api.contains(name)) {
+        "process"
+    } else {
+        "behavior-callsite"
+    }
+}
+
+fn runtime_event_category<'a>(event: &'a DynamicEvent, annotation: Option<&'a RuntimeEventAnnotation>) -> &'a str {
+    annotation.filter(|annotation| !annotation.api_signals.is_empty())
+        .map(|annotation| annotation.category.as_str()).unwrap_or(event.category.as_str())
 }
 
 #[derive(Clone)]
@@ -229,22 +256,35 @@ fn narrow_string_pointer(ty: &str) -> bool {
     matches!(compact.as_str(), "char*" | "signedchar*" | "unsignedchar*" | "lpcstr" | "pcstr" | "lpstr" | "pstr")
 }
 
-fn parse_narrow_string_preview(lines: &[String]) -> Option<String> {
+fn wide_string_pointer(ty: &str) -> bool {
+    let compact = ty.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict"))
+        .collect::<Vec<_>>().join("").to_ascii_lowercase();
+    matches!(compact.as_str(), "lpwstr" | "lpcwstr" | "pwstr" | "pcwstr")
+}
+
+fn parse_string_preview(lines: &[String], wide: bool) -> Option<String> {
     let mut bytes = Vec::new();
+    let max_bytes = if wide { 192 } else { 96 };
     for line in lines {
         let Some((_, values)) = line.split_once(':') else { continue };
         for token in values.split_whitespace() {
             let Some(hex) = token.strip_prefix("0x") else { continue };
             if hex.is_empty() || hex.len() > 2 { continue; }
             let byte = u8::from_str_radix(hex, 16).ok()?;
-            if byte == 0 { break; }
             bytes.push(byte);
-            if bytes.len() == 96 { break; }
+            if bytes.len() == max_bytes { break; }
         }
-        if bytes.len() == 96 || values.split_whitespace().any(|token| token == "0x00") { break; }
+        if bytes.len() == max_bytes { break; }
     }
-    if bytes.is_empty() { return None; }
-    Some(String::from_utf8_lossy(&bytes).chars().flat_map(char::escape_default).collect())
+    if wide {
+        let units = bytes.chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).take_while(|unit| *unit != 0).collect::<Vec<_>>();
+        if units.is_empty() { return None; }
+        Some(String::from_utf16_lossy(&units).chars().flat_map(char::escape_default).collect())
+    } else {
+        let bytes = bytes.into_iter().take_while(|byte| *byte != 0).collect::<Vec<_>>();
+        if bytes.is_empty() { return None; }
+        Some(String::from_utf8_lossy(&bytes).chars().flat_map(char::escape_default).collect())
+    }
 }
 
 fn runtime_event_arguments(
@@ -340,7 +380,8 @@ fn runtime_event_annotations(
         matched.dedup();
         let severity = signals.iter().filter(|signal| matched.contains(&signal.name)).map(|signal| signal.severity).max().unwrap_or(0);
         let severity = match severity { 3 => "high", 2 => "medium", 1 => "info", _ => "info" }.to_string();
-        Some((address, RuntimeEventAnnotation { function: function_name, api, api_signals, signals: matched, severity }))
+        let category = api.as_deref().filter(|_| !api_signals.is_empty()).map(behavior_api_category).unwrap_or("behavior-callsite").to_string();
+        Some((address, RuntimeEventAnnotation { function: function_name, api, category, api_signals, signals: matched, severity }))
     }).collect()
 }
 
@@ -776,12 +817,14 @@ impl Dbg {
                                 let mut captured = 0;
                                 for (index, (ty, parameter)) in prototype.params.iter().enumerate() {
                                     if captured == 4 { break; }
-                                    if !narrow_string_pointer(ty) { continue; }
+                                    let wide = wide_string_pointer(ty);
+                                    if !wide && !narrow_string_pointer(ty) { continue; }
                                     let Some(register) = self.argument_registers.get(index) else { continue };
                                     let Some(raw) = self.regs.iter().find(|(name, _)| name.eq_ignore_ascii_case(register)).map(|(_, value)| value) else { continue };
                                     let Some(pointer) = parse_register_pointer(raw).filter(|pointer| *pointer != 0) else { continue };
                                     let name = if parameter.trim().is_empty() { format!("arg{}", index + 1) } else { parameter.clone() };
-                                    self.push(Kind::StringArgument { event_id, name }, &format!("memory read -f x -s 1 -c 96 0x{pointer:x}"));
+                                    let byte_limit = if wide { 192 } else { 96 };
+                                    self.push(Kind::StringArgument { event_id, name, wide }, &format!("memory read -f x -s 1 -c {byte_limit} 0x{pointer:x}"));
                                     captured += 1;
                                 }
                             }
@@ -789,8 +832,8 @@ impl Dbg {
                     }
                 }
             }
-            Kind::StringArgument { event_id, name } => {
-                if let Some(preview) = parse_narrow_string_preview(&lines) {
+            Kind::StringArgument { event_id, name, wide } => {
+                if let Some(preview) = parse_string_preview(&lines, wide) {
                     if let Some(event) = self.dynamic_events.iter_mut().find(|event| event.id == event_id) {
                         if let Some(existing) = event.string_arguments.iter_mut().find(|(parameter, _)| parameter == &name) {
                             existing.1 = preview;
@@ -1080,8 +1123,8 @@ impl LensApp {
                 if ui_state.behavior_watch {
                     let status = if ui_state.hardware_breakpoints { "candidates · turn off hardware mode to arm" } else { "behavior call sites ready · local launch only" };
                     ui.label(RichText::new(format!("{} {status}", behavior_sites_count)).small().color(p.muted));
-                    ui.checkbox(&mut ui_state.behavior_strings, "Preview narrow C-string arguments")
-                        .on_hover_text("When stopped before a watched API, read at most four prototype-marked char pointers, up to 96 bytes each. Pointer contents are read only when this option is enabled.");
+                    ui.checkbox(&mut ui_state.behavior_strings, "Preview string arguments (UTF-8 / Windows UTF-16)")
+                        .on_hover_text("When stopped before a watched API, read at most four prototype-marked character pointers: up to 96 bytes for narrow strings or 192 bytes for Windows UTF-16. Pointer contents are read only when this option is enabled.");
                 }
                 }
                 Some(d) => {
@@ -1161,12 +1204,17 @@ impl LensApp {
                                 let observed_calls = runtime_calls.iter().map(|(step, from, to, caller, callee, signals)| serde_json::json!({"step": step, "from": from, "to": to, "caller": caller, "callee": callee, "heuristic_signals": signals})).collect::<Vec<_>>();
                                 let runtime_events = d.dynamic_events.iter().map(|event| {
                                     let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                                    serde_json::json!({"category": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() }, "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default(), "arguments": runtime_arguments_json(&runtime_event_arguments(event, annotation, event_arch, &event_format))})
+                                    serde_json::json!({"category": runtime_event_category(event, annotation), "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default(), "arguments": runtime_arguments_json(&runtime_event_arguments(event, annotation, event_arch, &event_format))})
                                 }).collect::<Vec<_>>();
                                 let event_counts = ["high", "medium", "info"].into_iter().map(|severity| (severity, d.dynamic_events.iter().filter(|event| {
                                     effective_event_severity(event, &runtime_event_lookup) == severity
                                 }).count())).collect::<std::collections::BTreeMap<_, _>>();
-                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "event_severity_counts": event_counts, "events": d.dynamic_events.iter().map(|event| event.message.clone()).collect::<Vec<_>>(), "runtime_events": runtime_events, "records": records});
+                                let event_category_counts = d.dynamic_events.iter().fold(std::collections::BTreeMap::<String, usize>::new(), |mut counts, event| {
+                                    let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                                    *counts.entry(runtime_event_category(event, annotation).to_string()).or_default() += 1;
+                                    counts
+                                });
+                                let value = serde_json::json!({"schema": "lens.dynamic-trace.v1", "entries": d.trace.len(), "unique_addresses": unique_addresses, "hot_addresses": hot_addresses, "max_hits": max_hits, "flagged_addresses": flagged_addresses, "flagged_functions": flagged_functions, "flagged_function_names": flagged_function_names, "heuristic_matches": heuristic_matches, "signal_names": signal_names, "signal_counts": signal_counts, "signal_hit_counts": signal_hit_counts, "observed_call_count": observed_calls.len(), "observed_calls": observed_calls, "event_count": d.dynamic_events.len(), "event_capacity": 512, "event_severity_counts": event_counts, "event_category_counts": event_category_counts, "events": d.dynamic_events.iter().map(|event| event.message.clone()).collect::<Vec<_>>(), "runtime_events": runtime_events, "records": records});
                                 match std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap_or_default()) {
                                     Ok(_) => d.console.push(format!("trace JSON exported to {}", path.display())),
                                     Err(error) => d.console.push(format!("trace JSON export failed: {error}")),
@@ -1241,25 +1289,37 @@ impl LensApp {
                         let high = d.dynamic_events.iter().filter(|event| effective_event_severity(event, &runtime_event_lookup) == "high").count();
                         let medium = d.dynamic_events.iter().filter(|event| effective_event_severity(event, &runtime_event_lookup) == "medium").count();
                         ui.label(RichText::new(format!("RUNTIME EVENTS · {}/512 retained · {high} high · {medium} medium", d.dynamic_events.len())).small().color(if high > 0 { p.edge_not } else { p.faint }));
+                        egui::ComboBox::from_id_salt("runtime_event_category_filter")
+                            .selected_text(if ui_state.event_category_filter.is_empty() { "All behavior categories" } else { ui_state.event_category_filter.as_str() })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut ui_state.event_category_filter, String::new(), "All behavior categories");
+                                for category in ["process", "filesystem", "registry", "memory", "network", "anti-debugging", "behavior-callsite", "fault", "signal", "breakpoint", "memory-watch", "process-exit", "stop"] {
+                                    ui.selectable_value(&mut ui_state.event_category_filter, category.to_string(), category);
+                                }
+                            });
                         if ui.small_button("Copy debug events").clicked() { ui.ctx().copy_text(d.dynamic_events.iter().rev().map(|event| {
                             let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
                             let arguments = format_runtime_arguments(&runtime_event_arguments(event, annotation, event_arch, &event_format));
-                            format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), annotation.filter(|annotation| !annotation.api_signals.is_empty()).map(|_| "behavior-callsite").unwrap_or(event.category.as_str()), event.address.map(|address| format!("{address:016X}")).unwrap_or_default(), annotation.map(|annotation| annotation.function.as_str()).unwrap_or(""), annotation.and_then(|annotation| annotation.api.as_deref()).unwrap_or(""), annotation.map(|annotation| annotation.signals.join(", ")).unwrap_or_default(), arguments, event.message)
+                            format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), runtime_event_category(event, annotation), event.address.map(|address| format!("{address:016X}")).unwrap_or_default(), annotation.map(|annotation| annotation.function.as_str()).unwrap_or(""), annotation.and_then(|annotation| annotation.api.as_deref()).unwrap_or(""), annotation.map(|annotation| annotation.signals.join(", ")).unwrap_or_default(), arguments, event.message)
                         }).collect::<Vec<_>>().join("\n")); }
                         if ui.small_button("Copy events JSON").clicked() {
                             let value = d.dynamic_events.iter().map(|event| {
                                 let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
-                                serde_json::json!({"category": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() }, "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default(), "arguments": runtime_arguments_json(&runtime_event_arguments(event, annotation, event_arch, &event_format))})
+                                serde_json::json!({"category": runtime_event_category(event, annotation), "api_call_state": if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { Some("stopped_before_api_call") } else { None::<&str> }, "severity": annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| annotation.severity.as_str()).unwrap_or(event.severity.as_str()), "address": event.address, "message": event.message, "function": annotation.map(|annotation| annotation.function.as_str()), "api": annotation.and_then(|annotation| annotation.api.as_deref()), "heuristic_signals": annotation.map(|annotation| annotation.signals.clone()).unwrap_or_default(), "arguments": runtime_arguments_json(&runtime_event_arguments(event, annotation, event_arch, &event_format))})
                             }).collect::<Vec<_>>();
                             ui.ctx().copy_text(serde_json::to_string_pretty(&value).unwrap_or_default());
                         }
                         if ui.small_button("Clear debug events").clicked() { d.dynamic_events.clear(); }
-                        for event in d.dynamic_events.iter().rev().filter(|event| !ui_state.triage_only || effective_event_severity(event, &runtime_event_lookup) != "info").take(4) {
+                        for event in d.dynamic_events.iter().rev().filter(|event| {
+                            let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
+                            (!ui_state.triage_only || effective_event_severity(event, &runtime_event_lookup) != "info")
+                                && (ui_state.event_category_filter.is_empty() || runtime_event_category(event, annotation) == ui_state.event_category_filter.as_str())
+                        }).take(8) {
                             let annotation = event.address.and_then(|address| runtime_event_lookup.get(&address));
                             let function = annotation.map(|annotation| format!(" · {}", annotation.function)).unwrap_or_default();
                             let api = annotation.and_then(|annotation| annotation.api.as_ref()).map(|api| format!(" → {api}")).unwrap_or_default();
                             let signals = annotation.filter(|annotation| !annotation.signals.is_empty()).map(|annotation| format!(" · {}", annotation.signals.join(", "))).unwrap_or_default();
-                            let category = if annotation.is_some_and(|annotation| !annotation.api_signals.is_empty()) { "behavior-callsite" } else { event.category.as_str() };
+                            let category = runtime_event_category(event, annotation);
                             let severity = effective_event_severity(event, &runtime_event_lookup);
                             let label = format!("{} · {}{}{}{}{} · {}", severity.to_ascii_uppercase(), category, event.address.map(|address| format!(" · {address:016X}")).unwrap_or_default(), function, api, signals, event.message);
                             let color = match severity { "high" => p.edge_not, "medium" => p.comment, _ => p.muted };

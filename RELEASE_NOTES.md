@@ -1,3 +1,33 @@
+# Lens 0.6.503 — Fourier
+
+- Classify statically flagged API call-site events as process, filesystem, registry, memory, network, or anti-debugging activity when the imported API name matches a known family.
+- Normalize module-qualified and common `__imp_` import names before category assignment.
+- Keep unmatched API families under the general behavior-callsite label.
+- Show the inferred category on each runtime event while retaining the imported API and matched heuristic signals.
+- Add a runtime-event category selector with an all-categories option.
+- Filter the visible event list by process activity.
+- Filter the visible event list by filesystem activity.
+- Filter the visible event list by registry activity.
+- Filter the visible event list by memory activity.
+- Filter the visible event list by network activity.
+- Filter the visible event list by anti-debugging activity.
+- Keep the existing triage-only filter composable with category selection.
+- Include category labels in copied event TSV and structured event JSON.
+- Add per-category event totals to dynamic-trace JSON exports.
+- Keep existing signal severity, caller, API, and pre-call state alongside the category label.
+- Extend the explicit string-preview option to common Windows UTF-16 pointer types (`LPCWSTR`, `LPWSTR`, `PCWSTR`, and `PWSTR`).
+- Decode UTF-16 surrogate pairs with replacement for invalid sequences and escape control characters for display.
+- Read at most 192 bytes per UTF-16 argument (96 code units) and stop at a null code unit.
+- Keep the shared maximum of four string reads per event across narrow and UTF-16 arguments.
+- Keep narrow string reads capped at 96 bytes and stop at the first NUL byte.
+- Preserve the raw argument pointer and parameter labels beside every preview.
+- Keep string inspection disabled by default and require both behavior watching and the separate preview option.
+- Carry narrow and UTF-16 previews through runtime-event TSV, runtime-event JSON, and dynamic-trace JSON.
+- Leave unreadable or null pointers as raw values, and do not infer contents from unrecognized pointer types.
+- Label API families as static name-based triage; categories do not prove that an operation completed.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.502 — Fourier
 
 - Add a separate opt-in control for previewing string arguments at behavior API call-site stops.

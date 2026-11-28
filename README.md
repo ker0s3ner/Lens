@@ -2,7 +2,7 @@
 
 Lens is a Rust and egui desktop workbench for inspecting executable files, following their control flow, and editing analysis annotations. It supports common native binary formats and several processor families. It is still an early analysis tool, not a drop-in replacement for IDA Pro.
 
-Latest GitHub build: **0.6.502 — Fourier**. Opt-in behavior triage reads short, prototype-marked C-string previews at watched API call sites and carries them through event exports. Read What's New in the app, the [0.6.502 release page](docs/release-0.6.502.html), or the [complete GitHub Pages release archive](docs/releases.html).
+Latest GitHub build: **0.6.503 — Fourier**. Opt-in behavior triage previews prototype-marked narrow and Windows UTF-16 strings, labels watched API events by behavior category, and supports category filtering and export summaries. Read What's New in the app, the [0.6.503 release page](docs/release-0.6.503.html), or the [complete GitHub Pages release archive](docs/releases.html).
 
 ## IDA Pro parity status
 
@@ -179,7 +179,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 ### Debug and exchange data
 
 - Drive LLDB from the debugger window: launch or attach to a local PID, step, continue, pause, inspect registers, stack, backtrace and 128-byte memory windows, set conditional or requested hardware breakpoints, evaluate watches, and use the command console. Restart a target after exit. Trace 100 or 1,000 instructions by single-stepping and recording each executed PC; traces are capped at 5,000 addresses. The trace view now resolves recent PCs to static function names and marks entries that match known analyst-triage signals.
-- Runtime trace review identifies observed transitions from direct or indirect call instructions into known functions, highlights transitions that match static behavior signals, and exports their step number and caller/callee addresses. Behavior API call-site events also retain x64/AArch64 argument-register values, label them from known prototypes, and include them in runtime-event TSV/JSON handoffs. An opt-in narrow C-string preview reads at most 96 bytes for up to four prototype-marked character pointers.
+- Runtime trace review identifies observed transitions from direct or indirect call instructions into known functions, highlights transitions that match static behavior signals, and exports their step number and caller/callee addresses. Behavior API call-site events retain x64/AArch64 argument-register values, label them from known prototypes, and include them in runtime-event TSV/JSON handoffs. An opt-in string preview reads at most four prototype-marked pointers per event: 96 bytes for narrow strings or 192 bytes for Windows UTF-16. Runtime event categories are inferred from API names for process, filesystem, registry, memory, network, and anti-debugging activity; they can be filtered in the debugger and are included in handoff summaries. These labels describe API families and heuristic matches, not confirmed behavior.
 - Decompiler pointee recovery seeds from the current function prototype and carries pointer types through integer-offset arithmetic and conditional pointer selections before dereferencing.
 - Dynamic and malware analysis are an explicit roadmap area: Lens is adding behavior-oriented trace triage, static capability clues, and explainable analyst signals. These signals are heuristics for review, not an automated malware verdict.
 - Connect to a GDB remote server with `gdb-remote` for supported targets.

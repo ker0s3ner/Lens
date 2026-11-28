@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.503 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.503 — Fourier</h1><p class="lead">More useful dynamic behavior triage.</p><ul>
+<li>Show watched API events under process, filesystem, registry, memory, network, and anti-debugging categories when their names match known APIs.</li>
+<li>Filter the runtime event list by category, independently of the triage-only severity filter.</li>
+<li>Include category labels in event TSV and JSON and per-category counts in dynamic-trace JSON.</li>
+<li>Preview common Windows UTF-16 parameters such as <code>LPCWSTR</code>, <code>LPWSTR</code>, <code>PCWSTR</code>, and <code>PWSTR</code> when the opt-in is enabled.</li>
+<li>Bound Windows UTF-16 reads to 192 bytes (96 code units), decode surrogate pairs lossily, and stop at the first null code unit.</li>
+<li>Retain the four-argument event limit, the 96-byte narrow-string limit, raw pointer values, and unreadable-pointer behavior.</li>
+<li>Categories come from imported API names and static heuristic matches. They are triage labels, not operating-system telemetry or proof an operation completed.</li>
+</ul><p>The weighted IDA Pro parity estimate remains 41.8%; the 50% target remains unmet. The build and release artifact were produced by GitHub Actions.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.503">GitHub release</a></p></main></body></html>
