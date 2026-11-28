@@ -37,6 +37,7 @@ struct NativeSession {
     traced: bool,
     output: Arc<Mutex<String>>,
     stop_reason: Option<String>,
+    stop_signal: Option<libc::c_int>,
 }
 
 fn capture_output<R: Read + Send + 'static>(mut reader: R, output: Arc<Mutex<String>>, label: &'static str) {
@@ -94,13 +95,13 @@ fn trace_me() -> io::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
+fn trace_continue(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
     // SAFETY: this session owns the traced child PID and it is stopped.
     if unsafe {
         libc::ptrace(
             libc::PTRACE_CONT,
             pid,
-            std::ptr::null_mut::<libc::c_void>(),
+            signal as usize as *mut libc::c_void,
             std::ptr::null_mut::<libc::c_void>(),
         )
     } == -1
@@ -112,9 +113,9 @@ fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
+fn trace_continue(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
     // SAFETY: address 1 means continue from the child's current instruction.
-    if unsafe { libc::ptrace(libc::PT_CONTINUE, pid, 1_usize as *mut libc::c_char, 0) } == -1 {
+    if unsafe { libc::ptrace(libc::PT_CONTINUE, pid, 1_usize as *mut libc::c_char, signal) } == -1 {
         Err(io::Error::last_os_error())
     } else {
         Ok(())
@@ -122,13 +123,13 @@ fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-fn trace_step(pid: libc::pid_t) -> io::Result<()> {
+fn trace_step(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
     // SAFETY: this session owns the stopped traced child PID.
     if unsafe {
         libc::ptrace(
             libc::PTRACE_SINGLESTEP,
             pid,
-            std::ptr::null_mut::<libc::c_void>(),
+            signal as usize as *mut libc::c_void,
             std::ptr::null_mut::<libc::c_void>(),
         )
     } == -1
@@ -140,9 +141,9 @@ fn trace_step(pid: libc::pid_t) -> io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn trace_step(pid: libc::pid_t) -> io::Result<()> {
+fn trace_step(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
     // SAFETY: address 1 means step the stopped traced child from its current instruction.
-    if unsafe { libc::ptrace(libc::PT_STEP, pid, 1_usize as *mut libc::c_char, 0) } == -1 {
+    if unsafe { libc::ptrace(libc::PT_STEP, pid, 1_usize as *mut libc::c_char, signal) } == -1 {
         Err(io::Error::last_os_error())
     } else {
         Ok(())
@@ -191,6 +192,7 @@ impl NativeSession {
             traced: start_paused,
             output,
             stop_reason: None,
+            stop_signal: None,
         };
         if start_paused {
             session.wait_for_initial_stop()?;
@@ -213,6 +215,7 @@ impl NativeSession {
                 if libc::WIFSTOPPED(status) {
                     self.state = State::Paused;
                     let signal = libc::WSTOPSIG(status);
+                    self.stop_signal = Some(signal);
                     let name = match signal {
                         libc::SIGTRAP => "SIGTRAP",
                         libc::SIGSTOP => "SIGSTOP",
@@ -304,7 +307,9 @@ impl NativeSession {
             return Ok(());
         }
         if self.traced && self.state == State::Paused {
-            trace_continue(self.child.id() as libc::pid_t)?;
+            let signal = self.stop_signal.filter(|signal| !matches!(*signal, libc::SIGSTOP | libc::SIGTRAP)).unwrap_or(0);
+            trace_continue(self.child.id() as libc::pid_t, signal)?;
+            self.stop_signal = None;
             self.state = State::Running;
             Ok(())
         } else {
@@ -317,7 +322,9 @@ impl NativeSession {
         if !self.live() || !self.traced || self.state != State::Paused {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "single-step requires a paused native trace session"));
         }
-        trace_step(self.child.id() as libc::pid_t)?;
+        let signal = self.stop_signal.filter(|signal| !matches!(*signal, libc::SIGSTOP | libc::SIGTRAP)).unwrap_or(0);
+        trace_step(self.child.id() as libc::pid_t, signal)?;
+        self.stop_signal = None;
         self.state = State::Running;
         self.wait_for_initial_stop()
     }
