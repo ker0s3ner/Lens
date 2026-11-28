@@ -178,12 +178,25 @@ impl NativeSession {
         self.state = State::Paused;
         self.stop_signal = Some(signal);
         let name = match signal {
+            libc::SIGHUP => "SIGHUP",
+            libc::SIGINT => "SIGINT",
+            libc::SIGQUIT => "SIGQUIT",
             libc::SIGTRAP => "SIGTRAP",
             libc::SIGSTOP => "SIGSTOP",
+            libc::SIGCONT => "SIGCONT",
+            libc::SIGALRM => "SIGALRM",
+            libc::SIGUSR1 => "SIGUSR1",
+            libc::SIGUSR2 => "SIGUSR2",
+            libc::SIGPIPE => "SIGPIPE",
+            libc::SIGTERM => "SIGTERM",
+            libc::SIGBUS => "SIGBUS",
             libc::SIGSEGV => "SIGSEGV",
             libc::SIGILL => "SIGILL",
             libc::SIGABRT => "SIGABRT",
             libc::SIGFPE => "SIGFPE",
+            libc::SIGXCPU => "SIGXCPU",
+            libc::SIGXFSZ => "SIGXFSZ",
+            libc::SIGSYS => "SIGSYS",
             _ => "signal",
         };
         self.stop_reason = Some(format!("{name} ({signal})"));
