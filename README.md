@@ -111,6 +111,7 @@ The current engineering estimate is **about 42–47% of IDA Pro in practical wor
 - `threat_signals()` returns explainable static analyst-triage clues with severity, name and evidence fields for defensive automation; these are heuristics, not malware verdicts.
 - Possible process injection requires paired memory-operation and execution-control imports; the heuristic covers Linux `process_vm_writev` with `ptrace`, Windows APC/context APIs, and Mach memory writes with remote-thread controls.
 - Process-control triage includes Windows Nt/Zw suspend and resume calls, with built-in signatures for recovering their process arguments.
+- Built-in Nt/Zw process-query, open, close, and handle-duplication prototypes improve argument and return-type recovery in native Windows binaries.
 - `--report` prints the same triage clues for terminal workflows, while `--json` includes them in the `threat_signals` array.
 - Smoke and golden-analysis checks assert that triage data remains present in machine-readable reports.
 - Database JSON exports also preserve `threat_signals`, keeping defensive review context attached to shared analysis.
