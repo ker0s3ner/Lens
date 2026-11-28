@@ -66,29 +66,45 @@ fn function_pointer_cast_type(ty: &str) -> Option<String> {
     Some(format!("{} (*)({})", proto.ret, params.join(", ")))
 }
 
+fn unqualified_type(mut ty: &str) -> &str {
+    loop {
+        if let Some(rest) = ["const ", "volatile ", "restrict "]
+            .iter()
+            .find_map(|qualifier| ty.trim_start().strip_prefix(*qualifier))
+        {
+            ty = rest.trim_start();
+            continue;
+        }
+        if let Some(qualifier) = [" const", " volatile", " restrict"]
+            .iter()
+            .find(|qualifier| ty.trim_end().ends_with(**qualifier))
+        {
+            ty = ty.trim_end();
+            ty = &ty[..ty.len() - qualifier.len()];
+            continue;
+        }
+        return ty.trim();
+    }
+}
+
 fn function_pointer_proto_with_aliases(ty: &str, structs: &[crate::types::StructDef]) -> Option<crate::protos::Proto> {
-    let mut current = ty.trim().to_string();
+    let mut current = unqualified_type(ty).to_string();
     let mut seen = HashSet::new();
     for _ in 0..=structs.len() {
         if let Some(proto) = function_pointer_proto(&current) { return Some(proto); }
         let name = current.trim_start_matches("struct ").trim_start_matches("union ").trim();
         if !seen.insert(name.to_string()) { return None; }
-        current = structs.iter().find(|def| def.name == name)?.alias_of.as_deref()?.trim().to_string();
+        current = unqualified_type(structs.iter().find(|def| def.name == name)?.alias_of.as_deref()?).to_string();
     }
     None
 }
 
 fn pointer_target_type(ty: &str, structs: &[crate::types::StructDef]) -> Option<String> {
-    let mut current = ty.trim().to_string();
-    for qualifier in ["const ", "volatile ", "restrict "] {
-        current = current.trim_start_matches(qualifier).trim().to_string();
-    }
+    let mut current = unqualified_type(ty).to_string();
     let mut seen = HashSet::new();
     let mut pointer = false;
     for _ in 0..=structs.len() {
-        for qualifier in [" const", " volatile", " restrict"] {
-            current = current.trim_end_matches(qualifier).trim().to_string();
-        }
+        current = unqualified_type(&current).to_string();
         if let Some(target) = current.strip_suffix('*') {
             pointer = true;
             current = target.trim().to_string();
@@ -105,9 +121,7 @@ fn pointer_target_type(ty: &str, structs: &[crate::types::StructDef]) -> Option<
         };
         if pointer && !def.fields.is_empty() { return Some(current); }
         current = def.alias_of.as_deref()?.trim().to_string();
-        for qualifier in ["const ", "volatile ", "restrict "] {
-            current = current.trim_start_matches(qualifier).trim().to_string();
-        }
+        current = unqualified_type(&current).to_string();
     }
     None
 }
@@ -333,21 +347,13 @@ impl Fmt<'_> {
         let Some(actual_target) = self.pointer_target(&actual_type) else {
             return format!("({expected}){shown}");
         };
-        let normalize = |ty: &str| {
-            ty.trim().trim_start_matches("const ").trim_start_matches("volatile ").trim_start_matches("restrict ").trim().to_string()
-        };
+        let normalize = |ty: &str| unqualified_type(ty).to_string();
         if normalize(&expected_target) == "void" || normalize(&expected_target) == normalize(&actual_target) { shown }
         else { format!("({expected}){shown}") }
     }
 
     fn struct_def(&self, ty: &str) -> Option<&crate::types::StructDef> {
-        let mut qualified = ty.trim().to_string();
-        for qualifier in ["const ", "volatile ", "restrict "] {
-            qualified = qualified.trim_start_matches(qualifier).trim().to_string();
-        }
-        for qualifier in [" const", " volatile", " restrict"] {
-            qualified = qualified.trim_end_matches(qualifier).trim().to_string();
-        }
+        let qualified = unqualified_type(ty).to_string();
         let mut name = qualified.as_str();
         let mut seen = std::collections::HashSet::new();
         for _ in 0..=self.structs.len() {
@@ -366,15 +372,37 @@ impl Fmt<'_> {
         pointer_target_type(ty, self.structs)
     }
 
+    fn pointed_element_size(&self, pointer: &Ex) -> Option<i64> {
+        let pointer_type = self.expression_type(pointer)?;
+        let element = self.pointer_target(&pointer_type)?;
+        let qualified = unqualified_type(&element);
+        let name = qualified.strip_prefix("struct ").or_else(|| qualified.strip_prefix("union ")).or_else(|| qualified.strip_prefix("enum ")).unwrap_or(qualified).trim();
+        if let Some(definition) = self.structs.iter().find(|definition| definition.name == name) {
+            return (definition.size > 0).then_some(definition.size as i64);
+        }
+        let scalar = qualified.strip_prefix("unsigned ").or_else(|| qualified.strip_prefix("signed ")).unwrap_or(qualified).trim();
+        Some(match scalar {
+            "char" | "char8_t" | "signed char" | "unsigned char" | "int8_t" | "uint8_t" | "i8" | "u8" | "bool" | "_Bool" | "BYTE" | "byte" => 1,
+            "short" | "short int" | "signed short" | "unsigned short" | "char16_t" | "wchar_t" | "int16_t" | "uint16_t" | "i16" | "u16" | "WORD" => 2,
+            "int" | "signed" | "signed int" | "unsigned" | "unsigned int" | "char32_t" | "int32_t" | "uint32_t" | "i32" | "u32" | "float" | "DWORD" | "HRESULT" | "ULONG" | "pid_t" | "socklen_t" => 4,
+            "long" | "long long" | "long long int" | "signed long long" | "unsigned long long" | "int64_t" | "uint64_t" | "i64" | "u64" | "double" | "size_t" | "ssize_t" | "intptr_t" | "uintptr_t" | "ptrdiff_t" | "off_t" | "time_t" | "QWORD" | "ULONG_PTR" | "DWORD_PTR" | "WPARAM" | "LPARAM" | "LRESULT" => 8,
+            "__int128" | "__uint128" | "__int128_t" | "__uint128_t" => 16,
+            _ => return None,
+        })
+    }
+
     fn resolve_struct_path(&self, def: &crate::types::StructDef, offset: i64, depth: usize) -> Option<String> {
         if depth > self.structs.len() { return None; }
-        let field = def.fields.iter().find(|field| {
+        if def.is_union && def.fields.len() > 1 { return None; }
+        let mut fields = def.fields.iter().filter(|field| {
             let end = field.off as i64 + field.size as i64;
             offset >= field.off as i64 && offset < end
-        })?;
+        });
+        let field = fields.next()?;
+        if fields.next().is_some() { return None; }
         let relative = offset - field.off as i64;
         if relative == 0 && !field.ty.contains('[') { return Some(field.name.clone()); }
-        let ty = field.ty.trim().trim_start_matches("const ").trim();
+        let ty = unqualified_type(&field.ty);
         let named = ty.strip_prefix("struct ").or_else(|| ty.strip_prefix("union ")).unwrap_or(ty);
         if !named.contains('[') {
             if let Some(nested) = self.struct_def(named) {
@@ -389,7 +417,7 @@ impl Fmt<'_> {
         if count <= 0 || field.size as i64 % count != 0 { return None; }
         let element_size = field.size as i64 / count;
         let index = relative / element_size;
-        let element_ty = field.ty[..open].trim().trim_start_matches("const ").trim();
+        let element_ty = unqualified_type(&field.ty[..open]);
         let element_name = element_ty.strip_prefix("struct ").or_else(|| element_ty.strip_prefix("union ")).unwrap_or(element_ty);
         if element_size > 0 && relative % element_size >= 0 {
             if let Some(element_def) = self.struct_def(element_name) {
@@ -409,31 +437,11 @@ impl Fmt<'_> {
         let Ex::Num(raw) = &**offset else { return None };
         let byte_offset = if *op == "+" { *raw } else { raw.wrapping_neg() };
         if byte_offset < 0 { return None; }
-        let ty_owned = match &**base {
-            Ex::Var(name) => self.types.get(name).cloned(),
-            Ex::CastOwned(ty, _) => Some(ty.clone()),
-            Ex::Cast(ty, _) => Some((*ty).to_string()),
-            Ex::Tern(_, _, _) => call_return_type(base),
-            Ex::Call(callee, _) => match &**callee {
-                Ex::Var(name) => crate::protos::find(name).map(|proto| proto.ret),
-                Ex::Cast(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
-                Ex::CastOwned(ty, _) => function_pointer_proto(ty).map(|proto| proto.ret),
-                _ => None,
-            },
-            _ => None,
-        }?;
+        let ty_owned = self.expression_type(base)?;
         let ty = self.pointer_target(&ty_owned)?;
         let ty = ty.trim().trim_start_matches("const ").trim();
         if !ty.starts_with("struct ") && !ty.starts_with("union ") {
-            let element_size = match ty {
-                "char" | "int8_t" | "uint8_t" | "u8" | "i8" => 1,
-                "short" | "int16_t" | "uint16_t" | "u16" | "i16" => 2,
-                "int" | "int32_t" | "uint32_t" | "u32" | "i32" | "float" => 4,
-                "long" | "long long" | "int64_t" | "uint64_t" | "u64" | "i64" | "double" => 8,
-                "__int128" | "__uint128" | "__int128_t" | "__uint128_t" => 16,
-                _ => 0,
-            };
-            if element_size > 0 && byte_offset % element_size == 0 {
+            if let Some(element_size) = self.pointed_element_size(base).filter(|size| byte_offset % *size == 0) {
                 return Some(format!("{}[{}]", self.at(base, 99), byte_offset / element_size));
             }
         }
@@ -498,16 +506,9 @@ impl Fmt<'_> {
             _ => return None,
         };
         if stride <= 0 || stride > u8::MAX as i64 { return None; }
-        let pointer = match &**base {
-            Ex::Var(name) => self.types.get(name).is_some_and(|ty| self.pointer_target(ty).is_some()),
-            Ex::Call(callee, _) => call_return_type(callee).is_some_and(|ty| self.pointer_target(&ty).is_some()),
-            Ex::Tern(_, _, _) | Ex::Bin(_, _, _) => call_return_type(base).is_some_and(|ty| self.pointer_target(&ty).is_some()),
-            Ex::Cast(ty, _) => self.pointer_target(ty).is_some(),
-            Ex::CastOwned(ty, _) => self.pointer_target(ty).is_some(),
-            _ => false,
-        };
+        if self.pointed_element_size(base)? != stride { return None; }
         let index = if reverse { Ex::Un("-", Box::new(index.clone())) } else { index.clone() };
-        pointer.then(|| (self.at(base, 3), self.at(&index, 99)))
+        Some((self.at(base, 3), self.at(&index, 99)))
     }
 
     fn variable_struct_field(&self, address: &Ex) -> Option<String> {

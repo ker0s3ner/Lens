@@ -1,3 +1,21 @@
+# Lens 0.6.496 — Fourier
+
+- Validate inferred pointer-index strides against the recovered pointee size before rendering `p[i]`.
+- Reuse one pointee-size calculation for constant offsets and scaled variable indexes.
+- Resolve user-defined scalar and enum typedef sizes when rendering pointer offsets.
+- Recognize C character types including `char8_t`, `char16_t`, and `char32_t` in pointer indexing.
+- Recognize `_Bool` and `bool` pointee widths.
+- Recognize Windows byte, word, integer, HRESULT, and pointer-sized aliases in type recovery.
+- Recognize common POSIX process and socket scalar aliases in pointer indexing.
+- Recover pointer types through typed calls, function-pointer aliases, conditional expressions, and pointer arithmetic.
+- Normalize repeated `const`, `volatile`, and `restrict` qualifiers across pointer, callback, and nested field types.
+- Follow qualified nested record aliases and qualified array element types during member-path recovery.
+- Keep ambiguous multi-member union accesses as explicit memory expressions instead of selecting an arbitrary field.
+- Keep overlapping bitfield storage accesses explicit when the byte offset cannot identify one field.
+- Preserve 64-bit `long`, `size_t`, and related scalar widths from the current type-layout model.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.495 — Fourier
 
 - Prevent Thumb PC-relative switch-table bases from wrapping at the top of the address space.

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.496 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.496 — Fourier</h1><p class="lead">Type-aware pointer indexing and safer record-member recovery.</p><ul>
+<li>Validate scaled pointer-index strides against the recovered pointee size before rendering `p[i]`.</li>
+<li>Use one pointee-size calculation for constant offsets and scaled variable indexes.</li>
+<li>Resolve user-defined scalar and enum typedef sizes when rendering pointer offsets.</li>
+<li>Recognize C character widths for `char8_t`, `char16_t`, and `char32_t`.</li>
+<li>Recognize `_Bool` and `bool` pointee widths.</li>
+<li>Recognize Windows byte, word, integer, HRESULT, and pointer-sized aliases.</li>
+<li>Recognize common POSIX process and socket scalar aliases.</li>
+<li>Recover pointer types through typed calls, function-pointer aliases, conditional expressions, and pointer arithmetic.</li>
+<li>Normalize repeated `const`, `volatile`, and `restrict` qualifiers across pointer, callback, and nested field types.</li>
+<li>Follow qualified nested record aliases and qualified array element types during member-path recovery.</li>
+<li>Keep ambiguous multi-member union accesses explicit instead of selecting an arbitrary field.</li>
+<li>Keep overlapping bitfield storage accesses explicit when byte offsets cannot identify one field.</li>
+<li>Preserve the current type-layout model's widths for 64-bit `long`, `size_t`, and related scalar aliases.</li>
+<li>Weighted parity remains 41.8%; the 50% target remains unmet.</li>
+<li>GitHub Actions builds the release artifact; no local build or installation was performed.</li>
+</ul><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.496">GitHub release</a></p></main></body></html>
