@@ -2983,7 +2983,7 @@ fn decompile_inner(
         proto.params.iter().enumerate().map(|(index, (ty, _))| (format!("a{}", index + 1), ty.trim().to_string())).collect()
     }).unwrap_or_default();
     let rename_ref = rename.clone();
-    let render_types = infer_render_types_with_seeds(&outs, type_seeds);
+    let render_types = infer_render_types_with_seeds(&outs, type_seeds.clone());
     let enum_return = own_proto.as_ref().and_then(|p| p.ret.trim().strip_prefix("enum ").map(str::to_string));
     let enum_params: HashMap<String, String> = own_proto.as_ref().map(|p| p.params.iter().enumerate().filter_map(|(i, (ty, _))| ty.trim().strip_prefix("enum ").map(|name| (format!("a{}", i + 1), name.to_string()))).collect()).unwrap_or_default();
     let enum_vars = infer_enum_vars(&outs, &enum_params, &name, enum_return.as_deref());
@@ -3104,7 +3104,7 @@ fn decompile_inner(
     // Keep that information through copy/cast chains so a temporary introduced by the
     // lifter does not erase useful pointer or scalar type information.
     let mut assigned: HashMap<String, (usize, Option<String>)> = HashMap::new();
-    let mut known_types: HashMap<String, String> = HashMap::new();
+    let mut known_types: HashMap<String, String> = type_seeds;
     let mut assignments = Vec::new();
     for o in &outs {
         for (_, st) in &o.stmts {
@@ -3122,29 +3122,11 @@ fn decompile_inner(
         for (t, rhs) in &assignments {
             let ty = match rhs {
                 Ex::Call(c, _) => call_return_type(c),
-                Ex::Deref(inner, _) => match &**inner {
-                    Ex::Call(c, _) => call_pointee_type(c),
-                    Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
-                    Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                    Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                    Ex::Tern(_, yes, no) => {
-                        let pointee = |e: &Ex| match e {
-                            Ex::Call(c, _) => call_pointee_type(c),
-                            Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
-                            Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                            Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                            _ => None,
-                        };
-                        let a = pointee(yes);
-                        let b = pointee(no);
-                        (a == b).then(|| a).flatten()
-                    }
-                    _ => None,
-                },
+                Ex::Deref(inner, _) => render_pointee_type(inner, &known_types),
                 Ex::Cast(ty, _) => Some((*ty).to_string()),
                 Ex::CastOwned(ty, _) => Some(ty.clone()),
                 Ex::Var(v) => known_types.get(v).cloned(),
-                Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
+                Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types).is_none() => match &**left {
                     Ex::Var(v) => known_types.get(v).cloned(),
                     _ => None,
                 },
@@ -3174,29 +3156,11 @@ fn decompile_inner(
     for (t, rhs) in &assignments {
         let ty = match rhs {
             Ex::Call(c, _) => call_return_type(c),
-            Ex::Deref(inner, _) => match &**inner {
-                Ex::Call(c, _) => call_pointee_type(c),
-                Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
-                Ex::Cast(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                Ex::CastOwned(ty, _) => ty.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                Ex::Tern(_, yes, no) => {
-                    let pointee = |e: &Ex| match e {
-                        Ex::Call(c, _) => call_pointee_type(c),
-                        Ex::Var(v) => known_types.get(v).and_then(|ty| ty.strip_suffix('*').map(|p| p.trim().to_string())),
-                        Ex::Cast(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                        Ex::CastOwned(t, _) => t.trim().strip_suffix('*').map(|p| p.trim().to_string()),
-                        _ => None,
-                    };
-                    let a = pointee(yes);
-                    let b = pointee(no);
-                    (a == b).then(|| a).flatten()
-                }
-                _ => None,
-            },
+            Ex::Deref(inner, _) => render_pointee_type(inner, &known_types),
             Ex::Cast(ty, _) => Some((*ty).to_string()),
             Ex::CastOwned(ty, _) => Some(ty.clone()),
             Ex::Var(v) => known_types.get(v).cloned(),
-            Ex::Bin("+" | "-", left, right) if matches!(**right, Ex::Num(_)) => match &**left {
+            Ex::Bin("+" | "-", left, right) if render_pointee_type(right, &known_types).is_none() => match &**left {
                 Ex::Var(v) => known_types.get(v).cloned(),
                 _ => None,
             },
