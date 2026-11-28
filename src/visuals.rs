@@ -782,15 +782,17 @@ impl LensApp {
             // A curve can cross the viewport even when both nodes are outside it.
             let bounds = Rect::from_two_pos(s, e).union(Rect::from_two_pos(c1, c2));
             if !bounds.intersects(edge_view) { continue; }
-            // Keep the curve as a cubic shape instead of allocating a sampled
-            // point vector for every visible edge on every repaint. Dense graphs
-            // can repaint continuously while panning or hovering.
-            painter.add(Shape::CubicBezier(egui::epaint::CubicBezierShape::from_points_stroke(
-                [s, c1, c2, e],
-                false,
-                Color32::TRANSPARENT,
-                Stroke::new(if hot { 2.0 } else { 1.2 }, col),
-            )));
+            let pts: Vec<Pos2> = (0..=6)
+                .map(|i| {
+                    let t = i as f32 / 6.0;
+                    let u = 1.0 - t;
+                    pos2(
+                        u * u * u * s.x + 3.0 * u * u * t * c1.x + 3.0 * u * t * t * c2.x + t * t * t * e.x,
+                        u * u * u * s.y + 3.0 * u * u * t * c1.y + 3.0 * u * t * t * c2.y + t * t * t * e.y,
+                    )
+                })
+                .collect();
+            painter.add(Shape::line(pts, Stroke::new(if hot { 2.0 } else { 1.2 }, col)));
             let tangent = e - c2;
             let dir = if tangent.length_sq() > f32::EPSILON { tangent.normalized() } else { vec2(1.0, 0.0) };
             let sz = 7.0 * z.max(0.6);
