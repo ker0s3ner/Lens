@@ -71,7 +71,7 @@ pub struct Function {
     pub noreturn: bool,
     pub calls: Vec<u64>,
     pub has_symbol: bool,
-    /// Direct forwarding target for a one-instruction thunk, when known.
+    /// Resolved forwarding target for a small thunk, when known.
     pub thunk_target: Option<u64>,
 }
 
@@ -1696,7 +1696,7 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
         v.dedup_by(|a, b| a.from == b.from && a.kind == b.kind);
     }
 
-    // Mark one-instruction forwarding thunks after discovery is complete, so
+    // Mark small forwarding thunks after discovery is complete, so
     // targets reached later in the queue are visible too. Import-slot jumps
     // are also forwarding thunks even though their branch target is indirect.
     let function_starts: HashSet<u64> = functions.keys().copied().collect();
@@ -1726,13 +1726,78 @@ pub fn analyze(bin: &Binary, settings: &Settings, progress: Arc<AtomicU32>) -> A
             let Some((decoded, _)) = decode_at(bin, addr) else { return false };
             matches!(decoded.mnemonic(), Mnemonic::Nop | Mnemonic::Endbr32 | Mnemonic::Endbr64)
         };
-        if f.blocks.len() == 1 && ordered[..ordered.len().saturating_sub(1)].iter().all(|a| padding(*a)) {
-            if last.flow == Flow::Jump
+        if f.blocks.len() == 1 {
+            let padding_prefix = ordered[..ordered.len().saturating_sub(1)].iter().all(|a| padding(*a));
+            if padding_prefix && last.flow == Flow::Jump
                 && last.target != f.start
                 && (function_starts.contains(&last.target) || sym_at.contains_key(&last.target) || import_starts.contains(&last.target))
             { f.thunk_target = Some(last.target); }
-            else if last.flow == Flow::IndirectJump && import_slot.contains_key(&last.mem)
+            else if padding_prefix && last.flow == Flow::IndirectJump && import_slot.contains_key(&last.mem)
             { f.thunk_target = Some(last.mem); }
+            else if bin.arch.is_x86() && last.flow == Flow::IndirectJump && last.mem == 0 {
+                // Optimized forwarding stubs sometimes materialize a fixed
+                // target in a register immediately before `jmp reg`.
+                if let (Some((jump, _)), Some(&move_addr)) = (decode_at(bin, last_addr), ordered.iter().rev().nth(1)) {
+                    if jump.op0_kind() == OpKind::Register {
+                        if let Some((mov, _)) = decode_at(bin, move_addr) {
+                            let move_info = insns.get(&move_addr).copied().unwrap_or_else(|| insn_info(bin, &mov));
+                            let target = match mov.op1_kind() {
+                                OpKind::Immediate32 => Some(mov.immediate32() as u64),
+                                OpKind::Immediate32to64 => Some(mov.immediate32to64() as u64),
+                                OpKind::Immediate64 => Some(mov.immediate64()),
+                                OpKind::Memory if import_slot.contains_key(&move_info.mem) => Some(move_info.mem),
+                                _ => None,
+                            };
+                            let target = target.or_else(|| {
+                                (mov.mnemonic() == Mnemonic::Lea
+                                    && mov.op1_kind() == OpKind::Memory
+                                    && mov.is_ip_rel_memory_operand())
+                                    .then(|| mov.ip_rel_memory_address())
+                            });
+                            if matches!(mov.mnemonic(), Mnemonic::Mov | Mnemonic::Lea)
+                                && mov.op0_kind() == OpKind::Register
+                                && mov.op0_register() == jump.op0_register()
+                                && target.is_some_and(|target| target != f.start
+                                    && (function_starts.contains(&target) || sym_at.contains_key(&target) || import_starts.contains(&target)))
+                            {
+                                let target = target.unwrap();
+                                f.thunk_target = Some(target);
+                                if !f.calls.contains(&target) {
+                                    f.calls.push(target);
+                                    f.calls.sort_unstable();
+                                    tail_calls.push((last_addr, target));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Older 32-bit x86 import veneers often encode an absolute target
+            // as `push imm32; ret`, which is a tail transfer rather than a
+            // function return when the pushed value names a known function.
+            else if bin.arch.is_x86() && last.flow == Flow::Ret {
+                if let Some(&push_addr) = ordered.iter().rev().nth(1) {
+                    if let Some((push, _)) = decode_at(bin, push_addr) {
+                        let target = match push.op0_kind() {
+                            OpKind::Immediate8to32 => Some(push.immediate8to32() as u64),
+                            OpKind::Immediate32 => Some(push.immediate32() as u64),
+                            _ => None,
+                        };
+                        if push.mnemonic() == Mnemonic::Push
+                            && target.is_some_and(|target| target != f.start
+                                && (function_starts.contains(&target) || sym_at.contains_key(&target) || import_starts.contains(&target)))
+                        {
+                            let target = target.unwrap();
+                            f.thunk_target = Some(target);
+                            if !f.calls.contains(&target) {
+                                f.calls.push(target);
+                                f.calls.sort_unstable();
+                                tail_calls.push((last_addr, target));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     for (from, to) in tail_calls {

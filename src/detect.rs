@@ -118,11 +118,15 @@ impl Detection {
 fn correlated_signal(out: &mut Vec<ThreatSignal>, capabilities: &[Capability], left: &str, right: &str, severity: u8, name: &str, context: &str) {
     let find = |name: &str| capabilities.iter().find(|c| c.name == name);
     if let (Some(a), Some(b)) = (find(left), find(right)) {
+        let mut apis = a.apis.iter().chain(&b.apis).cloned().collect::<Vec<_>>();
+        apis.sort();
+        apis.dedup();
         out.push(ThreatSignal {
             severity,
             name: name.into(),
             evidence: format!(
-                "{context}; {left}: {}; {right}: {}; inspect call sites to confirm a relationship",
+                "imports: {}; {left}: {}; {right}: {}; {context}; inspect call sites to confirm a relationship",
+                apis.join(", "),
                 a.apis.join(", "),
                 b.apis.join(", ")
             ),
@@ -617,9 +621,9 @@ fn bundle_info(path: &str) -> (Vec<String>, Vec<(String, String)>) {
 
 const CAPS: &[(&str, &[&str])] = &[
     ("Network", &["socket", "connect", "WSAStartup", "WSASocket", "InternetOpen", "InternetConnect", "WinHttp", "URLDownloadToFile", "getaddrinfo", "gethostbyname", "curl_easy", "CFNetwork", "NSURLSession", "NSURLConnection", "send", "recv", "bind", "listen", "accept", "SSL_", "inet_"]),
-    ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir", "shm_open", "shm_unlink", "fallocate", "ftruncate"]),
+    ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "unlinkat", "opendir", "readdir", "stat", "NSFileManager", "open", "openat", "rename", "renameat", "renameat2", "copy_file_range", "splice", "mkdir", "shm_open", "shm_unlink", "fallocate", "ftruncate"]),
     ("Data removal", &["DeleteFile", "RemoveDirectory", "SHFileOperation", "unlink", "unlinkat", "remove", "rmdir", "truncate", "ftruncate", "SetEndOfFile"]),
-    ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fexecve", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
+    ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execveat", "execl", "execv", "fexecve", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
     ("Process control", &["TerminateProcess", "task_terminate", "NtSuspendProcess", "ZwSuspendProcess", "NtResumeProcess", "ZwResumeProcess", "kill", "killpg", "tgkill", "pidfd_send_signal"]),
     ("File downloads", &["URLDownloadToFile", "URLDownloadToCacheFile", "InternetReadFile", "WinHttpReadData", "URLSessionDownloadTask"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
@@ -629,6 +633,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
     ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "NtReadVirtualMemory", "ZwReadVirtualMemory", "NtQueryVirtualMemory", "ZwQueryVirtualMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "mremap", "madvise", "mlock", "munlock", "ptrace", "task_for_pid", "mach_vm_"]),
     ("Shared and anonymous memory APIs", &["memfd_create", "memfd_secret", "shm_open", "shmget", "shmat"]),
+    ("Sandbox and syscall policy", &["seccomp", "prctl", "landlock_create_ruleset", "pledge", "unveil"]),
     ("Process injection primitives", &["WriteProcessMemory", "NtWriteVirtualMemory", "ZwWriteVirtualMemory", "NtAllocateVirtualMemory", "ZwAllocateVirtualMemory", "NtProtectVirtualMemory", "ZwProtectVirtualMemory", "NtMapViewOfSection", "ZwMapViewOfSection", "process_vm_writev", "mach_vm_write", "mach_vm_allocate", "mach_vm_map", "mach_vm_protect", "task_write_for_pid", "VirtualAllocEx", "CreateRemoteThread", "NtCreateThreadEx", "ZwCreateThreadEx", "QueueUserAPC", "NtQueueApcThread", "ZwQueueApcThread", "RtlCreateUserThread", "SetThreadContext", "NtSetContextThread", "ZwSetContextThread", "thread_create_running", "thread_set_state", "ptrace"]),
     ("Anti-debugging", &["IsDebuggerPresent", "CheckRemoteDebuggerPresent", "NtQueryInformationProcess", "OutputDebugString", "ptrace", "sysctl", "PT_DENY_ATTACH"]),
     ("Loads code at run time", &["LoadLibrary", "GetProcAddress", "LdrLoadDll", "dlopen", "dlsym", "NSBundle", "CFBundle", "fexecve"]),

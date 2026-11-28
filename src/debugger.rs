@@ -218,9 +218,11 @@ fn behavior_api_category(api: &str) -> &'static str {
         "network"
     } else if ["virtualalloc", "virtualprotect", "virtualfree", "createfilemapping", "mapview", "ntmapviewofsection", "mmap", "mremap", "mprotect", "madvise", "mlock", "munlock", "mincore", "brk", "sbrk", "valloc", "pvalloc", "memfd_create", "memfd_secret", "shm_open", "shmget", "shmat", "shmdt", "shmctl", "shm_unlink", "aligned_alloc", "posix_memalign", "reallocarray", "heapalloc", "heapfree", "malloc", "calloc", "realloc", "free", "writeprocessmemory", "readprocessmemory", "ntallocvirtualmemory", "ntprotectvirtualmemory"].iter().any(|name| api.contains(name)) {
         "memory"
-    } else if ["createfile", "ntcreatefile", "readfile", "ntreadfile", "writefile", "ntwritefile", "deletefile", "movefile", "copyfile", "fopen", "fread", "fwrite", "shm_open", "shm_unlink", "fallocate", "ftruncate", "open", "read", "write", "unlink", "rename", "remove", "chmod", "mkdir"].iter().any(|name| api == *name || api.ends_with(name)) {
+    } else if ["seccomp", "prctl", "landlock", "pledge", "unveil"].iter().any(|name| api.contains(name)) {
+        "sandbox"
+    } else if ["createfile", "ntcreatefile", "readfile", "ntreadfile", "writefile", "ntwritefile", "deletefile", "movefile", "copyfile", "copy_file_range", "splice", "fopen", "fread", "fwrite", "shm_open", "shm_unlink", "fallocate", "ftruncate", "openat2", "openat", "open", "read", "write", "unlinkat", "unlink", "renameat2", "renameat", "rename", "remove", "chmod", "mkdir"].iter().any(|name| api == *name || api.ends_with(name)) {
         "filesystem"
-    } else if ["createprocess", "shellexecute", "winexec", "createproc", "fork", "exec", "posix_spawn", "system", "popen", "createremotethread", "ntcreatethread", "openprocess", "terminateprocess", "ntterminateprocess", "waitforsingleobject"].iter().any(|name| api.contains(name)) {
+    } else if ["createprocess", "shellexecute", "winexec", "createproc", "fork", "exec", "posix_spawn", "pidfd_open", "pidfd_send_signal", "close_range", "system", "popen", "createremotethread", "ntcreatethread", "openprocess", "terminateprocess", "ntterminateprocess", "waitforsingleobject"].iter().any(|name| api.contains(name)) {
         "process"
     } else {
         "behavior-callsite"
@@ -1293,7 +1295,7 @@ impl LensApp {
                             .selected_text(if ui_state.event_category_filter.is_empty() { "All behavior categories" } else { ui_state.event_category_filter.as_str() })
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(&mut ui_state.event_category_filter, String::new(), "All behavior categories");
-                                for category in ["process", "filesystem", "registry", "memory", "network", "anti-debugging", "behavior-callsite", "fault", "signal", "breakpoint", "memory-watch", "process-exit", "stop"] {
+                                for category in ["process", "filesystem", "registry", "memory", "network", "anti-debugging", "sandbox", "behavior-callsite", "fault", "signal", "breakpoint", "memory-watch", "process-exit", "stop"] {
                                     ui.selectable_value(&mut ui_state.event_category_filter, category.to_string(), category);
                                 }
                             });

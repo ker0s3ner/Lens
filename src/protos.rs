@@ -294,6 +294,15 @@ void err(int eval, const char *fmt, ...) noreturn; void errx(int eval, const cha
 char *setlocale(int cat, const char *loc); int fchmod(int fd, mode_t mode); int rmdir(const char *path); int readlink(const char *path, char *buf, size_t n);
 // ---- POSIX
 int open(const char *path, int flags, ...); int close(int fd); ssize_t read(int fd, void *buf, size_t n); ssize_t write(int fd, const void *buf, size_t n);
+int openat(int dirfd, const char *path, int flags, ...); int openat2(int dirfd, const char *path, const void *how, size_t size);
+int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath); int renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned flags);
+int unlinkat(int dirfd, const char *path, int flags); int faccessat(int dirfd, const char *path, int mode, int flags); int fchownat(int dirfd, const char *path, uid_t owner, gid_t group, int flags);
+int execveat(int dirfd, const char *path, char *const argv[], char *const envp[], int flags);
+int close_range(unsigned first, unsigned last, unsigned flags); ssize_t getrandom(void *buf, size_t len, unsigned flags);
+int prctl(int option, ...); int seccomp(unsigned operation, unsigned flags, void *args);
+int pidfd_open(pid_t pid, unsigned flags); int pidfd_send_signal(int pidfd, int signal, const void *info, unsigned flags);
+int copy_file_range(int fd_in, long long *off_in, int fd_out, long long *off_out, size_t len, unsigned flags);
+ssize_t splice(int fd_in, long long *off_in, int fd_out, long long *off_out, size_t len, unsigned flags);
 ssize_t pread(int fd, void *buf, size_t n, off_t off); ssize_t pwrite(int fd, const void *buf, size_t n, off_t off);
 ssize_t readv(int fd, const void *iov, int count); ssize_t writev(int fd, const void *iov, int count);
 off_t lseek(int fd, off_t off, int whence); int stat(const char *path, void *st); int fstat(int fd, void *st); int unlink(const char *path); int access(const char *path, int mode);
