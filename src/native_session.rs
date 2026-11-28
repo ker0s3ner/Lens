@@ -119,6 +119,34 @@ fn trace_continue(pid: libc::pid_t) -> io::Result<()> {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn trace_step(pid: libc::pid_t) -> io::Result<()> {
+    // SAFETY: this session owns the stopped traced child PID.
+    if unsafe {
+        libc::ptrace(
+            libc::PTRACE_SINGLESTEP,
+            pid,
+            std::ptr::null_mut::<libc::c_void>(),
+            std::ptr::null_mut::<libc::c_void>(),
+        )
+    } == -1
+    {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn trace_step(pid: libc::pid_t) -> io::Result<()> {
+    // SAFETY: address 1 means step the stopped traced child from its current instruction.
+    if unsafe { libc::ptrace(libc::PT_STEP, pid, 1_usize as *mut libc::c_char, 0) } == -1 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
 impl NativeSession {
     fn launch(
         program: &Path,
@@ -266,6 +294,16 @@ impl NativeSession {
         }
     }
 
+    fn step(&mut self) -> io::Result<()> {
+        self.poll()?;
+        if !self.live() || !self.traced || self.state != State::Paused {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "single-step requires a paused native trace session"));
+        }
+        trace_step(self.child.id() as libc::pid_t)?;
+        self.state = State::Running;
+        self.wait_for_initial_stop()
+    }
+
     fn terminate(&mut self) -> io::Result<()> {
         self.signal(libc::SIGKILL)
     }
@@ -411,6 +449,9 @@ impl LensApp {
                 let paused = session.state == State::Paused;
                 ui.horizontal(|ui| {
                     ui.label(if paused { "Paused" } else { "Running" });
+                    if paused && session.traced && ui.button("Step instruction").clicked() {
+                        result = session.step();
+                    }
                     if paused && ui.button("Resume").clicked() {
                         result = session.resume();
                     }
