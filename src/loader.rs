@@ -142,7 +142,11 @@ fn is_elf_function_type(ty: u8) -> bool {
 
 impl Binary {
     pub fn segment_of(&self, a: u64) -> Option<&Segment> {
-        self.segments.iter().find(|s| s.contains(a))
+        // Segments are address-sorted after loading. Start at the last segment
+        // whose base is not above `a`; reverse scanning handles overlapping
+        // sections while avoiding a full scan for every decoded instruction.
+        let end = self.segments.partition_point(|s| s.start <= a);
+        self.segments[..end].iter().rev().find(|s| s.contains(a))
     }
     pub fn read(&self, a: u64, len: usize) -> &[u8] {
         if let Some(s) = self.segment_of(a) {
@@ -357,6 +361,7 @@ fn load_raw(bin: &mut Binary, bytes: &[u8]) {
         write: false,
         file_offset: Some(0),
     });
+    bin.segments.sort_by_key(|s| s.start);
 }
 
 fn load_elf(bin: &mut Binary, elf: &goblin::elf::Elf, bytes: &[u8]) {
