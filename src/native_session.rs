@@ -174,6 +174,22 @@ impl NativeSession {
         self.record_event(event);
     }
 
+    fn record_stop(&mut self, signal: libc::c_int) {
+        self.state = State::Paused;
+        self.stop_signal = Some(signal);
+        let name = match signal {
+            libc::SIGTRAP => "SIGTRAP",
+            libc::SIGSTOP => "SIGSTOP",
+            libc::SIGSEGV => "SIGSEGV",
+            libc::SIGILL => "SIGILL",
+            libc::SIGABRT => "SIGABRT",
+            libc::SIGFPE => "SIGFPE",
+            _ => "signal",
+        };
+        self.stop_reason = Some(format!("{name} ({signal})"));
+        self.record_event(format!("Stopped by {name} ({signal})"));
+    }
+
     fn launch(
         program: &Path,
         args: &[OsString],
@@ -245,20 +261,7 @@ impl NativeSession {
             };
             if result > 0 {
                 if libc::WIFSTOPPED(status) {
-                    self.state = State::Paused;
-                    let signal = libc::WSTOPSIG(status);
-                    self.stop_signal = Some(signal);
-                    let name = match signal {
-                        libc::SIGTRAP => "SIGTRAP",
-                        libc::SIGSTOP => "SIGSTOP",
-                        libc::SIGSEGV => "SIGSEGV",
-                        libc::SIGILL => "SIGILL",
-                        libc::SIGABRT => "SIGABRT",
-                        libc::SIGFPE => "SIGFPE",
-                        _ => "signal",
-                    };
-                    self.stop_reason = Some(format!("{name} ({signal})"));
-                    self.record_event(format!("Stopped by {name} ({signal})"));
+                    self.record_stop(libc::WSTOPSIG(status));
                     return Ok(());
                 }
                 if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
@@ -291,7 +294,7 @@ impl NativeSession {
             }
             if result > 0 {
                 if libc::WIFSTOPPED(status) {
-                    self.state = State::Paused;
+                    self.record_stop(libc::WSTOPSIG(status));
                 } else if libc::WIFCONTINUED(status) {
                     self.state = State::Running;
                 } else if libc::WIFEXITED(status) || libc::WIFSIGNALED(status) {
@@ -361,7 +364,7 @@ impl NativeSession {
         trace_step(self.child.id() as libc::pid_t, signal)?;
         self.stop_signal = None;
         self.state = State::Running;
-        self.wait_for_initial_stop()
+        Ok(())
     }
 
     fn terminate(&mut self) -> io::Result<()> {
