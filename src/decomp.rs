@@ -1391,21 +1391,27 @@ fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, current_name: &str, e
 fn infer_enum_vars(outs: &[BlockOut], seed: &HashMap<String, String>, current_name: &str, enum_return: Option<&str>) -> HashMap<String, String> {
     let mut vars = seed.clone();
     for _ in 0..outs.len().max(1) {
-        let mut changed = false;
+        let mut definitions: HashMap<String, Vec<Option<String>>> = HashMap::new();
         for block in outs {
             for (_, stmt) in &block.stmts {
                 if let Stmt::Assign(Ex::Var(dst), rhs) = stmt {
                     let source = enum_var_source(rhs, &vars, current_name, enum_return);
-                    if let Some(ty) = source {
-                        let old = vars.insert(dst.clone(), ty.clone());
-                        changed |= old.as_ref() != Some(&ty);
-                    } else {
-                        changed |= vars.remove(dst).is_some();
-                    }
+                    definitions.entry(dst.clone()).or_default().push(source);
                 }
             }
         }
-        if !changed { break; }
+        let mut inferred = seed.clone();
+        for (dst, candidates) in definitions {
+            inferred.remove(&dst);
+            let unanimous = candidates.first().and_then(Option::as_ref).cloned().filter(|first| {
+                candidates.iter().all(|candidate| candidate.as_ref() == Some(first))
+            });
+            if let Some(ty) = unanimous {
+                inferred.insert(dst, ty);
+            }
+        }
+        if inferred == vars { break; }
+        vars = inferred;
     }
     vars
 }
