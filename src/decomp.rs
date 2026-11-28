@@ -58,6 +58,14 @@ fn function_pointer_proto(ty: &str) -> Option<crate::protos::Proto> {
     parsed.pop()
 }
 
+fn function_pointer_cast_type(ty: &str) -> Option<String> {
+    let proto = function_pointer_proto(ty)?;
+    let mut params = proto.params.iter().map(|(ty, _)| ty.clone()).collect::<Vec<_>>();
+    if proto.variadic { params.push("...".into()); }
+    if params.is_empty() { params.push("void".into()); }
+    Some(format!("{} (*)({})", proto.ret, params.join(", ")))
+}
+
 fn call_return_type(callee: &Ex) -> Option<String> {
     match callee {
         Ex::Var(name) => crate::protos::find(name).map(|p| p.ret).filter(|ret| ret != "void"),
@@ -268,9 +276,11 @@ impl Fmt<'_> {
     fn call_argument(&self, argument: &Ex, expected: Option<&str>) -> String {
         let shown = self.at(argument, 99);
         let Some(expected) = expected.map(str::trim) else { return shown };
+        if let Some(callback_type) = function_pointer_cast_type(expected) {
+            return if matches!(argument, Ex::Num(0)) { format!("({callback_type}){shown}") } else { shown };
+        }
         let Some(expected_target) = self.pointer_target(expected) else {
-            if !expected.contains("(*") || !matches!(argument, Ex::Num(0)) { return shown; }
-            return format!("({expected}){shown}");
+            return shown;
         };
         let actual_type = self.expression_type(argument);
         let Some(actual_type) = actual_type else {
