@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.514 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.514 — Fourier</h1><p class="lead">More complete forwarding-thunk analysis, typed Linux/BSD APIs, and sandbox behavior review.</p><ul>
+<li>Resolve x86/x64 forwarding stubs that load known function addresses into registers before a tail jump.</li>
+<li>Resolve RIP-relative <code>lea</code> address materialization followed by a register jump.</li>
+<li>Resolve import-slot loads followed by a register jump.</li>
+<li>Recognize known-target x86 <code>push immediate; ret</code> forwarding stubs.</li>
+<li>Add resolved targets from these forms to function call lists and call xrefs.</li>
+<li>Match cross-capability heuristic evidence to each participating imported API.</li>
+<li>Show correlated heuristic signals on matching runtime API call events.</li>
+<li>Expose those call events to existing category filters and behavior call-site watchpoints.</li>
+<li>Add a typed <code>openat</code> prototype for directory-relative file access.</li>
+<li>Add a typed <code>openat2</code> prototype while preserving its options structure as opaque.</li>
+<li>Add typed <code>renameat</code> and <code>renameat2</code> prototypes with rename flags.</li>
+<li>Add typed <code>unlinkat</code> support for directory-relative removal.</li>
+<li>Add typed <code>faccessat</code> and <code>fchownat</code> directory-relative interfaces.</li>
+<li>Add typed <code>execveat</code> descriptor-based execution support.</li>
+<li>Add typed Linux <code>close_range</code> and <code>getrandom</code> interfaces.</li>
+<li>Add typed <code>prctl</code> and <code>seccomp</code> policy operations.</li>
+<li>Add typed <code>pidfd_open</code> and <code>pidfd_send_signal</code> process interfaces.</li>
+<li>Add typed <code>copy_file_range</code> and <code>splice</code> transfer interfaces.</li>
+<li>Add typed Landlock ruleset creation, rule addition, and self-restriction interfaces.</li>
+<li>Add typed OpenBSD <code>pledge</code> and <code>unveil</code> sandbox interfaces.</li>
+<li>Identify sandbox and syscall-policy imports as a separate static capability.</li>
+<li>Show an evidence-linked, low-severity sandbox policy signal without implying malicious intent.</li>
+<li>Add a dedicated sandbox category to runtime-event filters.</li>
+<li>Classify path-relative file changes and zero-copy transfers as filesystem call events.</li>
+<li>Classify pidfd operations and descriptor-range changes as process call events.</li>
+<li>Render common Linux <code>openat</code> access, create, directory, sync, and temporary-file flags.</li>
+<li>Render <code>renameat2</code>, <code>unlinkat</code>, <code>faccessat</code>, <code>fchownat</code>, and <code>execveat</code> flags symbolically.</li>
+<li>Render <code>close_range</code> and <code>getrandom</code> flags symbolically.</li>
+<li>Render known <code>prctl</code> options and <code>seccomp</code> operations/filter flags symbolically.</li>
+<li>Keep the weighted IDA Pro estimate at 41.8% until the next full category audit; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.514">GitHub release</a></p></main></body></html>
