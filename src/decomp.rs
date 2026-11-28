@@ -1296,6 +1296,8 @@ fn enum_var_source(e: &Ex, vars: &HashMap<String, String>, current_name: &str, e
     match e {
         Ex::Var(name) => vars.get(name).cloned(),
         Ex::Cast(_, inner) | Ex::CastOwned(_, inner) => enum_var_source(inner, vars, current_name, enum_return),
+        // Keep enum identity through integer unary transforms such as bitwise complement.
+        Ex::Un("+" | "-" | "~", inner) => enum_var_source(inner, vars, current_name, enum_return),
         Ex::Tern(_, yes, no) => {
             let ty = enum_var_source(yes, vars, current_name, enum_return)?;
             (enum_var_source(no, vars, current_name, enum_return).as_deref() == Some(ty.as_str())).then_some(ty)
