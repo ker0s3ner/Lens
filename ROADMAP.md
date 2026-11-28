@@ -4,6 +4,8 @@ Authoritative current release: **Lens 0.6.489 — Fourier**. This release batche
 
 Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 
+Unreleased follow-up after 0.6.489: address lookup now uses sorted segment bases, malformed segment and function-start ranges use checked/saturating arithmetic, and triage identifies possible process injection only when both memory-write/allocation and remote-thread-control imports are present. The GitHub 128 MiB synthetic ELF gate passed at 5.229 seconds and 393.89 MiB peak RSS; this single fixture does not establish broad real-binary performance.
+
 Release update: **Lens 0.6.488 — Fourier** adds configurable native child sessions, entry-stop and single-step controls, bounded output and process-event capture, restart and PID handoff, four new explainable behavior-triage categories, unary enum propagation, and corrected M68k `TAS` flags. The weighted estimate is **41.0%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.487 — Fourier** propagates parameter and return types through local callback typedefs, renders null callback arguments with C-compatible types, distinguishes persistence mechanisms from general settings access, and highlights credential-store imports in static and observed-call triage. The weighted parity estimate remains 39.5%; the 50% target remains unmet.
