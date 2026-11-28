@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.500 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.500 — Fourier</h1><p class="lead">Cleaner pseudocode from iterative dead-temporary removal.</p><ul>
+<li>Recount generated temporary uses after each cleanup pass and remove dead chains to a fixed point.</li>
+<li>Prune unused literal, copy, arithmetic, unary, cast, and conditional temporary assignments.</li>
+<li>Keep calls visible as expression statements when their return values are unused.</li>
+<li>Keep memory reads and division/remainder operations whose evaluation may be observable.</li>
+<li>Retain opaque fallback expressions and named variables conservatively.</li>
+<li>Count uses in statements, control-flow terms, and live register outputs.</li>
+</ul><p>The weighted IDA Pro parity estimate remains 41.8%. This is local temporary cleanup; full CFG-aware SSA and broader dead-code analysis remain roadmap work.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.500">GitHub release</a></p></main></body></html>

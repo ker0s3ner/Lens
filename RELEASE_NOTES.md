@@ -1,3 +1,27 @@
+# Lens 0.6.500 — Fourier
+
+- Remove unused generated temporary assignments after pseudocode expression propagation.
+- Recount variable uses after every cleanup pass so newly dead upstream values are found.
+- Repeat cleanup to a fixed point, removing multi-step dead temporary chains.
+- Clean up dead integer and literal-only expression chains.
+- Clean up dead copy and alias chains exposed by earlier removals.
+- Clean up dead binary-operation chains while retaining values used by output code.
+- Clean up dead unary-operation results.
+- Clean up dead explicit and inferred cast temporaries.
+- Clean up dead conditional-expression chains when all branches are safe to discard.
+- Preserve unused call results as standalone call expressions so side effects remain visible.
+- Preserve nested calls even when wrapped in casts or conditional expressions.
+- Preserve memory reads whose result is unused because the access may fault or observe volatile data.
+- Preserve integer division and remainder expressions because the machine operation may trap.
+- Preserve opaque fallback expressions rather than assuming they are removable.
+- Restrict cleanup to generated `vN` and `tN` temporaries; keep named variables intact.
+- Count uses in assignments, expression statements, return values, conditions, indirect branches, and live register outputs.
+- Keep statement addresses attached to retained expressions for pseudocode-to-listing navigation.
+- Leave the existing local and cross-block propagation rules intact.
+- Document the narrower cleanup boundary and remaining full SSA work in the roadmap.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.499 — Fourier
 
 - Honor `#pragma pack(n)` alignment caps that appear before a record declaration.

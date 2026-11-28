@@ -1224,6 +1224,19 @@ fn count_vars(e: &Ex, m: &mut HashMap<String, usize>) {
     }
 }
 
+fn observable_eval(e: &Ex) -> bool {
+    match e {
+        // Keep calls and memory reads when their result is unused: the former
+        // can change program state, and a dereference may target volatile data.
+        Ex::Call(..) | Ex::Deref(..) | Ex::Raw(..) => true,
+        Ex::Bin("/" | "%", _, _) => true,
+        Ex::Bin(_, a, b) => observable_eval(a) || observable_eval(b),
+        Ex::Un(_, a) | Ex::Cast(_, a) | Ex::CastOwned(_, a) => observable_eval(a),
+        Ex::Tern(a, b, c) => observable_eval(a) || observable_eval(b) || observable_eval(c),
+        Ex::Num(_) | Ex::Var(_) => false,
+    }
+}
+
 // ------------------------------------------------------------------ registers
 
 const GPR: [&str; 16] =
@@ -3122,41 +3135,55 @@ fn decompile_inner(
             }
         }
     }
-    // drop unused call results
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for o in &outs {
-        for (_, s) in &o.stmts {
-            match s {
-                Stmt::Assign(l, r) => {
-                    if !matches!(l, Ex::Var(_)) {
-                        count_vars(l, &mut counts);
+    // Remove dead temporary chains to a fixed point. Recount after each pass:
+    // deleting `v2 = v1 + 1` can make the earlier definition of `v1` dead too.
+    loop {
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for o in &outs {
+            for (_, s) in &o.stmts {
+                match s {
+                    Stmt::Assign(l, r) => {
+                        if !matches!(l, Ex::Var(_)) {
+                            count_vars(l, &mut counts);
+                        }
+                        count_vars(r, &mut counts)
                     }
-                    count_vars(r, &mut counts)
+                    Stmt::Expr(e) => count_vars(e, &mut counts),
+                    _ => {}
                 }
-                Stmt::Expr(e) => count_vars(e, &mut counts),
-                _ => {}
             }
-        }
-        for t in [&o.term] {
-            match t {
+            match &o.term {
                 Term::Ret(Some(e)) | Term::Indirect(e) => count_vars(e, &mut counts),
                 Term::Cond { cond, .. } => count_vars(cond, &mut counts),
                 _ => {}
             }
         }
-    }
-    for m in &mat {
-        for (_, e) in m {
-            count_vars(e, &mut counts);
+        for m in &mat {
+            for (_, e) in m {
+                count_vars(e, &mut counts);
+            }
         }
-    }
-    for o in outs.iter_mut() {
-        for (_, s) in o.stmts.iter_mut() {
-            if let Stmt::Assign(Ex::Var(v), r) = s {
-                if (v.starts_with('v') || v.starts_with('t')) && v[1..].chars().all(|c| c.is_ascii_digit()) && counts.get(v.as_str()).copied().unwrap_or(0) == 0 {
-                    *s = if matches!(r, Ex::Call(..)) { Stmt::Expr(r.clone()) } else { Stmt::Comment(String::new()) };
+        let mut removed = false;
+        for o in outs.iter_mut() {
+            for (_, s) in o.stmts.iter_mut() {
+                if let Stmt::Assign(Ex::Var(v), r) = s {
+                    if (v.starts_with('v') || v.starts_with('t'))
+                        && v[1..].chars().all(|c| c.is_ascii_digit())
+                        && counts.get(v.as_str()).copied().unwrap_or(0) == 0
+                    {
+                        if observable_eval(r) {
+                            *s = Stmt::Expr(r.clone());
+                            removed = true;
+                        } else {
+                            *s = Stmt::Comment(String::new());
+                            removed = true;
+                        }
+                    }
                 }
             }
+        }
+        if !removed {
+            break;
         }
     }
     // inline single-use call results: `v1 = f(); x = v1;`-style is left alone; only drop trivial self-assignments
