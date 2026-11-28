@@ -121,7 +121,7 @@ fn threat_signals(capabilities: &[Capability], packers: &[Guess], protections: &
     if let Some(c) = has("Processes") {
         out.push(ThreatSignal { severity: 2, name: "Process execution".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
-    if let Some(c) = has("Registry & settings") {
+    if let Some(c) = has("Persistence mechanisms") {
         out.push(ThreatSignal { severity: 3, name: "Persistence behavior".into(), evidence: format!("imports: {}", c.apis.join(", ")) });
     }
     if let Some(c) = has("Keyboard & screen capture") {
@@ -574,6 +574,7 @@ const CAPS: &[(&str, &[&str])] = &[
     ("Files", &["CreateFile", "ReadFile", "WriteFile", "DeleteFile", "FindFirstFile", "CopyFile", "MoveFile", "fopen", "fread", "fwrite", "unlink", "opendir", "readdir", "stat", "NSFileManager", "open", "rename", "mkdir"]),
     ("Processes", &["CreateProcess", "ShellExecute", "WinExec", "execve", "execl", "execv", "fork", "posix_spawn", "system", "popen", "NSTask", "OpenProcess", "TerminateProcess"]),
     ("Registry & settings", &["RegOpenKey", "RegSetValue", "RegQueryValue", "RegCreateKey", "RegDeleteKey", "NSUserDefaults", "CFPreferences", "GetPrivateProfile"]),
+    ("Persistence mechanisms", &["CreateService", "ChangeServiceConfig", "RegisterTaskDefinition", "SMAppServiceRegister", "LSSharedFileListInsertItemURL"]),
     ("Cryptography", &["Crypt", "BCrypt", "NCrypt", "EVP_", "AES_", "RSA_", "SHA256", "MD5", "CC_SHA", "CC_MD5", "CCCrypt", "SecKey", "SecRandom", "mbedtls", "sodium_", "gcry_"]),
     ("Memory tricks", &["VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory", "CreateRemoteThread", "NtUnmapViewOfSection", "mprotect", "mmap", "ptrace", "task_for_pid", "mach_vm_"]),
     ("Anti-debugging", &["IsDebuggerPresent", "CheckRemoteDebuggerPresent", "NtQueryInformationProcess", "OutputDebugString", "ptrace", "sysctl", "PT_DENY_ATTACH"]),
