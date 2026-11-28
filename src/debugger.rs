@@ -367,7 +367,10 @@ fn narrow_string_pointer(ty: &str) -> bool {
 fn wide_string_pointer(ty: &str) -> bool {
     let compact = ty.split_whitespace().filter(|word| !matches!(*word, "const" | "volatile" | "restrict"))
         .collect::<Vec<_>>().join("").to_ascii_lowercase();
-    matches!(compact.as_str(), "lpwstr" | "lpcwstr" | "pwstr" | "pcwstr")
+    matches!(
+        compact.as_str(),
+        "lpwstr" | "lpcwstr" | "pwstr" | "pcwstr" | "wchar_t*" | "char16_t*" | "uint16_t*"
+    )
 }
 
 fn parse_string_preview(lines: &[String], wide: bool) -> Option<String> {
