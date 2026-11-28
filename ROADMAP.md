@@ -4,6 +4,8 @@ Authoritative current release: **Lens 0.6.490 — Fourier**. This patch release 
 
 Release update: **Lens 0.6.490 — Fourier** indexes sorted segment addresses, hardens malformed ranges and large-offset reads, avoids duplicating raw file buffers, releases parsed-file buffers before DWARF recovery, keeps native stepping nonblocking, forwards Linux target signals correctly, and adds paired process-injection triage with Win32/Nt/Zw prototypes. Weighted parity remains **41.8%**; no score change is claimed without a full category re-audit.
 
+Post-release scale measurement: the 134,225,920-byte synthetic ELF passed the GitHub Actions gate in **5.278 seconds at 267.73 MiB peak RSS**, versus 393.89 MiB on the preceding run of the same fixture (about **32% less peak memory**). Runtime stayed close to the prior 5.229-second result. This is one controlled synthetic input; real-binary coverage and incremental loading remain open.
+
 Release update: **Lens 0.6.489 — Fourier** adds validated per-variable C types in pseudocode, persists them through undo and database interchange, applies them consistently to GUI/CLI/script exports, propagates pointer aliases and nested expressions more accurately, and avoids type guesses when branches disagree. The weighted estimate is **41.8%**; the 50% target remains unmet.
 
 Release update: **Lens 0.6.488 — Fourier** adds configurable native child sessions, entry-stop and single-step controls, bounded output and process-event capture, restart and PID handoff, four new explainable behavior-triage categories, unary enum propagation, and corrected M68k `TAS` flags. The weighted estimate is **41.0%**; the 50% target remains unmet.
@@ -158,7 +160,7 @@ Earlier baseline build: **Lens 0.6.437 — Fourier**. The golden corpus now chec
 
 Current audit marker: **0.6.490 — Fourier**. The weighted estimate remains **41.8%** engineering capability; the practical workflow estimate remains **about 42–47%**. Recent work includes safer segment indexing and reads, lower peak loader memory, native local-child stepping and signal forwarding, paired process-injection triage, and editable persistent local-variable types. The 50% target is still unmet.
 
-Status checked against the repository on 2026-11-28, at **Lens 0.6.490 — Fourier**. The practical workflow estimate is **about 42–47% of IDA Pro**; the weighted capability model below is **41.8% of IDA Pro's breadth** (plausible range: **34–43%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. A synthetic 128 MiB ELF was analyzed by GitHub Actions in 5.427 seconds at 393.36 MiB peak RSS; this is an initial controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
+Status checked against the repository on 2026-11-28, at **Lens 0.6.490 — Fourier**. The practical workflow estimate is **about 42–47% of IDA Pro**; the weighted capability model below is **41.8% of IDA Pro's breadth** (plausible range: **34–43%**). The 50% target is not yet reached. These estimates measure feature coverage, not analysis accuracy, reliability, performance, polish, or production readiness. The latest GitHub Actions run analyzed a 134,225,920-byte synthetic ELF in 5.278 seconds at 267.73 MiB peak RSS; this remains one controlled measurement, not a broad real-binary benchmark. Each phase still needs validation against real binaries as well as targeted regression fixtures. Planned work is kept separate from completed work.
 
 | Capability area | Weight | Lens coverage estimate | Weighted contribution |
 | --- | ---: | ---: | ---: |
@@ -175,7 +177,7 @@ These are engineering estimates, not a feature-count comparison. Lens already ha
 
 ## Phase 1 - Reliability (first, everything else depends on it)
 - Expand the existing 200-program system-binary run into a repeatable corpus covering ELF, PE, Mach-O, stripped files, dylibs, and Go/Rust/Swift; fix crashes and incorrect results found by it.
-- Performance on 100 MB+ files: a 128 MiB synthetic ELF now passes a repeatable GitHub Actions metadata/performance gate (5.427 s, 393.36 MiB peak RSS). Background analysis, incremental listing, and broader real-binary measurements remain open. Call-graph expansion bounds high-fanout neighborhoods, indexes visible neighbors, preserves crossing edges, and surfaces truncation.
+- Performance on 100 MB+ files: a 134,225,920-byte synthetic ELF passes a repeatable GitHub Actions metadata/performance gate (latest: 5.278 s, 267.73 MiB peak RSS, about 32% below the previous 393.89 MiB run). Background analysis, incremental listing, and broader real-binary measurements remain open. Call-graph expansion bounds high-fanout neighborhoods, indexes visible neighbors, preserves crossing edges, and surfaces truncation.
 - Add a repeatable regression suite with golden outputs for disassembly and pseudocode; the repository has targeted unit tests, but not this corpus-level suite.
 
 ## Phase 2 - Analysis depth
