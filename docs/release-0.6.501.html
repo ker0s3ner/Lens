@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.501 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.501 — Fourier</h1><p class="lead">See API arguments at statically flagged behavior call sites.</p><ul>
+<li>Capture register values for each debugger stop and keep that snapshot with its event.</li>
+<li>Decode x86-64 System V, Windows x64, and AArch64 argument registers.</li>
+<li>Use known API prototypes for parameter names and C types; use <code>argN</code> where they are unavailable.</li>
+<li>Show captured values beneath behavior-callsite events.</li>
+<li>Include argument names, types, register names, and raw values in TSV and JSON event handoffs and dynamic-trace JSON.</li>
+<li>Leave pointers as raw values; Lens does not read memory through them here.</li>
+</ul><p>These are values observed at a breakpoint before the API executes. They do not prove the call completed. Other calling conventions are not decoded yet. The weighted IDA Pro parity estimate remains 41.8%.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.501">GitHub release</a></p></main></body></html>

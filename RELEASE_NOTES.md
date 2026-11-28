@@ -1,3 +1,26 @@
+# Lens 0.6.501 — Fourier
+
+- Capture a register snapshot on each debugger stop and attach it to that event's program counter.
+- Keep snapshots per event so later steps do not overwrite earlier behavior evidence.
+- Decode System V x86-64 argument registers (`rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`).
+- Decode Windows x64 argument registers (`rcx`, `rdx`, `r8`, `r9`) for PE images.
+- Decode AArch64 argument registers (`x0` through `x7`).
+- Match captured registers to the imported API's recovered prototype when available.
+- Show parameter names and C types beside captured argument values.
+- Use stable `argN` labels when a prototype is unavailable or has unnamed parameters.
+- Keep raw register values visible as hexadecimal strings, including pointer values.
+- Show argument values under behavior-callsite events in the debugger.
+- Add argument values to copied TSV runtime-event handoffs.
+- Add structured `arguments` records to copied runtime-event JSON.
+- Include argument records in the dynamic-trace JSON export.
+- Keep each event's original address, caller, API, severity, and heuristic evidence.
+- Do not dereference captured pointers or claim that the API completed; the breakpoint remains before the call.
+- Leave events without a supported ABI mapping unchanged and without guessed arguments.
+- Bound register snapshots with the existing 512-event history limit.
+- Document the supported x64 and AArch64 argument-register maps and their limits.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.500 — Fourier
 
 - Remove unused generated temporary assignments after pseudocode expression propagation.
