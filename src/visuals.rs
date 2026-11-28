@@ -761,7 +761,11 @@ impl LensApp {
         let (nw, nh) = (214.0f32, 40.0f32);
         let rect_of = |n: &CNode| Rect::from_min_size(origin + vec2(n.layer as f32 * 280.0 - nw / 2.0, n.y - nh / 2.0) * z, vec2(nw, nh) * z);
         let hover = resp.hover_pos();
-        let hovered = nodes.iter().position(|n| hover.map(|h| rect_of(n).contains(h)).unwrap_or(false));
+        // Node transforms are shared by hit testing, edge clipping, and painting.
+        // Compute them once per frame instead of repeating the same geometry for
+        // both endpoints of every edge in dense graphs.
+        let node_rects: Vec<Rect> = nodes.iter().map(rect_of).collect();
+        let hovered = hover.and_then(|h| node_rects.iter().position(|rect| rect.contains(h)));
         // Dense graphs can contain thousands of cached relationships. Avoid
         // allocating curve points for edges whose endpoints are both far
         // outside the viewport; this keeps panning/zooming responsive.
@@ -769,7 +773,7 @@ impl LensApp {
         // edges
         for (a, b) in edges {
             if *a >= nodes.len() || *b >= nodes.len() { continue; }
-            let (ra, rb) = (rect_of(&nodes[*a]), rect_of(&nodes[*b]));
+            let (ra, rb) = (node_rects[*a], node_rects[*b]);
             let (s, e) = (pos2(ra.right(), ra.center().y), pos2(rb.left(), rb.center().y));
             let hot = hovered == Some(*a) || hovered == Some(*b);
             let col = if hot { p.accent } else { p.faint.gamma_multiply(0.7) };
@@ -798,7 +802,7 @@ impl LensApp {
         // nodes
         let mut goto = None;
         for (i, n) in nodes.iter().enumerate() {
-            let r = rect_of(n);
+            let r = node_rects[i];
             if !r.intersects(area) {
                 continue;
             }
