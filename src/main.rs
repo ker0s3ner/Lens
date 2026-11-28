@@ -129,7 +129,7 @@ fn cli(args: &[String]) -> bool {
     }
     if args.iter().any(|a| a == "--dbg-test") {
         let main_addr = det.main.as_ref().map(|m| m.0).unwrap_or(0);
-        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", "", false, &[main_addr], &std::collections::HashMap::new()) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
+        let mut d = match debugger::Dbg::start(&bin.path, None, "", "", "", false, &[main_addr], &std::collections::HashMap::new(), &[], &[], false) { Ok(d) => d, Err(e) => { println!("{e}"); return true } };
         let t0 = std::time::Instant::now();
         let mut step = 0;
         while t0.elapsed().as_secs() < 25 {
