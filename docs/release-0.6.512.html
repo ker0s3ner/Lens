@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lens 0.6.512 — Fourier</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="wrap docs"><p class="eyebrow">Lens release</p><h1>0.6.512 — Fourier</h1><p class="lead">Simple jump-table cases now appear as structured switch bodies in pseudocode.</p><ul>
+<li>Resolve jump-table targets to blocks in the current function.</li>
+<li>Keep signed and nonsequential case indices.</li>
+<li>Use enum member names for typed switch selectors.</li>
+<li>Group multiple case labels that share the same block.</li>
+<li>Inline supported single-block cases into the switch statement.</li>
+<li>Render shared continuations as <code>break</code> and preserve direct return cases.</li>
+<li>Avoid emitting inlined case blocks a second time later in the function.</li>
+<li>Require one shared continuation and safe case layout before structuring the switch.</li>
+<li>Keep labels and gotos when cases have external entries or complex control flow.</li>
+<li>Weighted IDA Pro parity remains 41.8%; the 50% target remains unmet.</li>
+</ul><p>GitHub Actions builds the release artifact; no local build or installation was performed.</p><p><a href="whats-new.html">What's New</a> · <a href="releases.html">Release archive</a> · <a href="https://github.com/ker0s3ner/Lens/releases/tag/v0.6.512">GitHub release</a></p></main></body></html>

@@ -1,3 +1,21 @@
+# Lens 0.6.512 — Fourier
+
+- Render simple jump-table switches as structured C-like `switch` statements.
+- Resolve table targets to their containing function blocks before structuring cases.
+- Preserve recovered nonsequential and signed case indices in case labels.
+- Use recovered enum member names for switch case labels when the selector has an enum type.
+- Group multiple table indices that share the same case body.
+- Inline each case block's assignments and expressions under its case labels.
+- Render shared case exits as `break` statements.
+- Render return-valued and void-return cases directly inside the switch body.
+- Mark inlined case blocks as emitted to prevent duplicate fallthrough output.
+- Require a common continuation for switch bodies that use `break`.
+- Require cases to occupy the block interval before their common continuation.
+- Preserve label/goto switch output when a case block has external incoming control flow.
+- Preserve label/goto output for nested, multi-block, conditional, indirect, or otherwise complex cases.
+- Keep the weighted IDA Pro parity estimate at 41.8%; the 50% target remains unmet.
+- GitHub Actions builds the release artifact; no local build or installation was performed.
+
 # Lens 0.6.511 — Fourier
 
 - Repeat CFG copy and constant propagation until a full pass makes no change.

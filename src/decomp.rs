@@ -2875,6 +2875,75 @@ impl Emit<'_> {
         exit
     }
 
+    /// Structure a jump-table switch when each case is a standalone block
+    /// that returns or exits to one shared continuation. More complex case
+    /// flow keeps the existing label/goto representation.
+    fn emit_flat_switch(&mut self, dispatch: usize, addr: u64, expression: &Ex, targets: &[u64], ind: usize) -> Option<usize> {
+        if targets.is_empty() { return None; }
+        let enum_ty = self.enum_type(expression);
+        let indices = self.switch_case_indices.get(&addr);
+        let mut cases: Vec<(usize, Vec<i64>)> = Vec::new();
+        for (ordinal, target) in targets.iter().enumerate() {
+            let Some(&block) = self.idx.get(target) else { return None };
+            if block <= dispatch || self.done.contains(&block) || self.labels.contains(target) { return None; }
+            let case_value = indices.and_then(|values| values.get(ordinal).copied()).unwrap_or(ordinal as i64);
+            if let Some((_, values)) = cases.iter_mut().find(|(known, _)| *known == block) {
+                values.push(case_value);
+            } else {
+                cases.push((block, vec![case_value]));
+            }
+        }
+
+        let mut common_exit = None;
+        for (block, _) in &cases {
+            match &self.outs[*block].term {
+                Term::Ret(_) => {}
+                Term::Jmp(target) | Term::Fall(target) => {
+                    if common_exit.is_some_and(|known| known != *target) { return None; }
+                    common_exit = Some(*target);
+                }
+                _ => return None,
+            }
+        }
+        let Some(exit) = common_exit else { return None };
+        let Some(&exit_block) = self.idx.get(&exit) else { return None };
+        if exit_block <= dispatch || cases.iter().any(|(block, _)| *block == exit_block) { return None; }
+        let case_blocks: HashSet<usize> = cases.iter().map(|(block, _)| *block).collect();
+        if (dispatch + 1..exit_block).any(|block| !case_blocks.contains(&block)) { return None; }
+
+        // A case block with another incoming edge cannot be moved into the
+        // switch body without changing the function's control flow.
+        let case_starts: HashSet<u64> = cases.iter().map(|(block, _)| self.f.blocks[*block].start).collect();
+        for (source, block) in self.f.blocks.iter().enumerate() {
+            if source == dispatch { continue; }
+            if block.succs.iter().any(|(target, _)| case_starts.contains(target)) {
+                return None;
+            }
+        }
+
+        self.line(ind, addr, format!("switch ({}) {{", self.fmt.at(expression, 3)));
+        for (block, values) in cases {
+            for case_value in values {
+                let label = enum_ty.as_ref()
+                    .and_then(|ty| self.enum_constants.get(ty).and_then(|known| known.get(&case_value).map(|member| format!("{ty}::{member}"))))
+                    .unwrap_or_else(|| case_value.to_string());
+                self.line(ind + 1, addr, format!("case {label}:"));
+            }
+            self.block_stmts(block, ind + 2);
+            let case_term = self.outs[block].term.clone();
+            let case_addr = self.outs[block].term_addr;
+            match case_term {
+                Term::Ret(Some(value)) => self.line(ind + 2, case_addr, format!("return {};", self.fmt.show(&value))),
+                Term::Ret(None) => self.line(ind + 2, case_addr, "return;".into()),
+                Term::Jmp(_) | Term::Fall(_) => self.line(ind + 2, case_addr, "break;".into()),
+                _ => unreachable!("switch case terms were validated above"),
+            }
+            self.done.insert(block);
+        }
+        self.line(ind, addr, "}".into());
+        Some(dispatch + 1)
+    }
+
     fn emit_one(&mut self, i: usize, hi: usize, ind: usize, lp: Option<(usize, usize)>) -> usize {
         if self.done.contains(&i) {
             return i + 1;
@@ -2901,6 +2970,9 @@ impl Emit<'_> {
             Term::Stop => i + 1,
             Term::Indirect(e) => {
                 if let Some(ts) = self.switches.get(&ta).cloned() {
+                    if let Some(next) = self.emit_flat_switch(i, ta, &e, &ts, ind) {
+                        return next;
+                    }
                     let enum_ty = self.enum_type(&e);
                     self.line(ind, ta, format!("switch ({}) {{ // jump table, {} targets", self.fmt.at(&e, 3), ts.len()));
                     let indices = self.switch_case_indices.get(&ta);
